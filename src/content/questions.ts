@@ -1670,6 +1670,218 @@ export const questions: Question[] = [
       ],
     },
   },
+
+  // — Batch 3 (76–85) — using tagged tone: 0 soft-female, 1 broish-male, 2 open-neutral, 3 male variant —
+  {
+    id: 76,
+    category: "childhood",
+    depth: "texture",
+    en: "What's a food you couldn't stomach as a kid? Can you eat it now?",
+    es: "¿Qué comida no soportabas de niño? ¿La comes ahora?",
+    randomizeOptions: {
+      en: [
+        "El hígado de mami, el pobre. I'd hide it in my napkin. Now I'd eat anything she made me, just to have her cooking again.",
+        "Mushrooms. Hated them. Still don't trust them.",
+        "Tomatoes — the texture, mostly. I came around in my twenties and now I cook with them daily.",
+        "Boiled cabbage. Can't say I've reconsidered.",
+      ],
+      es: [
+        "El hígado de mami, el pobre. Lo escondía en la servilleta. Ahora me comería cualquier cosa que ella me hiciera, sólo por volver a probar su cocina.",
+        "Champiñones. Los odiaba. Sigo sin confiar en ellos.",
+        "Los tomates — la textura, sobre todo. Cambié de opinión en mis veintes y ahora cocino con ellos a diario.",
+        "Repollo hervido. No puedo decir que haya cambiado de idea.",
+      ],
+    },
+  },
+  {
+    id: 77,
+    category: "stories",
+    depth: "texture",
+    en: "Tell me about a piece of clothing you ruined and never quite forgot.",
+    es: "Cuéntame de una prenda que arruinaste y que nunca olvidaste.",
+    randomizeOptions: {
+      en: [
+        "Un vestido amarillo de mi quinceañera. Got punch on it dancing. I cried. My mami cleaned it for an hour.",
+        "Suit pants. Sat on a wet bench. Wore them to a wedding anyway.",
+        "A cashmere sweater my friend lent me — coffee, ten minutes in. I bought her a better one, and she still brings it up.",
+        "A varsity jacket. Lent it to a girl. Never saw it again. Saw the girl twice more.",
+      ],
+      es: [
+        "Un vestido amarillo de mi quinceañera. Le cayó ponche bailando. Lloré. Mi mami lo limpió por una hora.",
+        "Pantalones de traje. Me senté en una banca mojada. Fui a la boda con ellos igual.",
+        "Un suéter de cashmere que me prestó mi amiga — café, a los diez minutos. Le compré uno mejor, y aún me lo recuerda.",
+        "Una chaqueta del equipo. Se la presté a una muchacha. Nunca la volví a ver. A ella la vi dos veces más.",
+      ],
+    },
+  },
+  {
+    id: 78,
+    category: "stories",
+    depth: "texture",
+    en: "What's a time you bumped into someone you didn't expect, and where?",
+    es: "¿Cuándo te encontraste con alguien que no esperabas, y dónde?",
+    randomizeOptions: {
+      en: [
+        "Encontré a una vieja amiga del barrio en un hospital de Miami. Both there for our mothers. Lloramos en el pasillo.",
+        "Saw my high school coach at a hardware store. Twenty years later. He didn't remember me. I didn't tell him.",
+        "Ran into someone I'd dated five years prior at a bookstore in another city. We had coffee. It was lovely and final.",
+        "An old army buddy. Gas station. Didn't speak. Nodded. He nodded back.",
+      ],
+      es: [
+        "Encontré a una vieja amiga del barrio en un hospital de Miami. Las dos por nuestras madres. Lloramos en el pasillo.",
+        "Vi a mi entrenador de la prepa en una ferretería. Veinte años después. No me reconoció. No le dije.",
+        "Me crucé con alguien con quien había salido cinco años antes, en una librería de otra ciudad. Tomamos café. Fue hermoso y definitivo.",
+        "Un compañero del ejército. Gasolinera. No hablamos. Nos saludamos con la cabeza. Él me devolvió el saludo.",
+      ],
+    },
+  },
+  {
+    id: 79,
+    category: "self",
+    depth: "surface",
+    en: "What's on your phone's home screen — wallpaper and all?",
+    es: "¿Qué tienes en la pantalla de inicio del teléfono — fondo y todo?",
+    randomizeOptions: {
+      en: [
+        "Una foto de mis nietos en la playa. The youngest is making a face. Me mata de la risa cada vez que lo veo.",
+        "Plain black. Eight apps I actually use. That's it.",
+        "A photo of fog over a hill, taken on a Tuesday I needed. I look at it more than I should.",
+        "Picture of my dog. He's been gone six years. Don't see a reason to change it.",
+      ],
+      es: [
+        "Una foto de mis nietos en la playa. El más chiquito hace una mueca. Me mata de la risa cada vez que la veo.",
+        "Negro sólido. Ocho apps que uso. Nada más.",
+        "Una foto de niebla sobre una colina, tomada un martes que la necesitaba. La miro más de lo que debería.",
+        "Foto de mi perro. Se fue hace seis años. No veo razón para cambiarla.",
+      ],
+    },
+  },
+  {
+    id: 80,
+    category: "childhood",
+    depth: "texture",
+    en: "How did your house go quiet at night when you were a kid?",
+    es: "¿Cómo se ponía tranquila tu casa de noche cuando eras niño?",
+    randomizeOptions: {
+      en: [
+        "Mami dejaba la radio bajita en la cocina hasta que se quedaba dormida. That low murmur was the lullaby of my whole childhood.",
+        "Old man fell asleep with the TV on. Mom got up and turned it off. Same thing every night.",
+        "It went quiet in stages — dishes, then footsteps, then a door, then the house breathing. I learned each layer.",
+        "The grandfather clock kept time. Everything else stopped. We lived inside that ticking.",
+      ],
+      es: [
+        "Mami dejaba la radio bajita en la cocina hasta que se quedaba dormida. Ese murmullo bajito fue la canción de cuna de mi infancia entera.",
+        "Mi viejo se dormía con la tele puesta. Mi mamá se levantaba y la apagaba. La misma rutina cada noche.",
+        "Se ponía tranquila por etapas — los platos, luego los pasos, luego una puerta, luego la respiración de la casa. Aprendí cada capa.",
+        "El reloj de pie marcaba el tiempo. Todo lo demás se detenía. Vivíamos adentro de ese tic-tac.",
+      ],
+    },
+  },
+  {
+    id: 81,
+    category: "family",
+    depth: "texture",
+    en: "Was there an aunt, uncle, or cousin who quietly shaped who you are?",
+    es: "¿Hubo una tía, un tío o un primo que en silencio te moldeó?",
+    randomizeOptions: {
+      en: [
+        "Mi tía Yolanda. She had no kids. She had me. Me llevaba al cine y me decía que yo iba a ser alguien.",
+        "My uncle Ray. Showed me how to fix a carburetor and shut up while doing it. Both useful.",
+        "An older cousin who lent me her books and never asked for them back. I owe my reading life to her.",
+        "Uncle Walt. Drank too much, told the truth. I learned both lessons.",
+      ],
+      es: [
+        "Mi tía Yolanda. No tenía hijos. Me tenía a mí. Me llevaba al cine y me decía que yo iba a ser alguien.",
+        "Mi tío Ray. Me enseñó a arreglar un carburador y a callarme mientras lo hacía. Ambas cosas útiles.",
+        "Una prima mayor que me prestaba sus libros y nunca me los pidió de vuelta. Le debo mi vida lectora.",
+        "El tío Walt. Tomaba mucho, decía la verdad. Aprendí las dos lecciones.",
+      ],
+    },
+  },
+  {
+    id: 82,
+    category: "love",
+    depth: "texture",
+    en: "What's a small gesture you do for someone you love that they may not even notice?",
+    es: "¿Cuál es un gesto pequeño que haces por alguien que amas y que tal vez ni nota?",
+    randomizeOptions: {
+      en: [
+        "Le dejo el último pedacito de pastel. Sin decirle. Ella nunca lo ha mencionado, pero yo sé que ella sabe.",
+        "Top off her coffee before she notices it's low. Done it for fifteen years. Plan to keep doing it.",
+        "I leave little notes in his coat pockets. Mostly nonsense. Sometimes he finds them weeks later.",
+        "Warm her car up in winter. She thinks the engine just runs warm.",
+      ],
+      es: [
+        "Le dejo el último pedacito de pastel. Sin decirle. Ella nunca lo ha mencionado, pero yo sé que ella sabe.",
+        "Le sirvo más café antes de que se dé cuenta de que se le acabó. Quince años haciéndolo. Pienso seguir.",
+        "Le dejo notitas en los bolsillos del abrigo. Casi siempre tonterías. A veces las encuentra semanas después.",
+        "Le caliento el carro en invierno. Cree que el motor calienta rápido.",
+      ],
+    },
+  },
+  {
+    id: 83,
+    category: "stories",
+    depth: "texture",
+    en: "Tell me about a time you got really lost — actually or otherwise.",
+    es: "Cuéntame de cuando te perdiste de verdad — literal o no.",
+    randomizeOptions: {
+      en: [
+        "En La Habana, a los diecinueve. Sin mapa. Sin teléfono. Encontré un parque, me senté, me eché a llorar. Y un viejito me trajo un café.",
+        "Took a wrong exit in Wyoming. Drove an hour. Saw a moose. Worth it.",
+        "Lost in a city I'd lived in for two years. Couldn't find my own street. The day was full of those small undoings.",
+        "Got turned around in a hospital. Wandered into a wing I shouldn't have. Saw something I haven't shaken.",
+      ],
+      es: [
+        "En La Habana, a los diecinueve. Sin mapa. Sin teléfono. Encontré un parque, me senté, me eché a llorar. Y un viejito me trajo un café.",
+        "Tomé la salida equivocada en Wyoming. Manejé una hora. Vi un alce. Valió la pena.",
+        "Perdido en una ciudad en la que había vivido dos años. No encontraba mi propia calle. El día estuvo lleno de esos pequeños desbarajustes.",
+        "Me confundí en un hospital. Caminé a un ala donde no debía estar. Vi algo que no se me ha quitado.",
+      ],
+    },
+  },
+  {
+    id: 84,
+    category: "self",
+    depth: "surface",
+    en: "What's on your nightstand right now?",
+    es: "¿Qué hay en tu mesita de noche ahora mismo?",
+    randomizeOptions: {
+      en: [
+        "Mi rosario, un vaso de agua, las gotas para los ojos, y una foto de Hector. En ese orden.",
+        "Glasses, alarm clock, half a glass of water from three days ago.",
+        "A book, a candle, a pile of receipts I keep meaning to deal with, a glass of water.",
+        "A wristwatch, a worn paperback, and a single aspirin in case the night requires it.",
+      ],
+      es: [
+        "Mi rosario, un vaso de agua, las gotas para los ojos, y una foto de Hector. En ese orden.",
+        "Anteojos, reloj despertador, medio vaso de agua de hace tres días.",
+        "Un libro, una vela, una pila de recibos que llevo tiempo queriendo organizar, un vaso de agua.",
+        "Un reloj de pulsera, un libro de bolsillo gastado, y una aspirina por si la noche la requiere.",
+      ],
+    },
+  },
+  {
+    id: 85,
+    category: "childhood",
+    depth: "texture",
+    en: "What's a smell from school that comes back to you out of nowhere?",
+    es: "¿Qué olor de la escuela te regresa de la nada?",
+    randomizeOptions: {
+      en: [
+        "Tiza y cera del piso. Y sopa del comedor. Cuando lo huelo, tengo siete años y estoy formada en fila.",
+        "Gym mats. Sweat and rubber. Hits me at random and I am twelve again.",
+        "The mimeograph machine — that wet, blue, alcohol smell. Anyone under fifty doesn't know what I'm talking about, and that's part of the smell.",
+        "Locker room. Soap and old metal. I smell it in hardware stores sometimes and freeze.",
+      ],
+      es: [
+        "Tiza y cera del piso. Y sopa del comedor. Cuando lo huelo, tengo siete años y estoy formada en fila.",
+        "Las colchonetas del gimnasio. Sudor y goma. Me llega de la nada y vuelvo a tener doce.",
+        "La copiadora de mimeógrafo — ese olor mojado, azul, a alcohol. Nadie menor de cincuenta sabe de qué hablo, y eso es parte del olor.",
+        "El vestidor. Jabón y metal viejo. A veces lo huelo en las ferreterías y me quedo paralizado.",
+      ],
+    },
+  },
 ];
 
 export const totalQuestions = 355;
