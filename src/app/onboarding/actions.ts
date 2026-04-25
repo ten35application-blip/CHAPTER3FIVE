@@ -8,6 +8,7 @@ export async function startOnboarding(formData: FormData) {
   const oracleName = String(formData.get("oracle_name") ?? "").trim();
   const mode = String(formData.get("mode") ?? "").trim();
   const language = String(formData.get("language") ?? "en").trim();
+  const timezone = String(formData.get("timezone") ?? "").trim();
 
   if (!oracleName) {
     redirect("/onboarding?error=Please%20name%20your%20thirtyfive");
@@ -28,13 +29,16 @@ export async function startOnboarding(formData: FormData) {
     redirect("/auth");
   }
 
+  const updates: Record<string, string> = {
+    oracle_name: oracleName,
+    mode,
+    preferred_language: language,
+  };
+  if (timezone) updates.timezone = timezone;
+
   const { error } = await supabase
     .from("profiles")
-    .update({
-      oracle_name: oracleName,
-      mode,
-      preferred_language: language,
-    })
+    .update(updates)
     .eq("id", user.id);
 
   if (error) {

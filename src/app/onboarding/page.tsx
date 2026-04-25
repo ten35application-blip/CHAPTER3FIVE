@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Orb } from "@/components/Orb";
 import { startOnboarding, suggestRandomName } from "./actions";
+import { TimezoneSelect } from "@/components/TimezoneSelect";
 
 export const metadata = {
   title: "Welcome — chapter3five",
@@ -26,7 +27,7 @@ export default async function OnboardingPage({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("oracle_name, mode, preferred_language, onboarding_completed")
+    .select("oracle_name, mode, preferred_language, onboarding_completed, timezone")
     .eq("id", user.id)
     .single();
 
@@ -122,6 +123,13 @@ export default async function OnboardingPage({
                 defaultChecked={profile?.preferred_language === "es"}
               />
             </div>
+          </Field>
+
+          <Field
+            label="Where in the world?"
+            hint="Sets the local time. Your thirtyfive sleeps from 11pm to 7am here."
+          >
+            <TimezoneSelect defaultValue={profile?.timezone} />
           </Field>
 
           {error && (
