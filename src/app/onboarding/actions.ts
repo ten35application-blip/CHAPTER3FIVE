@@ -10,9 +10,9 @@ export async function startOnboarding(formData: FormData) {
   const language = String(formData.get("language") ?? "en").trim();
 
   if (!oracleName) {
-    redirect("/onboarding?error=Please%20name%20your%20oracle");
+    redirect("/onboarding?error=Please%20name%20your%20thirtyfive");
   }
-  if (mode !== "real" && mode !== "randomize") {
+  if (mode !== "real" && mode !== "randomize" && mode !== "import") {
     redirect("/onboarding?error=Please%20choose%20a%20mode");
   }
   if (language !== "en" && language !== "es") {
@@ -43,6 +43,9 @@ export async function startOnboarding(formData: FormData) {
 
   if (mode === "randomize") {
     redirect("/onboarding/randomize");
+  }
+  if (mode === "import") {
+    redirect("/onboarding/import");
   }
   redirect("/onboarding/questions");
 }

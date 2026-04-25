@@ -83,6 +83,22 @@ export default function TermsPage() {
         </ul>
       </Section>
 
+      <Section title="6a. Sharing and importing archives">
+        <p>
+          chapter3five lets you generate a share code that allows another
+          user to import a copy of your archive into their own account. Use
+          cases include sharing a personal archive with family. By generating
+          a share code, you authorize any holder of that code to receive a
+          copy of your archive&rsquo;s content and metadata. Each recipient
+          maintains a separate copy in their own account.
+        </p>
+        <ul>
+          <li>You may revoke a share code at any time. Revocation prevents future imports but does not retract copies already made.</li>
+          <li>Do not share codes that contain content about a third person without that person&rsquo;s consent.</li>
+          <li>Recipients are bound by these Terms in their own use of the imported archive.</li>
+        </ul>
+      </Section>
+
       <Section title="7. How to talk to your thirtyfive">
         <p>
           You are communicating with a representation of a person — generated

@@ -87,18 +87,24 @@ export default async function OnboardingPage({
           </Field>
 
           <Field label="Who is this chapter for?" hint="You choose once — this shapes the whole experience.">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <ModeRadio
                 value="real"
-                defaultChecked={profile?.mode !== "randomize"}
+                defaultChecked={profile?.mode === "real" || profile?.mode == null}
                 title="Someone real"
-                body="You'll answer 355 questions yourself, or with the person you love. One real answer per question, taken at your pace."
+                body="You'll answer the 355 questions yourself, or with the person you love. One real answer per question, taken at your pace."
               />
               <ModeRadio
                 value="randomize"
                 defaultChecked={profile?.mode === "randomize"}
                 title="Randomize"
-                body="We'll generate a fictional persona for you in seconds. Three answer variants per question. A character you can chat with."
+                body="We'll mix you a one-of-a-kind character — every question drawn at random from a curated pool."
+              />
+              <ModeRadio
+                value="import"
+                defaultChecked={profile?.mode === "import"}
+                title="Import a shared archive"
+                body="Someone gave you a code? Use it to bring their archive into your own account. The chapter continues, in your hands."
               />
             </div>
           </Field>
@@ -164,7 +170,7 @@ function ModeRadio({
   body,
   defaultChecked,
 }: {
-  value: "real" | "randomize";
+  value: "real" | "randomize" | "import";
   title: string;
   body: string;
   defaultChecked?: boolean;

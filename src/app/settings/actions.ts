@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { generateShareCode } from "@/lib/share";
 
 export async function updateLanguage(formData: FormData) {
   const language = String(formData.get("language") ?? "en").trim();
@@ -116,6 +117,60 @@ export async function deleteOracle(formData: FormData) {
   }
 
   redirect("/onboarding?notice=oracle-deleted");
+}
+
+export async function createShareCode(formData: FormData) {
+  const label = String(formData.get("label") ?? "").trim().slice(0, 80) || null;
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/auth/signin");
+
+  // Generate a code, retry on the (extremely unlikely) collision.
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const code = generateShareCode();
+    const { error } = await supabase.from("shares").insert({
+      source_user_id: user.id,
+      code,
+      label,
+    });
+    if (!error) {
+      revalidatePath("/settings");
+      redirect(`/settings?saved=share&code=${encodeURIComponent(code)}`);
+    }
+    // 23505 = unique violation. Anything else, abort.
+    const e = error as { code?: string; message?: string };
+    if (e.code !== "23505") {
+      redirect(`/settings?error=${encodeURIComponent(e.message ?? "Could not create share code")}`);
+    }
+  }
+  redirect("/settings?error=Could%20not%20generate%20a%20unique%20share%20code");
+}
+
+export async function revokeShareCode(formData: FormData) {
+  const code = String(formData.get("code") ?? "").trim();
+  if (!code) redirect("/settings?error=Missing%20code");
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/auth/signin");
+
+  const { error } = await supabase
+    .from("shares")
+    .update({ revoked_at: new Date().toISOString() })
+    .eq("code", code)
+    .eq("source_user_id", user.id);
+
+  if (error) {
+    redirect(`/settings?error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePath("/settings");
+  redirect("/settings?saved=revoked");
 }
 
 export async function deleteAccount(formData: FormData) {
