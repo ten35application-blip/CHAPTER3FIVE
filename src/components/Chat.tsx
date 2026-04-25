@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Orb } from "./Orb";
 
 type Message = { role: "user" | "assistant"; content: string };
@@ -9,6 +9,14 @@ type Props = {
   oracleName: string;
   language: "en" | "es";
 };
+
+function detectTimezone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+  } catch {
+    return "";
+  }
+}
 
 const COPY = {
   en: {
@@ -34,6 +42,7 @@ export function Chat({ oracleName, language }: Props) {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const timezone = useMemo(detectTimezone, []);
 
   useEffect(() => {
     scrollerRef.current?.scrollTo({
@@ -57,7 +66,7 @@ export function Chat({ oracleName, language }: Props) {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, history: messages }),
+        body: JSON.stringify({ message: text, history: messages, timezone }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? t.error);

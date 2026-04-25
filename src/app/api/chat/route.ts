@@ -8,11 +8,16 @@ import {
   type PersonalityType,
   type EmotionalFlavor,
 } from "@/content/personality";
+import { isAsleep, localTimeLabel } from "@/lib/sleep";
 
 type Message = { role: "user" | "assistant"; content: string };
 
 export async function POST(request: NextRequest) {
-  let payload: { message?: string; history?: Message[] };
+  let payload: {
+    message?: string;
+    history?: Message[];
+    timezone?: string;
+  };
   try {
     payload = await request.json();
   } catch {
@@ -25,6 +30,8 @@ export async function POST(request: NextRequest) {
   }
 
   const history = Array.isArray(payload.history) ? payload.history : [];
+  const clientTimezone =
+    typeof payload.timezone === "string" ? payload.timezone.trim() : "";
 
   const supabase = await createClient();
   const {
@@ -37,13 +44,42 @@ export async function POST(request: NextRequest) {
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "oracle_name, mode, preferred_language, texting_style, personality_type, emotional_flavor",
+      "oracle_name, mode, preferred_language, texting_style, personality_type, emotional_flavor, timezone",
     )
     .eq("id", user.id)
     .single();
 
   if (!profile) {
     return NextResponse.json({ error: "No profile" }, { status: 404 });
+  }
+
+  // Persist the client's detected timezone if we don't have one yet.
+  const effectiveTimezone =
+    profile.timezone && profile.timezone.trim()
+      ? profile.timezone
+      : clientTimezone || "America/New_York";
+
+  if (clientTimezone && profile.timezone !== clientTimezone) {
+    await supabase
+      .from("profiles")
+      .update({ timezone: clientTimezone })
+      .eq("id", user.id);
+  }
+
+  // Sleep schedule: first message during sleep hours = asleep response,
+  // no LLM call. If the conversation already has prior messages, treat
+  // this as having been woken up and continue with a groggy system prompt.
+  const sleeping = isAsleep(effectiveTimezone);
+  const isFirstMessage = history.length === 0;
+  const language = (profile.preferred_language ?? "en") as "en" | "es";
+
+  if (sleeping && isFirstMessage) {
+    const t = localTimeLabel(effectiveTimezone);
+    const sleepReply =
+      language === "es"
+        ? `mm... son las ${t} aquí. déjame dormir. ¿hablamos en la mañana?`
+        : `mm. it's ${t} here. let me sleep. talk in the morning?`;
+    return NextResponse.json({ reply: sleepReply, asleep: true });
   }
 
   const { data: answerRows } = await supabase
@@ -62,7 +98,7 @@ export async function POST(request: NextRequest) {
   for (const [qid, bodies] of byQuestion) {
     const q = questions.find((x) => x.id === qid);
     if (!q) continue;
-    const promptText = profile.preferred_language === "es" ? q.es : q.en;
+    const promptText = language === "es" ? q.es : q.en;
     const chosen = bodies[Math.floor(Math.random() * bodies.length)];
     archive.push({ prompt: promptText, answer: chosen });
   }
@@ -71,7 +107,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         reply:
-          profile.preferred_language === "es"
+          language === "es"
             ? "Todavía no tengo respuestas tuyas para usar. Termina algunas preguntas primero."
             : "I don't have any of your answers to draw from yet. Answer a few questions first.",
       },
@@ -89,9 +125,14 @@ export async function POST(request: NextRequest) {
     : "";
 
   const langInstruction =
-    profile.preferred_language === "es"
+    language === "es"
       ? "Respond in Spanish."
       : "Respond in English.";
+
+  // If we're asleep but this isn't the first message, the user has woken us up.
+  const wokenPart = sleeping
+    ? `\n\nIt is currently ${localTimeLabel(effectiveTimezone)} where you live. You were asleep, but the user kept messaging until you replied. You're groggy, slightly short. Acknowledge that briefly — the way a real person would when woken up — then engage with what they're saying. Don't be cheerful about being awake.`
+    : "";
 
   const personalityPart = profile.personality_type
     ? `\n\nYour underlying personality is ${profile.personality_type} — ${
@@ -130,7 +171,7 @@ If the user appears to be in genuine crisis — talking about ending their life,
   • or local emergency services
 Do NOT help with the harmful action. Do NOT pretend everything is fine. Do NOT roleplay through a crisis. Once you've said it, you can return to the conversation if they want to keep talking.
 
-${langInstruction}${stylePart}${personalityPart}${flavorPart}
+${langInstruction}${stylePart}${personalityPart}${flavorPart}${wokenPart}
 
 ARCHIVE — these are the actual answers ${characterName} gave. This is who you are. Stay close.
 
