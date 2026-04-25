@@ -80,4 +80,43 @@ export const names: string[] = [
   "Holly", "Iris", "Joy", "Lark", "Linden", "Maple", "Mira", "Pine",
   "Reed", "Sage", "Sky", "Sloane", "Sparrow", "Star", "Storm", "Sunny",
   "Thorne", "Tide", "Wren", "Yew",
+
+  // — Additional names —
+
+  // More English warm older
+  "Beverly", "Doris", "Maxine", "Geraldine", "Bernice", "Rosalind", "Adele", "Vera",
+  "Esther", "Naomi", "Lorraine", "Phyllis", "Sylvia", "Cora", "Imogene",
+  "Albert", "Floyd", "Russell", "Marvin", "Herbert", "Wallace", "Harvey", "Milton",
+  "Norbert", "Cecil", "Theodore",
+
+  // More Spanish — modern
+  "Aitana", "Ainhoa", "Cayetana", "Mar", "Mafalda", "Jimena", "Macarena", "Triana",
+  "Bruna", "Olalla", "Vega", "Romina", "Salma",
+  "Liam", "Thiago", "Dante", "Bautista", "Benjamín", "Felipe", "Cristóbal", "Aarón",
+  "Iván",
+
+  // More Spanish — older
+  "Eulalia", "Pura", "Fátima", "Trinidad", "Visitación", "Práxedes", "Guadalupe",
+  "Amaranta", "Eulogia",
+  "Casimiro", "Hilario", "Anacleto", "Eustaquio", "Telmo",
+
+  // More modern unisex / younger
+  "Briar", "Cove", "Dakota", "Eden", "Ezra", "Florence", "Garnet", "Halcyon",
+  "Indigo", "Jasper", "Kit", "Linnea", "Mar", "Noor", "Onyx", "Poet",
+  "Quincy", "Rey", "Story", "Tatum", "Valor", "Wilder",
+
+  // Italian / Greek / continental sprinkles
+  "Esme", "Fia", "Lia", "Nora", "Ottavia", "Selene", "Saskia", "Ariadne",
+  "Calliope", "Persephone",
+  "Basilio", "Donato", "Emiliano", "Gaspare", "Lorenzo", "Mauro", "Salvo", "Ulisse",
+
+  // Asian heritage additions
+  "Mira", "Saanvi", "Diya", "Aanya", "Zara", "Anika",
+  "Aryan", "Vihaan", "Reyansh", "Atharv",
+  "Bao", "Linh", "Quynh", "Tran",
+  "Jin", "Bae", "Hae", "Min",
+
+  // Names that lean tender / quiet / wise
+  "Else", "Eve", "Faye", "Hope", "Ivy", "Pearl", "Posy", "Rue",
+  "True", "Vesna", "Zara",
 ];

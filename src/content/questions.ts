@@ -1111,6 +1111,533 @@ export const questions: Question[] = [
       ],
     },
   },
+
+  // — Batch 2: Surface (51), Texture (52–61), Depth (62–73), Soul (74–75) —
+  {
+    id: 51,
+    category: "self",
+    depth: "surface",
+    en: "Is there an object you've kept for far too long? What is it?",
+    es: "¿Hay algún objeto que has guardado por demasiado tiempo? ¿Cuál?",
+    randomizeOptions: {
+      en: [
+        "El delantal de mi mami. Manchado, con un hueco. No lo voy a tirar.",
+        "A coffee mug from my first job. Chipped on the rim. Still my favorite.",
+        "A movie ticket from a date in 2014. I keep it in a book I never finished.",
+        "A fountain pen given to me upon graduation in 1966. The nib is, by now, idiosyncratically mine.",
+      ],
+      es: [
+        "El delantal de mi mami. Manchado, con un hueco. No lo voy a tirar.",
+        "Una taza de café de mi primer trabajo. Despostillada en el borde. Sigue siendo mi favorita.",
+        "Un boleto de cine de una cita en 2014. Lo tengo en un libro que nunca terminé.",
+        "Una pluma fuente que me regalaron al graduarme en 1966. La punta, a estas alturas, es idiosincráticamente mía.",
+      ],
+    },
+  },
+  {
+    id: 52,
+    category: "childhood",
+    depth: "texture",
+    en: "Who was your favorite teacher, and what made them yours?",
+    es: "¿Quién fue tu maestro favorito, y qué lo hacía tuyo?",
+    randomizeOptions: {
+      en: [
+        "Hermana Alicia. Strict like the others, but she would slip me a caramel when I cried.",
+        "Mr. Kovacs, shop class. He didn't talk much. He taught me to measure twice. Cut once.",
+        "Ms. Aldana in tenth grade. She read my essay out loud and didn't tell anyone it was mine.",
+        "Dr. Maitland, in graduate school. She listened as if I might say something worth hearing, and so I did.",
+      ],
+      es: [
+        "Hermana Alicia. Estricta como las otras, pero me pasaba un caramelo cuando lloraba.",
+        "Mr. Kovacs, taller. Hablaba poco. Me enseñó a medir dos veces. Cortar una.",
+        "Ms. Aldana, en décimo. Leyó mi ensayo en voz alta y no le dijo a nadie que era mío.",
+        "La doctora Maitland, en el posgrado. Escuchaba como si yo pudiera decir algo digno, y así lo hice.",
+      ],
+    },
+  },
+  {
+    id: 53,
+    category: "family",
+    depth: "texture",
+    en: "What's something a grandparent did that always meant safety to you?",
+    es: "¿Qué hacía un abuelo o abuela que para ti siempre significó estar a salvo?",
+    randomizeOptions: {
+      en: [
+        "Mi abuelo pasaba la mano por mi cabello cuando yo dormía. I would pretend to be asleep so he would keep doing it.",
+        "Granddad tucked the blanket under my feet. Every night. Couldn't sleep without it.",
+        "My grandma would hum while she cooked. Specific song, no name. The hum meant nobody was angry.",
+        "My grandfather, on stormy nights, would simply sit in the room and read. His presence was the lullaby.",
+      ],
+      es: [
+        "Mi abuelo pasaba la mano por mi cabello cuando yo dormía. Yo me hacía la dormida para que siguiera.",
+        "Mi abuelo metía la cobija debajo de mis pies. Cada noche. Sin eso no dormía.",
+        "Mi abuela tarareaba mientras cocinaba. Una canción específica, sin nombre. El tarareo decía que nadie estaba enojado.",
+        "Mi abuelo, en noches de tormenta, simplemente se sentaba en el cuarto a leer. Su presencia era la canción de cuna.",
+      ],
+    },
+  },
+  {
+    id: 54,
+    category: "family",
+    depth: "texture",
+    en: "Tell me about a fight with a sibling you remember vividly.",
+    es: "Cuéntame de una pelea con un hermano que recuerdes vívidamente.",
+    randomizeOptions: {
+      en: [
+        "Con mi hermana, sobre quién iba a usar el vestido amarillo en la fiesta. I won. Lo lamento todavía.",
+        "My brother and I went at it over a Nintendo. I bit him. Mom didn't speak to me for a day.",
+        "My sister borrowed my jacket without asking and lost it. We didn't speak for two months. Her loss too.",
+        "My brother and I disagreed, in 1958, about a baseball card. The argument continues in our hearts to this day.",
+      ],
+      es: [
+        "Con mi hermana, sobre quién iba a usar el vestido amarillo en la fiesta. Gané. Lo lamento todavía.",
+        "Mi hermano y yo nos agarramos por un Nintendo. Le mordí. Mi mamá no me habló por un día.",
+        "Mi hermana me prestó la chaqueta sin pedírmela y la perdió. No nos hablamos por dos meses. Ella perdió también.",
+        "Mi hermano y yo nos peleamos, en 1958, por una tarjeta de béisbol. El argumento continúa en nuestros corazones hasta hoy.",
+      ],
+    },
+  },
+  {
+    id: 55,
+    category: "work",
+    depth: "texture",
+    en: "What did you do with the first real money you ever earned?",
+    es: "¿Qué hiciste con el primer dinero de verdad que ganaste?",
+    randomizeOptions: {
+      en: [
+        "Le compré un broche de oro a mi mami. Ella lloró y me dijo que estaba loca. Lo guardó.",
+        "Bought my old man a six-pack and put the rest in a coffee can. Most of it stayed there.",
+        "Took my mom to a real restaurant. We didn't know what to order. She kept the menu.",
+        "Acquired, with great care, a first-edition volume of Auden. I have it still, on the third shelf.",
+      ],
+      es: [
+        "Le compré un broche de oro a mi mami. Ella lloró y me dijo que estaba loca. Lo guardó.",
+        "Le compré a mi viejo un seis de cervezas y el resto lo metí en una lata de café. Casi todo se quedó ahí.",
+        "Llevé a mi mamá a un restaurante de verdad. No sabíamos qué pedir. Se quedó con el menú.",
+        "Adquirí, con gran cuidado, una primera edición de Auden. La tengo aún, en el tercer estante.",
+      ],
+    },
+  },
+  {
+    id: 56,
+    category: "self",
+    depth: "texture",
+    en: "Who used to call you the most, before texting took over? What did you talk about?",
+    es: "¿Quién te llamaba más antes de que los mensajes tomaran el lugar? ¿De qué hablaban?",
+    randomizeOptions: {
+      en: [
+        "Mi tía Olga. Daily. Sobre nada y todo. The novela. El tiempo. Mi peso.",
+        "My mom. Every Sunday. The weather. The lawn. Then we'd hang up.",
+        "My best friend from college. We'd talk an hour, mostly silence and occasional snorts.",
+        "My old colleague Walter. We dissected matters of state with the seriousness of senators and the humor of schoolboys.",
+      ],
+      es: [
+        "Mi tía Olga. Diario. Sobre nada y todo. La novela. El tiempo. Mi peso.",
+        "Mi mamá. Cada domingo. El tiempo. El zacate. Y después colgábamos.",
+        "Mi mejor amigo de la universidad. Hablábamos una hora, casi puro silencio y resoplidos ocasionales.",
+        "Mi viejo colega Walter. Diseccionábamos asuntos de Estado con la seriedad de senadores y el humor de colegiales.",
+      ],
+    },
+  },
+  {
+    id: 57,
+    category: "self",
+    depth: "texture",
+    en: "What's a sound that, anywhere in the world, means home to you?",
+    es: "¿Qué sonido, en cualquier parte del mundo, significa hogar para ti?",
+    randomizeOptions: {
+      en: [
+        "El golpe de la cuchara contra la olla cuando se hace sofrito.",
+        "The screen door slamming. Twice — never just once.",
+        "Rain on a metal roof. Doesn't matter where; it puts me back home.",
+        "The chiming of the grandfather clock at the half-hour. My father wound it every Sunday for fifty years.",
+      ],
+      es: [
+        "El golpe de la cuchara contra la olla cuando se hace sofrito.",
+        "La puerta de tela tronando. Dos veces — nunca una sola.",
+        "La lluvia en un techo de lámina. No importa dónde; me regresa a casa.",
+        "Las campanadas del reloj de pie a la media hora. Mi padre lo daba cuerda cada domingo durante cincuenta años.",
+      ],
+    },
+  },
+  {
+    id: 58,
+    category: "self",
+    depth: "texture",
+    en: "What's a meal you'd eat as your last, and who would you want at the table?",
+    es: "¿Cuál sería tu última cena, y a quién quisieras en la mesa?",
+    randomizeOptions: {
+      en: [
+        "Arroz con frijoles negros, lechón, plátanos maduros. Mi familia entera. Hector al lado mío.",
+        "A T-bone, medium rare. Baked potato. Beer. My boys. My old man if he were still here.",
+        "A bowl of perfect ramen, alone, in a clean kitchen. Just me, and my dog if she'll come.",
+        "A simple sole meunière, with my wife, by candlelight. We have not needed the table to be loud.",
+      ],
+      es: [
+        "Arroz con frijoles negros, lechón, plátanos maduros. Mi familia entera. Hector al lado mío.",
+        "Un T-bone, término medio. Papa al horno. Cerveza. Mis hijos. Mi viejo si estuviera.",
+        "Un tazón de ramen perfecto, sola, en una cocina limpia. Sólo yo, y mi perra si quiere venir.",
+        "Un sencillo lenguado meunière, con mi esposa, a la luz de las velas. No hemos necesitado que la mesa sea ruidosa.",
+      ],
+    },
+  },
+  {
+    id: 59,
+    category: "stories",
+    depth: "texture",
+    en: "What's a small kindness you witnessed that you've never forgotten?",
+    es: "¿Cuál es un pequeño acto de bondad que viste y nunca olvidaste?",
+    randomizeOptions: {
+      en: [
+        "A man at the bus stop gave his sandwich to a hungry boy. No le dijo nada. Solo lo hizo.",
+        "Watched a stranger pay for the woman behind him at the diner. Didn't tell her.",
+        "A woman on the subway gave her seat to someone who didn't need it but looked tired. I needed that day.",
+        "A colleague, decades ago, tucked a kind anonymous note into the office of a junior who had just lost a parent.",
+      ],
+      es: [
+        "Un hombre en la parada del bus le dio su sándwich a un niño con hambre. No le dijo nada. Sólo lo hizo.",
+        "Vi a un desconocido pagar por la señora detrás de él en el restaurante. No le dijo.",
+        "Una señora en el metro le cedió su asiento a alguien que no lo necesitaba pero parecía cansado. Yo lo necesitaba ese día.",
+        "Un colega, décadas atrás, deslizó una nota amable y anónima en la oficina de un junior que acababa de perder a un padre.",
+      ],
+    },
+  },
+  {
+    id: 60,
+    category: "self",
+    depth: "texture",
+    en: "What does a perfect Sunday look like for you?",
+    es: "¿Cómo es para ti un domingo perfecto?",
+    randomizeOptions: {
+      en: [
+        "Misa, café con mis nietos, una novela en la tarde. Una llamada de mi hermana.",
+        "Slow morning, eggs, the paper, a long walk. Game on at one. Nap by three.",
+        "Coffee, a book in bed until eleven. A long walk, ideally somewhere with a body of water. Phone off.",
+        "An early breakfast, a brisk constitutional, and the afternoon spent rereading Auden by the fire.",
+      ],
+      es: [
+        "Misa, café con mis nietos, una novela en la tarde. Una llamada de mi hermana.",
+        "Mañana lenta, huevos, el periódico, una caminata larga. El juego a la una. Siesta a las tres.",
+        "Café, un libro en la cama hasta las once. Caminata larga, idealmente cerca de agua. Teléfono apagado.",
+        "Un desayuno temprano, una caminata vigorosa, y la tarde releyendo a Auden junto al fuego.",
+      ],
+    },
+  },
+  {
+    id: 61,
+    category: "love",
+    depth: "texture",
+    en: "Who's the friend you would call at 4 a.m.? Why them?",
+    es: "¿Quién es el amigo al que llamarías a las 4 de la mañana? ¿Por qué a esa persona?",
+    randomizeOptions: {
+      en: [
+        "Mi comadre Hilda. Knows everything. Tells nothing. Says \"ven, mi amor\" and that's enough.",
+        "Tony from the shop. He won't ask why. He'll just show up.",
+        "My friend Mae. She has the gift of not making it about her.",
+        "Walter. We have, over decades, established that a 4 a.m. call requires no apology and certainly no explanation.",
+      ],
+      es: [
+        "Mi comadre Hilda. Sabe todo. No cuenta nada. Dice \"ven, mi amor\" y con eso basta.",
+        "Tony del taller. No va a preguntar por qué. Sólo aparece.",
+        "Mi amiga Mae. Tiene el don de no hacer la cosa sobre ella.",
+        "Walter. Hemos establecido, durante décadas, que una llamada a las 4 a.m. no requiere disculpa y desde luego ninguna explicación.",
+      ],
+    },
+  },
+  {
+    id: 62,
+    category: "self",
+    depth: "depth",
+    en: "When have you been most scared, and gone forward anyway?",
+    es: "¿Cuándo has tenido más miedo, y aun así seguiste adelante?",
+    randomizeOptions: {
+      en: [
+        "Cuando me subí al avión a Miami a los veintidós. No conocía a nadie. Recé el rosario entero.",
+        "Day I quit my job at the plant with no plan. Twenty-eight years old. Ate a lot of beans that year.",
+        "Telling my parents I wasn't going to law school. I rehearsed it for a month. They cried. So did I.",
+        "Returning, in 1953, to college after the war. The boys around me looked impossibly young. I sat down anyway.",
+      ],
+      es: [
+        "Cuando me subí al avión a Miami a los veintidós. No conocía a nadie. Recé el rosario entero.",
+        "El día que renuncié a la planta sin plan. Veintiocho años. Comí muchos frijoles ese año.",
+        "Cuando le dije a mis padres que no iba a estudiar derecho. Lo ensayé un mes. Lloraron. Yo también.",
+        "Al regresar, en 1953, a la universidad después de la guerra. Los jóvenes alrededor parecían imposiblemente jóvenes. Me senté igual.",
+      ],
+    },
+  },
+  {
+    id: 63,
+    category: "self",
+    depth: "depth",
+    en: "What's a failure that taught you more than any success?",
+    es: "¿Cuál es un fracaso que te enseñó más que cualquier éxito?",
+    randomizeOptions: {
+      en: [
+        "Mi primer matrimonio. I was twenty. He was wrong for me. I learned to listen to my gut.",
+        "Lost a business in '08. Watched it die. Came out leaner, less proud, better at asking for help.",
+        "A relationship I held onto two years past its expiration date. Taught me what I will not do again.",
+        "I lost a paper, in 1971, that I had labored over for two years. The work, I have come to understand, was a man preparing his future without his knowledge.",
+      ],
+      es: [
+        "Mi primer matrimonio. Tenía veinte. Él no era para mí. Aprendí a hacerle caso a mi corazonada.",
+        "Perdí un negocio en el 08. Vi cómo moría. Salí más flaco, menos orgulloso, mejor en pedir ayuda.",
+        "Una relación que sostuve dos años después de su fecha. Me enseñó lo que no volveré a hacer.",
+        "Perdí un trabajo, en 1971, sobre el que había trabajado dos años. La labor, he llegado a comprender, era un hombre preparando su futuro sin saberlo.",
+      ],
+    },
+  },
+  {
+    id: 64,
+    category: "love",
+    depth: "depth",
+    en: "When has a stranger left a mark on your life?",
+    es: "¿Cuándo te dejó huella un desconocido?",
+    randomizeOptions: {
+      en: [
+        "Una señora en la guagua. I was crying. Me agarró la mano. No dijo nada. Twenty minutes.",
+        "Old guy at a diner counter, told me, \"don't be the kind of man who waits.\" I haven't.",
+        "A woman in line at a pharmacy paid for my prescription when my card was declined. I was too embarrassed to thank her. I think of her.",
+        "A boy of about ten, in Italy, gave me a flower. He spoke no English. I have remembered this for forty-six years.",
+      ],
+      es: [
+        "Una señora en la guagua. Yo lloraba. Me agarró la mano. No dijo nada. Veinte minutos.",
+        "Un viejo en la barra de un restaurante me dijo: \"no seas el tipo de hombre que espera.\" No lo he sido.",
+        "Una mujer en la fila de una farmacia pagó mi receta cuando me rechazaron la tarjeta. Estaba demasiado avergonzada para darle las gracias. Pienso en ella.",
+        "Un niño de unos diez años, en Italia, me dio una flor. No hablaba inglés. Lo he recordado durante cuarenta y seis años.",
+      ],
+    },
+  },
+  {
+    id: 65,
+    category: "values",
+    depth: "depth",
+    en: "What's something you do that goes against what most people would do, but you do anyway?",
+    es: "¿Qué haces que va contra lo que la mayoría haría, pero lo haces de todos modos?",
+    randomizeOptions: {
+      en: [
+        "Le digo a la cajera que se equivocó cuando me da más cambio. Always.",
+        "I let people merge in front of me. All of them. I'm not in a rush.",
+        "I say no to plans I don't want to be at. Even when it disappoints. I'm done saying yes from fear.",
+        "I write letters by hand and post them. The young find it eccentric; I find it the only honest medium left.",
+      ],
+      es: [
+        "Le digo a la cajera que se equivocó cuando me da cambio de más. Siempre.",
+        "Dejo que la gente se meta enfrente. Todos. No tengo prisa.",
+        "Digo que no a planes en los que no quiero estar. Aunque decepcione. Ya no digo sí por miedo.",
+        "Escribo cartas a mano y las envío. Los jóvenes lo hallan excéntrico; yo lo encuentro el único medio honesto que queda.",
+      ],
+    },
+  },
+  {
+    id: 66,
+    category: "self",
+    depth: "depth",
+    en: "What part of yourself have you had to fight to protect?",
+    es: "¿Qué parte de ti has tenido que pelear por proteger?",
+    randomizeOptions: {
+      en: [
+        "Mi fe. Toda mi vida. People will try to take that. I don't let them.",
+        "My patience with my kids. I was raised yelled at. I refused to do that. It cost me.",
+        "My softness. The world rewards the opposite. I've kept it anyway.",
+        "My capacity for wonder, which a long life and several disappointments have repeatedly conspired to dull.",
+      ],
+      es: [
+        "Mi fe. Toda mi vida. La gente trata de quitártela. Yo no dejo.",
+        "Mi paciencia con mis hijos. A mí me criaron a gritos. Me negué a hacer eso. Me costó.",
+        "Mi suavidad. El mundo premia lo contrario. La he conservado igual.",
+        "Mi capacidad de asombro, que una vida larga y varios desencantos han conspirado repetidamente para opacar.",
+      ],
+    },
+  },
+  {
+    id: 67,
+    category: "love",
+    depth: "depth",
+    en: "What's the truest thing you've ever said to someone, that took you a long time to say?",
+    es: "¿Cuál es la cosa más verdadera que le has dicho a alguien, que te tomó mucho tiempo decir?",
+    randomizeOptions: {
+      en: [
+        "Le dije a mi hijo que estaba orgullosa de él. The first time, he was forty-one. We both cried.",
+        "Told my dad I forgave him. He didn't say anything. He nodded. That was a lot for him.",
+        "Told my mom I loved her in a voicemail and meant it. We didn't really say it growing up.",
+        "I told my wife, after sixteen years, that I had been the more fortunate of us. She has, with grace, declined to argue.",
+      ],
+      es: [
+        "Le dije a mi hijo que estaba orgullosa de él. La primera vez tenía cuarenta y uno. Lloramos los dos.",
+        "Le dije a mi papá que lo perdonaba. No dijo nada. Asintió. Eso era mucho para él.",
+        "Le dije a mi mamá que la quería en un mensaje de voz y lo decía en serio. No lo decíamos mucho de niños.",
+        "Le dije a mi esposa, después de dieciséis años, que yo había sido el más afortunado de los dos. Ella, con gracia, ha declinado discutirlo.",
+      ],
+    },
+  },
+  {
+    id: 68,
+    category: "self",
+    depth: "depth",
+    en: "What are you better at since you've gotten older?",
+    es: "¿En qué eres mejor ahora que has crecido?",
+    randomizeOptions: {
+      en: [
+        "Quedarme callada. No siempre tengo que ganar la conversación.",
+        "Walking away from a fight that doesn't matter. Took me forty years.",
+        "Knowing when to leave a room.",
+        "I have, after seven decades, achieved some modest competence at not taking myself too seriously.",
+      ],
+      es: [
+        "Quedarme callada. No siempre tengo que ganar la conversación.",
+        "Irme de una pelea que no importa. Me tomó cuarenta años.",
+        "Saber cuándo salir de un cuarto.",
+        "He logrado, después de siete décadas, una modesta competencia en no tomarme demasiado en serio.",
+      ],
+    },
+  },
+  {
+    id: 69,
+    category: "advice",
+    depth: "depth",
+    en: "What do you tell young people that they almost never want to hear?",
+    es: "¿Qué les dices a los jóvenes que casi nunca quieren oír?",
+    randomizeOptions: {
+      en: [
+        "Que la familia se cuida. No la conveniencia, no los amigos, la familia. Aunque te haga falta.",
+        "Most things you're scared of will turn out to be nothing. Most things you ignore will be everything.",
+        "Your twenties are not a dress rehearsal. You're already in the play.",
+        "That nearly all of one's worry is wasted on possibilities that do not arrive, and almost none on the small choices that quietly become a life.",
+      ],
+      es: [
+        "Que la familia se cuida. No la conveniencia, no los amigos, la familia. Aunque te haga falta.",
+        "Casi todo lo que te asusta resultará no ser nada. Casi todo lo que ignoras resultará serlo todo.",
+        "Tus veintes no son un ensayo. Ya estás en la obra.",
+        "Que casi toda la preocupación se gasta en posibilidades que no llegan, y casi ninguna en las decisiones pequeñas que silenciosamente se convierten en una vida.",
+      ],
+    },
+  },
+  {
+    id: 70,
+    category: "values",
+    depth: "depth",
+    en: "What do you believe that you cannot prove?",
+    es: "¿Qué crees que no puedes probar?",
+    randomizeOptions: {
+      en: [
+        "Que mi mami sigue cuidándome. No tengo prueba. Tengo certeza.",
+        "Most people are doing the best they can with what they were given. I can't prove it. I act like it's true.",
+        "That love changes the room before it's spoken.",
+        "That a small private kindness alters something in the world we cannot measure but should not, on that account, dismiss.",
+      ],
+      es: [
+        "Que mi mami sigue cuidándome. No tengo prueba. Tengo certeza.",
+        "La mayoría de la gente hace lo mejor que puede con lo que le tocó. No lo puedo probar. Vivo como si fuera cierto.",
+        "Que el amor cambia el cuarto antes de que se diga.",
+        "Que una pequeña bondad privada altera algo en el mundo que no podemos medir pero que, por eso mismo, no deberíamos descartar.",
+      ],
+    },
+  },
+  {
+    id: 71,
+    category: "stories",
+    depth: "depth",
+    en: "What's a story you've told a hundred times because it tells the truth about you?",
+    es: "¿Cuál es una historia que has contado cien veces porque dice la verdad sobre ti?",
+    randomizeOptions: {
+      en: [
+        "La de la noche que perdí las llaves y mi vecino me ayudó a buscarlas en la lluvia. We were strangers at midnight, neighbors by morning.",
+        "The one where my dad fixed a flat in twelve degrees with no gloves on. He didn't complain. That's the whole story.",
+        "The one about the time I missed the train, met someone at the station, and ended up writing a poem I still know by heart.",
+        "An afternoon, in 1964, when I rescued a bird and learned that small acts of attention determine who one becomes.",
+      ],
+      es: [
+        "La de la noche que perdí las llaves y mi vecino me ayudó a buscarlas en la lluvia. Éramos desconocidos a medianoche, vecinos por la mañana.",
+        "La de cuando mi papá arregló una llanta a doce grados sin guantes. No se quejó. Esa es toda la historia.",
+        "La de cuando perdí el tren, conocí a alguien en la estación, y terminé escribiendo un poema que aún me sé de memoria.",
+        "Una tarde, en 1964, cuando rescaté un pájaro y aprendí que los pequeños actos de atención determinan en quién uno se convierte.",
+      ],
+    },
+  },
+  {
+    id: 72,
+    category: "love",
+    depth: "depth",
+    en: "Who saw you clearly, before you did?",
+    es: "¿Quién te vio con claridad antes que tú a ti mismo?",
+    randomizeOptions: {
+      en: [
+        "Mi mami. Always. She knew I'd be okay before I did.",
+        "My uncle Ray. Said I'd be a teacher. Took me twenty years to do it. He was right.",
+        "A high school teacher. Wrote on a paper, \"You are paying attention.\" That's the line that turned me into a writer.",
+        "My wife, three weeks into knowing me, predicted I would be insufferable but redeemable. She was right on both counts.",
+      ],
+      es: [
+        "Mi mami. Siempre. Sabía que yo iba a estar bien antes que yo.",
+        "Mi tío Ray. Dijo que sería maestro. Me tomó veinte años llegar a serlo. Tenía razón.",
+        "Una maestra de la prepa. Me escribió en un trabajo: \"Estás prestando atención.\" Esa es la frase que me hizo escritor.",
+        "Mi esposa, a las tres semanas de conocerme, predijo que sería insoportable pero redimible. Acertó en ambos puntos.",
+      ],
+    },
+  },
+  {
+    id: 73,
+    category: "values",
+    depth: "depth",
+    en: "What's something you used to want badly that you no longer want at all?",
+    es: "¿Qué deseabas mucho antes que ya no deseas para nada?",
+    randomizeOptions: {
+      en: [
+        "Que la gente me aprobara. Una pérdida de tiempo. Now I sleep.",
+        "A bigger house. Bigger truck. Now I want a smaller life and more of it.",
+        "To be the smartest person in the room. Now I want to be the warmest.",
+        "Recognition in my field. The applause of strangers, I now suspect, is a poor substitute for the regard of those one shares a kitchen with.",
+      ],
+      es: [
+        "Que la gente me aprobara. Una pérdida de tiempo. Ahora duermo.",
+        "Una casa más grande. Camioneta más grande. Ahora quiero una vida más pequeña y más de ella.",
+        "Ser la persona más inteligente del cuarto. Ahora quiero ser la más cálida.",
+        "Reconocimiento en mi campo. El aplauso de los desconocidos, ahora sospecho, es un sustituto pobre del aprecio de aquellos con quienes se comparte la cocina.",
+      ],
+    },
+  },
+  {
+    id: 74,
+    category: "quiet",
+    depth: "soul",
+    en: "When have you most felt that something larger than you was paying attention?",
+    es: "¿Cuándo has sentido más que algo más grande que tú estaba prestando atención?",
+    randomizeOptions: {
+      en: [
+        "Bautizo de mi nieta. Sentí a mi mami en el cuarto. No estaba sola con eso.",
+        "On a road, alone, after my old man died. Felt him in the truck. Couldn't tell you how I knew.",
+        "Standing on a rocky beach in Maine when I was sixteen. The waves and I had the same name for a moment.",
+        "Once, in 1974, in the silence after a Mahler symphony, I had the unmistakable impression that the universe was, briefly, listening back.",
+      ],
+      es: [
+        "Bautizo de mi nieta. Sentí a mi mami en el cuarto. No estaba sola con eso.",
+        "En una carretera, solo, después de que murió mi viejo. Lo sentí en la camioneta. No te puedo decir cómo lo supe.",
+        "Parada en una playa rocosa de Maine a los dieciséis. Las olas y yo tuvimos por un momento el mismo nombre.",
+        "Una vez, en 1974, en el silencio tras una sinfonía de Mahler, tuve la impresión inequívoca de que el universo, brevemente, escuchaba de vuelta.",
+      ],
+    },
+  },
+  {
+    id: 75,
+    category: "legacy",
+    depth: "soul",
+    en: "If a great-grandchild you'll never meet asked you one question, and you could answer with one true sentence, what would you tell them?",
+    es: "Si un bisnieto que nunca conocerás te hiciera una pregunta, y pudieras responder con una sola oración verdadera, ¿qué le dirías?",
+    randomizeOptions: {
+      en: [
+        "Que tu abuela cuyo nombre no recuerdas te quiso, sin haberte conocido. Eso basta.",
+        "You came from people who showed up. Don't break the chain.",
+        "The world is, much more than you suspect, what you make of it. Make something kind.",
+        "That a life is built of small, quiet decisions, made when no one is watching, and that yours, however you spend it, will be one such accumulation.",
+      ],
+      es: [
+        "Que tu abuela cuyo nombre no recuerdas te quiso, sin haberte conocido. Eso basta.",
+        "Vienes de gente que aparecía. No rompas la cadena.",
+        "El mundo es, mucho más de lo que sospechas, lo que tú haces de él. Haz algo amable.",
+        "Que una vida se construye de pequeñas decisiones calladas, tomadas cuando nadie ve, y que la tuya, sea como sea que la gastes, será una de esas acumulaciones.",
+      ],
+    },
+  },
 ];
 
 export const totalQuestions = 355;
