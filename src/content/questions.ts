@@ -4,10 +4,16 @@
  * Each question carries:
  *   - en/es: the prompt text in both languages
  *   - randomizeOptions.en/es: four pre-written answers per question. When a
- *     user picks "Randomize" at onboarding, the server selects one of the
- *     four PERSONA INDEXES (0..3) and copies that index's answer for every
- *     question into the user's archive. Index identity is consistent across
- *     all questions: persona 0 is the same character throughout, etc.
+ *     user picks "Randomize" at onboarding, the server picks one option AT
+ *     RANDOM PER QUESTION, independently — so the resulting archive is a
+ *     chimera, drawing from multiple personas across the 355 questions.
+ *     This yields 4^355 ≈ 10^213 unique characters — effectively infinite.
+ *
+ *     The four persona archetypes below describe the *style* of each
+ *     option index, but a randomized user does NOT get one consistent
+ *     persona — they get a unique mix. Keep all four voices internally
+ *     consistent within a question so the mix sounds plausible across the
+ *     archive.
  *
  * Persona archetypes (kept consistent across every question):
  *   0 — Marisol, 72, Cuban-American grandmother. Warm, affectionate, faith

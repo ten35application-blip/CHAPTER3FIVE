@@ -86,15 +86,15 @@ export default async function RandomizePage({
 const COPY = {
   en: {
     intro: (n: number) =>
-      `We're about to generate a persona — answers to ${n} questions, written in one consistent voice. They'll become your archive. You'll be able to chat with them right after.`,
-    note: "Take it as a gift, a bit of fiction, or just a stranger to talk to. Whatever fits.",
+      `We're about to mix you a character — drawing one answer at random for each of ${n} questions. The combination is yours alone. No two are the same.`,
+    note: "A stranger to talk to, a gift, a piece of fiction. Whatever fits.",
     cta: "Generate",
     back: "Back",
   },
   es: {
     intro: (n: number) =>
-      `Vamos a generar una persona — respuestas a ${n} preguntas, escritas en una voz consistente. Serán tu archivo. Podrás conversar con ellas justo después.`,
-    note: "Tómalo como un regalo, una pieza de ficción, o simplemente alguien con quien hablar. Lo que te quede.",
+      `Vamos a mezclarte un personaje — eligiendo una respuesta al azar para cada una de las ${n} preguntas. La combinación es tuya. Ninguna otra es igual.`,
+    note: "Un desconocido con quien hablar, un regalo, una pieza de ficción. Lo que te quede.",
     cta: "Generar",
     back: "Atrás",
   },

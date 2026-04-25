@@ -25,18 +25,21 @@ export async function generateRandomizedArchive() {
 
   const language = (profile.preferred_language ?? "en") as "en" | "es";
 
-  // Pick one persona index for the entire archive — coherent character.
-  const personaIndex = Math.floor(Math.random() * PERSONA_COUNT);
-
+  // Per-question independent random pick. Yields 4^N unique chimera personas
+  // — every user gets a character no one else ever will. Trade-off: voice
+  // can shift across topics, by design.
   const rows = questions
     .filter((q) => q.randomizeOptions)
-    .map((q) => ({
-      user_id: user.id,
-      question_id: q.id,
-      language,
-      variant: 1,
-      body: q.randomizeOptions[language][personaIndex],
-    }));
+    .map((q) => {
+      const idx = Math.floor(Math.random() * PERSONA_COUNT);
+      return {
+        user_id: user.id,
+        question_id: q.id,
+        language,
+        variant: 1,
+        body: q.randomizeOptions[language][idx],
+      };
+    });
 
   const { error: insertError } = await supabase
     .from("answers")
