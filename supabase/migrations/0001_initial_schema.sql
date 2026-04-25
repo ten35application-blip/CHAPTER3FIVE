@@ -10,6 +10,8 @@ create table if not exists public.profiles (
   full_name text,
   preferred_language text not null default 'en' check (preferred_language in ('en', 'es')),
   texting_style text,         -- captured early to make replies sound like them
+  oracle_name text,           -- what the user calls their oracle ("Dad", "Sage")
+  mode text not null default 'real' check (mode in ('real', 'randomize')),
   onboarding_completed boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
