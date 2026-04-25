@@ -2,9 +2,17 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { questions, PERSONA_COUNT } from "@/content/questions";
+import {
+  questions,
+  indexesForGender,
+  type GenderFilter,
+} from "@/content/questions";
 
-export async function generateRandomizedArchive() {
+export async function generateRandomizedArchive(formData: FormData) {
+  const genderRaw = String(formData.get("gender") ?? "any");
+  const gender: GenderFilter =
+    genderRaw === "female" || genderRaw === "male" ? genderRaw : "any";
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -24,14 +32,16 @@ export async function generateRandomizedArchive() {
   }
 
   const language = (profile.preferred_language ?? "en") as "en" | "es";
+  const allowed = indexesForGender(gender);
+  if (allowed.length === 0) {
+    redirect("/onboarding/randomize?error=No%20personas%20match%20that%20pick");
+  }
 
-  // Per-question independent random pick. Yields 4^N unique chimera personas
-  // — every user gets a character no one else ever will. Trade-off: voice
-  // can shift across topics, by design.
+  // Per-question independent random pick from the gender-filtered pool.
   const rows = questions
     .filter((q) => q.randomizeOptions)
     .map((q) => {
-      const idx = Math.floor(Math.random() * PERSONA_COUNT);
+      const idx = allowed[Math.floor(Math.random() * allowed.length)];
       return {
         user_id: user.id,
         question_id: q.id,

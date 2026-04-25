@@ -59,6 +59,34 @@ export type Question = {
 
 export const PERSONA_COUNT = 4;
 
+/**
+ * Gender of each persona, by index. Used by the randomize generator to
+ * filter the answer pool when the user selects a gender at randomize time.
+ *
+ *   0 — Marisol — female
+ *   1 — Daniel  — male
+ *   2 — Yuki    — neutral (can read either; included in both gender picks)
+ *   3 — Henry   — male
+ */
+export type PersonaGender = "female" | "male" | "neutral";
+export const PERSONA_GENDERS: PersonaGender[] = [
+  "female",
+  "male",
+  "neutral",
+  "male",
+];
+
+export type GenderFilter = "female" | "male" | "any";
+
+export function indexesForGender(filter: GenderFilter): number[] {
+  if (filter === "any") {
+    return PERSONA_GENDERS.map((_, i) => i);
+  }
+  return PERSONA_GENDERS.map((g, i) => ({ g, i }))
+    .filter(({ g }) => g === filter || g === "neutral")
+    .map(({ i }) => i);
+}
+
 export const questions: Question[] = [
   // — Surface (1–15) —
   {
