@@ -292,7 +292,7 @@ const COPY = {
     saved: "Saved.",
     accountTitle: "Account",
     email: "Email",
-    oracle: "Oracle name",
+    oracle: "Thirtyfive name",
     mode: "Mode",
     modeReal: "Real",
     modeRandomize: "Randomize",
@@ -300,7 +300,7 @@ const COPY = {
     languageTitle: "Language",
     styleTitle: "Texting style (optional)",
     styleHint:
-      "Describe how you actually text — punctuation, emojis, length, tone. The oracle will match it.",
+      "Describe how you actually text — punctuation, emojis, length, tone. Your thirtyfive will match it.",
     stylePlaceholder:
       "lowercase, no periods, lol when funny, never emojis, short replies",
     save: "Save",
@@ -308,17 +308,17 @@ const COPY = {
     terms: "Terms of Service",
     privacy: "Privacy Policy",
     cookies: "Cookie Policy",
-    deleteOracleTitle: "Delete this oracle",
+    deleteOracleTitle: "Delete this thirtyfive",
     deleteOracleHint:
-      "Removes the persona, every answer recorded, and all conversations. Your account stays. You can create a new oracle from a clean slate.",
-    deleteOracleCta: "Delete oracle",
+      "Removes the character, every answer recorded, and all conversations. Your account stays. You can create a new thirtyfive from a clean slate.",
+    deleteOracleCta: "Delete thirtyfive",
     deleteAccountTitle: "Delete account",
     deleteAccountHint:
-      "Removes everything — your account, your oracle, every answer and conversation, all agreements. There is no undo.",
+      "Removes everything — your account, your thirtyfive, every answer and conversation, all agreements. There is no undo.",
     deleteAccountCta: "Delete account permanently",
     confirmInstruction: "To confirm, type",
     and: "and",
-    oraclePlaceholder: "Type the oracle name exactly",
+    oraclePlaceholder: "Type the name exactly",
     emailPlaceholder: "Type your email exactly",
   },
   es: {
@@ -328,7 +328,7 @@ const COPY = {
     saved: "Guardado.",
     accountTitle: "Cuenta",
     email: "Correo",
-    oracle: "Nombre del oráculo",
+    oracle: "Nombre del thirtyfive",
     mode: "Modo",
     modeReal: "Real",
     modeRandomize: "Aleatorio",
@@ -336,7 +336,7 @@ const COPY = {
     languageTitle: "Idioma",
     styleTitle: "Estilo al escribir (opcional)",
     styleHint:
-      "Describe cómo escribes realmente — puntuación, emojis, largo, tono. El oráculo lo igualará.",
+      "Describe cómo escribes realmente — puntuación, emojis, largo, tono. Tu thirtyfive lo igualará.",
     stylePlaceholder:
       "minúsculas, sin puntos, jaja cuando es chistoso, sin emojis, respuestas cortas",
     save: "Guardar",
@@ -344,17 +344,17 @@ const COPY = {
     terms: "Términos del Servicio",
     privacy: "Política de Privacidad",
     cookies: "Política de Cookies",
-    deleteOracleTitle: "Eliminar este oráculo",
+    deleteOracleTitle: "Eliminar este thirtyfive",
     deleteOracleHint:
-      "Elimina la persona, cada respuesta grabada y todas las conversaciones. Tu cuenta queda. Puedes crear un nuevo oráculo desde cero.",
-    deleteOracleCta: "Eliminar oráculo",
+      "Elimina al personaje, cada respuesta grabada y todas las conversaciones. Tu cuenta queda. Puedes crear un nuevo thirtyfive desde cero.",
+    deleteOracleCta: "Eliminar thirtyfive",
     deleteAccountTitle: "Eliminar cuenta",
     deleteAccountHint:
-      "Elimina todo — tu cuenta, tu oráculo, cada respuesta y conversación, todos los acuerdos. No hay vuelta atrás.",
+      "Elimina todo — tu cuenta, tu thirtyfive, cada respuesta y conversación, todos los acuerdos. No hay vuelta atrás.",
     deleteAccountCta: "Eliminar cuenta permanentemente",
     confirmInstruction: "Para confirmar, escribe",
     and: "y",
-    oraclePlaceholder: "Escribe el nombre del oráculo exacto",
+    oraclePlaceholder: "Escribe el nombre exacto",
     emailPlaceholder: "Escribe tu correo exacto",
   },
 };

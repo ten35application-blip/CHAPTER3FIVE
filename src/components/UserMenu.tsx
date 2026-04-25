@@ -11,15 +11,15 @@ type Props = {
 
 const COPY = {
   en: {
-    current: "Current oracle",
-    newOracle: "+ New oracle",
+    current: "Current thirtyfive",
+    newOracle: "+ New thirtyfive",
     soon: "soon",
     settings: "Settings",
     signOut: "Sign out",
   },
   es: {
-    current: "Oráculo actual",
-    newOracle: "+ Nuevo oráculo",
+    current: "Thirtyfive actual",
+    newOracle: "+ Nuevo thirtyfive",
     soon: "pronto",
     settings: "Ajustes",
     signOut: "Cerrar sesión",

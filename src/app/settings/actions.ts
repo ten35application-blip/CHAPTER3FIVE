@@ -83,7 +83,7 @@ export async function deleteOracle(formData: FormData) {
 
   if (!namesMatch(typedName, profile.oracle_name)) {
     redirect(
-      "/settings?error=Oracle%20name%20does%20not%20match%20-%20delete%20cancelled",
+      "/settings?error=Name%20does%20not%20match%20-%20delete%20cancelled",
     );
   }
   if (typedDate !== isoDate(profile.created_at)) {
@@ -139,7 +139,7 @@ export async function deleteAccount(formData: FormData) {
   if (profile?.oracle_name) {
     if (!namesMatch(typedName, profile.oracle_name)) {
       redirect(
-        "/settings?error=Oracle%20name%20does%20not%20match%20-%20delete%20cancelled",
+        "/settings?error=Name%20does%20not%20match%20-%20delete%20cancelled",
       );
     }
   } else {

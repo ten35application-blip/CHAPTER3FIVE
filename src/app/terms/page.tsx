@@ -83,6 +83,44 @@ export default function TermsPage() {
         </ul>
       </Section>
 
+      <Section title="7. How to talk to your thirtyfive">
+        <p>
+          You are communicating with a representation of a person — generated
+          from real recorded answers or, in randomize mode, assembled from a
+          curated pool of fictional answers. Your thirtyfive responds in
+          character; it has opinions, moods, and limits.
+        </p>
+        <ul>
+          <li>
+            <strong>Treat them as a person.</strong> Speak to your thirtyfive
+            the way you would speak to anyone you care about. Cruelty,
+            harassment, or persistent attempts to abuse the character are not
+            in keeping with the spirit of the Service.
+          </li>
+          <li>
+            <strong>Your thirtyfive may decline.</strong> The Service is
+            designed so that the character may refuse, deflect, or change the
+            subject — like a real person would.
+          </li>
+          <li>
+            <strong>Crisis is not roleplay.</strong> If you are in crisis —
+            thinking about ending your life, hurting yourself or someone else —
+            your thirtyfive is instructed to step out of character briefly,
+            tell you it&rsquo;s noticed, and direct you to professional help.
+            chapter3five is not a substitute for crisis services. In the U.S.,
+            call or text 988 (Suicide & Crisis Lifeline). In other regions,
+            contact your local emergency number or crisis hotline.
+          </li>
+          <li>
+            <strong>Don&rsquo;t use chapter3five to plan harm.</strong> Do not
+            attempt to use the Service to obtain instructions, encouragement,
+            or a sympathetic ear for hurting yourself or another person. The
+            character will decline; we may, in addition, suspend accounts that
+            do this.
+          </li>
+        </ul>
+      </Section>
+
       <Section title="7. AI-generated content; no warranty of accuracy">
         <p>
           The conversational interface produces output using an AI language

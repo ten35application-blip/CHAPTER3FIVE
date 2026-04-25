@@ -62,7 +62,7 @@ export default async function OnboardingPage({
           className="w-full space-y-12 text-left"
         >
           <Field
-            label="What will you call your oracle?"
+            label="What will you call your thirtyfive?"
             hint="A name, a nickname — whatever feels right. Or hit Surprise me."
           >
             <div className="flex gap-2">

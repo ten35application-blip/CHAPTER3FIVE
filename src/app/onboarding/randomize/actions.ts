@@ -7,6 +7,7 @@ import {
   eligibleAnswerIndexes,
   type GenderFilter,
 } from "@/content/questions";
+import { pickPersonality, pickFlavor } from "@/content/personality";
 
 export async function generateRandomizedArchive(formData: FormData) {
   const genderRaw = String(formData.get("gender") ?? "any");
@@ -34,7 +35,7 @@ export async function generateRandomizedArchive(formData: FormData) {
   const language = (profile.preferred_language ?? "en") as "en" | "es";
 
   // Per-question independent random pick from the gender-filtered pool.
-  // Each question is sampled independently, so the resulting character is a
+  // Each question is sampled independently — the resulting character is a
   // one-of-a-kind combination across the entire archive.
   const rows = questions
     .filter((q) => q.randomizeOptions && q.randomizeOptions[language]?.length)
@@ -66,6 +67,18 @@ export async function generateRandomizedArchive(formData: FormData) {
       `/onboarding/randomize?error=${encodeURIComponent(insertError.message)}`,
     );
   }
+
+  // Layer a coherent character on top: an MBTI-style type + an emotional flavor.
+  const personalityType = pickPersonality();
+  const emotionalFlavor = pickFlavor();
+
+  await supabase
+    .from("profiles")
+    .update({
+      personality_type: personalityType,
+      emotional_flavor: emotionalFlavor,
+    })
+    .eq("id", user.id);
 
   redirect("/agreements");
 }

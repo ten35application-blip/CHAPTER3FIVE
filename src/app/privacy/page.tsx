@@ -26,7 +26,7 @@ export default function PrivacyPage() {
         <p>We collect the following categories of information:</p>
         <ul>
           <li><strong>Account information.</strong> Email address and password (hashed) you provide on signup. Optionally, your name and language preference.</li>
-          <li><strong>Your archive content.</strong> The text answers you record, the oracle name you choose, and the mode (real or randomized) you select.</li>
+          <li><strong>Your archive content.</strong> The text answers you record, the name you choose for your thirtyfive, and the mode (real or randomized) you select.</li>
           <li><strong>Conversation content.</strong> Messages you send to and receive from your archive&rsquo;s conversational interface.</li>
           <li><strong>Usage and device data.</strong> Pages viewed, actions taken, IP address, device and browser type, approximate location, and timestamps. We may use cookies and similar technologies (see our Cookie Policy).</li>
           <li><strong>Payment information</strong>, if you make a purchase. Card data is handled by our payment processor; we do not store full card numbers.</li>
