@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Orb } from "@/components/Orb";
 import { Footer } from "@/components/Footer";
 
@@ -9,9 +10,12 @@ export default function Home() {
           <span className="font-serif text-xl tracking-tight text-warm-100">
             chapter3five
           </span>
-          <span className="text-xs uppercase tracking-[0.2em] text-warm-300">
-            Coming Soon
-          </span>
+          <Link
+            href="/auth"
+            className="text-sm text-warm-200 hover:text-warm-50 transition-colors"
+          >
+            Sign in
+          </Link>
         </div>
       </header>
 
@@ -34,15 +38,12 @@ export default function Home() {
           </p>
 
           <div className="mt-12 flex flex-col sm:flex-row gap-4 items-center">
-            <a
-              href="mailto:waitlist@chapter3five.app?subject=I'd like to join the waitlist"
-              className="inline-flex h-12 items-center justify-center rounded-full bg-warm-50 px-8 text-sm font-medium text-ink hover:bg-warm-100 transition-colors"
+            <Link
+              href="/auth"
+              className="inline-flex h-12 items-center justify-center rounded-full bg-warm-50 px-10 text-sm font-medium text-ink hover:bg-warm-100 transition-colors"
             >
-              Join the waitlist
-            </a>
-            <span className="text-sm text-warm-400">
-              Coming to App Store &amp; Google Play
-            </span>
+              Begin a chapter
+            </Link>
           </div>
         </section>
 
@@ -75,12 +76,12 @@ export default function Home() {
             Some people deserve to be remembered. <br />
             <span className="text-warm-200">Properly.</span>
           </p>
-          <a
-            href="mailto:waitlist@chapter3five.app?subject=I'd like to join the waitlist"
-            className="mt-10 inline-flex h-12 items-center justify-center rounded-full border border-warm-300/40 px-8 text-sm font-medium text-warm-100 hover:bg-warm-700/40 transition-colors"
+          <Link
+            href="/auth"
+            className="mt-10 inline-flex h-12 items-center justify-center rounded-full bg-warm-50 px-10 text-sm font-medium text-ink hover:bg-warm-100 transition-colors"
           >
-            Join the waitlist
-          </a>
+            Begin
+          </Link>
         </section>
       </main>
 

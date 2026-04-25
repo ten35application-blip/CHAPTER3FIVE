@@ -41,7 +41,7 @@ export function Footer() {
         </nav>
       </div>
       <div className="max-w-5xl mx-auto px-6 pb-10 text-xs text-warm-400">
-        © {new Date().getFullYear()} chapter3five. Coming to App Store and Google Play.
+        © {new Date().getFullYear()} chapter3five.
       </div>
     </footer>
   );
