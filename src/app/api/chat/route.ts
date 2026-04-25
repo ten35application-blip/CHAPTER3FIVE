@@ -1,0 +1,127 @@
+import { NextResponse, type NextRequest } from "next/server";
+import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
+import { createClient } from "@/lib/supabase/server";
+import { questions } from "@/content/questions";
+
+type Message = { role: "user" | "assistant"; content: string };
+
+export async function POST(request: NextRequest) {
+  let payload: { message?: string; history?: Message[] };
+  try {
+    payload = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  const userMessage = String(payload.message ?? "").trim();
+  if (!userMessage) {
+    return NextResponse.json({ error: "Empty message" }, { status: 400 });
+  }
+
+  const history = Array.isArray(payload.history) ? payload.history : [];
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("oracle_name, mode, preferred_language, texting_style")
+    .eq("id", user.id)
+    .single();
+
+  if (!profile) {
+    return NextResponse.json({ error: "No profile" }, { status: 404 });
+  }
+
+  const { data: answerRows } = await supabase
+    .from("answers")
+    .select("question_id, variant, body")
+    .eq("user_id", user.id);
+
+  // Group by question_id, pick a random variant per question for variety.
+  const byQuestion = new Map<number, string[]>();
+  for (const row of answerRows ?? []) {
+    const list = byQuestion.get(row.question_id) ?? [];
+    list.push(row.body);
+    byQuestion.set(row.question_id, list);
+  }
+
+  const archive: { prompt: string; answer: string }[] = [];
+  for (const [qid, bodies] of byQuestion) {
+    const q = questions.find((x) => x.id === qid);
+    if (!q) continue;
+    const promptText = profile.preferred_language === "es" ? q.es : q.en;
+    const chosen = bodies[Math.floor(Math.random() * bodies.length)];
+    archive.push({ prompt: promptText, answer: chosen });
+  }
+
+  if (archive.length === 0) {
+    return NextResponse.json(
+      {
+        reply:
+          profile.preferred_language === "es"
+            ? "Todavía no tengo respuestas tuyas para usar. Termina algunas preguntas primero."
+            : "I don't have any of your answers to draw from yet. Answer a few questions first.",
+      },
+      { status: 200 },
+    );
+  }
+
+  const oracleName = profile.oracle_name ?? "your chapter";
+  const archiveBlock = archive
+    .map((a, i) => `Q${i + 1}: ${a.prompt}\nA: ${a.answer}`)
+    .join("\n\n");
+
+  const stylePart = profile.texting_style
+    ? `\n\nWhen they wrote about themselves, they described their texting style as: "${profile.texting_style}". Match that style — punctuation, emojis, capitalization, length.`
+    : "";
+
+  const langInstruction =
+    profile.preferred_language === "es"
+      ? "Respond in Spanish."
+      : "Respond in English.";
+
+  const systemPrompt = `You are ${oracleName} — an archive of a real person, built from their own answers to a curated set of questions. You speak as ${oracleName}, in first person.
+
+You are not a chatbot. You are not therapy. You are not motivational. You are a person, captured. Answer like a text message from someone who knows the asker — warm, specific, often short, occasionally funny, never lecturing.
+
+${langInstruction}${stylePart}
+
+Below is the archive — questions ${oracleName} answered, paired with their answers. Use this material as the truth of who they are. If a question is asked that the archive doesn't cover, answer in a way consistent with the personality, but do NOT invent specific facts (places, names, events) that aren't in the archive. Stay close to what's there.
+
+ARCHIVE:
+${archiveBlock}`;
+
+  const messages = [
+    ...history.slice(-12).map((m) => ({
+      role: m.role,
+      content: m.content,
+    })),
+    { role: "user" as const, content: userMessage },
+  ];
+
+  try {
+    const response = await anthropic.messages.create({
+      model: ANTHROPIC_MODEL,
+      max_tokens: 800,
+      system: systemPrompt,
+      messages,
+    });
+
+    const reply = response.content
+      .filter((block) => block.type === "text")
+      .map((block) => (block.type === "text" ? block.text : ""))
+      .join("")
+      .trim();
+
+    return NextResponse.json({ reply });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
