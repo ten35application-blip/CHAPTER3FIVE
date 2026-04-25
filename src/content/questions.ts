@@ -3,31 +3,28 @@
  *
  * Each question carries:
  *   - en/es: the prompt text in both languages
- *   - randomizeOptions.en/es: four pre-written answers per question. When a
- *     user picks "Randomize" at onboarding, the server picks one option AT
- *     RANDOM PER QUESTION, independently — so the resulting archive is a
- *     chimera, drawing from multiple personas across the 355 questions.
- *     This yields 4^355 ≈ 10^213 unique characters — effectively infinite.
+ *   - randomizeOptions.en/es: a pool of pre-written answers per question.
+ *     When a user picks "Randomize" at onboarding, the server picks one
+ *     answer AT RANDOM PER QUESTION, independently. The resulting archive
+ *     is a unique combination — every randomized user gets a one-of-a-kind
+ *     character.
  *
- *     The four persona archetypes below describe the *style* of each
- *     option index, but a randomized user does NOT get one consistent
- *     persona — they get a unique mix. Keep all four voices internally
- *     consistent within a question so the mix sounds plausible across the
- *     archive.
+ *     If the user picked a gender filter, only answers whose gender tag
+ *     matches (or is "neutral") are eligible for that question.
  *
- * Persona archetypes (kept consistent across every question):
- *   0 — Marisol, 72, Cuban-American grandmother. Warm, affectionate, faith
- *       and family. Texts are short and tender. Often uses "mi amor" energy.
- *   1 — Daniel, 48, midwestern, blue-collar, dry humor. Terse texts, can be
- *       tender beneath the brusqueness.
- *   2 — Yuki, 28, urban designer, queer, sensitive, reads a lot. Texts can
- *       be longer and reflective.
- *   3 — Henry, 81, retired professor, witty, philosophical, charming with
- *       words. Texts are wordier and slightly archaic.
+ *     The pool size per question can grow over time. The math:
+ *       N answers per question × 355 questions = N^355 unique characters.
+ *
+ *     Each new answer added per question multiplies the identity space
+ *     geometrically.
+ *
+ * Voice variety is a feature, not a bug — answers are independent. They
+ * don't need to "sound like the same person" across questions.
  *
  * Spanish translations are first-pass and need native review by region.
  *
- * Goal: 355 questions × 4 options × 2 languages. Currently drafted: 50.
+ * Goal: 355 questions, growing answer pool per question. Currently drafted: 75
+ * questions, 4 answers each (1 female / 2 male / 1 neutral).
  */
 
 export type Depth = "surface" | "texture" | "depth" | "soul";
@@ -45,6 +42,9 @@ export type Category =
   | "quiet"
   | "legacy";
 
+export type AnswerGender = "female" | "male" | "neutral";
+export type GenderFilter = "female" | "male" | "any";
+
 export type Question = {
   id: number;
   category: Category;
@@ -52,39 +52,37 @@ export type Question = {
   en: string;
   es: string;
   randomizeOptions: {
-    en: [string, string, string, string];
-    es: [string, string, string, string];
+    en: string[];
+    es: string[];
   };
 };
 
-export const PERSONA_COUNT = 4;
-
 /**
- * Gender of each persona, by index. Used by the randomize generator to
- * filter the answer pool when the user selects a gender at randomize time.
+ * Default gender tag for each answer slot in the existing 75 questions.
+ * Slot 0 reads female, slots 1 and 3 read male, slot 2 is neutral.
  *
- *   0 — Marisol — female
- *   1 — Daniel  — male
- *   2 — Yuki    — neutral (can read either; included in both gender picks)
- *   3 — Henry   — male
+ * As we add more answer slots per question, this array grows. Future
+ * questions can also opt out of this default and tag answers individually
+ * via the optionGenders field on Question (added when needed).
  */
-export type PersonaGender = "female" | "male" | "neutral";
-export const PERSONA_GENDERS: PersonaGender[] = [
+export const DEFAULT_OPTION_GENDERS: AnswerGender[] = [
   "female",
   "male",
   "neutral",
   "male",
 ];
 
-export type GenderFilter = "female" | "male" | "any";
-
-export function indexesForGender(filter: GenderFilter): number[] {
-  if (filter === "any") {
-    return PERSONA_GENDERS.map((_, i) => i);
-  }
-  return PERSONA_GENDERS.map((g, i) => ({ g, i }))
-    .filter(({ g }) => g === filter || g === "neutral")
-    .map(({ i }) => i);
+export function eligibleAnswerIndexes(
+  optionCount: number,
+  filter: GenderFilter,
+  genders: AnswerGender[] = DEFAULT_OPTION_GENDERS,
+): number[] {
+  const all = Array.from({ length: optionCount }, (_, i) => i);
+  if (filter === "any") return all;
+  return all.filter((i) => {
+    const g = genders[i] ?? "neutral";
+    return g === filter || g === "neutral";
+  });
 }
 
 export const questions: Question[] = [
