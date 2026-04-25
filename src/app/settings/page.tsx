@@ -4,12 +4,18 @@ import { createClient } from "@/lib/supabase/server";
 import {
   updateLanguage,
   updateTextingStyle,
+  deleteOracle,
   deleteAccount,
 } from "./actions";
 
 export const metadata = {
   title: "Settings — chapter3five",
 };
+
+function isoDate(input: string | null | undefined): string {
+  if (!input) return "—";
+  return new Date(input).toISOString().slice(0, 10);
+}
 
 export default async function SettingsPage({
   searchParams,
@@ -32,6 +38,8 @@ export default async function SettingsPage({
 
   const language = (profile?.preferred_language ?? "en") as "en" | "es";
   const t = COPY[language];
+  const createdIso = isoDate(profile?.created_at);
+  const oracleName = profile?.oracle_name ?? null;
 
   return (
     <>
@@ -70,10 +78,7 @@ export default async function SettingsPage({
 
           <Section title={t.accountTitle}>
             <Row label={t.email} value={user.email ?? "—"} />
-            <Row
-              label={t.oracle}
-              value={profile?.oracle_name ?? "—"}
-            />
+            <Row label={t.oracle} value={oracleName ?? "—"} />
             <Row
               label={t.mode}
               value={
@@ -82,14 +87,7 @@ export default async function SettingsPage({
                   : t.modeReal
               }
             />
-            <Row
-              label={t.created}
-              value={
-                profile?.created_at
-                  ? new Date(profile.created_at).toLocaleDateString()
-                  : "—"
-              }
-            />
+            <Row label={t.created} value={createdIso} mono />
           </Section>
 
           <Section title={t.languageTitle}>
@@ -159,14 +157,86 @@ export default async function SettingsPage({
             </ul>
           </Section>
 
-          <Section title={t.dangerTitle} danger>
-            <p className="text-sm text-warm-300 mb-4">{t.dangerHint}</p>
-            <form action={deleteAccount}>
+          {oracleName && (
+            <Section title={t.deleteOracleTitle} danger>
+              <p className="text-sm text-warm-300 mb-2">
+                {t.deleteOracleHint}
+              </p>
+              <p className="text-sm text-warm-300 mb-5">
+                {t.confirmInstruction}{" "}
+                <span className="text-warm-100 font-medium">{oracleName}</span>{" "}
+                {t.and}{" "}
+                <span className="text-warm-100 font-mono text-[0.95em]">
+                  {createdIso}
+                </span>
+                .
+              </p>
+              <form action={deleteOracle} className="space-y-3">
+                <input
+                  type="text"
+                  name="confirm_name"
+                  required
+                  autoComplete="off"
+                  placeholder={t.oraclePlaceholder}
+                  className="w-full h-11 rounded-full bg-warm-700/30 border border-warm-400/30 px-4 text-warm-50 placeholder:text-warm-400 focus:outline-none focus:border-warm-200 transition-colors"
+                />
+                <input
+                  type="text"
+                  name="confirm_date"
+                  required
+                  autoComplete="off"
+                  placeholder="YYYY-MM-DD"
+                  className="w-full h-11 rounded-full bg-warm-700/30 border border-warm-400/30 px-4 text-warm-50 placeholder:text-warm-400 focus:outline-none focus:border-warm-200 transition-colors font-mono text-sm"
+                />
+                <button
+                  type="submit"
+                  className="h-11 px-5 rounded-full border border-red-300/40 bg-red-900/20 text-red-200 hover:bg-red-900/30 transition-colors text-sm"
+                >
+                  {t.deleteOracleCta}
+                </button>
+              </form>
+            </Section>
+          )}
+
+          <Section title={t.deleteAccountTitle} danger>
+            <p className="text-sm text-warm-300 mb-2">
+              {t.deleteAccountHint}
+            </p>
+            <p className="text-sm text-warm-300 mb-5">
+              {t.confirmInstruction}{" "}
+              <span className="text-warm-100 font-medium">
+                {oracleName ?? user.email}
+              </span>{" "}
+              {t.and}{" "}
+              <span className="text-warm-100 font-mono text-[0.95em]">
+                {createdIso}
+              </span>
+              .
+            </p>
+            <form action={deleteAccount} className="space-y-3">
+              <input
+                type="text"
+                name="confirm_name"
+                required
+                autoComplete="off"
+                placeholder={
+                  oracleName ? t.oraclePlaceholder : t.emailPlaceholder
+                }
+                className="w-full h-11 rounded-full bg-warm-700/30 border border-warm-400/30 px-4 text-warm-50 placeholder:text-warm-400 focus:outline-none focus:border-warm-200 transition-colors"
+              />
+              <input
+                type="text"
+                name="confirm_date"
+                required
+                autoComplete="off"
+                placeholder="YYYY-MM-DD"
+                className="w-full h-11 rounded-full bg-warm-700/30 border border-warm-400/30 px-4 text-warm-50 placeholder:text-warm-400 focus:outline-none focus:border-warm-200 transition-colors font-mono text-sm"
+              />
               <button
                 type="submit"
                 className="h-11 px-5 rounded-full border border-red-300/40 bg-red-900/20 text-red-200 hover:bg-red-900/30 transition-colors text-sm"
               >
-                {t.delete}
+                {t.deleteAccountCta}
               </button>
             </form>
           </Section>
@@ -195,11 +265,21 @@ function Section({
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function Row({
+  label,
+  value,
+  mono,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+}) {
   return (
     <div className="flex justify-between items-center py-2 border-b border-warm-700/30 last:border-b-0">
       <span className="text-sm text-warm-300">{label}</span>
-      <span className="text-warm-100">{value}</span>
+      <span className={mono ? "text-warm-100 font-mono text-sm" : "text-warm-100"}>
+        {value}
+      </span>
     </div>
   );
 }
@@ -222,16 +302,24 @@ const COPY = {
     styleHint:
       "Describe how you actually text — punctuation, emojis, length, tone. The oracle will match it.",
     stylePlaceholder:
-      "Lowercase, no periods, lol when funny, never emojis, short replies",
+      "lowercase, no periods, lol when funny, never emojis, short replies",
     save: "Save",
     legalTitle: "Legal",
     terms: "Terms of Service",
     privacy: "Privacy Policy",
     cookies: "Cookie Policy",
-    dangerTitle: "Delete account",
-    dangerHint:
-      "This permanently removes your archive, your answers, and your account. There is no undo.",
-    delete: "Delete my account",
+    deleteOracleTitle: "Delete this oracle",
+    deleteOracleHint:
+      "Removes the persona, every answer recorded, and all conversations. Your account stays. You can create a new oracle from a clean slate.",
+    deleteOracleCta: "Delete oracle",
+    deleteAccountTitle: "Delete account",
+    deleteAccountHint:
+      "Removes everything — your account, your oracle, every answer and conversation, all agreements. There is no undo.",
+    deleteAccountCta: "Delete account permanently",
+    confirmInstruction: "To confirm, type",
+    and: "and",
+    oraclePlaceholder: "Type the oracle name exactly",
+    emailPlaceholder: "Type your email exactly",
   },
   es: {
     title: "Ajustes",
@@ -250,15 +338,23 @@ const COPY = {
     styleHint:
       "Describe cómo escribes realmente — puntuación, emojis, largo, tono. El oráculo lo igualará.",
     stylePlaceholder:
-      "minúsculas, sin puntos, jaja cuando sea chistoso, sin emojis, respuestas cortas",
+      "minúsculas, sin puntos, jaja cuando es chistoso, sin emojis, respuestas cortas",
     save: "Guardar",
     legalTitle: "Legal",
     terms: "Términos del Servicio",
     privacy: "Política de Privacidad",
     cookies: "Política de Cookies",
-    dangerTitle: "Eliminar cuenta",
-    dangerHint:
-      "Esto elimina permanentemente tu archivo, tus respuestas y tu cuenta. No hay vuelta atrás.",
-    delete: "Eliminar mi cuenta",
+    deleteOracleTitle: "Eliminar este oráculo",
+    deleteOracleHint:
+      "Elimina la persona, cada respuesta grabada y todas las conversaciones. Tu cuenta queda. Puedes crear un nuevo oráculo desde cero.",
+    deleteOracleCta: "Eliminar oráculo",
+    deleteAccountTitle: "Eliminar cuenta",
+    deleteAccountHint:
+      "Elimina todo — tu cuenta, tu oráculo, cada respuesta y conversación, todos los acuerdos. No hay vuelta atrás.",
+    deleteAccountCta: "Eliminar cuenta permanentemente",
+    confirmInstruction: "Para confirmar, escribe",
+    and: "y",
+    oraclePlaceholder: "Escribe el nombre del oráculo exacto",
+    emailPlaceholder: "Escribe tu correo exacto",
   },
 };
