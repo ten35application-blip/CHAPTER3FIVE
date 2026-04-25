@@ -23,8 +23,10 @@
  *
  * Spanish translations are first-pass and need native review by region.
  *
- * Goal: 355 questions, growing answer pool per question. Currently drafted: 75
- * questions, 4 answers each (1 female / 2 male / 1 neutral).
+ * Goal: 355 questions, growing answer pool per question. Currently drafted:
+ * all 355 questions, 4 answers each in EN+ES (1 female / 2 male / 1 neutral
+ * gender tags by index). Total: 355 prompts × 8 answer strings = 2,840
+ * pieces of curated content. Spanish translations need native review.
  */
 
 export type Depth = "surface" | "texture" | "depth" | "soul";
@@ -6935,6 +6937,638 @@ export const questions: Question[] = [
         "\"Era firme.\" Es suficiente.",
         "\"Prestó atención.\" Es la oración entera; es la oración entera que quiero.",
         "\"Era, en balance, un buen escucha.\" La frase tiene dignidad suficiente para sobrevivir al hablante, y eso es, según mi medida, el cumplido más alto.",
+      ],
+    },
+  },
+
+  // — Batch 12 (326–355) — final batch, closing the 355 —
+  {
+    id: 326,
+    category: "family",
+    depth: "depth",
+    en: "What surprised you most about being a parent — or about not being one?",
+    es: "¿Qué fue lo que más te sorprendió de ser padre — o de no serlo?",
+    randomizeOptions: {
+      en: [
+        "Que se quiere de un modo que no sabía existía. Y que esa cantidad de amor da miedo.",
+        "How much of it is just being there. Showing up. That's most of it.",
+        "How quickly the children become whole, separate people. The surprise has not, in twenty-six years, faded.",
+        "That the labor of parenthood is, in fact, the labor of slowly releasing them — and that the release, properly conducted, is the love.",
+      ],
+      es: [
+        "Que se quiere de un modo que no sabía existía. Y que esa cantidad de amor da miedo.",
+        "Cuánto es sólo estar ahí. Aparecer. Eso es la mayor parte.",
+        "Qué rápido los niños se vuelven personas enteras y separadas. La sorpresa no ha cedido, en veintiséis años.",
+        "Que el trabajo de la paternidad es, de hecho, el trabajo de soltarlos lentamente — y que el soltar, hecho bien, es el amor.",
+      ],
+    },
+  },
+  {
+    id: 327,
+    category: "stories",
+    depth: "texture",
+    en: "What did your favorite teacher's classroom look like?",
+    es: "¿Cómo era el salón de tu maestra favorita?",
+    randomizeOptions: {
+      en: [
+        "El de la Hermana Alicia. Una imagen grande de la Virgen. Mapa de Cuba. Y siempre olía a tiza y a rosas.",
+        "Mr. Kovacs's shop. Tools on the wall. Three benches. Smelled like pine.",
+        "Ms. Aldana's English room. Posters of writers. A red couch in the corner. A window that opened to a courtyard.",
+        "Dr. Maitland's seminar room: a long oak table, a wall of philosophy, a single window that, in autumn, framed a particular tree.",
+      ],
+      es: [
+        "El de la Hermana Alicia. Una imagen grande de la Virgen. Mapa de Cuba. Y siempre olía a tiza y a rosas.",
+        "El taller de Mr. Kovacs. Herramientas en la pared. Tres mesas. Olía a pino.",
+        "El salón de inglés de Ms. Aldana. Pósters de escritores. Un sofá rojo en la esquina. Una ventana que daba a un patio.",
+        "El cuarto de seminario de la doctora Maitland: una mesa larga de roble, un muro de filosofía, una sola ventana que, en otoño, enmarcaba cierto árbol.",
+      ],
+    },
+  },
+  {
+    id: 328,
+    category: "love",
+    depth: "texture",
+    en: "Tell me one specific thing about the morning you got married, if you did.",
+    es: "Cuéntame una cosa específica de la mañana en que te casaste, si lo hiciste.",
+    randomizeOptions: {
+      en: [
+        "Mi mami planchó el vestido tres veces. La cocina olía a almidón y a café. Mami estaba feliz como nunca la vi.",
+        "Got dressed in the kitchen. Tied my own tie wrong twice. Mom fixed it.",
+        "I sat in the bathroom for ten minutes alone, looking at my hands. They didn't shake. I had expected them to.",
+        "I shaved twice, by mistake, and arrived at the chapel slightly bewildered, having lost ten minutes I have never been able to account for.",
+      ],
+      es: [
+        "Mi mami planchó el vestido tres veces. La cocina olía a almidón y café. Mami estaba feliz como nunca la había visto.",
+        "Me vestí en la cocina. Me anudé la corbata mal dos veces. Mi mamá la arregló.",
+        "Me senté en el baño diez minutos sola, mirándome las manos. No me temblaban. Esperaba que sí.",
+        "Me afeité dos veces por error, y llegué a la capilla ligeramente desconcertado, habiendo perdido diez minutos que nunca he podido explicar.",
+      ],
+    },
+  },
+  {
+    id: 329,
+    category: "family",
+    depth: "soul",
+    en: "What do you wish you'd asked your mother before she went, or before life got busy?",
+    es: "¿Qué quisieras haberle preguntado a tu madre antes de que se fuera, o antes de que la vida se acelerara?",
+    randomizeOptions: {
+      en: [
+        "Cómo se sentía cuando salió de Cuba. Yo nunca le pregunté de verdad. Sólo de pasada.",
+        "If she was happy. Don't think I ever asked.",
+        "What she'd been like at twenty-three. The version of her I never met.",
+        "Whether, in some quiet hour of her own youth, she had been the person I have, in mine, also been.",
+      ],
+      es: [
+        "Cómo se sentía cuando salió de Cuba. Nunca se lo pregunté de verdad. Sólo de pasada.",
+        "Si era feliz. No creo haberle preguntado.",
+        "Cómo era a los veintitrés. La versión de ella que nunca conocí.",
+        "Si, en alguna hora callada de su propia juventud, ella había sido la persona que yo, en la mía, también he sido.",
+      ],
+    },
+  },
+  {
+    id: 330,
+    category: "stories",
+    depth: "texture",
+    en: "What makes you laugh until you cry, even now?",
+    es: "¿Qué te hace reír hasta llorar, aún ahora?",
+    randomizeOptions: {
+      en: [
+        "Mi hermana imitando a mami en la cocina. Cada vez. No importa cuántas veces. Lloro de risa.",
+        "My buddy doing impressions. Twenty years on. Still gets me.",
+        "An old voicemail my friend left me, drunk, narrating her cat. I listened to it last week. Still cried.",
+        "A particular passage from Wodehouse that I have read aloud, on three separate continents, to crying spouses.",
+      ],
+      es: [
+        "Mi hermana imitando a mami en la cocina. Cada vez. No importa cuántas veces. Lloro de risa.",
+        "Mi cuate haciendo imitaciones. Veinte años después. Sigue dándome.",
+        "Un viejo mensaje de voz que me dejó una amiga, borracha, narrando a su gato. Lo oí la semana pasada. Lloré igual.",
+        "Cierto pasaje de Wodehouse que he leído en voz alta, en tres continentes distintos, a esposas llorando.",
+      ],
+    },
+  },
+  {
+    id: 331,
+    category: "love",
+    depth: "soul",
+    en: "What were the last words you exchanged with someone who's gone?",
+    es: "¿Cuáles fueron las últimas palabras que cruzaste con alguien que ya no está?",
+    randomizeOptions: {
+      en: [
+        "'Te quiero, mami.' Ella me dijo: 'Yo más, mi vida.' Esa fue la última. Lo guardo como tesoro.",
+        "Said \"I'll be right there\" on the phone with my old man. Got there. He was gone. The call was the last.",
+        "We argued, briefly, about traffic. She laughed. I said \"see you Sunday.\" There was no Sunday. The laugh has, since, sat in for one.",
+        "\"Sleep well\" — uttered in 2018 to my late wife, with absolute and ordinary tenderness. She did, I trust.",
+      ],
+      es: [
+        "'Te quiero, mami.' Ella me dijo: 'Yo más, mi vida.' Esa fue la última. La guardo como tesoro.",
+        "Le dije: \"Ya voy en camino\" por teléfono a mi viejo. Llegué. Ya se había ido. La llamada fue la última.",
+        "Discutimos, brevemente, por el tráfico. Ella se rió. Yo le dije \"nos vemos el domingo.\" No hubo domingo. La risa ha ocupado, desde entonces, su lugar.",
+        "\"Que descanses\" — dicho en 2018 a mi difunta esposa, con absoluta y ordinaria ternura. Lo hizo, confío.",
+      ],
+    },
+  },
+  {
+    id: 332,
+    category: "love",
+    depth: "texture",
+    en: "How do you write a love note? What do you actually say?",
+    es: "¿Cómo escribes una nota de amor? ¿Qué dices realmente?",
+    randomizeOptions: {
+      en: [
+        "Cursiva chiquita. Empiezo: 'Mi vida.' Termino: 'Tuya.' En medio le digo gracias por algo del día.",
+        "Don't write 'em. Don't talk much either. They know.",
+        "Lowercase. Three lines. The third line is usually the truest one. I sign it with one initial and a small heart I would never draw if I were sober.",
+        "A short, formal salutation, two paragraphs of careful sentiment, and a closing in Latin. The recipient, by now, expects no less.",
+      ],
+      es: [
+        "Cursiva chiquita. Empiezo: 'Mi vida.' Termino: 'Tuya.' En medio le digo gracias por algo del día.",
+        "No las escribo. Tampoco hablo mucho. Saben.",
+        "Minúsculas. Tres líneas. La tercera suele ser la más verdadera. Firmo con una inicial y un corazoncito que jamás dibujaría sobrio.",
+        "Un saludo breve y formal, dos párrafos de sentimiento cuidadoso, y un cierre en latín. La destinataria, a estas alturas, no espera menos.",
+      ],
+    },
+  },
+  {
+    id: 333,
+    category: "values",
+    depth: "depth",
+    en: "What's something you've made with your own hands that you're quietly proud of?",
+    es: "¿Qué cosa has hecho con tus propias manos de la que estás silenciosamente orgulloso?",
+    randomizeOptions: {
+      en: [
+        "Tejí un mantel para la mesa de mami. Tres meses. Lo guardó hasta que murió. Yo lo tengo ahora.",
+        "Built the deck. Twenty-two years ago. Still standing. So am I.",
+        "A pair of leather sandals I made in a class once. They're not great. I wear them every summer anyway.",
+        "A small bookshelf, in 1984, that has, against all reasonable expectation, held two of my heaviest books for forty-one years.",
+      ],
+      es: [
+        "Tejí un mantel para la mesa de mami. Tres meses. Lo guardó hasta que murió. Yo lo tengo ahora.",
+        "Construí la terraza. Hace veintidós años. Sigue de pie. Yo también.",
+        "Un par de sandalias de cuero que hice en una clase una vez. No son buenas. Las uso cada verano igual.",
+        "Un pequeño librero, en 1984, que ha, contra toda expectativa razonable, sostenido dos de mis libros más pesados durante cuarenta y un años.",
+      ],
+    },
+  },
+  {
+    id: 334,
+    category: "place",
+    depth: "texture",
+    en: "Tell me about the first day of your favorite season — what does it look like, what do you do?",
+    es: "Cuéntame del primer día de tu estación favorita — ¿cómo se ve, qué haces?",
+    randomizeOptions: {
+      en: [
+        "El primer día fresco de noviembre en Miami. Salgo, me siento en el patio, tomo café, me quedo callada.",
+        "First frost. Open the window. Smell the cold. Make coffee twice as strong.",
+        "The first afternoon of fall — that gold, that quiet, that smell of distant burning leaves — and I take a long walk and don't bring a phone.",
+        "The first morning of October on which the dew freezes. I stand on the porch, in too thin a coat, and refuse to feel cold.",
+      ],
+      es: [
+        "El primer día fresco de noviembre en Miami. Salgo, me siento en el patio, tomo café, me quedo callada.",
+        "Primera helada. Abro la ventana. Huelo el frío. Hago el café el doble de fuerte.",
+        "La primera tarde de otoño — ese oro, ese silencio, ese olor a hojas quemándose lejos — y hago una caminata larga sin teléfono.",
+        "La primera mañana de octubre en que se hiela el rocío. Me paro en el porche, con un abrigo demasiado fino, y me niego a sentir frío.",
+      ],
+    },
+  },
+  {
+    id: 335,
+    category: "stories",
+    depth: "texture",
+    en: "Have you ever spent a night in a stranger's house? How did it happen?",
+    es: "¿Has pasado la noche en casa de un desconocido? ¿Cómo pasó?",
+    randomizeOptions: {
+      en: [
+        "Una vecina me alojó cuando me cortaron la luz dos noches. La conocía de saludo. Me hizo sopa y me dio la cama.",
+        "Truck broke down outside Tulsa, '94. Old guy let me sleep on his couch. Didn't take a dollar. Sent him a Christmas card for ten years.",
+        "A friend of a friend in Athens. We had no language. She fed me, sang to me, and put me on the right bus the next morning.",
+        "An elderly couple in a remote French village, in 1970, took me in when I was, by some margin, lost. They gave me bread and a clean bed and asked nothing.",
+      ],
+      es: [
+        "Una vecina me alojó cuando me cortaron la luz dos noches. La conocía de saludo. Me hizo sopa y me dio la cama.",
+        "Se me descompuso la camioneta afuera de Tulsa, en el 94. Un viejo me dejó dormir en el sofá. No aceptó un dólar. Le mandé una tarjeta de Navidad diez años.",
+        "Una amiga de una amiga en Atenas. No teníamos idioma. Me dio de comer, me cantó, y me puso en el autobús correcto a la mañana siguiente.",
+        "Una pareja anciana en un pueblo francés remoto, en 1970, me acogió cuando estaba, por buen margen, perdido. Me dieron pan y una cama limpia y no pidieron nada.",
+      ],
+    },
+  },
+  {
+    id: 336,
+    category: "self",
+    depth: "texture",
+    en: "What's your favorite hour of the day?",
+    es: "¿Cuál es tu hora favorita del día?",
+    randomizeOptions: {
+      en: [
+        "Las cinco de la mañana. Antes que se despierte el mundo. Yo y mi café.",
+        "Six in the morning. Coffee. Quiet. Mine.",
+        "Five p.m. — the slant of light, the loosening of the day, the moment one forgives oneself for not having done more.",
+        "Half past seven, in the evening, when the lamp is on, the dishes are done, and the rest of the night has not been spoken for.",
+      ],
+      es: [
+        "Las cinco de la mañana. Antes de que se despierte el mundo. Yo y mi café.",
+        "Seis de la mañana. Café. Silencio. Mía.",
+        "Cinco de la tarde — la inclinación de la luz, el aflojarse del día, el momento en que uno se perdona por no haber hecho más.",
+        "Las siete y media, en la tarde, cuando la lámpara está prendida, los platos están hechos, y el resto de la noche no ha sido reservado.",
+      ],
+    },
+  },
+  {
+    id: 337,
+    category: "self",
+    depth: "depth",
+    en: "What have you finally gotten good at — that took a long time?",
+    es: "¿En qué te has hecho finalmente bueno — que te tomó mucho tiempo?",
+    randomizeOptions: {
+      en: [
+        "Decir que no. Sesenta y tantos años. Lo logré. La paz vino con eso.",
+        "Knowing when not to fix it. Took me twenty years. Got there.",
+        "Saying \"I was wrong\" without a comma. The full stop took me until I was forty-six.",
+        "The art, after eight decades, of doing one thing at a time. The world, alas, considers this a deficiency.",
+      ],
+      es: [
+        "Decir que no. Sesenta y tantos años. Lo logré. La paz vino con eso.",
+        "Saber cuándo no arreglarlo. Veinte años. Llegué.",
+        "Decir \"me equivoqué\" sin coma. El punto me tomó hasta los cuarenta y seis.",
+        "El arte, tras ocho décadas, de hacer una cosa a la vez. El mundo, ay, lo considera una deficiencia.",
+      ],
+    },
+  },
+  {
+    id: 338,
+    category: "self",
+    depth: "surface",
+    en: "How do you take your coffee? Honest answer.",
+    es: "¿Cómo tomas el café? Honesto.",
+    randomizeOptions: {
+      en: [
+        "Negro, con dos cucharadas de azúcar. Un cafecito cubano si es por la tarde. Punto.",
+        "Black. From a thermos. Don't care if it's lukewarm.",
+        "With a small pour of cream. A teaspoon of brown sugar. The ritual takes thirty seconds and saves the morning.",
+        "A French press, four scoops, no sugar, a thumb of cream. The procedure has, in forty years, never required revision.",
+      ],
+      es: [
+        "Negro, con dos cucharadas de azúcar. Un cafecito cubano si es por la tarde. Punto.",
+        "Negro. De un termo. No importa si está tibio.",
+        "Con un chorrito de crema. Una cucharadita de azúcar morena. El ritual toma treinta segundos y salva la mañana.",
+        "Una French press, cuatro cucharadas, sin azúcar, un dedito de crema. El procedimiento no ha requerido, en cuarenta años, revisión.",
+      ],
+    },
+  },
+  {
+    id: 339,
+    category: "love",
+    depth: "depth",
+    en: "Tell me about a wedding anniversary you remember — yours or someone's.",
+    es: "Cuéntame de un aniversario que recuerdes — tuyo o de alguien.",
+    randomizeOptions: {
+      en: [
+        "El aniversario veinte. Hector me llevó al malecón y me bailó solo. Yo lloré. Eso fue todo.",
+        "Wife and I, twenty-fifth. Cooked at home. Slept by nine. Best one.",
+        "A friend's fortieth — the speech her partner gave was so plain and so true that no one in the room had a dry eye, including me.",
+        "Our fiftieth, in 2018. We did not, as one might expect, do anything; the not doing was, as it happened, the gift.",
+      ],
+      es: [
+        "El aniversario veinte. Hector me llevó al malecón y me bailó solo. Yo lloré. Eso fue todo.",
+        "Mi esposa y yo, veinticinco. Cocinamos en casa. Dormimos a las nueve. El mejor.",
+        "El cuarenta de una amiga — el discurso que dio su pareja fue tan llano y tan verdadero que nadie en el salón tenía los ojos secos, yo incluida.",
+        "Nuestro cincuenta, en 2018. No hicimos, como uno podría esperar, nada; el no hacer fue, como resultó, el regalo.",
+      ],
+    },
+  },
+  {
+    id: 340,
+    category: "self",
+    depth: "surface",
+    en: "What's your phone background — a person, a place, a color?",
+    es: "¿Qué tienes en el fondo del teléfono — una persona, un lugar, un color?",
+    randomizeOptions: {
+      en: [
+        "Una foto de mami a los cuarenta, riendo. La veo cien veces al día.",
+        "Plain blue. Don't need a picture.",
+        "A photograph of an empty road I took at dawn six years ago. It has, somehow, not lost its hold.",
+        "A reproduction of a Vermeer interior. The light, on the small screen, is, on certain afternoons, a small grace.",
+      ],
+      es: [
+        "Una foto de mami a los cuarenta, riendo. La veo cien veces al día.",
+        "Azul simple. No necesito foto.",
+        "Una foto de un camino vacío que tomé al amanecer hace seis años. No ha, de algún modo, perdido su poder.",
+        "Una reproducción de un interior de Vermeer. La luz, en la pantallita, es, en ciertas tardes, una pequeña gracia.",
+      ],
+    },
+  },
+  {
+    id: 341,
+    category: "family",
+    depth: "soul",
+    en: "If your father could hear you for one minute, what would you say?",
+    es: "Si tu padre pudiera escucharte un minuto, ¿qué le dirías?",
+    randomizeOptions: {
+      en: [
+        "Te perdoné. Te quise. Y aprendí a hacer las cosas mejor que tú. Eso es lo que te debía.",
+        "Did alright, dad. Boys are good. Wish you'd seen them.",
+        "I'd say: I see you now. I didn't, then. I do, now.",
+        "I would say, in the briefest possible English: I have, after a fashion, become you. The transformation is, on balance, what we both wanted.",
+      ],
+      es: [
+        "Te perdoné. Te quise. Y aprendí a hacer las cosas mejor que tú. Eso es lo que te debía.",
+        "Me fue bien, papá. Los muchachos están bien. Hubiera querido que los vieras.",
+        "Le diría: te veo ahora. No te veía, entonces. Te veo, ahora.",
+        "Le diría, en el español más breve posible: me he, a mi manera, convertido en ti. La transformación es, en balance, lo que ambos queríamos.",
+      ],
+    },
+  },
+  {
+    id: 342,
+    category: "self",
+    depth: "surface",
+    en: "What's a spice or seasoning you'd never run out of?",
+    es: "¿Qué especia o condimento nunca te quedarías sin?",
+    randomizeOptions: {
+      en: [
+        "Comino. Mami siempre tenía. Yo siempre tengo. La cocina pierde el alma sin él.",
+        "Black pepper. Don't trust a kitchen without it.",
+        "Maldon salt. I'm pretentious about it. I'm not sorry.",
+        "Whole nutmeg, with a small grater. The pretension is, on inspection, the point.",
+      ],
+      es: [
+        "Comino. Mami siempre tenía. Yo siempre tengo. La cocina pierde el alma sin él.",
+        "Pimienta negra. No confío en una cocina sin ella.",
+        "Sal Maldon. Soy pretenciosa con eso. No me disculpo.",
+        "Nuez moscada entera, con un rallador pequeño. La pretensión es, examinada de cerca, el punto.",
+      ],
+    },
+  },
+  {
+    id: 343,
+    category: "family",
+    depth: "depth",
+    en: "When did you realize you'd become your mother or your father?",
+    es: "¿Cuándo te diste cuenta de que te habías vuelto tu madre o tu padre?",
+    randomizeOptions: {
+      en: [
+        "El día que le dije a mi hija: 'Niña, baja el tono.' Igualito a mami. Lloré después.",
+        "Caught myself wiping the counter the way my old man did. Same circle, same direction. That was it.",
+        "I heard, in my own voice on a phone call, my mother's exact pause before the verb. There is no undoing such a discovery.",
+        "When I noticed, in 2003, that I had begun to clear my throat as my father did. The genealogy of small mannerisms is, on inspection, ruthless.",
+      ],
+      es: [
+        "El día que le dije a mi hija: 'Niña, baja el tono.' Igualito a mami. Lloré después.",
+        "Me cachaba a mí mismo limpiando la barra como mi viejo. Mismo círculo, misma dirección. Ahí fue.",
+        "Oí, en mi propia voz en una llamada, la pausa exacta de mi madre antes del verbo. No se puede deshacer un descubrimiento así.",
+        "Cuando noté, en 2003, que había empezado a aclarar la garganta como mi padre. La genealogía de los pequeños manierismos es, mirada de cerca, despiadada.",
+      ],
+    },
+  },
+  {
+    id: 344,
+    category: "self",
+    depth: "surface",
+    en: "How do you fold socks? Or do you?",
+    es: "¿Cómo doblas los calcetines? ¿O los doblas?",
+    randomizeOptions: {
+      en: [
+        "Uno dentro del otro. Como una bolita. Mami lo hacía. Yo lo hago.",
+        "Don't. Toss 'em in a drawer. Match 'em later. Sometimes never.",
+        "Folded by color, paired with the seam outward. I have, in this respect, become a small monastery of sock organization.",
+        "Rolled into themselves, in a manner I shall not, at this late date, defend or revise.",
+      ],
+      es: [
+        "Uno dentro del otro. Como una bolita. Mami lo hacía. Yo lo hago.",
+        "No. Los aviento al cajón. Los empareja después. A veces nunca.",
+        "Doblados por color, emparejados con la costura hacia afuera. Me he, en este aspecto, convertido en un pequeño monasterio de organización de calcetines.",
+        "Enrollados en sí mismos, de una manera que, a esta altura, no defenderé ni revisaré.",
+      ],
+    },
+  },
+  {
+    id: 345,
+    category: "love",
+    depth: "depth",
+    en: "What's something only your spouse, partner, or closest person understands about you?",
+    es: "¿Qué sólo tu pareja o persona más cercana entiende de ti?",
+    randomizeOptions: {
+      en: [
+        "Que cuando hablo en sueños, hablo con mi mami. Hector lo sabía. Nadie más.",
+        "She knows when I'm not okay before I do. Don't have to say.",
+        "He understands the silences. Knows which ones are hurt, which are restful, which are an answer in themselves.",
+        "She has, after fifty-five years, learned to read my eyebrow. The eyebrow has, for its part, never quite forgiven this knowledge.",
+      ],
+      es: [
+        "Que cuando hablo dormida, hablo con mi mami. Hector lo sabía. Nadie más.",
+        "Ella sabe cuando no estoy bien antes que yo. No hace falta decirlo.",
+        "Él entiende los silencios. Sabe cuáles son dolor, cuáles descanso, cuáles son ya una respuesta.",
+        "Ella ha aprendido, tras cincuenta y cinco años, a leer mi ceja. La ceja, por su parte, no ha perdonado del todo este conocimiento.",
+      ],
+    },
+  },
+  {
+    id: 346,
+    category: "self",
+    depth: "texture",
+    en: "Walk me through your morning ritual, beat by beat.",
+    es: "Llévame por tu rutina de la mañana, paso a paso.",
+    randomizeOptions: {
+      en: [
+        "Levanto. Pongo la cafetera. Riego la matita. Lavo la cara. Persigno. Café. Radio. Sentada en mi silla. Eso es todo.",
+        "Up. Coffee. Pants. Boots. Out the door.",
+        "Wake at six. Glass of water. Stretch for two minutes. Coffee, slow. Open the curtain. Read for fifteen minutes. Then I belong to the day.",
+        "Six. Tea. Toast. Newspaper. Crossword. A short walk. Then to the desk, and the day begins in earnest.",
+      ],
+      es: [
+        "Me levanto. Pongo la cafetera. Riego la matita. Me lavo la cara. Me persigno. Café. Radio. Sentada en mi silla. Eso es todo.",
+        "Arriba. Café. Pantalones. Botas. Salgo.",
+        "Despierto a las seis. Vaso de agua. Estiro dos minutos. Café, lento. Abro la cortina. Leo quince minutos. Después le pertenezco al día.",
+        "Seis. Té. Pan tostado. Periódico. Crucigrama. Una caminata corta. Después al escritorio, y el día empieza en serio.",
+      ],
+    },
+  },
+  {
+    id: 347,
+    category: "stories",
+    depth: "depth",
+    en: "Was there a last good summer that you can name? What made it that?",
+    es: "¿Hubo un último buen verano que puedas nombrar? ¿Qué lo hizo así?",
+    randomizeOptions: {
+      en: [
+        "El verano antes de que mami se enfermara. Comimos mango cada noche. Bailamos en la cocina. Yo no sabía que era el último.",
+        "Summer of '14. Kids were home. Wife was healthy. Didn't know it was the peak.",
+        "The summer of 2008. A friend, a porch, a dog who has since died. The four of us were, on those evenings, briefly perfect.",
+        "Two summers, in fact: 1973 and 2002. The middle thirty years were, by all measures, also good. The two summers, however, glow.",
+      ],
+      es: [
+        "El verano antes de que mami se enfermara. Comimos mango cada noche. Bailamos en la cocina. No sabía que era el último.",
+        "Verano del 14. Los hijos estaban en casa. Mi esposa estaba sana. No sabía que era el pico.",
+        "El verano de 2008. Una amiga, un porche, una perra que ya murió. Los cuatro fuimos, esas tardes, brevemente perfectos.",
+        "Dos veranos, de hecho: 1973 y 2002. Los treinta años intermedios fueron, por toda medida, también buenos. Los dos veranos, sin embargo, brillan.",
+      ],
+    },
+  },
+  {
+    id: 348,
+    category: "place",
+    depth: "texture",
+    en: "Describe your dream home — not the magazine version, the real one.",
+    es: "Describe tu casa de los sueños — no la de la revista, la real.",
+    randomizeOptions: {
+      en: [
+        "Una casita azul con patio. Un mango. Una mecedora. Una cocina grande. La que tengo, casi.",
+        "Two bedrooms. Garage. Quiet street. Something I can fix on a Saturday.",
+        "Small. Wooden floors. A bath with a window. A room with no purpose, kept that way on purpose.",
+        "A modest stone house with a study, a south-facing kitchen, a single guest room, and a path through a vegetable garden to a quiet road.",
+      ],
+      es: [
+        "Una casita azul con patio. Un mango. Un sillón mecedora. Una cocina grande. La que tengo, casi.",
+        "Dos cuartos. Garage. Calle tranquila. Algo que pueda arreglar un sábado.",
+        "Pequeña. Pisos de madera. Un baño con ventana. Un cuarto sin propósito, mantenido así a propósito.",
+        "Una casa modesta de piedra con un estudio, una cocina con orientación sur, un solo cuarto de invitados, y un sendero por una huerta hasta una carretera tranquila.",
+      ],
+    },
+  },
+  {
+    id: 349,
+    category: "self",
+    depth: "depth",
+    en: "What have you been wrong about, lately?",
+    es: "¿En qué has estado equivocado últimamente?",
+    randomizeOptions: {
+      en: [
+        "Pensé que no necesitaba ayuda. La necesitaba. Mi nieta me la dio sin que se la pidiera.",
+        "Thought I didn't need a checkup. Needed one. Got it. Got lucky.",
+        "I was wrong about a friend's intention. I let it go on for a month. The misreading cost me, and her, more than the original slight ever could have.",
+        "I have, in recent months, been entirely wrong about a particular cultural development. The error has, I trust, improved me.",
+      ],
+      es: [
+        "Pensé que no necesitaba ayuda. La necesitaba. Mi nieta me la dio sin que se la pidiera.",
+        "Pensé que no necesitaba un chequeo. Lo necesitaba. Lo hice. Tuve suerte.",
+        "Me equivoqué sobre la intención de una amiga. Lo dejé pasar un mes. La mala lectura me costó, a ella y a mí, más de lo que el desaire original jamás pudo.",
+        "He, en meses recientes, estado enteramente equivocado sobre cierto desarrollo cultural. El error me ha, confío, mejorado.",
+      ],
+    },
+  },
+  {
+    id: 350,
+    category: "place",
+    depth: "texture",
+    en: "What's a sound at sea, in a forest, or on a high place that has stayed with you?",
+    es: "¿Qué sonido del mar, del bosque, o de un lugar alto se te ha quedado?",
+    randomizeOptions: {
+      en: [
+        "Las olas en Varadero al amanecer. Las oigo cuando cierro los ojos. Cualquier playa me las trae.",
+        "Pines in the wind. North Carolina. Sounded like a long sigh.",
+        "A loon on a lake in northern Maine, an hour before sunrise. The note has, in twenty-eight years, never quite left.",
+        "The slow lowing of a sea-buoy in a particular harbor in 1969. The note remains, alongside Bach, at the foundation of my acoustic interior.",
+      ],
+      es: [
+        "Las olas en Varadero al amanecer. Las oigo cuando cierro los ojos. Cualquier playa me las trae.",
+        "Pinos en el viento. Carolina del Norte. Sonaban como un suspiro largo.",
+        "Un somorgujo en un lago en el norte de Maine, una hora antes del amanecer. La nota no se ha, en veintiocho años, ido del todo.",
+        "El bramido lento de una boya marina en cierto puerto en 1969. La nota permanece, junto a Bach, en los cimientos de mi interior acústico.",
+      ],
+    },
+  },
+  {
+    id: 351,
+    category: "values",
+    depth: "soul",
+    en: "What's your sense of an afterlife, plainly?",
+    es: "¿Cuál es tu idea de la otra vida, claramente?",
+    randomizeOptions: {
+      en: [
+        "Sí hay. Me espera mami. Me espera Hector. Me espera mi tía Olga con un caramelo.",
+        "Don't know. Hope so. If not, fine.",
+        "I think we go quiet, slowly, into the people we loved. Whether or not we are aware of it is a different question.",
+        "I have, after eight decades, settled on a polite silence on the matter. The question has not, for its part, retired.",
+      ],
+      es: [
+        "Sí hay. Me espera mami. Me espera Hector. Me espera mi tía Olga con un caramelo.",
+        "No sé. Espero que sí. Si no, bien.",
+        "Creo que nos vamos callando, despacio, hasta entrar en las personas que amamos. Si lo sabemos o no es otra pregunta.",
+        "He, tras ocho décadas, optado por un silencio cortés sobre el asunto. La pregunta, por su parte, no se ha jubilado.",
+      ],
+    },
+  },
+  {
+    id: 352,
+    category: "family",
+    depth: "texture",
+    en: "Describe your sister or brother's laugh — for someone who'll never hear it.",
+    es: "Describe la risa de tu hermana o hermano — para alguien que nunca la va a oír.",
+    randomizeOptions: {
+      en: [
+        "Mi hermana se ríe como una campana rota. Empieza fuerte, después se queda sin aire, después siguen unas notitas. Es la mejor risa.",
+        "Brother snorts. Then can't stop. Then it's contagious.",
+        "My sister laughs through her nose first, eyes closed, and only then through her mouth. The whole sequence is, by now, my idea of joy.",
+        "My brother, whose temperament is otherwise grave, laughs in a low rasping rumble, like distant thunder. Hearing it remains, in my middle age, a small reward.",
+      ],
+      es: [
+        "Mi hermana se ríe como una campana rota. Empieza fuerte, después se queda sin aire, después siguen unas notitas. Es la mejor risa.",
+        "Mi hermano resopla. Después no puede parar. Después se vuelve contagioso.",
+        "Mi hermana se ríe primero por la nariz, los ojos cerrados, y sólo después por la boca. La secuencia entera es, a estas alturas, mi idea de la alegría.",
+        "Mi hermano, cuyo temperamento es por lo demás grave, se ríe con un retumbar grave y áspero, como un trueno lejano. Oírlo sigue siendo, en mi mediana edad, una pequeña recompensa.",
+      ],
+    },
+  },
+  {
+    id: 353,
+    category: "self",
+    depth: "depth",
+    en: "When did you first realize you were aging? Was it gentle or sudden?",
+    es: "¿Cuándo te diste cuenta de que estabas envejeciendo? ¿Fue gradual o de pronto?",
+    randomizeOptions: {
+      en: [
+        "Cuando me costó subir las escaleras. Tenía cincuenta y dos. Lo aceptaba pero también me dio risa.",
+        "Day I needed reading glasses. Couldn't pretend anymore.",
+        "Sudden. A particular morning at thirty-seven, when I caught my hand in a window's reflection and didn't recognize it.",
+        "Gradual. A series of small surrenders to the body's preferences. The arrival has, by now, been so distributed that I cannot, in fact, locate it.",
+      ],
+      es: [
+        "Cuando me costó subir las escaleras. Tenía cincuenta y dos. Lo aceptaba pero también me dio risa.",
+        "El día en que necesité lentes para leer. Ya no podía fingir.",
+        "De pronto. Una mañana particular a los treinta y siete, cuando vi mi mano reflejada en una ventana y no la reconocí.",
+        "Gradual. Una serie de pequeñas rendiciones a las preferencias del cuerpo. La llegada ha, a estas alturas, estado tan distribuida que, de hecho, no puedo localizarla.",
+      ],
+    },
+  },
+  {
+    id: 354,
+    category: "legacy",
+    depth: "soul",
+    en: "What's a gift you've been given that you intend to pass on, in some form?",
+    es: "¿Qué regalo has recibido que pretendes pasar adelante, de alguna forma?",
+    randomizeOptions: {
+      en: [
+        "La paciencia de mami. Quiero pasarla. Cada vez que un nieto me grita, respiro, y le hablo bajito. Eso es ella, viviendo.",
+        "Dad's habit of fixing what he could. Teaching the boys. They'll teach theirs.",
+        "A way of paying attention I learned from a teacher in 1991. I have, in turn, been the teacher who tries to give it.",
+        "A particular generosity I received without warning in 1962. The gift has, since, generated, by my count, a great many further small kindnesses passed forward.",
+      ],
+      es: [
+        "La paciencia de mami. Quiero pasarla. Cada vez que un nieto me grita, respiro, y le hablo bajito. Eso es ella, viviendo.",
+        "La costumbre de mi viejo de arreglar lo que podía. Enseñándoles a los chicos. Ellos les enseñarán a los suyos.",
+        "Una forma de prestar atención que aprendí de una maestra en 1991. He, a mi vez, sido la maestra que intenta darla.",
+        "Cierta generosidad que recibí sin aviso en 1962. El regalo ha, desde entonces, generado, según mi cuenta, una buena cantidad de pequeñas bondades pasadas adelante.",
+      ],
+    },
+  },
+  {
+    id: 355,
+    category: "legacy",
+    depth: "soul",
+    en: "Last question. If you could leave behind one small word, one small phrase, one small gesture — for anyone who comes after you — what would it be?",
+    es: "Última pregunta. Si pudieras dejar atrás una palabra pequeña, una frase pequeña, un gesto pequeño — para cualquiera que venga después — ¿cuál sería?",
+    randomizeOptions: {
+      en: [
+        "'Mi vida.' Sólo eso. Que les digan 'mi vida' a sus hijos como mami me lo decía a mí. Eso basta.",
+        "\"You're alright.\" Said it to my kids a thousand times. Mean it.",
+        "A small nod, the kind that says \"I see you.\" The gesture takes nothing, costs nothing, and means almost everything.",
+        "\"Be of good courage.\" The phrase is older than I am; it has, on every occasion of its use, done its work.",
+      ],
+      es: [
+        "'Mi vida.' Sólo eso. Que les digan 'mi vida' a sus hijos como mami me lo decía a mí. Eso basta.",
+        "\"Estás bien.\" Se lo dije a mis hijos mil veces. Lo digo en serio.",
+        "Un pequeño gesto con la cabeza, el que dice \"te veo.\" El gesto no toma nada, no cuesta nada, y significa casi todo.",
+        "\"Ten buen ánimo.\" La frase es más antigua que yo; ha, en cada ocasión de su uso, hecho su trabajo.",
       ],
     },
   },
