@@ -11,7 +11,7 @@ export default function Home() {
             chapter3five
           </span>
           <Link
-            href="/auth"
+            href="/auth/signin"
             className="text-sm text-warm-200 hover:text-warm-50 transition-colors"
           >
             Sign in
@@ -37,9 +37,9 @@ export default function Home() {
             <span className="text-warm-300">A new chapter for the people who matter most.</span>
           </p>
 
-          <div className="mt-12 flex flex-col sm:flex-row gap-4 items-center">
+          <div className="mt-12">
             <Link
-              href="/auth"
+              href="/auth/signup"
               className="inline-flex h-12 items-center justify-center rounded-full bg-warm-50 px-10 text-sm font-medium text-ink hover:bg-warm-100 transition-colors"
             >
               Begin a chapter
@@ -71,13 +71,30 @@ export default function Home() {
           </div>
         </section>
 
+        <section className="px-6 py-24 max-w-3xl mx-auto w-full">
+          <div className="border-t border-warm-700/60 pt-16 text-center">
+            <p className="text-xs uppercase tracking-[0.25em] text-warm-300 mb-6">
+              Or
+            </p>
+            <h2 className="font-serif text-3xl sm:text-4xl text-warm-50 leading-snug max-w-2xl mx-auto">
+              <span className="italic font-light">No one in mind?</span>{" "}
+              Randomize a persona instead.
+            </h2>
+            <p className="mt-6 text-warm-200 text-lg leading-relaxed max-w-xl mx-auto">
+              Give them a name. Hit a button. We generate a character with three
+              answers to every question — so the conversation never repeats. Same
+              archive, written for someone who doesn&rsquo;t exist yet.
+            </p>
+          </div>
+        </section>
+
         <section className="px-6 py-24 text-center">
           <p className="font-serif italic text-2xl sm:text-3xl text-warm-100 max-w-2xl mx-auto leading-snug">
             Some people deserve to be remembered. <br />
             <span className="text-warm-200">Properly.</span>
           </p>
           <Link
-            href="/auth"
+            href="/auth/signup"
             className="mt-10 inline-flex h-12 items-center justify-center rounded-full bg-warm-50 px-10 text-sm font-medium text-ink hover:bg-warm-100 transition-colors"
           >
             Begin
