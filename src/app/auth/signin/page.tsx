@@ -63,7 +63,16 @@ export default async function SignInPage({
 
         {error && <p className="mt-4 text-sm text-red-300/80">{error}</p>}
 
-        <p className="mt-10 text-sm text-warm-300">
+        <p className="mt-6 text-sm">
+          <Link
+            href="/auth/forgot-password"
+            className="text-warm-300 hover:text-warm-100 transition-colors"
+          >
+            Forgot your password?
+          </Link>
+        </p>
+
+        <p className="mt-6 text-sm text-warm-300">
           New here?{" "}
           <Link
             href="/auth/signup"

@@ -69,3 +69,56 @@ export async function signOut() {
   await supabase.auth.signOut();
   redirect("/");
 }
+
+export async function requestPasswordReset(formData: FormData) {
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+
+  if (!email || !email.includes("@")) {
+    redirect("/auth/forgot-password?error=Please%20enter%20a%20valid%20email");
+  }
+
+  const supabase = await createClient();
+  const headerList = await headers();
+  const host = headerList.get("host") ?? "chapter3five.app";
+  const proto = headerList.get("x-forwarded-proto") ?? "https";
+  const origin = `${proto}://${host}`;
+
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${origin}/auth/callback?next=/auth/reset-password`,
+  });
+
+  if (error) {
+    redirect(
+      `/auth/forgot-password?error=${encodeURIComponent(error.message)}`,
+    );
+  }
+
+  redirect(`/auth/forgot-password?sent=${encodeURIComponent(email)}`);
+}
+
+export async function updatePassword(formData: FormData) {
+  const password = String(formData.get("password") ?? "");
+
+  if (password.length < 8) {
+    redirect(
+      "/auth/reset-password?error=Password%20must%20be%20at%20least%208%20characters",
+    );
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/auth/signin?error=Reset%20link%20expired,%20try%20again");
+  }
+
+  const { error } = await supabase.auth.updateUser({ password });
+
+  if (error) {
+    redirect(`/auth/reset-password?error=${encodeURIComponent(error.message)}`);
+  }
+
+  redirect("/onboarding");
+}
