@@ -49,16 +49,21 @@ create trigger on_auth_user_created
 
 -- ============================================================================
 -- answers: the recorded responses to the 355 questions
+--
+-- Each question can have up to 3 answer variants per user. The chat surface
+-- randomly picks one variant at generation time so the archive never feels
+-- repetitive — same person, different moods.
 -- ============================================================================
 create table if not exists public.answers (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
   question_id integer not null,
   language text not null check (language in ('en', 'es')),
+  variant smallint not null default 1 check (variant between 1 and 3),
   body text not null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  unique (user_id, question_id)
+  unique (user_id, question_id, variant)
 );
 
 create index if not exists answers_user_idx on public.answers (user_id);
