@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { names } from "@/content/names";
 
 export async function startOnboarding(formData: FormData) {
   const oracleName = String(formData.get("oracle_name") ?? "").trim();
@@ -44,4 +45,9 @@ export async function startOnboarding(formData: FormData) {
     redirect("/onboarding/randomize");
   }
   redirect("/onboarding/questions");
+}
+
+export async function suggestRandomName() {
+  const pick = names[Math.floor(Math.random() * names.length)];
+  redirect(`/onboarding?suggested=${encodeURIComponent(pick)}`);
 }

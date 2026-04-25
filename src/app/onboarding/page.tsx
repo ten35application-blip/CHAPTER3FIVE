@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Orb } from "@/components/Orb";
-import { startOnboarding } from "./actions";
+import { startOnboarding, suggestRandomName } from "./actions";
 
 export const metadata = {
   title: "Welcome — chapter3five",
@@ -11,9 +11,9 @@ export const metadata = {
 export default async function OnboardingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; suggested?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error, suggested } = await searchParams;
 
   const supabase = await createClient();
   const {
@@ -33,6 +33,8 @@ export default async function OnboardingPage({
   if (profile?.onboarding_completed) {
     redirect("/dashboard");
   }
+
+  const nameValue = suggested ?? profile?.oracle_name ?? "";
 
   return (
     <main className="flex-1 flex flex-col items-center px-6 py-16 relative overflow-hidden">
@@ -59,16 +61,29 @@ export default async function OnboardingPage({
           action={startOnboarding}
           className="w-full space-y-12 text-left"
         >
-          <Field label="What will you call your oracle?" hint="Could be a name, a nickname — whatever feels right.">
-            <input
-              type="text"
-              name="oracle_name"
-              required
-              maxLength={48}
-              defaultValue={profile?.oracle_name ?? ""}
-              placeholder="Mom · Dad · Sage · Alex"
-              className="w-full h-12 rounded-full bg-warm-700/30 border border-warm-400/30 px-5 text-warm-50 placeholder:text-warm-400 focus:outline-none focus:border-warm-200 transition-colors"
-            />
+          <Field
+            label="What will you call your oracle?"
+            hint="A name, a nickname — whatever feels right. Or hit Surprise me."
+          >
+            <div className="flex gap-2">
+              <input
+                key={nameValue}
+                type="text"
+                name="oracle_name"
+                required
+                maxLength={48}
+                defaultValue={nameValue}
+                placeholder="Mom · Dad · Sage · Alex"
+                className="flex-1 h-12 rounded-full bg-warm-700/30 border border-warm-400/30 px-5 text-warm-50 placeholder:text-warm-400 focus:outline-none focus:border-warm-200 transition-colors"
+              />
+              <button
+                type="submit"
+                formAction={suggestRandomName}
+                className="h-12 px-5 rounded-full border border-warm-400/40 bg-warm-700/30 text-warm-100 hover:bg-warm-700/50 transition-colors text-sm whitespace-nowrap"
+              >
+                Surprise me
+              </button>
+            </div>
           </Field>
 
           <Field label="Who is this chapter for?" hint="You choose once — this shapes the whole experience.">
