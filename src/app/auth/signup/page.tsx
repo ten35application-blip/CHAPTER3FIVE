@@ -9,9 +9,9 @@ export const metadata = {
 export default async function SignUpPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; sent?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error, sent } = await searchParams;
 
   return (
     <main className="flex-1 flex items-center justify-center px-6 py-16 relative overflow-hidden">
@@ -27,6 +27,37 @@ export default async function SignUpPage({
           chapter3five
         </Link>
 
+        {sent ? (
+          <div className="space-y-4">
+            <h1 className="font-serif text-3xl text-warm-50">
+              Check your email.
+            </h1>
+            <p className="text-warm-200 leading-relaxed">
+              We sent a confirmation link to{" "}
+              <span className="text-warm-100">{sent}</span>. Click it from the
+              same device, then sign in.
+            </p>
+            <p className="text-sm text-warm-400 leading-relaxed pt-4">
+              Didn&rsquo;t see it? Check spam, or{" "}
+              <Link
+                href="/auth/signup"
+                className="text-warm-200 underline underline-offset-2 hover:text-warm-100"
+              >
+                use a different email
+              </Link>
+              .
+            </p>
+            <p className="pt-6">
+              <Link
+                href="/auth/signin"
+                className="text-sm text-warm-300 hover:text-warm-100 transition-colors"
+              >
+                Already confirmed? Sign in →
+              </Link>
+            </p>
+          </div>
+        ) : (
+          <>
         <h1 className="font-serif text-3xl sm:text-4xl text-warm-50 mb-3">
           Begin a chapter.
         </h1>
@@ -92,6 +123,8 @@ export default async function SignUpPage({
           </Link>
           .
         </p>
+          </>
+        )}
       </div>
     </main>
   );

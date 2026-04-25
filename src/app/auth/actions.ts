@@ -1,5 +1,6 @@
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
@@ -38,13 +39,29 @@ export async function signUp(formData: FormData) {
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signUp({ email, password });
+  const headerList = await headers();
+  const host = headerList.get("host") ?? "chapter3five.app";
+  const proto = headerList.get("x-forwarded-proto") ?? "https";
+  const origin = `${proto}://${host}`;
+
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      emailRedirectTo: `${origin}/auth/callback`,
+    },
+  });
 
   if (error) {
     redirect(`/auth/signup?error=${encodeURIComponent(error.message)}`);
   }
 
-  redirect("/onboarding");
+  // If session is returned immediately, email confirmation is disabled and
+  // the user is already signed in. Otherwise show "check your email".
+  if (data.session) {
+    redirect("/onboarding");
+  }
+  redirect(`/auth/signup?sent=${encodeURIComponent(email)}`);
 }
 
 export async function signOut() {
