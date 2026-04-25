@@ -28,6 +28,7 @@ export async function signIn(formData: FormData) {
 export async function signUp(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
+  const ageConfirmed = formData.get("age_confirmed") === "on";
 
   if (!email || !email.includes("@")) {
     redirect("/auth/signup?error=Please%20enter%20a%20valid%20email");
@@ -35,6 +36,11 @@ export async function signUp(formData: FormData) {
   if (password.length < 8) {
     redirect(
       "/auth/signup?error=Password%20must%20be%20at%20least%208%20characters",
+    );
+  }
+  if (!ageConfirmed) {
+    redirect(
+      "/auth/signup?error=You%20must%20be%2018%20or%20older%20to%20use%20chapter3five",
     );
   }
 

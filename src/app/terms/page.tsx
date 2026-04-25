@@ -24,13 +24,25 @@ export default function TermsPage() {
 
       <Section title="Your account">
         <ul>
+          <li>
+            <strong>You must be 18 years of age or older to use chapter3five.</strong>{" "}
+            chapter3five is an adults-only product. By creating an account, you
+            confirm you meet this requirement.
+          </li>
           <li>You must provide accurate information when creating an account.</li>
           <li>You&rsquo;re responsible for keeping your account credentials safe.</li>
-          <li>
-            You must be old enough to enter into a binding agreement in your
-            jurisdiction.
-          </li>
         </ul>
+      </Section>
+
+      <Section title="The nature of chapter3five">
+        <p>
+          chapter3five preserves a person&rsquo;s voice and personality through
+          their own recorded answers. Conversations with the resulting archive
+          are not therapy, not medical advice, and not a substitute for
+          professional support. The archive will respond in the voice of the
+          person it represents — including their opinions, biases, moods, and
+          imperfections. That is the design.
+        </p>
       </Section>
 
       <Section title="Your content">

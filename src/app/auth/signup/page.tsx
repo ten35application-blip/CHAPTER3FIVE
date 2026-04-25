@@ -85,6 +85,19 @@ export default async function SignUpPage({
             autoComplete="new-password"
             className="w-full h-12 rounded-full bg-warm-700/30 border border-warm-400/30 px-5 text-warm-50 placeholder:text-warm-400 focus:outline-none focus:border-warm-200 transition-colors"
           />
+
+          <label className="flex items-start gap-3 cursor-pointer text-warm-200 text-sm leading-relaxed pt-2 text-left">
+            <input
+              type="checkbox"
+              name="age_confirmed"
+              required
+              className="mt-1 h-4 w-4 rounded border-warm-300/60 bg-warm-700/40 accent-warm-200"
+            />
+            <span>
+              I am 18 or older. chapter3five is an adults-only product.
+            </span>
+          </label>
+
           <button
             type="submit"
             className="w-full h-12 rounded-full bg-warm-50 text-ink font-medium hover:bg-warm-100 transition-colors"
