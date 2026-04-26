@@ -37,13 +37,13 @@ export async function POST(request: NextRequest) {
   const session = event.data.object as Stripe.Checkout.Session;
   const userId = session.metadata?.user_id;
   const purpose = session.metadata?.purpose;
-  if (!userId || purpose !== "randomize") {
+  if (!userId || (purpose !== "randomize" && purpose !== "oracle")) {
     return NextResponse.json({ received: true, ignored: "no metadata" });
   }
 
   const admin = createAdminClient();
 
-  // Mark payment paid (idempotent — only updates pending rows).
+  // Mark payment paid (idempotent).
   await admin
     .from("payments")
     .update({
@@ -57,19 +57,20 @@ export async function POST(request: NextRequest) {
     .eq("stripe_session_id", session.id)
     .eq("status", "pending");
 
-  // Increment the user's randomize credits by 1.
-  // Read-modify-write because RLS-bypassed admin client doesn't support
-  // `+ 1` updates as an expression in supabase-js without rpc.
+  // Grant the credit in the right pool.
+  const column =
+    purpose === "oracle" ? "extra_oracle_credits" : "randomize_credits";
+
   const { data: profile } = await admin
     .from("profiles")
-    .select("randomize_credits")
+    .select(column)
     .eq("id", userId)
     .single();
 
-  const next = (profile?.randomize_credits ?? 0) + 1;
+  const current = (profile as Record<string, number> | null)?.[column] ?? 0;
   await admin
     .from("profiles")
-    .update({ randomize_credits: next })
+    .update({ [column]: current + 1 })
     .eq("id", userId);
 
   return NextResponse.json({ received: true });

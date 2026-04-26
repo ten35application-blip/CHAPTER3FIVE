@@ -44,9 +44,23 @@ export async function newOracle() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("active_oracle_id")
+    .select("active_oracle_id, extra_oracle_credits")
     .eq("id", user.id)
     .single();
+
+  // First thirtyfive (the auto-created one on signup) is free. Every
+  // additional thirtyfive needs a credit ($5 via Stripe).
+  const { count: oracleCount } = await supabase
+    .from("oracles")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user.id);
+
+  const hasAtLeastOne = (oracleCount ?? 0) >= 1;
+  const credits = profile?.extra_oracle_credits ?? 0;
+
+  if (hasAtLeastOne && credits <= 0) {
+    redirect("/oracle/pay");
+  }
 
   if (profile?.active_oracle_id) {
     await syncProfileToOracle(supabase, user.id, profile.active_oracle_id);
@@ -67,18 +81,21 @@ export async function newOracle() {
     redirect("/dashboard?error=Could%20not%20create%20a%20new%20thirtyfive");
   }
 
-  await supabase
-    .from("profiles")
-    .update({
-      active_oracle_id: created.id,
-      oracle_name: null,
-      mode: "real",
-      texting_style: null,
-      personality_type: null,
-      emotional_flavor: null,
-      onboarding_completed: false,
-    })
-    .eq("id", user.id);
+  // Decrement credit if this was a paid creation (not the first).
+  const updates: Record<string, unknown> = {
+    active_oracle_id: created.id,
+    oracle_name: null,
+    mode: "real",
+    texting_style: null,
+    personality_type: null,
+    emotional_flavor: null,
+    onboarding_completed: false,
+  };
+  if (hasAtLeastOne) {
+    updates.extra_oracle_credits = Math.max(0, credits - 1);
+  }
+
+  await supabase.from("profiles").update(updates).eq("id", user.id);
 
   redirect("/onboarding");
 }

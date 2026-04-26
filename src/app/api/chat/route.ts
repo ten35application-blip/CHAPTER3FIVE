@@ -20,6 +20,7 @@ export async function POST(request: NextRequest) {
     message?: string;
     history?: Message[];
     timezone?: string;
+    oracle_id?: string;
   };
   try {
     payload = await request.json();
@@ -67,6 +68,34 @@ export async function POST(request: NextRequest) {
 
   if (!profile) {
     return NextResponse.json({ error: "No profile" }, { status: 404 });
+  }
+
+  // For group chat: caller can override which oracle this message goes to,
+  // as long as it belongs to them. Mutates `profile` in-place so the rest
+  // of the function uses the right persona without needing a refactor.
+  if (
+    typeof payload.oracle_id === "string" &&
+    payload.oracle_id !== profile.active_oracle_id
+  ) {
+    const { data: targetOracle } = await supabase
+      .from("oracles")
+      .select(
+        "id, name, mode, preferred_language, texting_style, personality_type, emotional_flavor",
+      )
+      .eq("id", payload.oracle_id)
+      .eq("user_id", user.id)
+      .single();
+    if (targetOracle) {
+      Object.assign(profile, {
+        active_oracle_id: targetOracle.id,
+        oracle_name: targetOracle.name,
+        mode: targetOracle.mode,
+        preferred_language: targetOracle.preferred_language,
+        texting_style: targetOracle.texting_style,
+        personality_type: targetOracle.personality_type,
+        emotional_flavor: targetOracle.emotional_flavor,
+      });
+    }
   }
 
   // Crisis pre-check — server-side keyword sweep on the user's message.
