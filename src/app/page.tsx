@@ -187,23 +187,31 @@ export default function Home() {
             What this is, what it isn&rsquo;t
           </h2>
 
-          <div className="space-y-8 text-warm-100 leading-relaxed">
-            <Pair
-              is="An archive built from their own answers."
-              isnt="A simulation. We don&rsquo;t scrape, we don&rsquo;t scan, we don&rsquo;t guess."
-            />
-            <Pair
-              is="A way to keep them close after they&rsquo;re gone."
-              isnt="A replacement for them while they&rsquo;re here."
-            />
-            <Pair
-              is="For adults — 18 and older."
-              isnt="Therapy. Medical advice. Crisis support. (We&rsquo;ll point you to the right number if you need one.)"
-            />
-            <Pair
-              is="Yours. Your data. Your copy. Yours to delete."
-              isnt="Trained into anyone else&rsquo;s model. Not now, not ever."
-            />
+          <div className="space-y-10 text-warm-100 leading-relaxed">
+            <Statement kind="is">
+              An archive built from their own answers.
+            </Statement>
+            <Statement kind="isnt">
+              A simulation. We don&rsquo;t scrape, we don&rsquo;t scan, we
+              don&rsquo;t guess.
+            </Statement>
+            <Statement kind="is">
+              A way to keep them close after they&rsquo;re gone.
+            </Statement>
+            <Statement kind="isnt">
+              A replacement for them while they&rsquo;re here.
+            </Statement>
+            <Statement kind="is">For adults — 18 and older.</Statement>
+            <Statement kind="isnt">
+              Therapy. Medical advice. Crisis support. (We&rsquo;ll point you
+              to the right number if you need one.)
+            </Statement>
+            <Statement kind="is">
+              Yours. Your data. Your copy. Yours to delete.
+            </Statement>
+            <Statement kind="isnt">
+              Trained into anyone else&rsquo;s model. Not now, not ever.
+            </Statement>
           </div>
         </section>
 
@@ -297,17 +305,28 @@ function Feature({ title, body }: { title: string; body: string }) {
   );
 }
 
-function Pair({ is, isnt }: { is: string; isnt: string }) {
+function Statement({
+  kind,
+  children,
+}: {
+  kind: "is" | "isnt";
+  children: React.ReactNode;
+}) {
+  const isAffirmative = kind === "is";
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-[auto_1fr] gap-2 sm:gap-6">
-      <div className="space-y-1">
-        <p className="text-[11px] uppercase tracking-[0.2em] text-warm-300">It is</p>
-        <p className="text-warm-50 font-serif">{is}</p>
-      </div>
-      <div className="space-y-1">
-        <p className="text-[11px] uppercase tracking-[0.2em] text-warm-300">It isn&rsquo;t</p>
-        <p className="text-warm-200 font-serif italic">{isnt}</p>
-      </div>
+    <div>
+      <p className="text-[11px] uppercase tracking-[0.25em] text-warm-300 mb-2">
+        {isAffirmative ? "It is" : "It isn’t"}
+      </p>
+      <p
+        className={
+          isAffirmative
+            ? "text-warm-50 font-serif text-lg leading-relaxed"
+            : "text-warm-200 font-serif italic text-lg leading-relaxed"
+        }
+      >
+        {children}
+      </p>
     </div>
   );
 }
