@@ -56,6 +56,20 @@ export default async function DashboardPage() {
       content: m.content,
     }));
 
+  // Mark all messages as seen by bumping the timestamp NOW. This is fire-and-
+  // forget; the badge is computed before the bump, so the user sees the count
+  // for what was unseen before this load, then it resets.
+  const { data: lastSeenRow } = await supabase
+    .from("profiles")
+    .select("last_message_seen_at")
+    .eq("id", user.id)
+    .single();
+  const lastSeenAt = lastSeenRow?.last_message_seen_at ?? null;
+  await supabase
+    .from("profiles")
+    .update({ last_message_seen_at: new Date().toISOString() })
+    .eq("id", user.id);
+
   return (
     <main className="flex-1 flex flex-col px-6 py-6 relative overflow-hidden">
       <header className="max-w-2xl w-full mx-auto flex items-center justify-between mb-12">
@@ -70,6 +84,7 @@ export default async function DashboardPage() {
           language={language}
           oracles={oracles}
           activeOracleId={profile.active_oracle_id ?? null}
+          lastSeenAt={lastSeenAt}
         />
       </header>
 

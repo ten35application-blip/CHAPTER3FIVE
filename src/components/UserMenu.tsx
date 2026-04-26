@@ -15,6 +15,7 @@ type Props = {
   language: "en" | "es";
   oracles: OracleEntry[];
   activeOracleId: string | null;
+  lastSeenAt?: string | null;
 };
 
 const COPY = {
@@ -39,10 +40,36 @@ export function UserMenu({
   language,
   oracles,
   activeOracleId,
+  lastSeenAt,
 }: Props) {
   const t = COPY[language];
   const [open, setOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const ref = useRef<HTMLDivElement | null>(null);
+
+  // Compute unread proactive/unseen count by querying messages newer than
+  // lastSeenAt. Fire-and-forget on mount; failure is silent.
+  useEffect(() => {
+    if (!lastSeenAt) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/messages/unread?since=${encodeURIComponent(lastSeenAt)}`,
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled && typeof data.count === "number") {
+          setUnreadCount(data.count);
+        }
+      } catch {
+        /* silent */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [lastSeenAt]);
 
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
@@ -67,7 +94,7 @@ export function UserMenu({
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="flex items-center gap-2 h-9 px-3 rounded-full border border-warm-400/30 bg-warm-700/30 text-warm-100 hover:bg-warm-700/50 transition-colors text-sm"
+        className="relative flex items-center gap-2 h-9 px-3 rounded-full border border-warm-400/30 bg-warm-700/30 text-warm-100 hover:bg-warm-700/50 transition-colors text-sm"
       >
         <span className="font-serif">{oracleName}</span>
         <span
@@ -77,6 +104,14 @@ export function UserMenu({
         >
           ▾
         </span>
+        {unreadCount > 0 && (
+          <span
+            className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1.5 rounded-full bg-amber text-ink text-[11px] font-medium flex items-center justify-center"
+            aria-label={`${unreadCount} new`}
+          >
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </span>
+        )}
       </button>
 
       {open && (
