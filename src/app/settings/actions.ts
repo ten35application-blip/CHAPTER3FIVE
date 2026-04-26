@@ -255,7 +255,29 @@ export async function revokeArchiveGrant(formData: FormData) {
   } = await supabase.auth.getUser();
   if (!user) redirect("/auth/signin");
 
-  await supabase.from("archive_grants").delete().eq("id", grantId);
+  // Validate the caller actually owns the oracle this grant was issued on.
+  // Without this, anyone could revoke anyone's grant by guessing an id.
+  // RLS would also block it, but defense-in-depth: check explicitly here.
+  const { data: grant } = await supabase
+    .from("archive_grants")
+    .select("id, oracle_id, oracles!inner(user_id)")
+    .eq("id", grantId)
+    .maybeSingle();
+
+  const oracleOwnerId =
+    (grant?.oracles as unknown as { user_id: string } | { user_id: string }[] | null)
+      ?.constructor === Array
+      ? (grant?.oracles as unknown as { user_id: string }[])[0]?.user_id
+      : (grant?.oracles as unknown as { user_id: string } | null)?.user_id;
+
+  if (!grant || oracleOwnerId !== user.id) {
+    redirect("/settings?error=Not%20authorized");
+  }
+
+  await supabase
+    .from("archive_grants")
+    .delete()
+    .eq("id", grantId);
 
   revalidatePath("/settings");
   redirect("/settings?saved=grant-revoked");
@@ -430,8 +452,12 @@ export async function deletePersonaMemory(formData: FormData) {
   } = await supabase.auth.getUser();
   if (!user) redirect("/auth/signin");
 
-  // RLS: only the user_id on the row can delete (their own memories).
-  await supabase.from("persona_memories").delete().eq("id", id);
+  // RLS protects this, but add explicit user_id filter as defense-in-depth.
+  await supabase
+    .from("persona_memories")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", user.id);
 
   revalidatePath("/settings");
   redirect("/settings?saved=memory-removed");

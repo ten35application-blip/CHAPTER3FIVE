@@ -28,6 +28,17 @@ export async function updateAnswer(formData: FormData) {
   if (!oracleId) redirect("/onboarding");
   const language = profile?.preferred_language ?? "en";
 
+  // Verify this oracle belongs to the caller. active_oracle_id should
+  // always point at their own oracle, but defense-in-depth — if it ever
+  // drifts to someone else's id, we don't want answer writes leaking.
+  const { data: ownedOracle } = await supabase
+    .from("oracles")
+    .select("id")
+    .eq("id", oracleId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (!ownedOracle) redirect("/answers?error=Not%20authorized");
+
   if (!body) {
     // Empty body = delete the answer.
     await supabase

@@ -24,11 +24,12 @@ export default async function RandomizePage({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("oracle_name, mode, preferred_language")
+    .select("oracle_name, mode, preferred_language, onboarding_completed")
     .eq("id", user.id)
     .single();
 
   if (!profile) redirect("/onboarding");
+  if (profile.onboarding_completed) redirect("/dashboard");
   if (profile.mode !== "randomize") redirect("/onboarding/questions");
 
   const language = (profile.preferred_language ?? "en") as "en" | "es";

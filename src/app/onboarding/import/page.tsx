@@ -23,11 +23,12 @@ export default async function ImportPage({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("mode, preferred_language")
+    .select("mode, preferred_language, onboarding_completed")
     .eq("id", user.id)
     .single();
 
   if (!profile) redirect("/onboarding");
+  if (profile.onboarding_completed) redirect("/dashboard");
   if (profile.mode !== "import") redirect("/onboarding");
 
   const language = (profile.preferred_language ?? "en") as "en" | "es";
