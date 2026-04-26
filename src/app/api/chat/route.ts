@@ -18,6 +18,7 @@ import {
   memoriesToPromptBlock,
   extractAndStoreMemories,
 } from "@/lib/memory";
+import { moderateImage } from "@/lib/moderation";
 
 type Message = { role: "user" | "assistant"; content: string };
 
@@ -316,6 +317,30 @@ ${archiveBlock}`;
       };
   const userTurnContent: ContentBlock[] = [];
   if (typeof payload.image_url === "string" && payload.image_url) {
+    // Moderate the photo before forwarding to Anthropic. Catches sexual
+    // content (incl. minors), graphic violence, self-harm, hate. Free
+    // via OpenAI's omni-moderation. Required for App Store 1.2 (UGC
+    // moderation must be demonstrable).
+    const verdict = await moderateImage(payload.image_url);
+    if (verdict.flagged) {
+      // Clean up the orphaned upload — the photo never makes it into
+      // the conversation. RLS-respecting delete via the user client.
+      if (payload.image_storage_path) {
+        await supabase.storage
+          .from("chat-photos")
+          .remove([payload.image_storage_path])
+          .then(() => undefined, () => undefined);
+      }
+      return NextResponse.json(
+        {
+          error:
+            "That photo can't be sent — our content check flagged it. If this seems wrong, write care@chapter3five.app.",
+          flagged: true,
+          categories: verdict.categories,
+        },
+        { status: 400 },
+      );
+    }
     userTurnContent.push({
       type: "image",
       source: { type: "url", url: payload.image_url },
