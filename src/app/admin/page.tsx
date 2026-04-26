@@ -62,6 +62,20 @@ export default async function AdminPage({
     paidPaymentsMonth,
     paidPaymentsWeek,
     pendingPaymentsCount,
+    invitesPendingCount,
+    invitesAcceptedCount,
+    grantsCount,
+    beneficiariesDesignatedCount,
+    beneficiariesActivatedCount,
+    beneficiariesClaimedCount,
+    deceasedCount,
+    deceasedRecent,
+    chatTodayCount,
+    chatWeekRows,
+    topChatUsersWeek,
+    recentStripeEvents,
+    cronOutreachLast,
+    cronProactiveLast,
   ] = await Promise.all([
     admin.from("profiles").select("id", { count: "exact", head: true }),
     admin
@@ -118,6 +132,70 @@ export default async function AdminPage({
       .eq("status", "paid")
       .gte("paid_at", sevenAgo),
     admin.from("payments").select("id", { count: "exact", head: true }).eq("status", "pending"),
+    admin
+      .from("archive_invites")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pending"),
+    admin
+      .from("archive_invites")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "accepted"),
+    admin.from("archive_grants").select("id", { count: "exact", head: true }),
+    admin
+      .from("beneficiaries")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "designated"),
+    admin
+      .from("beneficiaries")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "activated"),
+    admin
+      .from("beneficiaries")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "claimed"),
+    admin
+      .from("profiles")
+      .select("id", { count: "exact", head: true })
+      .not("deceased_at", "is", null),
+    admin
+      .from("profiles")
+      .select("id, oracle_name, deceased_at")
+      .not("deceased_at", "is", null)
+      .order("deceased_at", { ascending: false })
+      .limit(10),
+    admin
+      .from("chat_usage")
+      .select("message_count")
+      .eq("day", new Date().toISOString().slice(0, 10)),
+    admin
+      .from("chat_usage")
+      .select("message_count")
+      .gte("day", new Date(now - 7 * ONE_DAY_MS).toISOString().slice(0, 10)),
+    admin
+      .from("chat_usage")
+      .select("user_id, message_count")
+      .gte("day", new Date(now - 7 * ONE_DAY_MS).toISOString().slice(0, 10))
+      .order("message_count", { ascending: false })
+      .limit(50),
+    admin
+      .from("stripe_events")
+      .select("id, type, user_id, processed_at")
+      .order("processed_at", { ascending: false })
+      .limit(15),
+    admin
+      .from("cron_runs")
+      .select("ran_at, status, processed, duration_ms, error")
+      .eq("job", "outreach")
+      .order("ran_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    admin
+      .from("cron_runs")
+      .select("ran_at, status, processed, duration_ms, error")
+      .eq("job", "proactive")
+      .order("ran_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
 
   const stat = (n: { count?: number | null }) => n.count ?? 0;
@@ -128,6 +206,34 @@ export default async function AdminPage({
   const revenueMonthCents = sumCents(paidPaymentsMonth);
   const revenueWeekCents = sumCents(paidPaymentsWeek);
   const paidCount = (paidPaymentsAll.data ?? []).length;
+
+  const sumMessages = (rows: { data?: { message_count: number }[] | null }) =>
+    (rows.data ?? []).reduce((acc, r) => acc + (r.message_count ?? 0), 0);
+  const chatMessagesToday = sumMessages(chatTodayCount);
+  const chatMessagesWeek = sumMessages(chatWeekRows);
+
+  // Aggregate top users (chat_usage rows are per-day, so collapse).
+  const topUsersMap = new Map<string, number>();
+  for (const row of topChatUsersWeek.data ?? []) {
+    topUsersMap.set(
+      row.user_id,
+      (topUsersMap.get(row.user_id) ?? 0) + (row.message_count ?? 0),
+    );
+  }
+  const topUsers = Array.from(topUsersMap.entries())
+    .map(([id, count]) => ({ id, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 8);
+
+  function fmtAgo(iso: string | null | undefined): string {
+    if (!iso) return "never";
+    const ms = Date.now() - new Date(iso).getTime();
+    const min = Math.floor(ms / 60000);
+    if (min < 60) return `${min}m ago`;
+    const hr = Math.floor(min / 60);
+    if (hr < 24) return `${hr}h ago`;
+    return `${Math.floor(hr / 24)}d ago`;
+  }
 
   return (
     <>
@@ -386,6 +492,166 @@ export default async function AdminPage({
 
           <section>
             <h2 className="text-xs uppercase tracking-[0.25em] text-warm-300 mb-4">
+              Chat usage
+            </h2>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+              <Stat label="Messages today" value={chatMessagesToday.toLocaleString()} />
+              <Stat label="Messages (7d)" value={chatMessagesWeek.toLocaleString()} />
+              <Stat
+                label="~Anthropic spend (7d)"
+                value={`$${((chatMessagesWeek * 0.02)).toFixed(2)}`}
+              />
+              <Stat
+                label="Daily cap"
+                value="200/user"
+              />
+            </div>
+            {topUsers.length > 0 && (
+              <>
+                <p className="text-xs uppercase tracking-[0.2em] text-warm-400 mb-2">
+                  Top users (7d)
+                </p>
+                <div className="space-y-1">
+                  {topUsers.map((u) => (
+                    <div
+                      key={u.id}
+                      className="flex items-center justify-between gap-3 px-4 py-2 rounded-lg border border-warm-700/60 bg-warm-700/15"
+                    >
+                      <Link
+                        href={`/admin/user/${u.id}`}
+                        className="font-mono text-xs text-warm-200 hover:text-warm-50 truncate"
+                      >
+                        {u.id.slice(0, 8)}
+                      </Link>
+                      <span className="text-sm text-warm-100 tabular-nums">
+                        {u.count.toLocaleString()} msgs
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </section>
+
+          <section>
+            <h2 className="text-xs uppercase tracking-[0.25em] text-warm-300 mb-4">
+              Legacy &amp; sharing
+            </h2>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+              <Stat
+                label="Beneficiaries designated"
+                value={stat(beneficiariesDesignatedCount).toLocaleString()}
+              />
+              <Stat
+                label="Activated (awaiting claim)"
+                value={stat(beneficiariesActivatedCount).toLocaleString()}
+              />
+              <Stat
+                label="Claimed"
+                value={stat(beneficiariesClaimedCount).toLocaleString()}
+              />
+              <Stat
+                label="Marked deceased"
+                value={stat(deceasedCount).toLocaleString()}
+              />
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
+              <Stat
+                label="Invites pending"
+                value={stat(invitesPendingCount).toLocaleString()}
+              />
+              <Stat
+                label="Invites accepted"
+                value={stat(invitesAcceptedCount).toLocaleString()}
+              />
+              <Stat
+                label="Active grants"
+                value={stat(grantsCount).toLocaleString()}
+              />
+            </div>
+            {deceasedRecent.data && deceasedRecent.data.length > 0 && (
+              <>
+                <p className="text-xs uppercase tracking-[0.2em] text-warm-400 mb-2">
+                  Recently marked deceased
+                </p>
+                <div className="space-y-1">
+                  {deceasedRecent.data.map((p) => (
+                    <div
+                      key={p.id}
+                      className="flex items-center justify-between gap-3 px-4 py-2 rounded-lg border border-red-300/20 bg-red-900/10"
+                    >
+                      <Link
+                        href={`/admin/user/${p.id}`}
+                        className="text-sm text-warm-100 truncate font-serif hover:text-warm-50"
+                      >
+                        {p.oracle_name ?? p.id.slice(0, 8)}
+                      </Link>
+                      <span className="text-xs text-warm-400">
+                        {fmtAgo(p.deceased_at)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </section>
+
+          <section>
+            <h2 className="text-xs uppercase tracking-[0.25em] text-warm-300 mb-4">
+              Cron health
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <CronCard
+                name="outreach"
+                row={cronOutreachLast.data}
+                fmtAgo={fmtAgo}
+              />
+              <CronCard
+                name="proactive"
+                row={cronProactiveLast.data}
+                fmtAgo={fmtAgo}
+              />
+            </div>
+          </section>
+
+          <section>
+            <h2 className="text-xs uppercase tracking-[0.25em] text-warm-300 mb-4">
+              Stripe events (recent)
+            </h2>
+            {recentStripeEvents.data && recentStripeEvents.data.length > 0 ? (
+              <div className="space-y-1">
+                {recentStripeEvents.data.map((e) => (
+                  <div
+                    key={e.id}
+                    className="flex items-center justify-between gap-3 px-4 py-2 rounded-lg border border-warm-700/60 bg-warm-700/15"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <code className="font-mono text-xs text-warm-400">
+                        {e.id.slice(0, 14)}…
+                      </code>
+                      <span className="text-sm text-warm-100">{e.type}</span>
+                      {e.user_id && (
+                        <Link
+                          href={`/admin/user/${e.user_id}`}
+                          className="font-mono text-xs text-warm-300 hover:text-warm-100"
+                        >
+                          {e.user_id.slice(0, 8)}
+                        </Link>
+                      )}
+                    </div>
+                    <span className="text-xs text-warm-400 whitespace-nowrap">
+                      {fmtAgo(e.processed_at)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-warm-400">No events yet.</p>
+            )}
+          </section>
+
+          <section>
+            <h2 className="text-xs uppercase tracking-[0.25em] text-warm-300 mb-4">
               Recent signups
             </h2>
             {recentSignups.data && recentSignups.data.length > 0 ? (
@@ -431,6 +697,68 @@ function Stat({ label, value }: { label: string; value: string }) {
         {label}
       </p>
       <p className="font-serif text-3xl text-warm-50 tabular-nums">{value}</p>
+    </div>
+  );
+}
+
+function CronCard({
+  name,
+  row,
+  fmtAgo,
+}: {
+  name: string;
+  row:
+    | {
+        ran_at: string;
+        status: string;
+        processed: number | null;
+        duration_ms: number | null;
+        error: string | null;
+      }
+    | null
+    | undefined;
+  fmtAgo: (iso: string | null | undefined) => string;
+}) {
+  const stale =
+    !row ||
+    Date.now() - new Date(row.ran_at).getTime() > 36 * 60 * 60 * 1000;
+  const errored = row?.status === "error";
+
+  return (
+    <div
+      className={`rounded-2xl border px-5 py-4 ${
+        errored
+          ? "border-red-300/30 bg-red-900/10"
+          : stale
+            ? "border-warm-300/30 bg-warm-700/20"
+            : "border-warm-700/60 bg-warm-700/15"
+      }`}
+    >
+      <div className="flex items-center justify-between mb-1">
+        <p className="text-xs uppercase tracking-[0.2em] text-warm-400">
+          {name}
+        </p>
+        <span
+          className={`text-[10px] uppercase tracking-wider ${
+            errored
+              ? "text-red-300"
+              : stale
+                ? "text-amber-300"
+                : "text-warm-300"
+          }`}
+        >
+          {errored ? "error" : stale ? "stale" : "ok"}
+        </span>
+      </div>
+      <p className="font-serif text-2xl text-warm-50">{fmtAgo(row?.ran_at)}</p>
+      <p className="text-xs text-warm-400 mt-1">
+        {row
+          ? `${row.processed ?? 0} processed · ${row.duration_ms ?? 0}ms`
+          : "never run"}
+      </p>
+      {errored && row?.error && (
+        <p className="text-xs text-red-300 mt-2 break-words">{row.error}</p>
+      )}
     </div>
   );
 }

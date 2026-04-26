@@ -44,9 +44,20 @@ export async function GET(request: NextRequest) {
     .limit(BATCH);
 
   if (error) {
+    await admin.from("cron_runs").insert({
+      job: "proactive",
+      status: "error",
+      error: error.message,
+      duration_ms: Date.now() - now,
+    });
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
   if (!candidates || candidates.length === 0) {
+    await admin.from("cron_runs").insert({
+      job: "proactive",
+      processed: 0,
+      duration_ms: Date.now() - now,
+    });
     return NextResponse.json({ sent: 0 });
   }
 
@@ -121,6 +132,12 @@ export async function GET(request: NextRequest) {
       console.error(`proactive: failed for ${profile.id}`, err);
     }
   }
+
+  await admin.from("cron_runs").insert({
+    job: "proactive",
+    processed: sent,
+    duration_ms: Date.now() - now,
+  });
 
   return NextResponse.json({ sent });
 }

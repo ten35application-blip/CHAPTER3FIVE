@@ -33,9 +33,10 @@ export async function GET(request: NextRequest) {
   }
 
   const supabase = adminClient();
+  const startedAt = Date.now();
 
-  const sevenAgo = new Date(Date.now() - SEVEN_DAYS_MS).toISOString();
-  const fourteenAgo = new Date(Date.now() - FOURTEEN_DAYS_MS).toISOString();
+  const sevenAgo = new Date(startedAt - SEVEN_DAYS_MS).toISOString();
+  const fourteenAgo = new Date(startedAt - FOURTEEN_DAYS_MS).toISOString();
 
   const { data: candidates, error } = await supabase
     .from("profiles")
@@ -50,9 +51,20 @@ export async function GET(request: NextRequest) {
     .limit(BATCH_LIMIT);
 
   if (error) {
+    await supabase.from("cron_runs").insert({
+      job: "outreach",
+      status: "error",
+      error: error.message,
+      duration_ms: Date.now() - startedAt,
+    });
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
   if (!candidates || candidates.length === 0) {
+    await supabase.from("cron_runs").insert({
+      job: "outreach",
+      processed: 0,
+      duration_ms: Date.now() - startedAt,
+    });
     return NextResponse.json({ sent: 0 });
   }
 
@@ -79,6 +91,12 @@ export async function GET(request: NextRequest) {
       console.error(`outreach: failed for ${profile.id}`, err);
     }
   }
+
+  await supabase.from("cron_runs").insert({
+    job: "outreach",
+    processed: sent,
+    duration_ms: Date.now() - startedAt,
+  });
 
   return NextResponse.json({ sent });
 }
