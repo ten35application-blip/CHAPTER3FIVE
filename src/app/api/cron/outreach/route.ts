@@ -46,6 +46,7 @@ export async function GET(request: NextRequest) {
     .or(`last_outreach_at.is.null,last_outreach_at.lt.${fourteenAgo}`)
     .eq("outreach_enabled", true)
     .eq("onboarding_completed", true)
+    .is("deceased_at", null)
     .limit(BATCH_LIMIT);
 
   if (error) {

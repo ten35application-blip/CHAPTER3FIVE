@@ -15,6 +15,7 @@ import {
   addBeneficiary,
   removeBeneficiary,
   buyBeneficiarySlot,
+  deletePersonaMemory,
 } from "./actions";
 import { AvatarUpload } from "@/components/AvatarUpload";
 import { questions } from "@/content/questions";
@@ -86,6 +87,18 @@ export default async function SettingsPage({
         .eq("oracle_id", activeOracleId)
         .order("granted_at", { ascending: false })
     : { data: [] };
+
+  // Memories the active thirtyfive has formed about you (per-relationship).
+  const { data: memoryRows } = activeOracleId
+    ? await supabase
+        .from("persona_memories")
+        .select("id, kind, content, weight, created_at")
+        .eq("oracle_id", activeOracleId)
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(50)
+    : { data: [] };
+  const memories = memoryRows ?? [];
 
   const { data: beneficiaryRows } = await supabase
     .from("beneficiaries")
@@ -439,6 +452,41 @@ export default async function SettingsPage({
               </span>
             </form>
           </Section>
+
+          {oracleName && memories.length > 0 && (
+            <Section title={t.memoriesTitle}>
+              <p className="text-sm text-warm-300 mb-4 leading-relaxed">
+                {t.memoriesHint(oracleName)}
+              </p>
+              <div className="space-y-2">
+                {memories.map((m) => (
+                  <div
+                    key={m.id}
+                    className="flex items-start justify-between gap-3 px-4 py-3 rounded-lg border border-warm-700/60 bg-warm-700/15"
+                  >
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <span className="text-xs uppercase tracking-[0.15em] text-warm-400 mb-1">
+                        {t.memoryKinds[m.kind as keyof typeof t.memoryKinds] ??
+                          m.kind}
+                      </span>
+                      <span className="text-sm text-warm-100 leading-relaxed">
+                        {m.content}
+                      </span>
+                    </div>
+                    <form action={deletePersonaMemory}>
+                      <input type="hidden" name="id" value={m.id} />
+                      <button
+                        type="submit"
+                        className="text-xs text-warm-400 hover:text-warm-200 transition-colors whitespace-nowrap"
+                      >
+                        {t.forget}
+                      </button>
+                    </form>
+                  </div>
+                ))}
+              </div>
+            </Section>
+          )}
 
           <Section title={t.beneficiaryTitle}>
             <p className="text-sm text-warm-300 mb-2 leading-relaxed">
@@ -794,6 +842,18 @@ const COPY = {
     grantsHeading: "People with access",
     grantedOn: "Joined",
     revokeAccess: "Remove access",
+    memoriesTitle: "What they remember about you",
+    memoriesHint: (name: string) =>
+      `Things ${name} has picked up across your conversations and now keeps as part of who you are to them. These persist even if you delete the messages — that's what makes them feel like someone who knows you, not a chatbot that resets. You can forget any of these.`,
+    memoryKinds: {
+      fact: "Fact",
+      relationship: "Person",
+      preference: "Preference",
+      event: "Event",
+      topic: "On their mind",
+      feeling: "Feeling",
+    },
+    forget: "Forget this",
     beneficiaryTitle: "Beneficiaries",
     beneficiaryHint:
       "Choose who inherits this archive. If something happens to you, they'll get an email with a link to access what you've left — your answers, your texture, your voice. Three free beneficiaries; $5 per additional one.",
@@ -891,6 +951,18 @@ const COPY = {
     grantsHeading: "Personas con acceso",
     grantedOn: "Se unió",
     revokeAccess: "Quitar acceso",
+    memoriesTitle: "Lo que recuerdan de ti",
+    memoriesHint: (name: string) =>
+      `Cosas que ${name} ha aprendido a lo largo de sus conversaciones y ahora son parte de quién eres para ellos. Esto persiste aunque borres los mensajes — eso es lo que los hace sentir como alguien que te conoce, no un chatbot que se reinicia. Puedes olvidar cualquiera de estas.`,
+    memoryKinds: {
+      fact: "Hecho",
+      relationship: "Persona",
+      preference: "Preferencia",
+      event: "Evento",
+      topic: "En su mente",
+      feeling: "Sentimiento",
+    },
+    forget: "Olvidar esto",
     beneficiaryTitle: "Beneficiarios",
     beneficiaryHint:
       "Elige quién hereda este archivo. Si algo te sucede, recibirán un correo con un enlace para acceder a lo que dejaste — tus respuestas, tu textura, tu voz. Tres beneficiarios gratis; $5 por cada uno adicional.",

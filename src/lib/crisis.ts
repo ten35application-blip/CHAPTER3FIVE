@@ -73,11 +73,38 @@ export type CrisisDetection = {
   matched: string[];
 };
 
+// Stripped: zero-width spaces, joiners, BOM, bidi marks, word joiner,
+// invisible operators, isolates. These are the common bypass tricks.
+const ZERO_WIDTH_RE = new RegExp(
+  "[\\u200B-\\u200F\\u202A-\\u202E\\u2060-\\u206F\\uFEFF]",
+  "g",
+);
+// Combining marks (so "kïll" → "kill" after NFKD).
+const COMBINING_MARKS_RE = new RegExp("[\\u0300-\\u036F]", "g");
+
+/**
+ * Normalize text to defeat common bypass tricks:
+ *  - NFKD strips compatibility characters (e.g. ligatures, full-width)
+ *  - Zero-width chars and bidi marks removed
+ *  - Combining marks removed so "kïll" matches "kill"
+ *  - All whitespace runs collapse to a single space (defeats "kill\nmyself")
+ *  - Lowercase
+ */
+function normalize(text: string): string {
+  return text
+    .normalize("NFKD")
+    .replace(ZERO_WIDTH_RE, "")
+    .replace(COMBINING_MARKS_RE, "")
+    .replace(/\s+/g, " ")
+    .toLowerCase()
+    .trim();
+}
+
 export function detectCrisis(text: string): CrisisDetection {
-  const lower = text.toLowerCase();
+  const normalized = normalize(text);
   const matched: string[] = [];
   for (const kw of [...EN_KEYWORDS, ...ES_KEYWORDS]) {
-    if (lower.includes(kw)) matched.push(kw);
+    if (normalized.includes(kw)) matched.push(kw);
   }
   return { triggered: matched.length > 0, matched };
 }

@@ -420,6 +420,23 @@ export async function addBeneficiary(formData: FormData) {
   redirect("/settings?saved=beneficiary-added");
 }
 
+export async function deletePersonaMemory(formData: FormData) {
+  const id = String(formData.get("id") ?? "").trim();
+  if (!id) redirect("/settings?error=Missing%20id");
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/auth/signin");
+
+  // RLS: only the user_id on the row can delete (their own memories).
+  await supabase.from("persona_memories").delete().eq("id", id);
+
+  revalidatePath("/settings");
+  redirect("/settings?saved=memory-removed");
+}
+
 export async function buyBeneficiarySlot() {
   const supabase = await createClient();
   const {

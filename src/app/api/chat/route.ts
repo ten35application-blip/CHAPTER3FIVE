@@ -12,8 +12,17 @@ import {
 import { isAsleep, localTimeLabel } from "@/lib/sleep";
 import { detectCrisis } from "@/lib/crisis";
 import { sendCrisisAlert } from "@/lib/notifications";
+import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  loadMemoriesForPrompt,
+  memoriesToPromptBlock,
+  extractAndStoreMemories,
+} from "@/lib/memory";
 
 type Message = { role: "user" | "assistant"; content: string };
+
+const MAX_USER_MESSAGE_CHARS = 4000;
+const DAILY_MESSAGE_CAP = 200;
 
 export async function POST(request: NextRequest) {
   let payload: {
@@ -31,6 +40,12 @@ export async function POST(request: NextRequest) {
   const userMessage = String(payload.message ?? "").trim();
   if (!userMessage) {
     return NextResponse.json({ error: "Empty message" }, { status: 400 });
+  }
+  if (userMessage.length > MAX_USER_MESSAGE_CHARS) {
+    return NextResponse.json(
+      { error: `Message too long (max ${MAX_USER_MESSAGE_CHARS} characters)` },
+      { status: 413 },
+    );
   }
 
   const history = Array.isArray(payload.history) ? payload.history : [];
@@ -61,13 +76,30 @@ export async function POST(request: NextRequest) {
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "oracle_name, mode, preferred_language, texting_style, personality_type, emotional_flavor, timezone, active_oracle_id",
+      "oracle_name, mode, preferred_language, texting_style, personality_type, emotional_flavor, timezone, active_oracle_id, deceased_at",
     )
     .eq("id", user.id)
     .single();
 
   if (!profile) {
     return NextResponse.json({ error: "No profile" }, { status: 404 });
+  }
+
+  // Daily rate limit. Atomic increment via SQL — race-safe under bursts.
+  // Returns the new count for today; reject if over cap. Uses service-role
+  // because the function is locked away from anon/authenticated.
+  const usageAdmin = createAdminClient();
+  const { data: usageCount } = await usageAdmin.rpc("bump_chat_usage", {
+    target_user_id: user.id,
+  });
+  if (typeof usageCount === "number" && usageCount > DAILY_MESSAGE_CAP) {
+    return NextResponse.json(
+      {
+        error:
+          "You've hit today's message limit. Try again tomorrow — your thirtyfive will be here.",
+      },
+      { status: 429 },
+    );
   }
 
   // Caller can override which oracle this message goes to (group chat,
@@ -217,6 +249,17 @@ export async function POST(request: NextRequest) {
       }. Stay in that register.`
     : "";
 
+  // Load persona memories about THIS specific user (per-relationship).
+  // These persist across conversations and survive message deletion.
+  const memories = profile.active_oracle_id
+    ? await loadMemoriesForPrompt(profile.active_oracle_id, user.id)
+    : [];
+  const memoriesBlock = memoriesToPromptBlock(
+    memories,
+    characterName,
+    language,
+  );
+
   const wokenPart = sleeping
     ? `\n\nIt is currently ${localTimeLabel(effectiveTimezone)} where you live. You were asleep, but the user kept messaging until you replied. You're groggy, slightly short. Acknowledge that briefly — the way a real person would when woken up — then engage with what they're saying. Don't be cheerful about being awake.`
     : "";
@@ -254,7 +297,7 @@ If the user appears to be in genuine crisis — talking about ending their life,
   • or local emergency services
 Do NOT help with the harmful action. Do NOT pretend everything is fine. Do NOT roleplay through a crisis. Once you've said it, you can return to the conversation if they want to keep talking.
 
-${langInstruction}${stylePart}${personalityPart}${flavorPart}${wokenPart}
+${langInstruction}${stylePart}${personalityPart}${flavorPart}${wokenPart}${memoriesBlock}
 
 ARCHIVE — these are the actual answers ${characterName} gave. This is who you are. Stay close.
 
@@ -298,6 +341,31 @@ ${archiveBlock}`;
           content: reply,
         },
       ]);
+    }
+
+    // Memory extraction — runs every 4th turn to keep cost down. Skips on
+    // crisis turns (we don't store anything that could be re-surfaced into
+    // a future conversation about a person's worst moment).
+    const totalTurns = history.length + 2; // +2 for the just-saved pair
+    if (
+      profile.active_oracle_id &&
+      !crisis.triggered &&
+      totalTurns % 8 === 0
+    ) {
+      const recentTurns = [
+        ...history.slice(-6),
+        { role: "user" as const, content: userMessage },
+        { role: "assistant" as const, content: reply },
+      ];
+      extractAndStoreMemories({
+        oracleId: profile.active_oracle_id,
+        userId: user.id,
+        characterName,
+        language,
+        recentTurns,
+      }).catch((err) =>
+        console.error("memory extraction (background) failed:", err),
+      );
     }
 
     return NextResponse.json({ reply });
