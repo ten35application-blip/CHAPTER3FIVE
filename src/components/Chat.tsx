@@ -17,6 +17,9 @@ const COPY = {
     sending: "…",
     error: "Something went wrong. Try again?",
     empty: (name: string) => `Say something to ${name}.`,
+    reading: "reading",
+    replying: "replying",
+    typing: "typing",
     report: "Report",
     reportPlaceholder: "What was wrong with this message? (optional)",
     reportSubmit: "Submit",
@@ -29,6 +32,9 @@ const COPY = {
     sending: "…",
     error: "Algo salió mal. ¿Lo intentas de nuevo?",
     empty: (name: string) => `Dile algo a ${name}.`,
+    reading: "leyendo",
+    replying: "contestando",
+    typing: "escribiendo",
     report: "Reportar",
     reportPlaceholder: "¿Qué estuvo mal con este mensaje? (opcional)",
     reportSubmit: "Enviar",
@@ -58,6 +64,30 @@ export function Chat({ oracleName, language }: Props) {
   );
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const timezone = useMemo(detectTimezone, []);
+  const [activityStage, setActivityStage] = useState<
+    "reading" | "replying" | "typing"
+  >("reading");
+
+  useEffect(() => {
+    if (!sending) {
+      setActivityStage("reading");
+      return;
+    }
+    setActivityStage("reading");
+    const t1 = setTimeout(() => setActivityStage("replying"), 1300);
+    const t2 = setTimeout(() => setActivityStage("typing"), 3200);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [sending]);
+
+  const activityLabel =
+    activityStage === "reading"
+      ? t.reading
+      : activityStage === "replying"
+        ? t.replying
+        : t.typing;
 
   useEffect(() => {
     scrollerRef.current?.scrollTo({
@@ -118,8 +148,8 @@ export function Chat({ oracleName, language }: Props) {
       </div>
 
       <h1 className="font-serif text-3xl text-warm-50 mb-1">{oracleName}</h1>
-      <p className="text-xs uppercase tracking-[0.2em] text-warm-300 mb-8">
-        {sending ? (language === "es" ? "Pensando…" : "Thinking…") : ""}
+      <p className="text-xs uppercase tracking-[0.2em] text-warm-300 mb-8 italic min-h-[1em]">
+        {sending ? `${activityLabel}…` : ""}
       </p>
 
       <div className="w-full flex flex-col h-[55svh]">

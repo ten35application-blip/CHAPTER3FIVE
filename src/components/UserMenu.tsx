@@ -82,12 +82,12 @@ export function UserMenu({
       {open && (
         <div
           role="menu"
-          className="absolute right-0 mt-2 w-64 rounded-2xl border border-warm-400/30 bg-ink-soft shadow-xl overflow-hidden"
+          className="absolute right-0 mt-2 w-64 rounded-2xl border border-warm-300/40 bg-warm-700 shadow-2xl overflow-hidden"
         >
           {oracles.length > 0 && (
             <>
               <div className="px-4 pt-3 pb-1">
-                <p className="text-xs uppercase tracking-[0.2em] text-warm-400">
+                <p className="text-xs uppercase tracking-[0.2em] text-warm-300">
                   {t.yours}
                 </p>
               </div>
@@ -106,29 +106,29 @@ export function UserMenu({
                         disabled={isActive}
                         className={`w-full text-left px-4 py-2 text-sm transition-colors flex items-center justify-between ${
                           isActive
-                            ? "text-warm-50 bg-warm-700/40 cursor-default"
-                            : "text-warm-100 hover:bg-warm-700/30"
+                            ? "text-warm-50 bg-warm-600 cursor-default"
+                            : "text-warm-100 hover:bg-warm-600/60"
                         }`}
                       >
                         <span className="font-serif truncate">
                           {o.name?.trim() || t.untitled}
                         </span>
                         {isActive && (
-                          <span className="text-warm-300 text-xs">●</span>
+                          <span className="text-warm-200 text-xs">●</span>
                         )}
                       </button>
                     </form>
                   );
                 })}
               </div>
-              <div className="border-t border-warm-700/60" />
+              <div className="border-t border-warm-600/80" />
             </>
           )}
 
           <form action={newOracle}>
             <button
               type="submit"
-              className="w-full text-left px-4 py-2.5 text-sm text-warm-100 hover:bg-warm-700/30 transition-colors"
+              className="w-full text-left px-4 py-2.5 text-sm text-warm-100 hover:bg-warm-600/60 transition-colors"
             >
               {t.newOracle}
             </button>
@@ -137,7 +137,7 @@ export function UserMenu({
           <Link
             href="/settings"
             onClick={() => setOpen(false)}
-            className="block px-4 py-2.5 text-sm text-warm-100 hover:bg-warm-700/30 transition-colors border-t border-warm-700/60"
+            className="block px-4 py-2.5 text-sm text-warm-100 hover:bg-warm-600/60 transition-colors border-t border-warm-600/80"
           >
             {t.settings}
           </Link>
@@ -145,7 +145,7 @@ export function UserMenu({
           <form action={signOut}>
             <button
               type="submit"
-              className="w-full text-left px-4 py-2.5 text-sm text-warm-100 hover:bg-warm-700/30 transition-colors border-t border-warm-700/60"
+              className="w-full text-left px-4 py-2.5 text-sm text-warm-100 hover:bg-warm-600/60 transition-colors border-t border-warm-600/80"
             >
               {t.signOut}
             </button>

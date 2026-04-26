@@ -40,10 +40,10 @@ export default async function DashboardPage() {
 
   return (
     <main className="flex-1 flex flex-col px-6 py-6 relative overflow-hidden">
-      <header className="max-w-2xl w-full mx-auto flex items-center justify-between mb-8">
+      <header className="max-w-2xl w-full mx-auto flex items-center justify-between mb-12">
         <Link
           href="/"
-          className="font-serif text-lg tracking-tight text-warm-100 hover:text-warm-50 transition-colors"
+          className="font-serif text-xl tracking-tight text-warm-100 hover:text-warm-50 transition-colors"
         >
           chapter3five
         </Link>
