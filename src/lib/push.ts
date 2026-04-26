@@ -14,6 +14,7 @@ type ExpoPushMessage = {
   data?: Record<string, unknown>;
   sound?: "default" | null;
   priority?: "default" | "normal" | "high";
+  badge?: number;
 };
 
 const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
@@ -23,6 +24,7 @@ export async function sendPushToUser(opts: {
   title?: string;
   body: string;
   data?: Record<string, unknown>;
+  badge?: number;
 }): Promise<{ sent: number; failed: number }> {
   const admin = createAdminClient();
   const { data: tokens } = await admin
@@ -43,6 +45,7 @@ export async function sendPushToUser(opts: {
     data: opts.data,
     sound: "default",
     priority: "high",
+    ...(typeof opts.badge === "number" ? { badge: opts.badge } : {}),
   }));
 
   let sent = 0;

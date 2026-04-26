@@ -137,6 +137,7 @@ export async function GET(request: NextRequest) {
         title: profile.oracle_name ?? "your thirtyfive",
         body: reply.length > 140 ? reply.slice(0, 140) + "…" : reply,
         data: { kind: "proactive" },
+        badge: 1,
       }).catch((err) =>
         console.error(`proactive push failed for ${profile.id}`, err),
       );
