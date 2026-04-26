@@ -33,6 +33,11 @@ const COPY = {
     reportSubmit: "Submit",
     reportCancel: "Cancel",
     reportThanks: "Thanks. We'll review it.",
+    blockedSoon: (name: string) => `${name} stepped out. They'll come back.`,
+    blockedHours: (name: string, h: number) =>
+      `${name} stepped out. Try again in about ${h} hour${h === 1 ? "" : "s"}.`,
+    blockedDays: (name: string, d: number) =>
+      `${name} stepped out. Try again in about ${d} day${d === 1 ? "" : "s"}.`,
   },
   es: {
     placeholder: (name: string) => `Escribirle a ${name}…`,
@@ -48,6 +53,11 @@ const COPY = {
     reportSubmit: "Enviar",
     reportCancel: "Cancelar",
     reportThanks: "Gracias. Lo revisaremos.",
+    blockedSoon: (name: string) => `${name} se salió. Volverán.`,
+    blockedHours: (name: string, h: number) =>
+      `${name} se salió. Intenta en ${h} hora${h === 1 ? "" : "s"}.`,
+    blockedDays: (name: string, d: number) =>
+      `${name} se salió. Intenta en ${d} día${d === 1 ? "" : "s"}.`,
   },
 };
 
@@ -86,6 +96,7 @@ export function Chat({
     previewUrl: string;
   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [blockedUntil, setBlockedUntil] = useState<string | null>(null);
 
   useEffect(() => {
     if (!sending) {
@@ -150,12 +161,35 @@ export function Chat({
             }
             return [...prev, { role: row.role, content: row.content }];
           });
+          // A persona-initiated message arriving means we're talking
+          // again — clear any local block state so the input unlocks.
+          setBlockedUntil(null);
         },
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
+    };
+  }, [oracleId]);
+
+  // On mount, ask whether this conversation is currently blocked.
+  // Cheap call, lets us lock the input on page refresh during a
+  // cooldown without waiting for the user to try sending.
+  useEffect(() => {
+    if (!oracleId) return;
+    let cancelled = false;
+    fetch(`/api/chat/block-status?oracle_id=${oracleId}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        if (data?.blocked && data.blocked_until) {
+          setBlockedUntil(data.blocked_until as string);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
     };
   }, [oracleId]);
 
@@ -179,6 +213,7 @@ export function Chat({
     e.preventDefault();
     const text = input.trim();
     if (sending) return;
+    if (blockedUntil) return;
     // Allow sending a photo with no caption — but require at least one of
     // text or image.
     if (!text && !pendingImage) return;
@@ -239,8 +274,21 @@ export function Chat({
         }),
       });
       const data = await res.json();
+      if (res.status === 403 && data?.blocked && data.blocked_until) {
+        // Hit an existing block (e.g. another tab triggered it). Lock
+        // input but don't render an error toast — the persona's final
+        // line is already in the chat from the original block turn.
+        setBlockedUntil(data.blocked_until as string);
+        setMessages(next);
+        return;
+      }
       if (!res.ok) throw new Error(data.error ?? t.error);
       setMessages([...next, { role: "assistant", content: data.reply }]);
+      if (data?.blocked && data.blocked_until) {
+        // The reply IS the persona's stepping-out line. Lock further
+        // input until the cron unblocks + checks in.
+        setBlockedUntil(data.blocked_until as string);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : t.error);
     } finally {
@@ -416,6 +464,21 @@ export function Chat({
           </div>
         )}
 
+        {blockedUntil && (
+          <div className="pt-3 border-t border-warm-700/60 flex items-center justify-center">
+            <p className="text-sm text-warm-300 italic text-center py-3 px-4 leading-relaxed">
+              {(() => {
+                const ms = new Date(blockedUntil).getTime() - Date.now();
+                const hours = Math.max(0, Math.ceil(ms / 3_600_000));
+                if (hours <= 1) return t.blockedSoon(oracleName);
+                if (hours < 36) return t.blockedHours(oracleName, hours);
+                return t.blockedDays(oracleName, Math.ceil(hours / 24));
+              })()}
+            </p>
+          </div>
+        )}
+
+        {!blockedUntil && (
         <form
           onSubmit={send}
           className="flex gap-2 pt-3 border-t border-warm-700/60"
@@ -459,6 +522,7 @@ export function Chat({
             {sending ? t.sending : t.send}
           </button>
         </form>
+        )}
       </div>
     </div>
   );

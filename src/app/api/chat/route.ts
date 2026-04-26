@@ -19,6 +19,11 @@ import {
   extractAndStoreMemories,
 } from "@/lib/memory";
 import { moderateImage } from "@/lib/moderation";
+import {
+  judgeTone,
+  generateBlockLine,
+  cooldownUntil,
+} from "@/lib/judge";
 
 type Message = { role: "user" | "assistant"; content: string };
 
@@ -165,6 +170,34 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
     if (ownerProfile?.deceased_at) {
       memorialMode = true;
+    }
+  }
+
+  // Block gate — if the persona has stepped out of this conversation
+  // for hostility/cruelty, refuse the message until the cooldown
+  // expires (the check-in cron will unblock + reach out). Service
+  // role read so we don't depend on RLS shape.
+  if (profile.active_oracle_id) {
+    const blockClient = createAdminClient();
+    const { data: activeBlock } = await blockClient
+      .from("chat_blocks")
+      .select("blocked_until, severity")
+      .eq("oracle_id", profile.active_oracle_id)
+      .eq("user_id", user.id)
+      .is("unblocked_at", null)
+      .order("blocked_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (activeBlock) {
+      return NextResponse.json(
+        {
+          error: "blocked",
+          blocked: true,
+          blocked_until: activeBlock.blocked_until,
+          severity: activeBlock.severity,
+        },
+        { status: 403 },
+      );
     }
   }
 
@@ -350,6 +383,67 @@ ${langInstruction}${stylePart}${personalityPart}${flavorPart}${bioPart}${wokenPa
 ARCHIVE — these are the actual answers ${characterName} gave. This is who you are. Stay close.
 
 ${archiveBlock}`;
+
+  // Tone judge — never overrides a crisis message. Decides whether
+  // the persona walks away from this conversation. Permissive by
+  // design (and even more so in memorial mode).
+  if (profile.active_oracle_id && !crisis.triggered) {
+    const verdict = await judgeTone({
+      recentMessages: history.slice(-8),
+      currentMessage: userMessage,
+      oracleName: characterName,
+      textingStyle: profile.texting_style ?? null,
+      ownerDeceased: memorialMode,
+      language,
+    });
+
+    if (verdict.block && verdict.severity) {
+      const blockLine = await generateBlockLine({
+        oracleName: characterName,
+        textingStyle: profile.texting_style ?? null,
+        language,
+        reason: verdict.reason,
+        severity: verdict.severity,
+        ownerDeceased: memorialMode,
+      });
+      const until = cooldownUntil(verdict.severity);
+
+      // Persist user's message + the persona's final line, then mark
+      // the block. Service role for the block insert because clients
+      // can't write to chat_blocks.
+      const adminWrite = createAdminClient();
+      await supabase.from("messages").insert([
+        {
+          user_id: user.id,
+          oracle_id: profile.active_oracle_id,
+          role: "user",
+          content: userMessage,
+          image_url: payload.image_url ?? null,
+          image_storage_path: payload.image_storage_path ?? null,
+        },
+        {
+          user_id: user.id,
+          oracle_id: profile.active_oracle_id,
+          role: "assistant",
+          content: blockLine,
+        },
+      ]);
+      await adminWrite.from("chat_blocks").insert({
+        oracle_id: profile.active_oracle_id,
+        user_id: user.id,
+        blocked_until: until.toISOString(),
+        severity: verdict.severity,
+        reason: verdict.reason,
+      });
+
+      return NextResponse.json({
+        reply: blockLine,
+        blocked: true,
+        blocked_until: until.toISOString(),
+        severity: verdict.severity,
+      });
+    }
+  }
 
   // If the user attached an image, send it to Anthropic as a vision
   // input. URL-based images are supported by the API. The image lives
