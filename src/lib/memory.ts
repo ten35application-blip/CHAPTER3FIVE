@@ -1,5 +1,6 @@
 import { anthropic, ANTHROPIC_MODEL } from "./anthropic";
 import { createAdminClient } from "./supabase/admin";
+import { embedText, toPgVector } from "./embeddings";
 
 export type MemoryKind =
   | "fact"
@@ -21,15 +22,40 @@ const MEMORIES_FOR_PROMPT = 25;
 const MAX_TOTAL_MEMORIES_PER_RELATIONSHIP = 200;
 
 /**
- * Pull the most-relevant memories for a (oracle, user) relationship to
- * inject into the system prompt. Ordered by weight (importance) then
- * recency. Capped so the prompt doesn't balloon.
+ * Pull the most-relevant memories for a (oracle, user) relationship.
+ *
+ * Two-mode loader:
+ *   - If `currentMessage` is provided AND we can embed it (OpenAI key
+ *     set, request succeeds), do semantic similarity search via
+ *     match_persona_memories RPC. The right memory for THIS message
+ *     surfaces, even with thousands recorded.
+ *   - Otherwise (no key, embed failure, no current message yet), fall
+ *     back to weight-then-recency ordering. Same behavior as before.
  */
 export async function loadMemoriesForPrompt(
   oracleId: string,
   userId: string,
+  currentMessage?: string,
 ): Promise<PersonaMemory[]> {
   const admin = createAdminClient();
+
+  if (currentMessage && currentMessage.trim().length > 0) {
+    const queryVector = await embedText(currentMessage);
+    if (queryVector) {
+      const { data, error } = await admin.rpc("match_persona_memories", {
+        query_embedding: toPgVector(queryVector),
+        target_oracle_id: oracleId,
+        target_user_id: userId,
+        match_count: MEMORIES_FOR_PROMPT,
+      });
+      if (!error && data && data.length > 0) {
+        return data as PersonaMemory[];
+      }
+      // Fall through to weight-based retrieval if RPC errored or
+      // returned nothing (e.g. all memories still missing embeddings).
+    }
+  }
+
   const { data } = await admin
     .from("persona_memories")
     .select("id, kind, content, weight, last_referenced_at")
@@ -192,13 +218,23 @@ Weight 0-1: 0.9+ identity-defining; 0.5-0.8 important context; 0.2-0.4 worth kno
 
   if (extracted.length === 0) return;
 
-  const rows = extracted.map((m) => ({
-    oracle_id: opts.oracleId,
-    user_id: opts.userId,
-    kind: m.kind,
-    content: m.content.trim(),
-    weight: Math.min(1, Math.max(0.2, m.weight ?? 0.5)),
-  }));
+  // Embed each memory's content in parallel. Failed embeds (no API
+  // key, transient error) leave embedding null — falls back to
+  // weight-based retrieval cleanly.
+  const rows = await Promise.all(
+    extracted.map(async (m) => {
+      const content = m.content.trim();
+      const vec = await embedText(content);
+      return {
+        oracle_id: opts.oracleId,
+        user_id: opts.userId,
+        kind: m.kind,
+        content,
+        weight: Math.min(1, Math.max(0.2, m.weight ?? 0.5)),
+        embedding: vec ? toPgVector(vec) : null,
+      };
+    }),
+  );
 
   await admin.from("persona_memories").insert(rows);
 

@@ -254,7 +254,7 @@ export async function POST(request: NextRequest) {
   // Load persona memories about THIS specific user (per-relationship).
   // These persist across conversations and survive message deletion.
   const memories = profile.active_oracle_id
-    ? await loadMemoriesForPrompt(profile.active_oracle_id, user.id)
+    ? await loadMemoriesForPrompt(profile.active_oracle_id, user.id, userMessage)
     : [];
   const memoriesBlock = memoriesToPromptBlock(
     memories,
