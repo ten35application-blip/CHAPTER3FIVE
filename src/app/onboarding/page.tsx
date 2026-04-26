@@ -63,8 +63,8 @@ export default async function OnboardingPage({
           className="w-full space-y-12 text-left"
         >
           <Field
-            label="What will you call your thirtyfive?"
-            hint="A name, a nickname — whatever feels right. Or hit Surprise me."
+            label="Name your identity."
+            hint="A name, a nickname — whatever feels right. The name they go by. Or hit Surprise me."
           >
             <div className="flex gap-2">
               <input
@@ -87,25 +87,28 @@ export default async function OnboardingPage({
             </div>
           </Field>
 
-          <Field label="Who is this chapter for?" hint="You choose once — this shapes the whole experience.">
+          <Field
+            label="What kind of identity?"
+            hint="Pick once — this shapes the whole experience."
+          >
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <ModeRadio
                 value="real"
                 defaultChecked={profile?.mode === "real" || profile?.mode == null}
                 title="Someone real"
-                body="You'll answer the 355 questions yourself, or with the person you love. One real answer per question, taken at your pace."
+                body="An identity built from real answers — yours, or someone you love. One real answer per question, at your pace."
               />
               <ModeRadio
                 value="randomize"
                 defaultChecked={profile?.mode === "randomize"}
                 title="Randomize"
-                body="We'll mix you a one-of-a-kind character — every question drawn at random from a curated pool."
+                body="A one-of-a-kind identity, mixed for you — every question drawn at random from a curated pool."
               />
               <ModeRadio
                 value="import"
                 defaultChecked={profile?.mode === "import"}
-                title="Import a shared archive"
-                body="Someone gave you a code? Use it to bring their archive into your own account. The chapter continues, in your hands."
+                title="Import an identity"
+                body="Got a share code? Bring someone else's identity into your account as your own copy."
               />
             </div>
           </Field>
@@ -127,7 +130,7 @@ export default async function OnboardingPage({
 
           <Field
             label="Where in the world?"
-            hint="Sets the local time. Your thirtyfive sleeps from 11pm to 7am here."
+            hint="Sets the local time. Your identity sleeps from 11pm to 7am here."
           >
             <TimezoneSelect defaultValue={profile?.timezone} />
           </Field>

@@ -52,7 +52,7 @@ export default async function RandomizePayPage({
         </Link>
 
         <h1 className="font-serif text-4xl sm:text-5xl text-warm-50 mb-4 leading-tight">
-          <span className="italic font-light">Another character?</span>
+          <span className="italic font-light">Another identity?</span>
         </h1>
         <p className="text-warm-200 text-lg leading-relaxed mb-2">
           {t.intro}
@@ -87,14 +87,14 @@ export default async function RandomizePayPage({
 
 const COPY = {
   en: {
-    intro: "You've used your free randomize. Each new character is $5.",
-    note: "One charge, one new chimera. The combination it generates is yours alone — no one else will ever land on the same character.",
+    intro: "You've used your free randomize. Each new identity is $5.",
+    note: "One charge, one new identity. The combination it generates is yours alone — no one else will ever land on the same one.",
     cta: "Pay $5 and randomize",
     back: "Back",
   },
   es: {
-    intro: "Ya usaste tu randomize gratis. Cada personaje nuevo cuesta $5.",
-    note: "Un cargo, un nuevo personaje. La combinación que genera es tuya sola — nadie más caerá en el mismo personaje.",
+    intro: "Ya usaste tu randomize gratis. Cada identidad nueva cuesta $5.",
+    note: "Un cargo, una nueva identidad. La combinación que genera es tuya sola — nadie más caerá en la misma.",
     cta: "Pagar $5 y randomizar",
     back: "Atrás",
   },

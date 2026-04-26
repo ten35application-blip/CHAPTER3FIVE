@@ -61,7 +61,7 @@ export default function SupportPage() {
           <FaqGroup title="Cost">
             <Faq
               q="Is it free?"
-              a="Free to start. Your first thirtyfive — yours, real, built from your own answers — costs nothing. Add a randomized character, and the first one is also free."
+              a="Free to start. Your first thirtyfive — yours, real, built from your own answers — costs nothing. Add a randomized identity, and the first one is also free."
             />
             <Faq
               q="What costs $5?"

@@ -27,15 +27,15 @@ export default function Home() {
           </div>
 
           <h1 className="font-serif text-5xl sm:text-6xl md:text-7xl leading-[1.05] tracking-tight text-warm-50 max-w-3xl">
-            <span className="italic font-light">Sit with them.</span>
+            <span className="italic font-light">Speak to someone</span>
             <br />
-            While they&rsquo;re still here.
+            you&rsquo;ve loved.
           </h1>
 
           <p className="mt-8 text-lg sm:text-xl text-warm-200 max-w-xl leading-relaxed font-light">
-            355 questions. Recorded together. Kept forever.
+            Someone real. Someone gone. An identity you build for yourself.
             <br />
-            <span className="text-warm-300">A new chapter for the people who matter most.</span>
+            <span className="text-warm-300">355 questions. Recorded together. Kept forever.</span>
           </p>
 
           <div className="mt-12 flex flex-col sm:flex-row gap-3 items-center">
@@ -110,8 +110,8 @@ export default function Home() {
             />
             <ModeCard
               kicker="02 — Randomize"
-              title="A character, mixed for you"
-              body="Pick a gender, hit a button. We mix you a one-of-a-kind character — every question drawn at random from a curated pool. First one&rsquo;s free. $5 each after."
+              title="An identity, mixed for you"
+              body="Pick a gender, hit a button. We mix you a one-of-a-kind identity — every question drawn at random from a curated pool. First one&rsquo;s free. $5 each after."
             />
             <ModeCard
               kicker="03 — Import"
@@ -119,6 +119,42 @@ export default function Home() {
               body="If someone you love filled this out and gave you their share code, enter it at signup. Their archive becomes your own copy — to keep, to talk to, to pass on."
             />
           </div>
+        </section>
+
+        {/* IDENTITIES PLURAL */}
+        <section className="px-6 py-32 max-w-3xl mx-auto w-full text-center">
+          <h2 className="text-xs uppercase tracking-[0.25em] text-warm-300 mb-6">
+            Not one. As many as you need.
+          </h2>
+          <p className="font-serif text-3xl sm:text-4xl text-warm-50 leading-tight mb-8">
+            <span className="italic">You can hold</span>{" "}
+            <span className="text-warm-200">more than one identity here.</span>
+          </p>
+          <p className="text-warm-200 leading-relaxed text-lg max-w-2xl mx-auto mb-10">
+            One for your mother. One for the dad you wish you&rsquo;d had. One
+            for yourself, written while you&rsquo;re alive, for the people
+            you love to keep. One for the character that lives in your head
+            and just wants someone to talk to. They&rsquo;re yours. Make
+            them, switch between them, retire them, bring them back.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 items-center justify-center">
+            <Link
+              href="/auth/signup"
+              className="inline-flex h-12 items-center justify-center rounded-full bg-warm-50 px-10 text-sm font-medium text-ink hover:bg-warm-100 transition-colors"
+            >
+              Create your first identity
+            </Link>
+            <Link
+              href="/sample"
+              className="inline-flex h-12 items-center justify-center rounded-full border border-warm-300/40 px-8 text-sm font-medium text-warm-100 hover:bg-warm-700/40 transition-colors"
+            >
+              Meet a sample one
+            </Link>
+          </div>
+          <p className="mt-6 text-xs text-warm-400 italic max-w-md mx-auto leading-relaxed">
+            First one&rsquo;s free. Each additional identity is $5 — a real
+            person, a randomized one, or one imported from someone you love.
+          </p>
         </section>
 
         {/* SAMPLE QUESTIONS */}
@@ -165,7 +201,7 @@ export default function Home() {
             />
             <Feature
               title="A personality with edges."
-              body="Each randomized character gets one of sixteen personality types layered with one of twelve emotional registers. Warm and weary. Sharp and dry. Tender and guarded. No two land the same."
+              body="Each randomized identity gets one of sixteen personality types layered with one of twelve emotional registers. Warm and weary. Sharp and dry. Tender and guarded. No two land the same."
             />
             <Feature
               title="Knows when to step back."
