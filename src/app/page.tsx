@@ -38,12 +38,18 @@ export default function Home() {
             <span className="text-warm-300">A new chapter for the people who matter most.</span>
           </p>
 
-          <div className="mt-12">
+          <div className="mt-12 flex flex-col sm:flex-row gap-3 items-center">
             <Link
               href="/auth/signup"
               className="inline-flex h-12 items-center justify-center rounded-full bg-warm-50 px-10 text-sm font-medium text-ink hover:bg-warm-100 transition-colors"
             >
               Begin a chapter
+            </Link>
+            <Link
+              href="/sample"
+              className="inline-flex h-12 items-center justify-center rounded-full border border-warm-300/40 px-8 text-sm font-medium text-warm-100 hover:bg-warm-700/40 transition-colors"
+            >
+              Try a sample first
             </Link>
           </div>
         </section>

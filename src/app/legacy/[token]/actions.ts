@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendBeneficiaryClaimedNotice, recordAudit } from "@/lib/notifications";
 
 export async function claimLegacy(formData: FormData) {
   const token = String(formData.get("token") ?? "").trim();
@@ -65,6 +66,36 @@ export async function claimLegacy(formData: FormData) {
       claimed_user_id: user.id,
     })
     .eq("id", ben.id);
+
+  // Tell the owner — only if the owner is still alive (no point notifying
+  // a deceased account; the post-mortem activation flow already explained
+  // what's happening to whoever's managing the estate).
+  const { data: ownerProfile } = await admin
+    .from("profiles")
+    .select("oracle_name, deceased_at")
+    .eq("id", ben.owner_user_id)
+    .maybeSingle();
+  if (ownerProfile && !ownerProfile.deceased_at) {
+    const { data: ownerAuth } = await admin.auth.admin.getUserById(
+      ben.owner_user_id,
+    );
+    if (ownerAuth?.user?.email) {
+      sendBeneficiaryClaimedNotice({
+        to: ownerAuth.user.email,
+        beneficiaryEmail: user.email ?? "(no email)",
+        ownerName: ownerProfile.oracle_name ?? "your thirtyfive",
+        ownerUserId: ben.owner_user_id,
+      }).catch((e) => console.error("claimed notice failed:", e));
+    }
+  }
+
+  await recordAudit({
+    actorUserId: user.id,
+    actorEmail: user.email ?? null,
+    action: "beneficiary_claimed",
+    targetUserId: ben.owner_user_id,
+    targetId: ben.id,
+  });
 
   // Redirect to the first shared oracle, or dashboard if none.
   const firstOracleId = oracles?.[0]?.id;

@@ -5,7 +5,10 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isAdmin } from "@/lib/admin";
-import { sendBeneficiaryActivationEmail } from "@/lib/notifications";
+import {
+  sendBeneficiaryActivationEmail,
+  recordAudit,
+} from "@/lib/notifications";
 
 async function requireAdmin() {
   const supabase = await createClient();
@@ -86,12 +89,22 @@ export async function markUserDeceased(formData: FormData) {
     }
   }
 
+  await recordAudit({
+    actorUserId: me.id,
+    actorEmail: me.email ?? null,
+    action: "marked_deceased",
+    targetUserId: userId,
+    details: {
+      activated_beneficiaries: rows?.length ?? 0,
+    },
+  });
+
   revalidatePath(`/admin/user/${userId}`);
   redirect(`/admin/user/${userId}?saved=deceased`);
 }
 
 export async function unmarkUserDeceased(formData: FormData) {
-  await requireAdmin();
+  const me = await requireAdmin();
   const userId = String(formData.get("user_id") ?? "").trim();
   if (!userId) redirect("/admin?error=Missing%20user_id");
 
@@ -108,6 +121,13 @@ export async function unmarkUserDeceased(formData: FormData) {
     .update({ status: "designated", activated_at: null })
     .eq("owner_user_id", userId)
     .eq("status", "activated");
+
+  await recordAudit({
+    actorUserId: me.id,
+    actorEmail: me.email ?? null,
+    action: "unmarked_deceased",
+    targetUserId: userId,
+  });
 
   revalidatePath(`/admin/user/${userId}`);
   redirect(`/admin/user/${userId}?saved=undeceased`);

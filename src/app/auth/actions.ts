@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendWelcomeEmail } from "@/lib/notifications";
 
 async function emailExists(email: string): Promise<boolean> {
   const admin = createAdminClient();
@@ -79,7 +80,10 @@ export async function signUp(formData: FormData) {
 
   // If session is returned immediately, email confirmation is disabled and
   // the user is already signed in. Otherwise show "check your email".
-  if (data.session) {
+  if (data.session && data.user) {
+    sendWelcomeEmail({ to: email, userId: data.user.id }).catch((e) =>
+      console.error("welcome email failed:", e),
+    );
     redirect("/onboarding");
   }
   redirect(`/auth/signup?sent=${encodeURIComponent(email)}`);

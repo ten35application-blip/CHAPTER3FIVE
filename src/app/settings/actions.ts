@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateShareCode } from "@/lib/share";
-import { sendBeneficiaryDesignationEmail } from "@/lib/notifications";
+import { sendBeneficiaryDesignationEmail, recordAudit } from "@/lib/notifications";
 
 const FREE_BENEFICIARIES = 3;
 
@@ -369,6 +369,14 @@ export async function deleteAccount(formData: FormData) {
   } catch (err) {
     console.error("storage cleanup on delete failed:", err);
   }
+
+  // Audit before we lose the user record.
+  await recordAudit({
+    actorUserId: user.id,
+    actorEmail: user.email ?? null,
+    action: "account_deleted",
+    targetUserId: user.id,
+  });
 
   // Then delete the auth.users row itself via the service-role admin client.
   // Without this, the email stays "taken" forever and the account isn't
