@@ -38,16 +38,16 @@ export default function Home() {
             <span className="text-warm-300">355 questions. Recorded together. Kept forever.</span>
           </p>
 
-          <div className="mt-12 flex flex-col sm:flex-row gap-3 items-center">
+          <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md w-full">
             <Link
               href="/auth/signup"
-              className="inline-flex h-12 items-center justify-center rounded-full bg-warm-50 px-10 text-sm font-medium text-ink hover:bg-warm-100 transition-colors"
+              className="inline-flex h-12 items-center justify-center rounded-full bg-warm-50 px-8 text-sm font-medium text-ink hover:bg-warm-100 transition-colors"
             >
               Begin a chapter
             </Link>
             <Link
               href="/sample"
-              className="inline-flex h-12 items-center justify-center rounded-full border border-warm-300/40 px-8 text-sm font-medium text-warm-100 hover:bg-warm-700/40 transition-colors"
+              className="inline-flex h-12 items-center justify-center rounded-full bg-warm-50 px-8 text-sm font-medium text-ink hover:bg-warm-100 transition-colors"
             >
               Try a sample first
             </Link>
@@ -133,20 +133,21 @@ export default function Home() {
           <p className="text-warm-200 leading-relaxed text-lg max-w-2xl mx-auto mb-10">
             One for your mother. One for the dad you wish you&rsquo;d had. One
             for yourself, written while you&rsquo;re alive, for the people
-            you love to keep. One for the character that lives in your head
-            and just wants someone to talk to. They&rsquo;re yours. Make
-            them, switch between them, retire them, bring them back.
+            you love to keep. One for someone you invent — a voice that
+            lives in your head and just wants somebody to talk to.
+            They&rsquo;re yours. Make them, switch between them, retire them,
+            bring them back.
           </p>
-          <div className="flex flex-col sm:flex-row gap-3 items-center justify-center">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md mx-auto">
             <Link
               href="/auth/signup"
-              className="inline-flex h-12 items-center justify-center rounded-full bg-warm-50 px-10 text-sm font-medium text-ink hover:bg-warm-100 transition-colors"
+              className="inline-flex h-12 items-center justify-center rounded-full bg-warm-50 px-8 text-sm font-medium text-ink hover:bg-warm-100 transition-colors"
             >
               Create your first identity
             </Link>
             <Link
               href="/sample"
-              className="inline-flex h-12 items-center justify-center rounded-full border border-warm-300/40 px-8 text-sm font-medium text-warm-100 hover:bg-warm-700/40 transition-colors"
+              className="inline-flex h-12 items-center justify-center rounded-full bg-warm-50 px-8 text-sm font-medium text-ink hover:bg-warm-100 transition-colors"
             >
               Meet a sample one
             </Link>
@@ -155,6 +156,42 @@ export default function Home() {
             First one&rsquo;s free. Each additional identity is $5 — a real
             person, a randomized one, or one imported from someone you love.
           </p>
+        </section>
+
+        {/* MAKE MANY. NONE ALIKE. */}
+        <section className="px-6 py-32 max-w-5xl mx-auto w-full">
+          <h2 className="text-xs uppercase tracking-[0.25em] text-warm-300 mb-12 text-center">
+            Make many. None alike.
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-12">
+            <div className="text-center md:text-left">
+              <p className="font-serif text-5xl sm:text-6xl text-warm-50 italic font-light leading-none mb-4">
+                As many as<br />you need.
+              </p>
+              <p className="text-warm-200 leading-relaxed">
+                Make one for your mother, one for your dad, one for the
+                friend you lost, one for yourself. Switch between them.
+                Group-chat all three. First identity is free. Each
+                additional one is $5 — yours forever.
+              </p>
+            </div>
+            <div className="text-center md:text-left">
+              <p className="font-serif text-5xl sm:text-6xl text-warm-50 italic font-light leading-none mb-4">
+                No two<br />ever alike.
+              </p>
+              <p className="text-warm-200 leading-relaxed">
+                Each randomized identity draws one of four answers for
+                each of 355 questions, layered with one of 16 personality
+                types and one of 12 emotional registers.{" "}
+                <span className="text-warm-100 font-serif italic">
+                  4<sup>355</sup>
+                </span>{" "}
+                possible combinations — more than there are atoms in the
+                observable universe. Yours will never collide with
+                anyone else&rsquo;s. Not now, not ever.
+              </p>
+            </div>
+          </div>
         </section>
 
         {/* SAMPLE QUESTIONS */}
@@ -188,7 +225,7 @@ export default function Home() {
               body="Their punctuation. Their lol vs. haha. Their long replies on Sundays, their two-word answers on Tuesdays. The system reads it from how they actually wrote."
             />
             <Feature
-              title="Stays in character."
+              title="Stays themselves."
               body="No &ldquo;as an AI&rdquo;. No therapeutic disclaimers. If they were grumpy, they stay grumpy. If they didn&rsquo;t want to talk about something, they change the subject."
             />
             <Feature
