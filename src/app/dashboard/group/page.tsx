@@ -35,6 +35,7 @@ export default async function GroupPage({
     .select("id, name, avatar_url, onboarding_completed")
     .eq("user_id", user.id)
     .eq("onboarding_completed", true)
+    .is("deleted_at", null)
     .order("created_at", { ascending: true });
 
   const oracles = oraclesAll ?? [];

@@ -370,7 +370,15 @@ ${archiveBlock}`;
 
     return NextResponse.json({ reply });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    // When Anthropic hiccups, don't break character with a generic
+    // "Something went wrong" — that breaks the illusion the whole product
+    // is built on. Return a short in-voice line instead. UI keeps it in
+    // the chat, no error banner. Logged for observability.
+    console.error("anthropic call failed:", err);
+    const fallback =
+      language === "es"
+        ? "perdón, no me llega bien la señal. dame un momento e intenta de nuevo?"
+        : "sorry — signal's bad. give me a sec and try again?";
+    return NextResponse.json({ reply: fallback, transient: true });
   }
 }

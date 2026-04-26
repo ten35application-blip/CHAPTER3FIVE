@@ -9,6 +9,10 @@
     {
       "path": "/api/cron/proactive",
       "schedule": "0 17 * * *"
+    },
+    {
+      "path": "/api/cron/purge",
+      "schedule": "0 6 * * *"
     }
   ]
 }

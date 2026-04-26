@@ -47,13 +47,15 @@ export default function AboutPage() {
         <section className="px-6 py-16 max-w-2xl mx-auto">
           <div className="rounded-3xl border border-warm-700/60 bg-warm-700/15 px-8 py-10 sm:px-10 sm:py-12">
             <div className="flex items-center gap-5 mb-8">
-              {/* Founder photo. Drop a square image at /public/founder.jpg
-                  to replace the initial. ~256x256 recommended. */}
-              <div className="w-20 h-20 rounded-full bg-warm-700 border border-warm-300/30 flex items-center justify-center font-serif text-3xl text-warm-100 overflow-hidden flex-shrink-0">
-                W
-              </div>
+              {/* Drop the same founder photo from patternmd.app + pawpact.app
+                  at /public/founder.jpg (or .png). ~256x256 recommended. */}
+              <img
+                src="/founder.webp"
+                alt="Pedro Infante"
+                className="w-20 h-20 rounded-full object-cover border border-warm-300/30 bg-warm-700 flex-shrink-0"
+              />
               <div>
-                <p className="font-serif text-xl text-warm-50">Wilson Feliz</p>
+                <p className="font-serif text-xl text-warm-50">Pedro Infante</p>
                 <p className="text-xs uppercase tracking-[0.2em] text-warm-300 mt-1">
                   Founder
                 </p>
@@ -67,7 +69,7 @@ export default function AboutPage() {
               listening. That stuff disappears unless somebody records it.”
             </p>
             <p className="text-warm-200 leading-relaxed">
-              I’m a solo builder. I also run{" "}
+              Pedro also leads{" "}
               <a
                 href="https://patternmd.app"
                 target="_blank"
@@ -86,7 +88,7 @@ export default function AboutPage() {
                 PawPact
               </a>{" "}
               (the same idea, for pets). chapter3five is the most personal of
-              the three. It’s the one I wish I’d had.
+              the three — the one we wish we’d had.
             </p>
           </div>
         </section>

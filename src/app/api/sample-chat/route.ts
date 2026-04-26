@@ -119,7 +119,12 @@ ${archiveBlock}`;
 
     return NextResponse.json({ reply, crisis: crisis.triggered });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    // In-character fallback so the demo doesn't break the illusion.
+    console.error("sample anthropic call failed:", err);
+    return NextResponse.json({
+      reply: "sorry, signal's bad. try again in a sec?",
+      transient: true,
+      crisis: crisis.triggered,
+    });
   }
 }

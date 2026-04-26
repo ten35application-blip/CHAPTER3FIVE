@@ -6,7 +6,11 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateShareCode } from "@/lib/share";
-import { sendBeneficiaryDesignationEmail, recordAudit } from "@/lib/notifications";
+import {
+  sendBeneficiaryDesignationEmail,
+  sendBeneficiaryRemovedEmail,
+  recordAudit,
+} from "@/lib/notifications";
 
 const FREE_BENEFICIARIES = 3;
 
@@ -130,28 +134,58 @@ export async function deleteOracle(formData: FormData) {
     );
   }
 
-  // Wipe answers and reset the profile. Account stays alive so the user can
-  // start a new oracle from /onboarding.
-  const { error: ansErr } = await supabase
-    .from("answers")
-    .delete()
-    .eq("user_id", user.id);
-  if (ansErr) {
-    redirect(`/settings?error=${encodeURIComponent(ansErr.message)}`);
+  // Soft-delete the active thirtyfive: mark it deleted + schedule a 30-day
+  // purge. Answers, messages, memories stay attached to the oracle row, so
+  // restoring just clears deleted_at and everything reappears. The
+  // profile's active_oracle_id gets cleared so the dashboard doesn't try
+  // to load the soft-deleted oracle.
+  const { data: activeProfile } = await supabase
+    .from("profiles")
+    .select("active_oracle_id")
+    .eq("id", user.id)
+    .maybeSingle();
+  const oracleId = activeProfile?.active_oracle_id;
+
+  if (!oracleId) {
+    redirect("/settings?error=No%20active%20thirtyfive");
   }
 
-  const { error: profErr } = await supabase
+  const now = new Date();
+  const purgeAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+  const { error: oracleErr } = await supabase
+    .from("oracles")
+    .update({
+      deleted_at: now.toISOString(),
+      scheduled_purge_at: purgeAt.toISOString(),
+    })
+    .eq("id", oracleId)
+    .eq("user_id", user.id);
+  if (oracleErr) {
+    redirect(`/settings?error=${encodeURIComponent(oracleErr.message)}`);
+  }
+
+  // Reset profile: detach the deleted oracle, clear back to a pre-onboard
+  // state so the user can start fresh or pick another thirtyfive.
+  await supabase
     .from("profiles")
     .update({
+      active_oracle_id: null,
       oracle_name: null,
       mode: "real",
       texting_style: null,
       onboarding_completed: false,
     })
     .eq("id", user.id);
-  if (profErr) {
-    redirect(`/settings?error=${encodeURIComponent(profErr.message)}`);
-  }
+
+  await recordAudit({
+    actorUserId: user.id,
+    actorEmail: user.email ?? null,
+    action: "oracle_soft_deleted",
+    targetUserId: user.id,
+    targetId: oracleId,
+    details: { scheduled_purge_at: purgeAt.toISOString() },
+  });
 
   redirect("/onboarding?notice=oracle-deleted");
 }
@@ -345,49 +379,33 @@ export async function deleteAccount(formData: FormData) {
     );
   }
 
-  // Wipe app-side data first (RLS-respecting deletes via the user client).
-  await supabase.from("answers").delete().eq("user_id", user.id);
-  await supabase.from("agreements").delete().eq("user_id", user.id);
-  await supabase.from("oracles").delete().eq("user_id", user.id);
-  await supabase.from("shares").delete().eq("source_user_id", user.id);
-  await supabase.from("payments").delete().eq("user_id", user.id);
-  await supabase.from("crisis_flags").delete().eq("user_id", user.id);
-  await supabase.from("message_reports").delete().eq("user_id", user.id);
-  await supabase.from("profiles").delete().eq("id", user.id);
+  // Soft delete: mark the profile + schedule purge 30 days out. Data is
+  // hidden from the user (sign-in redirects them to /restore) but stays
+  // in the DB so they can recover for a fee. The nightly purge cron does
+  // the actual destructive cleanup once scheduled_purge_at is in the past.
+  const now = new Date();
+  const purgeAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
-  // Clean up avatar files in Supabase Storage. Without this, deleted
-  // accounts leave orphan blobs in the avatars bucket forever.
   const admin = createAdminClient();
-  try {
-    const { data: files } = await admin.storage
-      .from("avatars")
-      .list(user.id);
-    if (files && files.length > 0) {
-      const paths = files.map((f) => `${user.id}/${f.name}`);
-      await admin.storage.from("avatars").remove(paths);
-    }
-  } catch (err) {
-    console.error("storage cleanup on delete failed:", err);
-  }
+  await admin
+    .from("profiles")
+    .update({
+      deleted_at: now.toISOString(),
+      scheduled_purge_at: purgeAt.toISOString(),
+    })
+    .eq("id", user.id);
 
-  // Audit before we lose the user record.
   await recordAudit({
     actorUserId: user.id,
     actorEmail: user.email ?? null,
-    action: "account_deleted",
+    action: "account_soft_deleted",
     targetUserId: user.id,
+    details: { scheduled_purge_at: purgeAt.toISOString() },
   });
 
-  // Then delete the auth.users row itself via the service-role admin client.
-  // Without this, the email stays "taken" forever and the account isn't
-  // actually gone.
-  const { error: deleteUserError } = await admin.auth.admin.deleteUser(user.id);
-  if (deleteUserError) {
-    // Don't surface the cascade error to the user — their data is gone, the
-    // residual auth row will be cleaned up by ops. Still log it for review.
-    console.error("auth.users delete failed:", deleteUserError);
-  }
-
+  // We DON'T delete auth.users yet — the user needs to be able to sign
+  // back in within the grace window to restore. Sign them out so the
+  // current session is invalidated; next sign-in will land on /restore.
   await supabase.auth.signOut();
   redirect("/account-deleted");
 }
@@ -485,6 +503,59 @@ export async function deletePersonaMemory(formData: FormData) {
   redirect("/settings?saved=memory-removed");
 }
 
+export async function restoreOracle(formData: FormData) {
+  const oracleId = String(formData.get("oracle_id") ?? "").trim();
+  if (!oracleId) redirect("/settings?error=Missing%20id");
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/auth/signin");
+
+  // Confirm caller owns the soft-deleted oracle.
+  const { data: oracle } = await supabase
+    .from("oracles")
+    .select("id, deleted_at, scheduled_purge_at")
+    .eq("id", oracleId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (!oracle || !oracle.deleted_at) {
+    redirect("/settings?error=Not%20found%20or%20not%20deleted");
+  }
+  if (
+    oracle.scheduled_purge_at &&
+    new Date(oracle.scheduled_purge_at).getTime() < Date.now()
+  ) {
+    redirect("/settings?error=Grace%20period%20expired");
+  }
+
+  const headerList = await headers();
+  const host = headerList.get("host") ?? "chapter3five.app";
+  const proto = headerList.get("x-forwarded-proto") ?? "https";
+  const origin = `${proto}://${host}`;
+
+  const res = await fetch(`${origin}/api/stripe/checkout`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      cookie: headerList.get("cookie") ?? "",
+    },
+    body: JSON.stringify({
+      purpose: "restore_oracle",
+      oracle_id: oracleId,
+    }),
+  });
+
+  const data = await res.json();
+  if (!res.ok || !data.url) {
+    redirect(
+      `/settings?error=${encodeURIComponent(data.error ?? "Could not start checkout")}`,
+    );
+  }
+  redirect(data.url);
+}
+
 export async function buyBeneficiarySlot() {
   const supabase = await createClient();
   const {
@@ -525,6 +596,14 @@ export async function removeBeneficiary(formData: FormData) {
   } = await supabase.auth.getUser();
   if (!user) redirect("/auth/signin");
 
+  // Look up the row before delete so we know who to notify.
+  const { data: ben } = await supabase
+    .from("beneficiaries")
+    .select("email, status")
+    .eq("id", id)
+    .eq("owner_user_id", user.id)
+    .maybeSingle();
+
   // Hard-delete: a removed beneficiary slot should free up so they can
   // designate someone else without bumping into the cap.
   await supabase
@@ -532,6 +611,25 @@ export async function removeBeneficiary(formData: FormData) {
     .delete()
     .eq("id", id)
     .eq("owner_user_id", user.id);
+
+  // Notify the beneficiary they've been removed — only if they were
+  // previously notified (designation email already went out) or had
+  // already claimed. Skip in the silent-removal case (added then
+  // immediately removed before email landed).
+  if (ben?.email && (ben.status === "designated" || ben.status === "claimed")) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("oracle_name")
+      .eq("id", user.id)
+      .maybeSingle();
+    sendBeneficiaryRemovedEmail({
+      to: ben.email,
+      ownerName: profile?.oracle_name ?? user.email ?? "Someone",
+      ownerUserId: user.id,
+    }).catch((err) =>
+      console.error("beneficiary removed email failed:", err),
+    );
+  }
 
   revalidatePath("/settings");
   redirect("/settings?saved=beneficiary-removed");

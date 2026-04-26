@@ -10,7 +10,9 @@ type EmailKind =
   | "outreach"
   | "beneficiary_designation"
   | "beneficiary_activation"
-  | "beneficiary_claimed";
+  | "beneficiary_claimed"
+  | "beneficiary_removed"
+  | "account_restored";
 
 async function logEmail(opts: {
   recipient: string;
@@ -191,6 +193,52 @@ https://chapter3five.app/settings`;
     text,
     kind: "beneficiary_claimed",
     user_id: opts.ownerUserId,
+  });
+}
+
+export async function sendBeneficiaryRemovedEmail(opts: {
+  to: string;
+  ownerName: string;
+  ownerUserId?: string | null;
+}) {
+  const subject = `${opts.ownerName} updated their chapter3five beneficiaries.`;
+  const text = `Just a heads-up.
+
+${opts.ownerName} removed you as a beneficiary on chapter3five. If something happens to them, you won't receive an invite to their archive.
+
+If you think this was a mistake, reach out to them directly. We don't get involved in those decisions.
+
+— chapter3five
+https://chapter3five.app`;
+
+  return send({
+    to: opts.to,
+    subject,
+    text,
+    kind: "beneficiary_removed",
+    user_id: opts.ownerUserId,
+  });
+}
+
+export async function sendAccountRestoredEmail(opts: {
+  to: string;
+  userId?: string | null;
+}) {
+  const subject = "Welcome back to chapter3five.";
+  const text = `Your chapter3five account is restored.
+
+Everything you'd built — your archive, your conversations, your beneficiaries, your memories — is right where you left it. Sign in and pick up.
+
+https://chapter3five.app/dashboard
+
+— chapter3five`;
+
+  return send({
+    to: opts.to,
+    subject,
+    text,
+    kind: "account_restored",
+    user_id: opts.userId,
   });
 }
 

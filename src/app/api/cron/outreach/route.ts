@@ -48,6 +48,7 @@ export async function GET(request: NextRequest) {
     .eq("outreach_enabled", true)
     .eq("onboarding_completed", true)
     .is("deceased_at", null)
+    .is("deleted_at", null)
     .limit(BATCH_LIMIT);
 
   if (error) {

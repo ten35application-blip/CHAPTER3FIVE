@@ -37,6 +37,7 @@ export default async function DashboardPage() {
     .from("oracles")
     .select("id, name")
     .eq("user_id", user.id)
+    .is("deleted_at", null)
     .order("created_at", { ascending: true });
   const oracles = oracleRows ?? [];
 
@@ -51,6 +52,7 @@ export default async function DashboardPage() {
         .from("oracles")
         .select("id, name")
         .in("id", sharedOracleIds)
+        .is("deleted_at", null)
     : { data: [] };
   const sharedOracles = sharedOracleRows ?? [];
 

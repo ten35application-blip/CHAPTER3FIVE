@@ -11,14 +11,27 @@ import { createAdminClient } from "@/lib/supabase/admin";
  *   - "oracle"             — adds 1 to extra_oracle_credits
  */
 export async function POST(request: NextRequest) {
-  type Purpose = "randomize" | "oracle" | "beneficiary_slot";
+  type Purpose =
+    | "randomize"
+    | "oracle"
+    | "beneficiary_slot"
+    | "restore_account"
+    | "restore_oracle";
   let purpose: Purpose = "randomize";
+  let restoreOracleId: string | null = null;
   const isPurpose = (v: unknown): v is Purpose =>
-    v === "randomize" || v === "oracle" || v === "beneficiary_slot";
+    v === "randomize" ||
+    v === "oracle" ||
+    v === "beneficiary_slot" ||
+    v === "restore_account" ||
+    v === "restore_oracle";
   try {
     const body = await request.clone().json();
     if (isPurpose(body?.purpose)) {
       purpose = body.purpose;
+    }
+    if (typeof body?.oracle_id === "string") {
+      restoreOracleId = body.oracle_id;
     }
   } catch {
     // body optional
@@ -49,25 +62,41 @@ export async function POST(request: NextRequest) {
       ? "chapter3five — new thirtyfive"
       : purpose === "beneficiary_slot"
         ? "chapter3five — extra beneficiary"
-        : "chapter3five — randomize";
+        : purpose === "restore_account"
+          ? "chapter3five — restore account"
+          : purpose === "restore_oracle"
+            ? "chapter3five — restore thirtyfive"
+            : "chapter3five — randomize";
   const productDesc =
     purpose === "oracle"
       ? "Create one additional thirtyfive in your account."
       : purpose === "beneficiary_slot"
         ? "Designate one additional beneficiary for your archive."
-        : "One additional randomized character generation.";
+        : purpose === "restore_account"
+          ? "Bring your archive back from the 30-day grace period."
+          : purpose === "restore_oracle"
+            ? "Restore one of your thirtyfives from the 30-day grace period."
+            : "One additional randomized character generation.";
   const successPath =
     purpose === "oracle"
       ? "/oracle/success?session_id={CHECKOUT_SESSION_ID}"
       : purpose === "beneficiary_slot"
         ? "/settings?saved=beneficiary-slot"
-        : "/randomize/success?session_id={CHECKOUT_SESSION_ID}";
+        : purpose === "restore_account"
+          ? "/dashboard?restored=1"
+          : purpose === "restore_oracle"
+            ? "/settings?saved=oracle-restored"
+            : "/randomize/success?session_id={CHECKOUT_SESSION_ID}";
   const cancelPath =
     purpose === "oracle"
       ? "/oracle/cancel"
       : purpose === "beneficiary_slot"
         ? "/settings?error=Payment%20cancelled"
-        : "/randomize/cancel";
+        : purpose === "restore_account"
+          ? "/restore?error=Payment%20cancelled"
+          : purpose === "restore_oracle"
+            ? "/settings?error=Payment%20cancelled"
+            : "/randomize/cancel";
 
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
@@ -89,6 +118,9 @@ export async function POST(request: NextRequest) {
     metadata: {
       user_id: user.id,
       purpose,
+      ...(purpose === "restore_oracle" && restoreOracleId
+        ? { oracle_id: restoreOracleId }
+        : {}),
     },
     success_url: `${origin}${successPath}`,
     cancel_url: `${origin}${cancelPath}`,

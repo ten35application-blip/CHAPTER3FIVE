@@ -1,6 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getStripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  recordAudit,
+  sendAccountRestoredEmail,
+} from "@/lib/notifications";
 import type Stripe from "stripe";
 
 export const runtime = "nodejs";
@@ -89,7 +93,9 @@ async function handleCheckoutCompleted(
     !userId ||
     (purpose !== "randomize" &&
       purpose !== "oracle" &&
-      purpose !== "beneficiary_slot")
+      purpose !== "beneficiary_slot" &&
+      purpose !== "restore_account" &&
+      purpose !== "restore_oracle")
   ) {
     await recordEvent(event, admin, userId);
     return;
@@ -111,7 +117,60 @@ async function handleCheckoutCompleted(
     .eq("stripe_session_id", session.id)
     .eq("status", "pending");
 
-  // Atomic credit grant.
+  // Restore flows don't grant credits — they reverse a soft-delete.
+  if (purpose === "restore_account") {
+    await admin
+      .from("profiles")
+      .update({ deleted_at: null, scheduled_purge_at: null })
+      .eq("id", userId);
+
+    // Tell them they're back.
+    const { data: authUser } = await admin.auth.admin.getUserById(userId);
+    if (authUser?.user?.email) {
+      sendAccountRestoredEmail({
+        to: authUser.user.email,
+        userId,
+      }).catch((e) => console.error("restored email failed:", e));
+    }
+
+    await recordAudit({
+      actorUserId: userId,
+      actorEmail: authUser?.user?.email ?? null,
+      action: "account_restored",
+      targetUserId: userId,
+    });
+    await recordEvent(event, admin, userId);
+    return;
+  }
+
+  if (purpose === "restore_oracle") {
+    const oracleId = session.metadata?.oracle_id;
+    if (oracleId) {
+      await admin
+        .from("oracles")
+        .update({ deleted_at: null, scheduled_purge_at: null })
+        .eq("id", oracleId)
+        .eq("user_id", userId);
+
+      // Re-attach as the active oracle so the user lands back in the
+      // chat on next dashboard load.
+      await admin
+        .from("profiles")
+        .update({ active_oracle_id: oracleId, onboarding_completed: true })
+        .eq("id", userId);
+
+      await recordAudit({
+        actorUserId: userId,
+        action: "oracle_restored",
+        targetUserId: userId,
+        targetId: oracleId,
+      });
+    }
+    await recordEvent(event, admin, userId);
+    return;
+  }
+
+  // Credit-grant purposes.
   const column =
     purpose === "oracle"
       ? "extra_oracle_credits"

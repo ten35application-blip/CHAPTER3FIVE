@@ -16,6 +16,7 @@ import {
   removeBeneficiary,
   buyBeneficiarySlot,
   deletePersonaMemory,
+  restoreOracle,
 } from "./actions";
 import { AvatarUpload } from "@/components/AvatarUpload";
 import { questions } from "@/content/questions";
@@ -100,6 +101,19 @@ export default async function SettingsPage({
     : { data: [] };
   const memories = memoryRows ?? [];
 
+  // Soft-deleted thirtyfives owned by this user that are still inside
+  // the 30-day grace window. Restorable for $5 each.
+  const { data: trashedRows } = await supabase
+    .from("oracles")
+    .select("id, name, deleted_at, scheduled_purge_at")
+    .eq("user_id", user.id)
+    .not("deleted_at", "is", null)
+    .order("deleted_at", { ascending: false });
+  const trashed = (trashedRows ?? []).filter((o) => {
+    if (!o.scheduled_purge_at) return true;
+    return new Date(o.scheduled_purge_at).getTime() > Date.now();
+  });
+
   const { data: beneficiaryRows } = await supabase
     .from("beneficiaries")
     .select("id, email, name, status, notified_at, created_at")
@@ -173,6 +187,64 @@ export default async function SettingsPage({
                 userId={user.id}
                 language={language}
               />
+            </Section>
+          )}
+
+          {trashed.length > 0 && (
+            <Section title={t.trashTitle}>
+              <p className="text-sm text-warm-300 mb-5 leading-relaxed">
+                {t.trashHint}
+              </p>
+              <div className="space-y-2">
+                {trashed.map((o) => {
+                  const purgeAt = o.scheduled_purge_at
+                    ? new Date(o.scheduled_purge_at)
+                    : null;
+                  const daysLeft = purgeAt
+                    ? Math.max(
+                        0,
+                        Math.ceil(
+                          (purgeAt.getTime() - Date.now()) /
+                            (24 * 60 * 60 * 1000),
+                        ),
+                      )
+                    : 0;
+                  return (
+                    <div
+                      key={o.id}
+                      className="flex items-center justify-between gap-3 px-4 py-3 rounded-2xl border border-amber-300/30 bg-amber-900/10"
+                    >
+                      <div className="flex flex-col min-w-0 flex-1">
+                        <span className="font-serif text-warm-50 text-base truncate">
+                          {o.name?.trim() || t.untitled}
+                        </span>
+                        <span className="text-xs text-amber-300 mt-1">
+                          {t.daysLeft(daysLeft)}
+                          {purgeAt && (
+                            <>
+                              {" "}
+                              <span className="text-warm-400">
+                                ·{" "}
+                                {t.permanentlyOn}{" "}
+                                {purgeAt.toLocaleDateString()}
+                              </span>
+                            </>
+                          )}
+                        </span>
+                      </div>
+                      <form action={restoreOracle}>
+                        <input type="hidden" name="oracle_id" value={o.id} />
+                        <button
+                          type="submit"
+                          className="h-9 px-4 rounded-full bg-warm-50 text-ink text-xs font-medium hover:bg-warm-100 transition-colors whitespace-nowrap"
+                        >
+                          {t.bringItBack}
+                        </button>
+                      </form>
+                    </div>
+                  );
+                })}
+              </div>
             </Section>
           )}
 
@@ -737,6 +809,24 @@ export default async function SettingsPage({
             <p className="text-sm text-warm-300 mb-2">
               {t.deleteAccountHint}
             </p>
+
+            <div className="rounded-2xl border border-warm-300/30 bg-warm-700/30 px-5 py-4 mb-5">
+              <p className="text-sm text-warm-100 mb-3 leading-relaxed">
+                {t.beforeYouDelete}
+              </p>
+              <a
+                href="/api/user/export"
+                download
+                className="inline-flex h-10 items-center justify-center rounded-full border border-warm-300/40 px-4 text-xs text-warm-100 hover:bg-warm-700/40 transition-colors"
+              >
+                {t.exportFirstCta}
+              </a>
+            </div>
+
+            <p className="text-sm text-warm-300 mb-5">
+              {t.deleteGracePeriod}
+            </p>
+
             <p className="text-sm text-warm-300 mb-5">
               {t.confirmInstruction}{" "}
               <span className="text-warm-100 font-medium">
@@ -842,6 +932,18 @@ const COPY = {
     stylePlaceholder:
       "lowercase, no periods, lol when funny, never emojis, short replies",
     save: "Save",
+    trashTitle: "Removed thirtyfives",
+    trashHint:
+      "These are thirtyfives you deleted recently. They’re held safely for 30 days. To bring one back, $5 — it returns exactly as it was. After the countdown, they’re gone for good.",
+    daysLeft: (d: number) =>
+      d === 0
+        ? "Less than a day left"
+        : d === 1
+          ? "1 day left"
+          : `${d} days left`,
+    permanentlyOn: "permanently deleted on",
+    bringItBack: "Bring it back — $5",
+    untitled: "(untitled)",
     photoTitle: "A photo",
     photoHint:
       "Upload one photo of the person you&rsquo;re preserving — shown beside their name. Helps it feel real. JPG/PNG/WEBP, under 5MB.",
@@ -931,7 +1033,12 @@ const COPY = {
     deleteOracleCta: "Delete thirtyfive",
     deleteAccountTitle: "Delete account",
     deleteAccountHint:
-      "Removes everything — your account, your thirtyfive, every answer and conversation, all agreements. There is no undo.",
+      "Removes your account from chapter3five. Your archive — answers, conversations, memories, beneficiaries — is hidden from you and from anyone you've shared with.",
+    beforeYouDelete:
+      "Before you go — your archive is yours. Download a copy of everything you've built. You won't be able to once it's deleted.",
+    exportFirstCta: "Download my data first",
+    deleteGracePeriod:
+      "You'll have 30 days to bring it back if you change your mind. Restoration is $5 — covers the cost of keeping your data warm in the meantime. After 30 days, it's gone for good.",
     deleteAccountCta: "Delete account permanently",
     confirmInstruction: "To confirm, type",
     and: "and",
@@ -957,6 +1064,18 @@ const COPY = {
     stylePlaceholder:
       "minúsculas, sin puntos, jaja cuando es chistoso, sin emojis, respuestas cortas",
     save: "Guardar",
+    trashTitle: "Thirtyfives eliminados",
+    trashHint:
+      "Estos son thirtyfives que eliminaste recientemente. Los guardamos por 30 días. Para recuperar uno, $5 — vuelve exactamente como estaba. Después de la cuenta regresiva, se eliminan permanentemente.",
+    daysLeft: (d: number) =>
+      d === 0
+        ? "Menos de un día"
+        : d === 1
+          ? "1 día"
+          : `${d} días`,
+    permanentlyOn: "eliminado permanentemente el",
+    bringItBack: "Recuperarlo — $5",
+    untitled: "(sin título)",
     photoTitle: "Una foto",
     photoHint:
       "Sube una foto de la persona que estás preservando — se muestra junto a su nombre. Ayuda a que se sienta real. JPG/PNG/WEBP, menos de 5MB.",
@@ -1046,7 +1165,12 @@ const COPY = {
     deleteOracleCta: "Eliminar thirtyfive",
     deleteAccountTitle: "Eliminar cuenta",
     deleteAccountHint:
-      "Elimina todo — tu cuenta, tu thirtyfive, cada respuesta y conversación, todos los acuerdos. No hay vuelta atrás.",
+      "Elimina tu cuenta de chapter3five. Tu archivo — respuestas, conversaciones, memorias, beneficiarios — se oculta para ti y para quien lo hayas compartido.",
+    beforeYouDelete:
+      "Antes de irte — tu archivo es tuyo. Descarga una copia de todo lo que has construido. No podrás hacerlo después de eliminarlo.",
+    exportFirstCta: "Descargar mis datos primero",
+    deleteGracePeriod:
+      "Tendrás 30 días para recuperarlo si cambias de opinión. Restaurar cuesta $5 — cubre mantener tus datos. Después de 30 días, se elimina permanentemente.",
     deleteAccountCta: "Eliminar cuenta permanentemente",
     confirmInstruction: "Para confirmar, escribe",
     and: "y",

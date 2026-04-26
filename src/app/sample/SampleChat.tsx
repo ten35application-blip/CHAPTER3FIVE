@@ -18,6 +18,7 @@ export function SampleChat() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hitLimit, setHitLimit] = useState(false);
+  const [crisisShown, setCrisisShown] = useState(false);
   const [activityStage, setActivityStage] = useState<
     "reading" | "replying" | "typing"
   >("reading");
@@ -69,6 +70,10 @@ export function SampleChat() {
       }
       if (!res.ok) throw new Error(data.error ?? "Something went wrong.");
       setMessages([...next, { role: "assistant", content: data.reply }]);
+      // If the crisis check tripped server-side, surface resources inline.
+      // Sticky once shown — better to over-display than miss someone in
+      // crisis on a public, unauthenticated demo.
+      if (data.crisis) setCrisisShown(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
@@ -116,6 +121,27 @@ export function SampleChat() {
           </div>
         ))}
       </div>
+
+      {crisisShown && (
+        <div className="mb-3 rounded-2xl border border-amber-300/30 bg-amber-900/15 px-5 py-4 text-sm text-warm-100 leading-relaxed">
+          <p className="font-serif italic text-base text-warm-50 mb-2">
+            If you’re in a hard moment, please talk to someone real.
+          </p>
+          <ul className="space-y-1 text-warm-200">
+            <li>
+              <strong className="text-warm-50">US:</strong> 988 (call or text)
+            </li>
+            <li>
+              <strong className="text-warm-50">UK:</strong> Samaritans 116 123
+            </li>
+            <li>
+              <strong className="text-warm-50">México:</strong> SAPTEL +52 55
+              5259-8121
+            </li>
+            <li>Or your local emergency services.</li>
+          </ul>
+        </div>
+      )}
 
       {error && (
         <p className="text-sm text-red-300/80 text-center mb-2">{error}</p>
