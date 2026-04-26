@@ -15,23 +15,49 @@ const cormorant = Cormorant_Garamond({
 });
 
 export const metadata: Metadata = {
-  title: "chapter3five — sit with them, while they're still here.",
+  title: {
+    default: "chapter3five — some people deserve to be remembered. Properly.",
+    template: "%s · chapter3five",
+  },
   description:
-    "355 questions. Recorded together. Kept forever. A new chapter for the people who matter most.",
+    "An archive built from their own answers — recorded while they're alive, kept close after. Not a simulation. Yours to delete.",
   metadataBase: new URL("https://chapter3five.app"),
+  applicationName: "chapter3five",
+  authors: [{ name: "chapter3five" }],
+  keywords: [
+    "digital legacy",
+    "memorial",
+    "archive",
+    "remembrance",
+    "chapter3five",
+  ],
   openGraph: {
     title: "chapter3five",
     description:
-      "355 questions. Recorded together. Kept forever.",
+      "Some people deserve to be remembered. Properly. 355 questions, recorded together, kept forever.",
     url: "https://chapter3five.app",
     siteName: "chapter3five",
     type: "website",
+    locale: "en_US",
   },
   twitter: {
     card: "summary_large_image",
     title: "chapter3five",
     description:
-      "355 questions. Recorded together. Kept forever.",
+      "Some people deserve to be remembered. Properly.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  icons: {
+    icon: "/favicon.ico",
   },
 };
 

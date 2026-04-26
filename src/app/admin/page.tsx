@@ -76,6 +76,10 @@ export default async function AdminPage({
     recentStripeEvents,
     cronOutreachLast,
     cronProactiveLast,
+    emailRecent,
+    emailFailedCount,
+    emailSentTodayCount,
+    auditRecent,
   ] = await Promise.all([
     admin.from("profiles").select("id", { count: "exact", head: true }),
     admin
@@ -196,6 +200,26 @@ export default async function AdminPage({
       .order("ran_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    admin
+      .from("email_log")
+      .select("id, recipient, kind, subject, status, error, sent_at")
+      .order("sent_at", { ascending: false })
+      .limit(20),
+    admin
+      .from("email_log")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "failed")
+      .gte("sent_at", new Date(now - 7 * ONE_DAY_MS).toISOString()),
+    admin
+      .from("email_log")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "sent")
+      .gte("sent_at", new Date(now - ONE_DAY_MS).toISOString()),
+    admin
+      .from("audit_log")
+      .select("id, actor_email, action, target_user_id, created_at")
+      .order("created_at", { ascending: false })
+      .limit(20),
   ]);
 
   const stat = (n: { count?: number | null }) => n.count ?? 0;
@@ -647,6 +671,102 @@ export default async function AdminPage({
               </div>
             ) : (
               <p className="text-sm text-warm-400">No events yet.</p>
+            )}
+          </section>
+
+          <section>
+            <div className="flex items-end justify-between mb-4">
+              <h2 className="text-xs uppercase tracking-[0.25em] text-warm-300">
+                Email log
+              </h2>
+              <p className="text-sm text-warm-200">
+                <span className="text-warm-50 font-medium">
+                  {stat(emailSentTodayCount)}
+                </span>{" "}
+                sent today ·{" "}
+                <span
+                  className={
+                    stat(emailFailedCount) > 0 ? "text-red-300" : "text-warm-300"
+                  }
+                >
+                  {stat(emailFailedCount)} failed (7d)
+                </span>
+              </p>
+            </div>
+            {emailRecent.data && emailRecent.data.length > 0 ? (
+              <div className="space-y-1">
+                {emailRecent.data.map((e) => (
+                  <div
+                    key={e.id}
+                    className={`flex items-center justify-between gap-3 px-4 py-2 rounded-lg border ${
+                      e.status === "failed"
+                        ? "border-red-300/30 bg-red-900/10"
+                        : "border-warm-700/60 bg-warm-700/15"
+                    }`}
+                  >
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className="text-xs text-warm-400 uppercase tracking-wider">
+                          {e.kind}
+                        </span>
+                        <span className="text-sm text-warm-100 truncate">
+                          {e.recipient}
+                        </span>
+                      </div>
+                      {e.error && (
+                        <span className="text-xs text-red-300 truncate">
+                          {e.error}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-xs text-warm-400 whitespace-nowrap">
+                      {fmtAgo(e.sent_at)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-warm-400">No emails yet.</p>
+            )}
+          </section>
+
+          <section>
+            <h2 className="text-xs uppercase tracking-[0.25em] text-warm-300 mb-4">
+              Audit log
+            </h2>
+            {auditRecent.data && auditRecent.data.length > 0 ? (
+              <div className="space-y-1">
+                {auditRecent.data.map((a) => (
+                  <div
+                    key={a.id}
+                    className="flex items-center justify-between gap-3 px-4 py-2 rounded-lg border border-warm-700/60 bg-warm-700/15"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="text-xs text-warm-400 uppercase tracking-wider">
+                        {a.action}
+                      </span>
+                      {a.actor_email && (
+                        <span className="text-sm text-warm-200 truncate">
+                          {a.actor_email}
+                        </span>
+                      )}
+                      {a.target_user_id && (
+                        <Link
+                          href={`/admin/user/${a.target_user_id}`}
+                          className="font-mono text-xs text-warm-300 hover:text-warm-100"
+                        >
+                          {a.target_user_id.slice(0, 8)}
+                        </Link>
+                      )}
+                    </div>
+                    <span className="text-xs text-warm-400 whitespace-nowrap">
+                      {fmtAgo(a.created_at)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-warm-400">Nothing recorded yet.</p>
             )}
           </section>
 
