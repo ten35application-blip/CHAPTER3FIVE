@@ -565,12 +565,20 @@ export default async function SettingsPage({
             <p className="text-sm text-warm-300 mb-2 leading-relaxed">
               {t.beneficiaryHint}
             </p>
-            <p className="text-sm text-warm-400 mb-5">
+            <p className="text-sm text-warm-400 mb-3">
               {t.beneficiarySlots(
                 beneficiarySlotsUsed,
                 beneficiarySlotsTotal,
               )}
             </p>
+            {activeOracleId && (
+              <Link
+                href={`/preview/${activeOracleId}`}
+                className="inline-block text-xs text-warm-200 hover:text-warm-50 underline underline-offset-2 mb-5"
+              >
+                {t.beneficiaryPreview}
+              </Link>
+            )}
 
             {beneficiarySlotsLeft > 0 ? (
               <form
@@ -1078,6 +1086,7 @@ const COPY = {
     beneficiaryTitle: "Beneficiaries",
     beneficiaryHint:
       "Choose who inherits this archive. If something happens to you, they'll get an email with a link to access what you've left — your answers, your texture, your voice. Three free beneficiaries; $5 per additional one.",
+    beneficiaryPreview: "Preview what they'll see →",
     beneficiarySlots: (used: number, total: number) =>
       `${used} of ${total} slots used.`,
     beneficiaryEmailPlaceholder: "Email",
@@ -1225,6 +1234,7 @@ const COPY = {
     beneficiaryTitle: "Beneficiarios",
     beneficiaryHint:
       "Elige quién hereda este archivo. Si algo te sucede, recibirán un correo con un enlace para acceder a lo que dejaste — tus respuestas, tu textura, tu voz. Tres beneficiarios gratis; $5 por cada uno adicional.",
+    beneficiaryPreview: "Ver lo que verán →",
     beneficiarySlots: (used: number, total: number) =>
       `${used} de ${total} espacios usados.`,
     beneficiaryEmailPlaceholder: "Correo",

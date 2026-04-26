@@ -168,7 +168,11 @@ export function Chat({
   useEffect(() => {
     if (!oracleId) return;
     if (initialHistoryCount > 0) return;
-    fetch("/api/chat/welcome", { method: "POST" }).catch(() => {});
+    fetch("/api/chat/welcome", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ oracle_id: oracleId }),
+    }).catch(() => {});
   }, [oracleId, initialHistoryCount]);
 
   async function send(e: React.FormEvent) {
