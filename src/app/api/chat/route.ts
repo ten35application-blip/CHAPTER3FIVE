@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { createClient as createPlainClient } from "@supabase/supabase-js";
 import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { createClient } from "@/lib/supabase/server";
 import { questions } from "@/content/questions";
@@ -35,10 +36,23 @@ export async function POST(request: NextRequest) {
   const clientTimezone =
     typeof payload.timezone === "string" ? payload.timezone.trim() : "";
 
-  const supabase = await createClient();
+  // Support both cookie-based auth (web) and Bearer-token auth (mobile/Expo).
+  const authHeader = request.headers.get("authorization");
+  const bearer =
+    authHeader && authHeader.toLowerCase().startsWith("bearer ")
+      ? authHeader.slice(7).trim()
+      : null;
+
+  const supabase = bearer
+    ? createPlainClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+        { global: { headers: { Authorization: `Bearer ${bearer}` } } },
+      )
+    : await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await supabase.auth.getUser(bearer ?? undefined);
   if (!user) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
