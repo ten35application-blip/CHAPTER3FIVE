@@ -20,6 +20,7 @@ export default function Home() {
       </header>
 
       <main className="flex-1 flex flex-col">
+        {/* HERO */}
         <section className="relative flex flex-col items-center justify-center min-h-[100svh] px-6 pt-32 pb-24 text-center overflow-hidden">
           <div className="relative flex items-center justify-center mb-12">
             <Orb size={360} />
@@ -47,6 +48,7 @@ export default function Home() {
           </div>
         </section>
 
+        {/* HOW IT WORKS */}
         <section className="px-6 py-32 max-w-4xl mx-auto w-full">
           <h2 className="text-xs uppercase tracking-[0.25em] text-warm-300 mb-16 text-center">
             How it works
@@ -71,6 +73,34 @@ export default function Home() {
           </div>
         </section>
 
+        {/* THREE WAYS TO BEGIN */}
+        <section className="px-6 py-32 max-w-5xl mx-auto w-full">
+          <h2 className="text-xs uppercase tracking-[0.25em] text-warm-300 mb-4 text-center">
+            Three ways to begin
+          </h2>
+          <p className="text-center text-warm-200 max-w-xl mx-auto mb-16 leading-relaxed">
+            Pick once. You can always start another later.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <ModeCard
+              kicker="01 — Someone real"
+              title="For a person you love"
+              body="You answer the 355 questions yourself, or sit with the person you love and answer them together. One real answer per question. Take a weekend, take a year — your pace."
+            />
+            <ModeCard
+              kicker="02 — Randomize"
+              title="A character, mixed for you"
+              body="Pick a gender, hit a button. We mix you a one-of-a-kind character — every question drawn at random from a curated pool. First one&rsquo;s free. $5 each after."
+            />
+            <ModeCard
+              kicker="03 — Import"
+              title="A code from someone"
+              body="If someone you love filled this out and gave you their share code, enter it at signup. Their archive becomes your own copy — to keep, to talk to, to pass on."
+            />
+          </div>
+        </section>
+
+        {/* SAMPLE QUESTIONS */}
         <section className="px-6 py-24 max-w-4xl mx-auto w-full">
           <h2 className="text-xs uppercase tracking-[0.25em] text-warm-300 mb-12 text-center">
             A few of the questions
@@ -85,23 +115,93 @@ export default function Home() {
           </p>
         </section>
 
-        <section className="px-6 py-24 max-w-3xl mx-auto w-full">
+        {/* HOW THEY SOUND */}
+        <section className="px-6 py-32 max-w-4xl mx-auto w-full">
+          <h2 className="text-xs uppercase tracking-[0.25em] text-warm-300 mb-4 text-center">
+            How they sound
+          </h2>
+          <p className="text-center text-warm-200 max-w-xl mx-auto mb-16 leading-relaxed">
+            chapter3five doesn&rsquo;t pretend to be everything. It tries to be
+            one specific person.
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-10">
+            <Feature
+              title="In their texting voice."
+              body="Their punctuation. Their lol vs. haha. Their long replies on Sundays, their two-word answers on Tuesdays. The system reads it from how they actually wrote."
+            />
+            <Feature
+              title="Stays in character."
+              body="No &ldquo;as an AI&rdquo;. No therapeutic disclaimers. If they were grumpy, they stay grumpy. If they didn&rsquo;t want to talk about something, they change the subject."
+            />
+            <Feature
+              title="Sleeps when they sleep."
+              body="Pick a timezone. Between 11pm and 7am, your thirtyfive is asleep. Message anyway and they wake up groggy — like a real person you texted at 2am."
+            />
+            <Feature
+              title="In English or in Spanish."
+              body="Both languages, both fully written. Switch in settings. The voice carries across — your thirtyfive stays themselves."
+            />
+            <Feature
+              title="A personality with edges."
+              body="Each randomized character gets one of sixteen personality types layered with one of twelve emotional registers. Warm and weary. Sharp and dry. Tender and guarded. No two land the same."
+            />
+            <Feature
+              title="Knows when to step back."
+              body="If you&rsquo;re in real trouble, they hand you a hotline and stay with you. If someone&rsquo;s being cruel to them, they don&rsquo;t play along. They&rsquo;re a person, not a service."
+            />
+          </div>
+        </section>
+
+        {/* PASS IT ON */}
+        <section className="px-6 py-32 max-w-3xl mx-auto w-full">
           <div className="border-t border-warm-700/60 pt-16 text-center">
             <p className="text-xs uppercase tracking-[0.25em] text-warm-300 mb-6">
-              Or
+              Pass it on
             </p>
             <h2 className="font-serif text-3xl sm:text-4xl text-warm-50 leading-snug max-w-2xl mx-auto">
-              <span className="italic font-light">No one in mind?</span>{" "}
-              Randomize a persona instead.
+              <span className="italic font-light">A code,</span> handed to the
+              people you love.
             </h2>
             <p className="mt-6 text-warm-200 text-lg leading-relaxed max-w-xl mx-auto">
-              Pick a gender, hit a button, and we mix you a character no one
-              else will ever land on. Same archive, generated. First one&rsquo;s
-              free.
+              Generate a share code in your settings. Hand it to your kids,
+              your partner, the friend who&rsquo;ll outlive you. Each person
+              who enters it gets their own copy of your archive — to keep, to
+              talk to, to forward when their time comes.
+            </p>
+            <p className="mt-4 text-warm-300 text-sm leading-relaxed max-w-xl mx-auto italic">
+              Like leaving a letter. Except the letter answers back.
             </p>
           </div>
         </section>
 
+        {/* WHAT IT IS, WHAT IT ISN'T */}
+        <section className="px-6 py-24 max-w-3xl mx-auto w-full">
+          <h2 className="text-xs uppercase tracking-[0.25em] text-warm-300 mb-12 text-center">
+            What this is, what it isn&rsquo;t
+          </h2>
+
+          <div className="space-y-8 text-warm-100 leading-relaxed">
+            <Pair
+              is="An archive built from their own answers."
+              isnt="A simulation. We don&rsquo;t scrape, we don&rsquo;t scan, we don&rsquo;t guess."
+            />
+            <Pair
+              is="A way to keep them close after they&rsquo;re gone."
+              isnt="A replacement for them while they&rsquo;re here."
+            />
+            <Pair
+              is="For adults — 18 and older."
+              isnt="Therapy. Medical advice. Crisis support. (We&rsquo;ll point you to the right number if you need one.)"
+            />
+            <Pair
+              is="Yours. Your data. Your copy. Yours to delete."
+              isnt="Trained into anyone else&rsquo;s model. Not now, not ever."
+            />
+          </div>
+        </section>
+
+        {/* CLOSING */}
         <section className="px-6 py-24 text-center">
           <p className="font-serif italic text-2xl sm:text-3xl text-warm-100 max-w-2xl mx-auto leading-snug">
             Some people deserve to be remembered. <br />
@@ -113,21 +213,14 @@ export default function Home() {
           >
             Begin
           </Link>
+          <p className="mt-6 text-xs text-warm-400">
+            Free to start. First randomize is on us.
+          </p>
         </section>
       </main>
 
       <Footer />
     </>
-  );
-}
-
-function SampleCard({ text }: { text: string }) {
-  return (
-    <div className="rounded-2xl border border-warm-700/60 bg-warm-700/10 p-6">
-      <p className="font-serif text-warm-50 leading-snug text-lg italic">
-        &ldquo;{text}&rdquo;
-      </p>
-    </div>
   );
 }
 
@@ -152,6 +245,62 @@ function Step({
         <p className="text-warm-200 text-lg leading-relaxed max-w-xl">
           {body}
         </p>
+      </div>
+    </div>
+  );
+}
+
+function ModeCard({
+  kicker,
+  title,
+  body,
+}: {
+  kicker: string;
+  title: string;
+  body: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-warm-700/60 bg-warm-700/15 p-6 flex flex-col">
+      <p className="text-[11px] uppercase tracking-[0.2em] text-warm-300 mb-3">
+        {kicker}
+      </p>
+      <h3 className="font-serif text-2xl text-warm-50 leading-snug mb-3">
+        {title}
+      </h3>
+      <p className="text-warm-200 text-sm leading-relaxed">{body}</p>
+    </div>
+  );
+}
+
+function SampleCard({ text }: { text: string }) {
+  return (
+    <div className="rounded-2xl border border-warm-700/60 bg-warm-700/10 p-6">
+      <p className="font-serif text-warm-50 leading-snug text-lg italic">
+        &ldquo;{text}&rdquo;
+      </p>
+    </div>
+  );
+}
+
+function Feature({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="space-y-2">
+      <h3 className="font-serif text-xl text-warm-50">{title}</h3>
+      <p className="text-warm-200 text-sm leading-relaxed">{body}</p>
+    </div>
+  );
+}
+
+function Pair({ is, isnt }: { is: string; isnt: string }) {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-[auto_1fr] gap-2 sm:gap-6">
+      <div className="space-y-1">
+        <p className="text-[11px] uppercase tracking-[0.2em] text-warm-300">It is</p>
+        <p className="text-warm-50 font-serif">{is}</p>
+      </div>
+      <div className="space-y-1">
+        <p className="text-[11px] uppercase tracking-[0.2em] text-warm-300">It isn&rsquo;t</p>
+        <p className="text-warm-200 font-serif italic">{isnt}</p>
       </div>
     </div>
   );
