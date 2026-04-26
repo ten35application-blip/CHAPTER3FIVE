@@ -63,9 +63,17 @@ export default async function SharedOraclePage({
         >
           ← chapter3five
         </Link>
-        <span className="text-xs uppercase tracking-[0.2em] text-warm-300">
-          {language === "es" ? "Compartido" : "Shared"}
-        </span>
+        <div className="flex items-center gap-4">
+          <Link
+            href={`/shared/${id}/archive`}
+            className="text-xs uppercase tracking-[0.2em] text-warm-300 hover:text-warm-100 transition-colors"
+          >
+            {language === "es" ? "Archivo" : "Archive"}
+          </Link>
+          <span className="text-xs uppercase tracking-[0.2em] text-warm-300">
+            {language === "es" ? "Compartido" : "Shared"}
+          </span>
+        </div>
       </header>
 
       <div className="flex-1 flex justify-center">

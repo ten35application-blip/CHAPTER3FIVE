@@ -1,0 +1,144 @@
+import Link from "next/link";
+import { redirect, notFound } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { questions, type Depth } from "@/content/questions";
+import { SharedAudioPlayer } from "@/components/SharedAudioPlayer";
+
+export const metadata = {
+  title: "Archive — chapter3five",
+};
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const DEPTH_LABEL: Record<Depth, { en: string; es: string }> = {
+  surface: { en: "Surface", es: "Superficie" },
+  texture: { en: "Texture", es: "Textura" },
+  depth: { en: "Depth", es: "Profundidad" },
+  soul: { en: "Soul", es: "Alma" },
+};
+
+export default async function SharedArchivePage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  if (!UUID_RE.test(id)) notFound();
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    redirect(
+      `/auth/signin?next=${encodeURIComponent(`/shared/${id}/archive`)}`,
+    );
+  }
+
+  // RLS via archive_grants: this read only succeeds if the user has a
+  // grant on the oracle.
+  const { data: oracle } = await supabase
+    .from("oracles")
+    .select("id, name, preferred_language")
+    .eq("id", id)
+    .maybeSingle();
+  if (!oracle) {
+    redirect("/dashboard?error=No%20access%20to%20that%20archive");
+  }
+
+  const language = (oracle.preferred_language ?? "en") as "en" | "es";
+
+  const { data: answerRows } = await supabase
+    .from("answers")
+    .select("question_id, body, audio_url, audio_duration_seconds")
+    .eq("oracle_id", id)
+    .eq("variant", 1);
+
+  type Entry = {
+    body: string;
+    audioUrl: string | null;
+    audioDuration: number | null;
+  };
+  const answersByQ = new Map<number, Entry>();
+  for (const row of answerRows ?? []) {
+    answersByQ.set(row.question_id, {
+      body: row.body,
+      audioUrl: row.audio_url ?? null,
+      audioDuration: row.audio_duration_seconds ?? null,
+    });
+  }
+
+  const visible = questions.filter((q) => answersByQ.has(q.id));
+
+  return (
+    <>
+      <header className="border-b border-warm-700/40">
+        <div className="max-w-3xl mx-auto px-6 py-6 flex items-center justify-between">
+          <Link
+            href={`/shared/${id}`}
+            className="font-serif text-xl tracking-tight text-warm-100 hover:text-warm-50 transition-colors"
+          >
+            ← {oracle.name ?? "their archive"}
+          </Link>
+          <span className="text-xs uppercase tracking-[0.2em] text-warm-300">
+            {language === "es" ? "Archivo" : "Archive"}
+          </span>
+        </div>
+      </header>
+
+      <main className="flex-1">
+        <div className="max-w-3xl mx-auto px-6 py-12">
+          <h1 className="font-serif text-4xl text-warm-50 mb-2">
+            <span className="italic font-light">
+              {language === "es"
+                ? `Lo que ${oracle.name ?? "ellos"} dejó.`
+                : `What ${oracle.name ?? "they"} left.`}
+            </span>
+          </h1>
+          <p className="text-warm-300 mb-12 leading-relaxed">
+            {language === "es"
+              ? `${visible.length} de ${questions.length} respuestas. Lee — y donde haya grabaciones, escúchales.`
+              : `${visible.length} of ${questions.length} answers. Read them — and where there's a recording, hear them.`}
+          </p>
+
+          <div className="space-y-10">
+            {visible.map((q) => {
+              const entry = answersByQ.get(q.id)!;
+              return (
+                <div key={q.id} className="space-y-3">
+                  <p className="text-xs uppercase tracking-[0.2em] text-warm-300">
+                    {DEPTH_LABEL[q.depth][language]} · #{q.id}
+                  </p>
+                  <h2 className="font-serif text-xl text-warm-50 leading-snug">
+                    {language === "es" ? q.es : q.en}
+                  </h2>
+                  {entry.body && (
+                    <p className="text-warm-100 font-serif text-lg leading-relaxed whitespace-pre-wrap">
+                      {entry.body}
+                    </p>
+                  )}
+                  {entry.audioUrl && (
+                    <SharedAudioPlayer
+                      url={entry.audioUrl}
+                      durationSeconds={entry.audioDuration ?? 0}
+                      language={language}
+                    />
+                  )}
+                </div>
+              );
+            })}
+
+            {visible.length === 0 && (
+              <p className="text-warm-300 italic text-center py-16">
+                {language === "es"
+                  ? `${oracle.name ?? "Ellos"} aún no ha grabado respuestas.`
+                  : `${oracle.name ?? "They"} haven't recorded any answers yet.`}
+              </p>
+            )}
+          </div>
+        </div>
+      </main>
+    </>
+  );
+}

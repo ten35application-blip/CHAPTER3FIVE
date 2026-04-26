@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { questions, type Depth } from "@/content/questions";
 import { updateAnswer } from "./actions";
+import { VoiceAnswer } from "@/components/VoiceAnswer";
 
 export const metadata = {
   title: "Your answers — chapter3five",
@@ -42,13 +43,24 @@ export default async function AnswersPage({
 
   const { data: answerRows } = await supabase
     .from("answers")
-    .select("question_id, body")
+    .select(
+      "question_id, body, audio_url, audio_duration_seconds",
+    )
     .eq("oracle_id", oracleId)
     .eq("variant", 1);
 
-  const answersByQ = new Map<number, string>();
+  type AnswerEntry = {
+    body: string;
+    audioUrl: string | null;
+    audioDuration: number | null;
+  };
+  const answersByQ = new Map<number, AnswerEntry>();
   for (const row of answerRows ?? []) {
-    answersByQ.set(row.question_id, row.body);
+    answersByQ.set(row.question_id, {
+      body: row.body,
+      audioUrl: row.audio_url ?? null,
+      audioDuration: row.audio_duration_seconds ?? null,
+    });
   }
 
   const totalAnswered = answersByQ.size;
@@ -124,9 +136,10 @@ export default async function AnswersPage({
 
           <div className="space-y-8">
             {visible.map((q) => {
-              const body = answersByQ.get(q.id) ?? "";
+              const entry = answersByQ.get(q.id);
+              const body = entry?.body ?? "";
               return (
-                <div key={q.id} id={`q${q.id}`} className="space-y-2">
+                <div key={q.id} id={`q${q.id}`} className="space-y-3">
                   <p className="text-xs uppercase tracking-[0.2em] text-warm-300">
                     {DEPTH_LABEL[q.depth][language]} · #{q.id}
                   </p>
@@ -157,6 +170,13 @@ export default async function AnswersPage({
                       </button>
                     </div>
                   </form>
+                  <VoiceAnswer
+                    oracleId={oracleId}
+                    questionId={q.id}
+                    initialAudioUrl={entry?.audioUrl ?? null}
+                    initialDurationSeconds={entry?.audioDuration ?? null}
+                    language={language}
+                  />
                 </div>
               );
             })}
