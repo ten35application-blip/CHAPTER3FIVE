@@ -3,6 +3,15 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+
+async function emailExists(email: string): Promise<boolean> {
+  const admin = createAdminClient();
+  const { data } = await admin.rpc("user_email_exists", {
+    check_email: email,
+  });
+  return data === true;
+}
 
 export async function signIn(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
@@ -44,6 +53,12 @@ export async function signUp(formData: FormData) {
     );
   }
 
+  if (await emailExists(email)) {
+    redirect(
+      `/auth/signup?error=That%20email%20is%20already%20registered.%20Try%20signing%20in%20instead.&exists=1`,
+    );
+  }
+
   const supabase = await createClient();
   const headerList = await headers();
   const host = headerList.get("host") ?? "chapter3five.app";
@@ -81,6 +96,12 @@ export async function requestPasswordReset(formData: FormData) {
 
   if (!email || !email.includes("@")) {
     redirect("/auth/forgot-password?error=Please%20enter%20a%20valid%20email");
+  }
+
+  if (!(await emailExists(email))) {
+    redirect(
+      `/auth/forgot-password?error=No%20account%20found%20with%20that%20email.%20Try%20signing%20up%20instead.&notfound=${encodeURIComponent(email)}`,
+    );
   }
 
   const supabase = await createClient();

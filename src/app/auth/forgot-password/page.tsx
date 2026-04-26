@@ -9,9 +9,9 @@ export const metadata = {
 export default async function ForgotPasswordPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; sent?: string }>;
+  searchParams: Promise<{ error?: string; sent?: string; notfound?: string }>;
 }) {
-  const { error, sent } = await searchParams;
+  const { error, sent, notfound } = await searchParams;
 
   return (
     <main className="flex-1 flex items-center justify-center px-6 py-16 relative overflow-hidden">
@@ -45,6 +45,31 @@ export default async function ForgotPasswordPage({
                 ← Back to sign in
               </Link>
             </p>
+          </div>
+        ) : notfound ? (
+          <div className="space-y-4">
+            <h1 className="font-serif text-3xl text-warm-50">
+              No account found.
+            </h1>
+            <p className="text-warm-200 leading-relaxed">
+              We don&rsquo;t have an account for{" "}
+              <span className="text-warm-100">{notfound}</span>. Double-check
+              for a typo, or create a new account with this email.
+            </p>
+            <div className="pt-6 flex flex-col items-center gap-3">
+              <Link
+                href={`/auth/signup`}
+                className="inline-flex h-12 items-center justify-center rounded-full bg-warm-50 px-10 text-sm font-medium text-ink hover:bg-warm-100 transition-colors w-full"
+              >
+                Create an account
+              </Link>
+              <Link
+                href="/auth/forgot-password"
+                className="text-sm text-warm-300 hover:text-warm-100 transition-colors"
+              >
+                Try a different email
+              </Link>
+            </div>
           </div>
         ) : (
           <>

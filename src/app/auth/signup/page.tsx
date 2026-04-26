@@ -9,9 +9,9 @@ export const metadata = {
 export default async function SignUpPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; sent?: string }>;
+  searchParams: Promise<{ error?: string; sent?: string; exists?: string }>;
 }) {
-  const { error, sent } = await searchParams;
+  const { error, sent, exists } = await searchParams;
 
   return (
     <main className="flex-1 flex items-center justify-center px-6 py-16 relative overflow-hidden">
@@ -107,6 +107,15 @@ export default async function SignUpPage({
         </form>
 
         {error && <p className="mt-4 text-sm text-red-300/80">{error}</p>}
+
+        {exists && (
+          <Link
+            href="/auth/signin"
+            className="mt-4 inline-flex h-11 items-center justify-center rounded-full bg-warm-50 px-6 text-sm font-medium text-ink hover:bg-warm-100 transition-colors"
+          >
+            Sign in instead →
+          </Link>
+        )}
 
         <p className="mt-10 text-sm text-warm-300">
           Already have an account?{" "}
