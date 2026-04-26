@@ -8,6 +8,7 @@ import {
   deleteAccount,
   createShareCode,
   revokeShareCode,
+  toggleOutreach,
 } from "./actions";
 
 export const metadata = {
@@ -38,7 +39,9 @@ export default async function SettingsPage({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("oracle_name, mode, preferred_language, texting_style, created_at")
+    .select(
+      "oracle_name, mode, preferred_language, texting_style, created_at, outreach_enabled, randomize_credits, randomize_count",
+    )
     .eq("id", user.id)
     .single();
 
@@ -47,6 +50,13 @@ export default async function SettingsPage({
     .select("code, label, revoked_at, created_at")
     .eq("source_user_id", user.id)
     .order("created_at", { ascending: false });
+
+  const { data: paymentRows } = await supabase
+    .from("payments")
+    .select("amount_cents, currency, purpose, status, paid_at, created_at")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(20);
 
   const language = (profile?.preferred_language ?? "en") as "en" | "es";
   const t = COPY[language];
@@ -202,6 +212,71 @@ export default async function SettingsPage({
                   ))}
                 </div>
               )}
+            </Section>
+          )}
+
+          <Section title={t.outreachTitle}>
+            <p className="text-sm text-warm-300 mb-4 leading-relaxed">
+              {t.outreachHint}
+            </p>
+            <form action={toggleOutreach} className="flex items-center gap-3">
+              <input
+                type="hidden"
+                name="enabled"
+                value={profile?.outreach_enabled ? "false" : "true"}
+              />
+              <button
+                type="submit"
+                className={`h-11 px-5 rounded-full text-sm font-medium transition-colors ${
+                  profile?.outreach_enabled
+                    ? "bg-warm-50 text-ink hover:bg-warm-100"
+                    : "border border-warm-300/40 text-warm-100 hover:bg-warm-700/40"
+                }`}
+              >
+                {profile?.outreach_enabled
+                  ? t.outreachOn
+                  : t.outreachOff}
+              </button>
+              <span className="text-xs text-warm-400">
+                {profile?.outreach_enabled ? t.tapToDisable : t.tapToEnable}
+              </span>
+            </form>
+          </Section>
+
+          {paymentRows && paymentRows.length > 0 && (
+            <Section title={t.paymentsTitle}>
+              <div className="space-y-2">
+                {paymentRows.map((p, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between gap-3 px-4 py-2 rounded-lg border border-warm-700/60 bg-warm-700/15"
+                  >
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-sm text-warm-100 capitalize">
+                        {p.purpose === "randomize"
+                          ? t.purposeRandomize
+                          : p.purpose}
+                      </span>
+                      <span className="text-xs text-warm-400">
+                        {p.paid_at
+                          ? new Date(p.paid_at).toLocaleDateString()
+                          : new Date(p.created_at).toLocaleDateString()}{" "}
+                        ·{" "}
+                        {p.status === "paid"
+                          ? t.statusPaid
+                          : p.status === "pending"
+                          ? t.statusPending
+                          : p.status === "refunded"
+                          ? t.statusRefunded
+                          : t.statusFailed}
+                      </span>
+                    </div>
+                    <span className="font-serif text-warm-50 tabular-nums">
+                      ${(p.amount_cents / 100).toFixed(2)}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </Section>
           )}
 
@@ -381,6 +456,19 @@ const COPY = {
     stylePlaceholder:
       "lowercase, no periods, lol when funny, never emojis, short replies",
     save: "Save",
+    outreachTitle: "Quiet-week nudges",
+    outreachHint:
+      "When you haven't messaged your thirtyfive in about a week, we'll send a gentle email reminding you they're there. Off by default if you'd rather we stay out of your inbox.",
+    outreachOn: "On",
+    outreachOff: "Off",
+    tapToDisable: "Tap to disable",
+    tapToEnable: "Tap to enable",
+    paymentsTitle: "Payments",
+    purposeRandomize: "Randomize generation",
+    statusPaid: "paid",
+    statusPending: "pending",
+    statusFailed: "failed",
+    statusRefunded: "refunded",
     shareTitle: "Share this archive",
     shareHint:
       "Generate a code that lets someone else import a copy of your archive into their own account. Useful when you want family to carry your thirtyfive forward. Codes can be revoked at any time.",
@@ -428,6 +516,19 @@ const COPY = {
     stylePlaceholder:
       "minúsculas, sin puntos, jaja cuando es chistoso, sin emojis, respuestas cortas",
     save: "Guardar",
+    outreachTitle: "Recordatorios después de una semana",
+    outreachHint:
+      "Cuando no le hayas escrito a tu thirtyfive por una semana más o menos, te mandamos un correo gentil para recordarte que está ahí. Apágalo si prefieres que no lleguemos a tu bandeja de entrada.",
+    outreachOn: "Activado",
+    outreachOff: "Apagado",
+    tapToDisable: "Toca para desactivar",
+    tapToEnable: "Toca para activar",
+    paymentsTitle: "Pagos",
+    purposeRandomize: "Generación de personaje",
+    statusPaid: "pagado",
+    statusPending: "pendiente",
+    statusFailed: "fallido",
+    statusRefunded: "reembolsado",
     shareTitle: "Compartir este archivo",
     shareHint:
       "Genera un código que permite que otra persona importe una copia de tu archivo en su propia cuenta. Útil cuando quieres que la familia cargue tu thirtyfive adelante. Los códigos se pueden revocar cuando quieras.",

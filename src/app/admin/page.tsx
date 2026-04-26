@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isAdmin } from "@/lib/admin";
 import { resolveCrisisFlag, resolveMessageReport } from "./actions";
+import { lookupUser } from "./lookup/actions";
 
 export const metadata = {
   title: "Admin — chapter3five",
@@ -156,6 +157,27 @@ export default async function AdminPage({
               {error}
             </div>
           )}
+
+          <section>
+            <h2 className="text-xs uppercase tracking-[0.25em] text-warm-300 mb-4">
+              Look up a user
+            </h2>
+            <form action={lookupUser} className="flex gap-2">
+              <input
+                type="text"
+                name="q"
+                required
+                placeholder="email or user UUID"
+                className="flex-1 h-11 rounded-full bg-warm-700/30 border border-warm-400/30 px-5 text-warm-50 placeholder:text-warm-400 focus:outline-none focus:border-warm-200 transition-colors text-sm"
+              />
+              <button
+                type="submit"
+                className="h-11 px-5 rounded-full bg-warm-50 text-ink font-medium hover:bg-warm-100 transition-colors text-sm whitespace-nowrap"
+              >
+                Find
+              </button>
+            </form>
+          </section>
 
           <section>
             <h2 className="text-xs uppercase tracking-[0.25em] text-warm-300 mb-4">

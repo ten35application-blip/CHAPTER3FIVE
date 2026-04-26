@@ -71,6 +71,20 @@ export default function Home() {
           </div>
         </section>
 
+        <section className="px-6 py-24 max-w-4xl mx-auto w-full">
+          <h2 className="text-xs uppercase tracking-[0.25em] text-warm-300 mb-12 text-center">
+            A few of the questions
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <SampleCard text="What did your childhood home smell like? Specifically." />
+            <SampleCard text="What advice would you give your 25-year-old self, and would they have listened?" />
+            <SampleCard text="If you could send one text to someone you&rsquo;ve lost, what would it say?" />
+          </div>
+          <p className="mt-12 text-center text-sm text-warm-400 italic">
+            Three of three hundred fifty-five.
+          </p>
+        </section>
+
         <section className="px-6 py-24 max-w-3xl mx-auto w-full">
           <div className="border-t border-warm-700/60 pt-16 text-center">
             <p className="text-xs uppercase tracking-[0.25em] text-warm-300 mb-6">
@@ -81,9 +95,9 @@ export default function Home() {
               Randomize a persona instead.
             </h2>
             <p className="mt-6 text-warm-200 text-lg leading-relaxed max-w-xl mx-auto">
-              Give them a name. Hit a button. We generate a character with three
-              answers to every question — so the conversation never repeats. Same
-              archive, written for someone who doesn&rsquo;t exist yet.
+              Pick a gender, hit a button, and we mix you a character no one
+              else will ever land on. Same archive, generated. First one&rsquo;s
+              free.
             </p>
           </div>
         </section>
@@ -104,6 +118,16 @@ export default function Home() {
 
       <Footer />
     </>
+  );
+}
+
+function SampleCard({ text }: { text: string }) {
+  return (
+    <div className="rounded-2xl border border-warm-700/60 bg-warm-700/10 p-6">
+      <p className="font-serif text-warm-50 leading-snug text-lg italic">
+        &ldquo;{text}&rdquo;
+      </p>
+    </div>
   );
 }
 

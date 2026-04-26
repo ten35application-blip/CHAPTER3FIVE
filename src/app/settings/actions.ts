@@ -62,6 +62,28 @@ function namesMatch(typed: string, actual: string | null | undefined): boolean {
   return typed.trim().toLowerCase() === actual.trim().toLowerCase();
 }
 
+export async function toggleOutreach(formData: FormData) {
+  const enabled = formData.get("enabled") === "true";
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/auth/signin");
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ outreach_enabled: enabled })
+    .eq("id", user.id);
+
+  if (error) {
+    redirect(`/settings?error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePath("/settings");
+  redirect(`/settings?saved=outreach`);
+}
+
 export async function deleteOracle(formData: FormData) {
   const typedName = String(formData.get("confirm_name") ?? "");
   const typedDate = String(formData.get("confirm_date") ?? "").trim();
