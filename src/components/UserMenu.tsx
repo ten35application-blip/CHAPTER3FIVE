@@ -14,6 +14,7 @@ type Props = {
   oracleName: string;
   language: "en" | "es";
   oracles: OracleEntry[];
+  sharedOracles?: OracleEntry[];
   activeOracleId: string | null;
   lastSeenAt?: string | null;
 };
@@ -39,6 +40,7 @@ export function UserMenu({
   oracleName,
   language,
   oracles,
+  sharedOracles = [],
   activeOracleId,
   lastSeenAt,
 }: Props) {
@@ -156,6 +158,27 @@ export function UserMenu({
                   );
                 })}
               </div>
+              <div className="border-t border-warm-600/80" />
+            </>
+          )}
+
+          {sharedOracles.length > 0 && (
+            <>
+              <div className="px-4 pt-3 pb-1">
+                <p className="text-xs uppercase tracking-[0.2em] text-warm-300">
+                  {language === "es" ? "Compartidos contigo" : "Shared with you"}
+                </p>
+              </div>
+              {sharedOracles.map((o) => (
+                <Link
+                  key={o.id}
+                  href={`/shared/${o.id}`}
+                  onClick={() => setOpen(false)}
+                  className="block px-4 py-2 text-sm text-warm-100 hover:bg-warm-600/60 transition-colors font-serif truncate"
+                >
+                  {o.name?.trim() || t.untitled}
+                </Link>
+              ))}
               <div className="border-t border-warm-600/80" />
             </>
           )}

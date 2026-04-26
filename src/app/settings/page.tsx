@@ -9,6 +9,9 @@ import {
   createShareCode,
   revokeShareCode,
   toggleOutreach,
+  createArchiveInvite,
+  revokeArchiveInvite,
+  revokeArchiveGrant,
 } from "./actions";
 import { AvatarUpload } from "@/components/AvatarUpload";
 import { questions } from "@/content/questions";
@@ -29,9 +32,11 @@ export default async function SettingsPage({
     saved?: string;
     error?: string;
     code?: string;
+    invite?: string;
   }>;
 }) {
-  const { saved, error, code: justCreatedCode } = await searchParams;
+  const { saved, error, code: justCreatedCode, invite: justCreatedInvite } =
+    await searchParams;
 
   const supabase = await createClient();
   const {
@@ -63,6 +68,21 @@ export default async function SettingsPage({
     .select("code, label, revoked_at, created_at")
     .eq("source_user_id", user.id)
     .order("created_at", { ascending: false });
+
+  const { data: inviteRows } = await supabase
+    .from("archive_invites")
+    .select("code, invitee_email, status, created_at")
+    .eq("inviter_user_id", user.id)
+    .order("created_at", { ascending: false });
+
+  const activeOracleId = profile?.active_oracle_id ?? null;
+  const { data: grantRows } = activeOracleId
+    ? await supabase
+        .from("archive_grants")
+        .select("id, user_id, granted_at")
+        .eq("oracle_id", activeOracleId)
+        .order("granted_at", { ascending: false })
+    : { data: [] };
 
   const { data: paymentRows } = await supabase
     .from("payments")
@@ -265,6 +285,108 @@ export default async function SettingsPage({
                           </button>
                         </form>
                       )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Section>
+          )}
+
+          {oracleName && (
+            <Section title={t.inviteTitle}>
+              <p className="text-sm text-warm-300 mb-4 leading-relaxed">
+                {t.inviteHint}
+              </p>
+
+              {justCreatedInvite && (
+                <div className="rounded-lg border border-warm-300/40 bg-warm-700/40 px-4 py-3 mb-4 text-sm">
+                  <p className="text-warm-200 mb-2">{t.inviteJustCreated}</p>
+                  <code className="font-mono text-warm-50 text-base tracking-wide break-all">
+                    chapter3five.app/invite/{justCreatedInvite}
+                  </code>
+                </div>
+              )}
+
+              <form action={createArchiveInvite} className="flex gap-2 mb-6">
+                <input
+                  type="email"
+                  name="invitee_email"
+                  maxLength={120}
+                  placeholder={t.inviteEmailPlaceholder}
+                  className="flex-1 h-11 rounded-full bg-warm-700/30 border border-warm-400/30 px-4 text-warm-50 placeholder:text-warm-400 focus:outline-none focus:border-warm-200 transition-colors text-sm"
+                />
+                <button
+                  type="submit"
+                  className="h-11 px-5 rounded-full bg-warm-50 text-ink font-medium hover:bg-warm-100 transition-colors text-sm whitespace-nowrap"
+                >
+                  {t.inviteCta}
+                </button>
+              </form>
+
+              {inviteRows && inviteRows.length > 0 && (
+                <div className="space-y-2 mb-4">
+                  <p className="text-xs uppercase tracking-[0.2em] text-warm-400 mb-1">
+                    {t.invitesHeading}
+                  </p>
+                  {inviteRows.map((iv) => (
+                    <div
+                      key={iv.code}
+                      className="flex items-center justify-between gap-3 px-4 py-2 rounded-lg border border-warm-700/60 bg-warm-700/15"
+                    >
+                      <div className="flex flex-col min-w-0">
+                        <code className="font-mono text-sm text-warm-100 truncate">
+                          {iv.code}
+                        </code>
+                        <span className="text-xs text-warm-400 truncate">
+                          {iv.invitee_email ?? t.noEmail} ·{" "}
+                          {iv.status === "pending"
+                            ? t.invitePending
+                            : iv.status === "accepted"
+                            ? t.inviteAccepted
+                            : t.revoked}
+                        </span>
+                      </div>
+                      {iv.status === "pending" && (
+                        <form action={revokeArchiveInvite}>
+                          <input type="hidden" name="code" value={iv.code} />
+                          <button
+                            type="submit"
+                            className="text-xs text-warm-400 hover:text-warm-200 transition-colors whitespace-nowrap"
+                          >
+                            {t.revoke}
+                          </button>
+                        </form>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {grantRows && grantRows.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs uppercase tracking-[0.2em] text-warm-400 mb-1">
+                    {t.grantsHeading}
+                  </p>
+                  {grantRows.map((g) => (
+                    <div
+                      key={g.id}
+                      className="flex items-center justify-between gap-3 px-4 py-2 rounded-lg border border-warm-700/60 bg-warm-700/15"
+                    >
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-sm text-warm-100 truncate">
+                          {t.grantedOn}{" "}
+                          {new Date(g.granted_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <form action={revokeArchiveGrant}>
+                        <input type="hidden" name="grant_id" value={g.id} />
+                        <button
+                          type="submit"
+                          className="text-xs text-warm-400 hover:text-warm-200 transition-colors whitespace-nowrap"
+                        >
+                          {t.revokeAccess}
+                        </button>
+                      </form>
                     </div>
                   ))}
                 </div>
@@ -545,6 +667,20 @@ const COPY = {
     active: "active",
     revoked: "revoked",
     revoke: "Revoke",
+    inviteTitle: "Invite family to this archive",
+    inviteHint:
+      "Send a link that lets a family member talk to the SAME thirtyfive — same answers, same photo. Each person gets their own private conversation. Different from share codes (those copy the archive into someone else's account).",
+    inviteEmailPlaceholder: "Their email (optional, just a reminder for you)",
+    inviteCta: "Create invite link",
+    inviteJustCreated:
+      "Send this link to the person you want to invite. They'll create or sign in to their own account, then can talk to your thirtyfive.",
+    invitesHeading: "Invite links",
+    invitePending: "pending",
+    inviteAccepted: "accepted",
+    noEmail: "no email",
+    grantsHeading: "People with access",
+    grantedOn: "Joined",
+    revokeAccess: "Remove access",
     legalTitle: "Legal",
     terms: "Terms of Service",
     privacy: "Privacy Policy",
@@ -613,6 +749,20 @@ const COPY = {
     active: "activo",
     revoked: "revocado",
     revoke: "Revocar",
+    inviteTitle: "Invitar a la familia a este archivo",
+    inviteHint:
+      "Envía un enlace para que un familiar hable con el MISMO thirtyfive — mismas respuestas, misma foto. Cada persona tiene su propia conversación privada. Diferente a los códigos para compartir (esos copian el archivo a la cuenta de otra persona).",
+    inviteEmailPlaceholder: "Su correo (opcional, solo un recordatorio para ti)",
+    inviteCta: "Crear enlace de invitación",
+    inviteJustCreated:
+      "Envía este enlace a la persona que quieres invitar. Creará o iniciará sesión en su propia cuenta, y luego podrá hablar con tu thirtyfive.",
+    invitesHeading: "Enlaces de invitación",
+    invitePending: "pendiente",
+    inviteAccepted: "aceptado",
+    noEmail: "sin correo",
+    grantsHeading: "Personas con acceso",
+    grantedOn: "Se unió",
+    revokeAccess: "Quitar acceso",
     legalTitle: "Legal",
     terms: "Términos del Servicio",
     privacy: "Política de Privacidad",

@@ -70,9 +70,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "No profile" }, { status: 404 });
   }
 
-  // For group chat: caller can override which oracle this message goes to,
-  // as long as it belongs to them. Mutates `profile` in-place so the rest
-  // of the function uses the right persona without needing a refactor.
+  // Caller can override which oracle this message goes to (group chat,
+  // shared archive). RLS lets the user read the oracle if they own it OR
+  // have an archive_grant — no need to filter by user_id here.
   if (
     typeof payload.oracle_id === "string" &&
     payload.oracle_id !== profile.active_oracle_id
@@ -83,7 +83,6 @@ export async function POST(request: NextRequest) {
         "id, name, mode, preferred_language, texting_style, personality_type, emotional_flavor",
       )
       .eq("id", payload.oracle_id)
-      .eq("user_id", user.id)
       .single();
     if (targetOracle) {
       Object.assign(profile, {

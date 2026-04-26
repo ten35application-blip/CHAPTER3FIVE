@@ -10,6 +10,7 @@ type Props = {
   language: "en" | "es";
   initialHistory?: Message[];
   avatarUrl?: string | null;
+  oracleId?: string | null;
 };
 
 const COPY = {
@@ -58,6 +59,7 @@ export function Chat({
   language,
   initialHistory = [],
   avatarUrl = null,
+  oracleId = null,
 }: Props) {
   const t = COPY[language];
   const [messages, setMessages] = useState<Message[]>(initialHistory);
@@ -118,7 +120,12 @@ export function Chat({
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, history: messages, timezone }),
+        body: JSON.stringify({
+          message: text,
+          history: messages,
+          timezone,
+          ...(oracleId ? { oracle_id: oracleId } : {}),
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? t.error);

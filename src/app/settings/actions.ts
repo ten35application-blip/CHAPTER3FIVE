@@ -172,6 +172,81 @@ export async function createShareCode(formData: FormData) {
   redirect("/settings?error=Could%20not%20generate%20a%20unique%20share%20code");
 }
 
+export async function createArchiveInvite(formData: FormData) {
+  const inviteEmail =
+    String(formData.get("invitee_email") ?? "").trim().toLowerCase() || null;
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/auth/signin");
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("active_oracle_id")
+    .eq("id", user.id)
+    .single();
+  if (!profile?.active_oracle_id) {
+    redirect("/settings?error=No%20active%20thirtyfive");
+  }
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const code = generateShareCode();
+    const { error } = await supabase.from("archive_invites").insert({
+      oracle_id: profile.active_oracle_id,
+      inviter_user_id: user.id,
+      invitee_email: inviteEmail,
+      code,
+    });
+    if (!error) {
+      revalidatePath("/settings");
+      redirect(`/settings?saved=invite&code=${encodeURIComponent(code)}`);
+    }
+    const e = error as { code?: string; message?: string };
+    if (e.code !== "23505") {
+      redirect(`/settings?error=${encodeURIComponent(e.message ?? "Could not create invite")}`);
+    }
+  }
+  redirect("/settings?error=Could%20not%20generate%20a%20unique%20invite");
+}
+
+export async function revokeArchiveInvite(formData: FormData) {
+  const code = String(formData.get("code") ?? "").trim();
+  if (!code) redirect("/settings?error=Missing%20code");
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/auth/signin");
+
+  await supabase
+    .from("archive_invites")
+    .update({ status: "revoked", revoked_at: new Date().toISOString() })
+    .eq("code", code)
+    .eq("inviter_user_id", user.id);
+
+  revalidatePath("/settings");
+  redirect("/settings?saved=invite-revoked");
+}
+
+export async function revokeArchiveGrant(formData: FormData) {
+  const grantId = String(formData.get("grant_id") ?? "").trim();
+  if (!grantId) redirect("/settings?error=Missing%20id");
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/auth/signin");
+
+  await supabase.from("archive_grants").delete().eq("id", grantId);
+
+  revalidatePath("/settings");
+  redirect("/settings?saved=grant-revoked");
+}
+
 export async function revokeShareCode(formData: FormData) {
   const code = String(formData.get("code") ?? "").trim();
   if (!code) redirect("/settings?error=Missing%20code");

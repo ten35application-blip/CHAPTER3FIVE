@@ -40,6 +40,20 @@ export default async function DashboardPage() {
     .order("created_at", { ascending: true });
   const oracles = oracleRows ?? [];
 
+  // Archives shared with this user (read-only).
+  const { data: grantRows } = await supabase
+    .from("archive_grants")
+    .select("oracle_id")
+    .eq("user_id", user.id);
+  const sharedOracleIds = (grantRows ?? []).map((r) => r.oracle_id);
+  const { data: sharedOracleRows } = sharedOracleIds.length
+    ? await supabase
+        .from("oracles")
+        .select("id, name")
+        .in("id", sharedOracleIds)
+    : { data: [] };
+  const sharedOracles = sharedOracleRows ?? [];
+
   // Load last ~50 messages of the persistent conversation for the active oracle.
   const { data: messageRows } = profile.active_oracle_id
     ? await supabase
@@ -83,6 +97,7 @@ export default async function DashboardPage() {
           oracleName={oracleName}
           language={language}
           oracles={oracles}
+          sharedOracles={sharedOracles}
           activeOracleId={profile.active_oracle_id ?? null}
           lastSeenAt={lastSeenAt}
         />
