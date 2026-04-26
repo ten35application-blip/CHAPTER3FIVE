@@ -43,31 +43,31 @@ export default function HowItWorksPage() {
           <Step
             number="01"
             title="Begin a chapter"
-            body="Sign up with an email and password. Pick a name for your thirtyfive — your name, your dad's name, whatever they're called. Pick a language. We'll remember which way you want it to sound."
+            body="Sign up with an email and password. Pick a name for your identity — your name, your dad's name, whatever they're called. Pick a language. Pick a mode: Real (you answer the questions), Randomize (we mix you a one-of-a-kind identity from a curated pool), or Import (someone shared a code with you). We'll remember which way you want it to sound."
           />
 
           <Step
             number="02"
-            title="Answer the questions"
-            body="There are 355 of them. Don't try to do them in one sitting. Five a day, ten a day — whatever fits. They're written to surface texture, not a résumé: how you say goodnight, what you regret, what music you'd want at your funeral. The answers are yours, exactly as you wrote them. We don't rephrase. We don't polish."
+            title="Answer the questions — three ways"
+            body="There are 355. Each one supports three channels: type your answer, record your voice (we'll transcribe it for you, you can use the transcript or keep typing), and attach a photo. You can do any combination — voice + photo with no text, all three, just text. Don't try to finish in one sitting. We'll send you one question a day to keep the momentum, and the daily push deep-links straight into the right question so it's a 30-second commitment."
           />
 
           <Step
             number="03"
-            title="Add a photo and a voice"
-            body="Drop in a photo so the archive feels like a person. In Settings → Texting style, tell us how you actually text — lowercase, no periods, lol when funny, no emojis, whatever's true. Your thirtyfive will match it."
+            title="Make it sound like you"
+            body="Drop in a profile photo so the archive feels like a person. In Settings → Texting style, tell us how you actually text — lowercase, no periods, lol when funny, no emojis, whatever's true. Your identity will match it. (For randomized identities, we synthesize a short bio after you generate so the persona has a sense of place + age + occupation right away.)"
           />
 
           <Step
             number="04"
             title="Talk to it"
-            body="From the dashboard, message your thirtyfive like you'd text a friend. Send photos — your kid's birthday cake, the dog at the beach. The thirtyfive sees the photo and reacts. It remembers what you've talked about across conversations, even if you delete the messages later."
+            body="From the dashboard, message your identity like you'd text a friend. Send photos — your kid's birthday cake, the dog at the beach — and the identity sees them and reacts. The persona remembers what you've talked about across conversations, surfaces the right memory at the right moment, and reflects on what's been on your mind between sessions. On birthdays, signup-aversaries, and the anniversary of the day you first talked, they'll quietly say something."
           />
 
           <Step
             number="05"
             title="Pass it on"
-            body="In Settings → Beneficiaries, designate up to 3 people who inherit access if something happens to you. They get an email letting them know. If you ever pass, we send them a claim link — they can read and chat with what you left. Their conversations stay private, even from each other."
+            body="In Settings → Beneficiaries, designate up to 3 people who inherit access if something happens to you. They get an email letting them know. If you ever pass, we send them a claim link — they can read and chat with what you left, plus browse the answers (text + voice + photo per question) in a quiet read-only archive. Their conversations stay private, even from each other. Once an account is marked deceased, the persona shifts gently into memorial mode — still themselves, no pretending to still be alive."
           />
         </section>
 
@@ -79,23 +79,31 @@ export default function HowItWorksPage() {
           <div className="space-y-8">
             <Tip
               title="It’s not therapy"
-              body="If you’re in a hard moment, please reach a real person — US: 988 (call or text), UK: Samaritans 116 123, Mexico: SAPTEL +52 55 5259-8121. The thirtyfive is built to step out of character if your messages suggest you need someone real."
+              body="If you’re in a hard moment, please reach a real person — US: 988 (call or text), UK: Samaritans 116 123, Mexico: SAPTEL +52 55 5259-8121. The identity is built to step out of character if your messages suggest you need someone real."
             />
             <Tip
               title="Your data is yours"
-              body="Settings → Download your data exports a complete JSON of everything we store. Settings → Delete account removes it — held safely for 30 days in case you change your mind, then permanently erased. Or delete-forever-now if you want it gone immediately."
+              body="Settings → Download your data exports a complete JSON of everything we store. Settings → Download conversation gives you a tidy Markdown of every message between you and your identity. Settings → Delete account removes everything — held safely for 30 days in case you change your mind, then permanently erased. Or delete-forever-now if you want it gone immediately."
             />
             <Tip
               title="The voice is built from your words"
-              body="We never scrape, never train any model on your archive. The thirtyfive only knows what you tell it. Vague answers make a vague thirtyfive. Specific ones — names, places, opinions — make one that sounds like you."
+              body="We never scrape, never train any model on your archive. The identity only knows what you tell it. Vague answers make a vague identity. Specific ones — names, places, opinions — make one that sounds like you. Voice answers tend to be richer than typed ones; people meander, give context, share stories."
             />
             <Tip
-              title="Add more thirtyfives if you want"
-              body="The first one is free. After that, $5 to create another. You could record one for yourself, one as a gift for your sister to make, one for grandma. Switch between them from the menu in the top right."
+              title="Add more identities if you want"
+              body="The first one is free. After that, $5 to create another. One for your mother, one for the dad you wish you had, one for yourself, one for someone you invent. Switch between them from the menu in the top right."
             />
             <Tip
-              title="If you delete a thirtyfive"
-              body="It’s held for 30 days. You can bring it back from Settings → Removed thirtyfives for $5 — it returns exactly as it was. After 30 days, gone for good."
+              title="If you delete an identity"
+              body="It's held for 30 days in a quiet trash. You can bring it back from Settings → Removed identities for $5 — it returns exactly as it was, every answer, every voice clip, every photo, every conversation. After 30 days, gone for good. Or use the “delete forever now” option if you want immediate erasure."
+            />
+            <Tip
+              title="Photos and voice cost nothing extra"
+              body="Recording your voice on the 355 questions, attaching a photo per question — all included. Storage is around four-tenths of one penny per fully-recorded archive per month. We absorb it; you'll never see a bill for it."
+            />
+            <Tip
+              title="On birthdays and anniversaries"
+              body="Your identity remembers dates. Your birthday, the anniversary of when you signed up, the anniversary of the day they first spoke to you — on each one, they'll send a short message. Like a real person who noticed."
             />
           </div>
         </section>

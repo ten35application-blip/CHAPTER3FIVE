@@ -73,22 +73,45 @@ export default function SupportPage() {
             />
           </FaqGroup>
 
+          <FaqGroup title="Voice + photo answers">
+            <Faq
+              q="Can I record my voice answering the questions?"
+              a="Yes. On the answers page, every question has a 'Record voice' button. Hit it, talk, hit stop. The audio uploads, gets transcribed by Whisper automatically, and the transcript is offered to you to use as your typed answer with one click. Recording an answer takes about 30 seconds versus a few minutes of typing."
+            />
+            <Faq
+              q="Can I attach photos to specific answers?"
+              a="Yes. Each of the 355 questions supports an image attachment. The photo lives alongside the text + voice — when family later browses the archive, they see all three: the question, what you wrote, what you said out loud, and what it looked like."
+            />
+            <Faq
+              q="Do voice and photos cost extra?"
+              a="No. They're included. Storage is around $0.004 per fully-recorded archive per month — we absorb it. You'll never see a bill for voice or photo features."
+            />
+            <Faq
+              q="Does the AI 'hear' my voice?"
+              a="Not yet. Right now Anthropic Claude (the model that responds in chat) reads the text answer + the Whisper transcript. The audio file is preserved as a parallel artifact for humans — your family hears your actual voice when they browse the archive. We may add voice-aware AI down the line as the technology matures."
+            />
+          </FaqGroup>
+
           <FaqGroup title="Your data">
             <Faq
               q="Where does my data live?"
-              a="In Supabase (US), encrypted in transit and at rest. Conversations are processed by Anthropic at message time but Anthropic doesn't retain them — and we never train any model on your data. Not now, not ever."
+              a="In Supabase (US), encrypted in transit and at rest. Conversations are processed by Anthropic at message time and OpenAI processes embeddings + image moderation + voice transcription. Both have default-no-retention and default-no-training policies on the API tier we use. We never train any model — ours or theirs — on your archive."
             />
             <Faq
               q="Can I download a copy?"
-              a="Yes. Settings → Download your data gives you a complete JSON dump of everything we store about you — profile, archive, conversations, payments, beneficiaries, memories. Yours to keep."
+              a="Two options. Settings → Download all (JSON) gives you a complete developer-format dump of everything we store. Settings → Download conversation gives you a clean Markdown of every message between you and your active identity, formatted for reading and printing. Beneficiaries get the same conversation download for their own private thread."
             />
             <Faq
               q="Can I delete my account?"
-              a="Yes. Settings → Delete account. We hold your data for 30 days in case you change your mind (you can restore it for $5 in that window). After 30 days, it's gone permanently — no copies, no backups."
+              a="Yes. Settings → Delete account. We hold your data for 30 days in case you change your mind (you can restore it for $5 in that window). After 30 days, it's gone permanently — no copies, no backups. Or use 'delete forever now' under that section if you want immediate, irreversible erasure."
             />
             <Faq
               q="Do you sell my data or train models on it?"
-              a="No. Your archive is yours. We don't sell to third parties, we don't train any model — ours or anyone else's — on what you write. This is in our Terms and we hold ourselves to it."
+              a="No. Your archive is yours. We don't sell to third parties, we don't train any model — ours, our processors', or anyone else's — on what you write. This is in our Terms and we hold ourselves to it."
+            />
+            <Faq
+              q="What does the persona remember about me?"
+              a="The persona builds up structured memories from your conversations — facts, relationships, preferences, events, recurring themes, feelings — and a weekly reflection job writes higher-order observations ('they've been preoccupied with their mother's diagnosis'). You can review and delete any memory at Settings → What they remember about you. Memories survive even if you delete the message history."
             />
           </FaqGroup>
 
@@ -103,7 +126,11 @@ export default function SupportPage() {
             />
             <Faq
               q="What happens when I die?"
-              a="Beneficiaries you designated each get an email with a link to claim access to your archive. They can sign up or sign in, and read + chat with what you left them. We confirm the death with documentation before activating — we don't act on rumors."
+              a="Beneficiaries you designated each get an email with a link to claim access to your archive. They can sign up or sign in, then read + chat with what you left them, plus browse all 355 answers (text + voice + photo) in a quiet read-only archive view. They can download a Markdown of their conversation with you any time. We confirm the death with documentation before activating — we don't act on rumors."
+            />
+            <Faq
+              q="Does the persona keep acting alive after I'm gone?"
+              a="No. Once an account is marked deceased, the persona shifts into memorial mode for beneficiaries. Still themselves — same voice, same opinions, same texture — but they don't pretend to still be alive. No 'talk to you tomorrow,' no 'let's grab coffee.' If asked, they're honest about being an archive."
             />
           </FaqGroup>
 

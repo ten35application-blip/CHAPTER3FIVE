@@ -6,7 +6,7 @@ export const metadata = {
 
 export default function PrivacyPage() {
   return (
-    <LegalPage title="Privacy Policy" lastUpdated="April 26, 2026">
+    <LegalPage title="Privacy Policy" lastUpdated="April 27, 2026">
       <Section title="1. Overview">
         <p>
           This Privacy Policy explains how chapter3five
@@ -37,9 +37,26 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong>Your archive content.</strong> The text answers you
-            record, the name and avatar you choose for your thirtyfive, the
+            record, the name and avatar you choose for your identity, the
             mode (real, randomized, or imported) you select, and any
-            texting-style or persona settings you provide.
+            texting-style or persona settings you provide. For randomized
+            identities, an AI-synthesized short biography (anchored on the
+            random answers) we generate at creation and store with the
+            identity.
+          </li>
+          <li>
+            <strong>Voice recordings.</strong> Audio files you record for
+            specific archive answers. Stored in a private bucket
+            (archive-audio) only you and beneficiaries you designate can
+            read. Each recording is also sent (one-time, on upload) to
+            OpenAI&rsquo;s Whisper API for optional transcription — the
+            transcript is offered back to you to use as the typed answer if
+            you want.
+          </li>
+          <li>
+            <strong>Photos in the archive.</strong> Image files you attach
+            to specific archive answers. Stored in a private bucket
+            (archive-photos) with the same access rules as voice.
           </li>
           <li>
             <strong>Conversation content.</strong> Messages you send to and
@@ -107,37 +124,51 @@ export default function PrivacyPage() {
 
       <Section title="4. AI processing — explicit consent to third-party transmission">
         <p>
-          To produce conversational responses, the Service transmits the
-          following to <strong>Anthropic, PBC</strong> (our AI provider):
+          chapter3five uses two AI providers. Both have default-no-retention
+          and default-no-training-on-customer-data policies on the API tier
+          we use. By using the AI-powered features of the Service, you{" "}
+          <strong>explicitly consent</strong> to these transmissions.
+        </p>
+        <p>
+          <strong>Anthropic, PBC</strong> — for chat responses, identity
+          backstory synthesis (randomized mode only), persona memory
+          extraction, weekly reflection, anniversary messages, and welcome
+          messages. We send: the recorded archive associated with your
+          active identity (questions and answers), the persona memories
+          currently held about you, the messages you send and recent prior
+          messages (last twelve), any photo you attach to a chat message
+          (as a signed URL for vision processing), and the synthesized bio
+          (for randomized identities).
+        </p>
+        <p>
+          <strong>OpenAI, Inc.</strong> — for three features:
         </p>
         <ul>
           <li>
-            The recorded archive associated with your active thirtyfive
-            (questions and answers).
+            <strong>Embeddings</strong> (text-embedding-3-small): each
+            persona memory&rsquo;s text is embedded and stored as a vector
+            so the AI can surface the right memory for the right moment.
+            The full memory text is sent at write time and at every chat
+            turn (the user&rsquo;s incoming message is embedded for
+            similarity search).
           </li>
           <li>
-            The persona memories the thirtyfive currently holds about you
-            (Section 2).
+            <strong>Image moderation</strong> (omni-moderation-latest):
+            every chat photo is run through OpenAI&rsquo;s free moderation
+            endpoint before reaching Anthropic. Photos flagged for sexual,
+            violent, self-harm, or hateful content are rejected and the
+            upload is deleted.
           </li>
           <li>
-            The messages you send and recent prior messages in the
-            conversation (typically the last twelve).
-          </li>
-          <li>
-            Any photo you attach to a message — sent as a signed URL so
-            Anthropic&rsquo;s vision model can react in character.
+            <strong>Voice transcription</strong> (Whisper): when you record
+            a voice answer, the audio is sent to Whisper one time on
+            upload to produce a transcript you can optionally use as your
+            typed answer.
           </li>
         </ul>
         <p>
-          Anthropic processes this content under its API terms. Per
-          Anthropic&rsquo;s default API policy, <strong>API inputs and
-          outputs are not retained beyond the request lifecycle and are not
-          used to train Anthropic&rsquo;s models</strong>.
-        </p>
-        <p>
-          By using the conversational features of the Service, you{" "}
-          <strong>explicitly consent</strong> to this transmission. If you
-          do not consent, do not use the conversational features. Email{" "}
+          If you do not consent to either provider, do not use the
+          features that depend on them. Email{" "}
           <a href="mailto:privacy@chapter3five.app">privacy@chapter3five.app</a>{" "}
           to revoke consent and delete your account.
         </p>
@@ -150,8 +181,9 @@ export default function PrivacyPage() {
           data-protection obligations. These currently include:
         </p>
         <ul>
-          <li><strong>Supabase</strong> — database, authentication, file storage (United States).</li>
-          <li><strong>Anthropic</strong> — AI processing of conversational messages and attached photos. See Section 4 for the data flow.</li>
+          <li><strong>Supabase</strong> — database, authentication, file storage for avatars + chat photos + archive audio + archive photos (United States).</li>
+          <li><strong>Anthropic</strong> — AI processing of conversational messages, identity backstory synthesis, persona memory extraction + weekly reflection, anniversary messages, welcome messages, and attached photos via vision. See Section 4 for the data flow.</li>
+          <li><strong>OpenAI</strong> — embeddings for memory retrieval, image moderation on chat photos, and Whisper transcription for voice answers. See Section 4.</li>
           <li><strong>Resend</strong> — transactional email delivery.</li>
           <li><strong>Vercel</strong> — application hosting and content delivery.</li>
           <li><strong>Stripe</strong> — payment processing for any paid features.</li>
@@ -331,23 +363,37 @@ export default function PrivacyPage() {
       <Section title="15. Mobile app permissions">
         <p>
           On mobile, the chapter3five app may request the following
-          permissions, all optional:
+          permissions, all optional and only when the corresponding
+          feature is invoked:
         </p>
         <ul>
           <li>
-            <strong>Photo library</strong> — only when you explicitly
-            choose to attach a photo to a message.
+            <strong>Camera</strong> — only when you tap &ldquo;Take
+            photo&rdquo; while attaching a photo to a chat message.
+          </li>
+          <li>
+            <strong>Photo library</strong> — only when you tap &ldquo;Pick
+            from library&rdquo; while attaching a photo to a chat message.
+          </li>
+          <li>
+            <strong>Microphone</strong> — only on the web archive
+            recording surface (recording voice answers happens on the
+            web today; mobile voice recording is a planned follow-up).
           </li>
           <li>
             <strong>Push notifications</strong> — to deliver a
-            notification when your thirtyfive sends a proactive message.
+            notification when your identity sends a proactive message,
+            an anniversary acknowledgment, or your daily question nudge.
+          </li>
+          <li>
+            <strong>Face ID / Touch ID / device biometrics</strong> —
+            only if you enable the biometric lock from Settings.
           </li>
         </ul>
         <p>
-          We do not request: location services, microphone, camera (only
-          the photo library picker), contacts, calendar, health, or any
-          other sensitive permission. You can revoke any granted
-          permission at any time from your device settings.
+          We do not request: location services, contacts, calendar,
+          health, or any other sensitive permission. You can revoke any
+          granted permission at any time from your device settings.
         </p>
       </Section>
 

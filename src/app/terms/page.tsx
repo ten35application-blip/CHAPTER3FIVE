@@ -6,7 +6,7 @@ export const metadata = {
 
 export default function TermsPage() {
   return (
-    <LegalPage title="Terms of Service" lastUpdated="April 26, 2026">
+    <LegalPage title="Terms of Service" lastUpdated="April 27, 2026">
       <Section title="1. Acceptance of these Terms">
         <p>
           By creating an account or otherwise using chapter3five
@@ -88,18 +88,33 @@ export default function TermsPage() {
 
       <Section title="6. AI processing; consent to third-party transmission">
         <p>
-          To produce conversational responses, the Service transmits the
-          following to <strong>Anthropic, PBC</strong>, our AI provider:
-          (a) the recorded archive associated with the active thirtyfive,
-          (b) the messages you send and recent prior messages in the
-          conversation, and (c) any photos you attach to a message.
-          Anthropic processes this content under its API terms; by default,
-          Anthropic does not retain or train on API inputs or outputs.
+          chapter3five uses two AI providers, both under default
+          no-retention and no-training-on-customer-data API policies:
         </p>
+        <ul>
+          <li>
+            <strong>Anthropic, PBC</strong> — for chat responses,
+            randomized identity backstory synthesis, persona memory
+            extraction, weekly reflection, anniversary messages, welcome
+            messages, and image-vision processing of attached photos.
+            We send the recorded archive associated with the active
+            identity, the persona memories currently held about you,
+            recent messages in the conversation (last twelve), any
+            attached photo, and the synthesized bio (randomize only).
+          </li>
+          <li>
+            <strong>OpenAI, Inc.</strong> — for embedding-based memory
+            retrieval (text-embedding-3-small), chat-photo content
+            moderation (omni-moderation-latest), and voice-answer
+            transcription (Whisper).
+          </li>
+        </ul>
         <p>
-          By using the conversational features of the Service, you{" "}
-          <strong>explicitly consent</strong> to this transmission. If you
-          do not consent, do not use the conversational features.
+          By using the AI-powered features of the Service (chat, voice
+          transcription, photo attachments, randomized identities), you{" "}
+          <strong>explicitly consent</strong> to these transmissions.
+          See our Privacy Policy for the data flow detail. If you do not
+          consent, do not use those features.
         </p>
       </Section>
 
@@ -136,6 +151,14 @@ export default function TermsPage() {
             triggered, our care team is notified and the conversational
             interface is instructed to step out of character to provide
             crisis-line information.
+          </li>
+          <li>
+            <strong>Image moderation.</strong> Every photo attached to a
+            chat message is screened by an automated moderation service
+            (OpenAI omni-moderation) before being shown to the persona
+            or persisted in the conversation. Photos flagged for sexual,
+            violent, self-harm, or hateful content are rejected and the
+            upload is removed.
           </li>
           <li>
             <strong>Block / revoke access.</strong> If you have shared your
