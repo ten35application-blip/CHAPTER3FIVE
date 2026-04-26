@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { setAnswerBody } from "@/app/answers/actions";
 
 type Props = {
   oracleId: string;
@@ -22,6 +24,11 @@ const COPY = {
     delete: "Delete recording",
     confirmDelete: "Delete this recording?",
     uploading: "Saving…",
+    transcribing: "Transcribing your voice…",
+    transcribed: "Transcribed:",
+    useAsAnswer: "Use as my answer",
+    using: "Using…",
+    used: "Used as your answer",
     permissionDenied: "Microphone permission required.",
     error: "Something went wrong recording.",
     yourVoice: "Your voice",
@@ -35,6 +42,11 @@ const COPY = {
     delete: "Borrar grabación",
     confirmDelete: "¿Borrar esta grabación?",
     uploading: "Guardando…",
+    transcribing: "Transcribiendo tu voz…",
+    transcribed: "Transcrito:",
+    useAsAnswer: "Usar como mi respuesta",
+    using: "Usando…",
+    used: "Guardado como tu respuesta",
     permissionDenied: "Se necesita permiso del micrófono.",
     error: "Algo salió mal grabando.",
     yourVoice: "Tu voz",
@@ -55,6 +67,7 @@ export function VoiceAnswer({
   language,
 }: Props) {
   const t = COPY[language];
+  const router = useRouter();
   const [state, setState] = useState<
     "idle" | "recording" | "uploading" | "ready" | "playing"
   >(initialAudioUrl ? "ready" : "idle");
@@ -62,6 +75,10 @@ export function VoiceAnswer({
   const [duration, setDuration] = useState<number>(initialDurationSeconds ?? 0);
   const [elapsed, setElapsed] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
+  const [transcript, setTranscript] = useState<string | null>(null);
+  const [transcribing, setTranscribing] = useState(false);
+  const [usingTranscript, setUsingTranscript] = useState(false);
+  const [usedTranscript, setUsedTranscript] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -187,10 +204,58 @@ export function VoiceAnswer({
       setAudioUrl(url);
       setDuration(seconds);
       setState("ready");
+
+      // Fire transcription in the background. Failure is silent — the
+      // audio is preserved either way; transcription is just a nicety.
+      kickoffTranscription();
     } catch (err) {
       console.error("voice upload failed:", err);
       setError(err instanceof Error ? err.message : t.error);
       setState(audioUrl ? "ready" : "idle");
+    }
+  }
+
+  async function kickoffTranscription() {
+    setTranscript(null);
+    setUsedTranscript(false);
+    setTranscribing(true);
+    try {
+      const res = await fetch("/api/whisper", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          oracle_id: oracleId,
+          question_id: questionId,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && typeof data.text === "string" && data.text.trim()) {
+        setTranscript(data.text.trim());
+      }
+    } catch {
+      // silent — audio is fine, transcript is bonus
+    } finally {
+      setTranscribing(false);
+    }
+  }
+
+  async function applyTranscript() {
+    if (!transcript) return;
+    setUsingTranscript(true);
+    try {
+      const result = await setAnswerBody({
+        questionId,
+        body: transcript,
+      });
+      if (result.ok) {
+        setUsedTranscript(true);
+        // Refresh the server-rendered textarea defaultValue.
+        router.refresh();
+      } else {
+        setError(result.error ?? t.error);
+      }
+    } finally {
+      setUsingTranscript(false);
     }
   }
 
@@ -309,6 +374,37 @@ export function VoiceAnswer({
           </>
         )}
       </div>
+
+      {/* Transcription block — appears after upload completes. */}
+      {(transcribing || transcript) && (
+        <div className="mt-3 pt-3 border-t border-warm-700/40">
+          {transcribing && !transcript && (
+            <p className="text-xs text-warm-300 italic">{t.transcribing}</p>
+          )}
+          {transcript && (
+            <div className="space-y-2">
+              <p className="text-xs uppercase tracking-[0.15em] text-warm-400">
+                {t.transcribed}
+              </p>
+              <p className="text-sm text-warm-100 leading-relaxed font-serif italic">
+                “{transcript}”
+              </p>
+              {!usedTranscript ? (
+                <button
+                  type="button"
+                  onClick={applyTranscript}
+                  disabled={usingTranscript}
+                  className="inline-flex h-8 items-center px-3 rounded-full bg-warm-50 text-ink text-xs font-medium hover:bg-warm-100 transition-colors disabled:opacity-50"
+                >
+                  {usingTranscript ? t.using : t.useAsAnswer}
+                </button>
+              ) : (
+                <p className="text-xs text-warm-200 italic">✓ {t.used}</p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {error && <p className="mt-2 text-xs text-red-300/80">{error}</p>}
     </div>
