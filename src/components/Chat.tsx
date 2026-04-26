@@ -10,6 +10,33 @@ type Props = {
   language: "en" | "es";
 };
 
+const COPY = {
+  en: {
+    placeholder: (name: string) => `Message ${name}…`,
+    send: "Send",
+    sending: "…",
+    error: "Something went wrong. Try again?",
+    empty: (name: string) => `Say something to ${name}.`,
+    report: "Report",
+    reportPlaceholder: "What was wrong with this message? (optional)",
+    reportSubmit: "Submit",
+    reportCancel: "Cancel",
+    reportThanks: "Thanks. We'll review it.",
+  },
+  es: {
+    placeholder: (name: string) => `Escribirle a ${name}…`,
+    send: "Enviar",
+    sending: "…",
+    error: "Algo salió mal. ¿Lo intentas de nuevo?",
+    empty: (name: string) => `Dile algo a ${name}.`,
+    report: "Reportar",
+    reportPlaceholder: "¿Qué estuvo mal con este mensaje? (opcional)",
+    reportSubmit: "Enviar",
+    reportCancel: "Cancelar",
+    reportThanks: "Gracias. Lo revisaremos.",
+  },
+};
+
 function detectTimezone(): string {
   try {
     return Intl.DateTimeFormat().resolvedOptions().timeZone || "";
@@ -18,29 +45,17 @@ function detectTimezone(): string {
   }
 }
 
-const COPY = {
-  en: {
-    placeholder: (name: string) => `Message ${name}…`,
-    send: "Send",
-    sending: "…",
-    error: "Something went wrong. Try again?",
-    empty: (name: string) => `Say something to ${name}.`,
-  },
-  es: {
-    placeholder: (name: string) => `Escribirle a ${name}…`,
-    send: "Enviar",
-    sending: "…",
-    error: "Algo salió mal. ¿Lo intentas de nuevo?",
-    empty: (name: string) => `Dile algo a ${name}.`,
-  },
-};
-
 export function Chat({ oracleName, language }: Props) {
   const t = COPY[language];
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [reportingIndex, setReportingIndex] = useState<number | null>(null);
+  const [reportReason, setReportReason] = useState("");
+  const [reportedIndexes, setReportedIndexes] = useState<Set<number>>(
+    new Set(),
+  );
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const timezone = useMemo(detectTimezone, []);
 
@@ -78,6 +93,24 @@ export function Chat({ oracleName, language }: Props) {
     }
   }
 
+  async function submitReport(index: number, content: string) {
+    try {
+      const res = await fetch("/api/reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: content, reason: reportReason }),
+      });
+      if (!res.ok) throw new Error("report failed");
+      setReportedIndexes((s) => new Set(s).add(index));
+      setReportingIndex(null);
+      setReportReason("");
+    } catch {
+      // silently fail; the chat shouldn't break for a failed report
+      setReportingIndex(null);
+      setReportReason("");
+    }
+  }
+
   return (
     <div className="w-full max-w-2xl flex flex-col items-center">
       <div className="mb-6">
@@ -87,7 +120,6 @@ export function Chat({ oracleName, language }: Props) {
       <h1 className="font-serif text-3xl text-warm-50 mb-1">{oracleName}</h1>
       <p className="text-xs uppercase tracking-[0.2em] text-warm-300 mb-8">
         {sending ? (language === "es" ? "Pensando…" : "Thinking…") : ""}
-        {!sending && messages.length === 0 ? "" : ""}
       </p>
 
       <div className="w-full flex flex-col h-[55svh]">
@@ -102,21 +134,69 @@ export function Chat({ oracleName, language }: Props) {
           )}
 
           {messages.map((m, i) => (
-            <div
-              key={i}
-              className={
-                m.role === "user" ? "flex justify-end" : "flex justify-start"
-              }
-            >
+            <div key={i} className="group">
               <div
                 className={
-                  m.role === "user"
-                    ? "max-w-[80%] rounded-2xl bg-warm-700/40 text-warm-50 px-4 py-3 leading-relaxed"
-                    : "max-w-[85%] text-warm-50 leading-relaxed font-serif text-lg"
+                  m.role === "user" ? "flex justify-end" : "flex justify-start"
                 }
               >
-                {m.content}
+                <div
+                  className={
+                    m.role === "user"
+                      ? "max-w-[80%] rounded-2xl bg-warm-700/40 text-warm-50 px-4 py-3 leading-relaxed"
+                      : "max-w-[85%] text-warm-50 leading-relaxed font-serif text-lg"
+                  }
+                >
+                  {m.content}
+                </div>
               </div>
+
+              {m.role === "assistant" && (
+                <div className="mt-1 ml-1 flex items-center gap-2">
+                  {reportedIndexes.has(i) ? (
+                    <span className="text-xs text-warm-400 italic">
+                      {t.reportThanks}
+                    </span>
+                  ) : reportingIndex === i ? (
+                    <div className="flex items-center gap-2 w-full max-w-[85%]">
+                      <input
+                        type="text"
+                        value={reportReason}
+                        onChange={(e) => setReportReason(e.target.value)}
+                        placeholder={t.reportPlaceholder}
+                        maxLength={500}
+                        autoFocus
+                        className="flex-1 h-8 rounded-full bg-warm-700/30 border border-warm-400/30 px-3 text-warm-50 placeholder:text-warm-400 focus:outline-none focus:border-warm-200 transition-colors text-xs"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => submitReport(i, m.content)}
+                        className="text-xs text-warm-100 hover:text-warm-50 transition-colors px-2"
+                      >
+                        {t.reportSubmit}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setReportingIndex(null);
+                          setReportReason("");
+                        }}
+                        className="text-xs text-warm-400 hover:text-warm-200 transition-colors px-2"
+                      >
+                        {t.reportCancel}
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setReportingIndex(i)}
+                      className="text-[11px] text-warm-500 hover:text-warm-300 transition-colors opacity-0 group-hover:opacity-100"
+                    >
+                      {t.report}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>

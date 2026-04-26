@@ -36,3 +36,23 @@ export async function resolveCrisisFlag(formData: FormData) {
   revalidatePath("/admin");
   redirect("/admin?saved=resolved");
 }
+
+export async function resolveMessageReport(formData: FormData) {
+  await requireAdmin();
+  const id = String(formData.get("id") ?? "").trim();
+  const notes = String(formData.get("notes") ?? "").trim() || null;
+  if (!id) redirect("/admin?error=Missing%20id");
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("message_reports")
+    .update({ resolved_at: new Date().toISOString(), notes })
+    .eq("id", id);
+
+  if (error) {
+    redirect(`/admin?error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePath("/admin");
+  redirect("/admin?saved=resolved");
+}
