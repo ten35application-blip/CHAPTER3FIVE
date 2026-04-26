@@ -38,6 +38,12 @@ export function Footer() {
           >
             Cookies
           </Link>
+          <Link
+            href="/support"
+            className="text-warm-200 hover:text-warm-50 transition-colors"
+          >
+            Support
+          </Link>
           <a
             href="mailto:contact@chapter3five.app"
             className="text-warm-200 hover:text-warm-50 transition-colors"

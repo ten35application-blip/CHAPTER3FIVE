@@ -4,7 +4,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Orb } from "./Orb";
 import { createClient } from "@/lib/supabase/client";
 
-type Message = { role: "user" | "assistant"; content: string };
+type Message = {
+  role: "user" | "assistant";
+  content: string;
+  imageUrl?: string | null;
+};
 
 type Props = {
   oracleName: string;
@@ -77,6 +81,11 @@ export function Chat({
   const [activityStage, setActivityStage] = useState<
     "reading" | "replying" | "typing"
   >("reading");
+  const [pendingImage, setPendingImage] = useState<{
+    file: File;
+    previewUrl: string;
+  } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (!sending) {
@@ -153,23 +162,64 @@ export function Chat({
   async function send(e: React.FormEvent) {
     e.preventDefault();
     const text = input.trim();
-    if (!text || sending) return;
+    if (sending) return;
+    // Allow sending a photo with no caption — but require at least one of
+    // text or image.
+    if (!text && !pendingImage) return;
 
     setError(null);
-    const next: Message[] = [...messages, { role: "user", content: text }];
+    setSending(true);
+
+    // Upload the photo first so we have a URL to send with the message.
+    let imageUrl: string | null = null;
+    let imageStoragePath: string | null = null;
+    const imageToSend = pendingImage;
+    if (imageToSend && oracleId) {
+      try {
+        const supabase = createClient();
+        const { data: session } = await supabase.auth.getSession();
+        const userId = session.session?.user.id;
+        if (!userId) throw new Error("not signed in");
+        const ext = (imageToSend.file.name.split(".").pop() || "jpg").toLowerCase();
+        const path = `${userId}/${oracleId}/${crypto.randomUUID()}.${ext}`;
+        const { error: uploadErr } = await supabase.storage
+          .from("chat-photos")
+          .upload(path, imageToSend.file, {
+            contentType: imageToSend.file.type || `image/${ext}`,
+          });
+        if (uploadErr) throw uploadErr;
+        const { data: signed } = await supabase.storage
+          .from("chat-photos")
+          .createSignedUrl(path, 60 * 60 * 24 * 365); // 1y for chat history.
+        imageUrl = signed?.signedUrl ?? null;
+        imageStoragePath = path;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Couldn't upload photo");
+        setSending(false);
+        return;
+      }
+    }
+
+    const next: Message[] = [
+      ...messages,
+      { role: "user", content: text, imageUrl: imageUrl ?? undefined },
+    ];
     setMessages(next);
     setInput("");
-    setSending(true);
+    setPendingImage(null);
 
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          message: text,
+          message: text || "(sent a photo)",
           history: messages,
           timezone,
           ...(oracleId ? { oracle_id: oracleId } : {}),
+          ...(imageUrl
+            ? { image_url: imageUrl, image_storage_path: imageStoragePath }
+            : {}),
         }),
       });
       const data = await res.json();
@@ -180,6 +230,25 @@ export function Chat({
     } finally {
       setSending(false);
     }
+  }
+
+  function pickImage(file: File) {
+    if (!file.type.startsWith("image/")) {
+      setError("Only image files.");
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      setError("Image too large (max 8MB).");
+      return;
+    }
+    setError(null);
+    const previewUrl = URL.createObjectURL(file);
+    setPendingImage({ file, previewUrl });
+  }
+
+  function clearPendingImage() {
+    if (pendingImage) URL.revokeObjectURL(pendingImage.previewUrl);
+    setPendingImage(null);
   }
 
   async function submitReport(index: number, content: string) {
@@ -244,6 +313,13 @@ export function Chat({
                       : "max-w-[85%] text-warm-50 leading-relaxed font-serif text-lg"
                   }
                 >
+                  {m.imageUrl && (
+                    <img
+                      src={m.imageUrl}
+                      alt=""
+                      className="rounded-xl max-w-full max-h-80 object-cover mb-2"
+                    />
+                  )}
                   {m.content}
                 </div>
               </div>
@@ -304,10 +380,51 @@ export function Chat({
           </p>
         )}
 
+        {pendingImage && (
+          <div className="px-1 pb-2 flex items-center gap-2">
+            <img
+              src={pendingImage.previewUrl}
+              alt=""
+              className="w-12 h-12 rounded-lg object-cover border border-warm-300/30"
+            />
+            <span className="text-xs text-warm-300 flex-1 truncate">
+              {pendingImage.file.name}
+            </span>
+            <button
+              type="button"
+              onClick={clearPendingImage}
+              className="text-xs text-warm-400 hover:text-warm-200 transition-colors"
+            >
+              ×
+            </button>
+          </div>
+        )}
+
         <form
           onSubmit={send}
           className="flex gap-2 pt-3 border-t border-warm-700/60"
         >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) pickImage(f);
+              e.target.value = ""; // allow re-selecting same file
+            }}
+          />
+          <button
+            type="button"
+            disabled={sending || !oracleId}
+            onClick={() => fileInputRef.current?.click()}
+            aria-label="Attach photo"
+            title="Attach photo"
+            className="h-12 w-12 rounded-full border border-warm-400/30 bg-warm-700/30 text-warm-200 hover:bg-warm-700/50 transition-colors disabled:opacity-50 flex items-center justify-center text-xl"
+          >
+            +
+          </button>
           <input
             type="text"
             value={input}
@@ -320,7 +437,7 @@ export function Chat({
           />
           <button
             type="submit"
-            disabled={sending || !input.trim()}
+            disabled={sending || (!input.trim() && !pendingImage)}
             className="h-12 px-6 rounded-full bg-warm-50 text-ink font-medium hover:bg-warm-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {sending ? t.sending : t.send}

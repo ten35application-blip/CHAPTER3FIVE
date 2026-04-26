@@ -60,7 +60,7 @@ export default async function DashboardPage() {
   const { data: messageRows } = profile.active_oracle_id
     ? await supabase
         .from("messages")
-        .select("role, content, created_at")
+        .select("role, content, image_url, created_at")
         .eq("oracle_id", profile.active_oracle_id)
         .order("created_at", { ascending: false })
         .limit(50)
@@ -70,6 +70,7 @@ export default async function DashboardPage() {
     .map((m) => ({
       role: m.role as "user" | "assistant",
       content: m.content,
+      imageUrl: m.image_url ?? null,
     }));
 
   // Mark all messages as seen by bumping the timestamp NOW. This is fire-and-

@@ -18,6 +18,7 @@ const SOFT_DELETED_ALLOWED = [
   "/privacy",
   "/cookies",
   "/about",
+  "/support",
   "/sample",
   "/api/sample-chat",
 ];

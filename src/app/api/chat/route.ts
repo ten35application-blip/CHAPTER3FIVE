@@ -30,6 +30,8 @@ export async function POST(request: NextRequest) {
     history?: Message[];
     timezone?: string;
     oracle_id?: string;
+    image_url?: string;
+    image_storage_path?: string;
   };
   try {
     payload = await request.json();
@@ -303,12 +305,33 @@ ARCHIVE — these are the actual answers ${characterName} gave. This is who you 
 
 ${archiveBlock}`;
 
+  // If the user attached an image, send it to Anthropic as a vision
+  // input. URL-based images are supported by the API. The image lives
+  // in the chat-photos bucket as a long-lived signed URL.
+  type ContentBlock =
+    | { type: "text"; text: string }
+    | {
+        type: "image";
+        source: { type: "url"; url: string };
+      };
+  const userTurnContent: ContentBlock[] = [];
+  if (typeof payload.image_url === "string" && payload.image_url) {
+    userTurnContent.push({
+      type: "image",
+      source: { type: "url", url: payload.image_url },
+    });
+  }
+  userTurnContent.push({ type: "text", text: userMessage });
+
   const messages = [
     ...history.slice(-12).map((m) => ({
       role: m.role,
       content: m.content,
     })),
-    { role: "user" as const, content: userMessage },
+    {
+      role: "user" as const,
+      content: userTurnContent.length > 1 ? userTurnContent : userMessage,
+    },
   ];
 
   try {
@@ -333,6 +356,8 @@ ${archiveBlock}`;
           oracle_id: profile.active_oracle_id,
           role: "user",
           content: userMessage,
+          image_url: payload.image_url ?? null,
+          image_storage_path: payload.image_storage_path ?? null,
         },
         {
           user_id: user.id,
@@ -373,8 +398,12 @@ ${archiveBlock}`;
     // When Anthropic hiccups, don't break character with a generic
     // "Something went wrong" — that breaks the illusion the whole product
     // is built on. Return a short in-voice line instead. UI keeps it in
-    // the chat, no error banner. Logged for observability.
+    // the chat, no error banner. Logged for observability + Sentry.
     console.error("anthropic call failed:", err);
+    const Sentry = await import("@sentry/nextjs").catch(() => null);
+    Sentry?.captureException(err, {
+      tags: { route: "api/chat", oracle_id: profile.active_oracle_id ?? null },
+    });
     const fallback =
       language === "es"
         ? "perdón, no me llega bien la señal. dame un momento e intenta de nuevo?"
