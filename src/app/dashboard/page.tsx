@@ -109,6 +109,7 @@ export default async function DashboardPage() {
           language={language}
           initialHistory={initialHistory}
           avatarUrl={profile.avatar_url ?? null}
+          oracleId={profile.active_oracle_id ?? null}
         />
       </div>
     </main>

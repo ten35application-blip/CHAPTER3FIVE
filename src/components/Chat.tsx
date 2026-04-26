@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Orb } from "./Orb";
+import { createClient } from "@/lib/supabase/client";
 
 type Message = { role: "user" | "assistant"; content: string };
 
@@ -104,6 +105,50 @@ export function Chat({
       behavior: "smooth",
     });
   }, [messages, sending]);
+
+  // Realtime: when the proactive cron (or any future system process)
+  // inserts a message addressed to this user + oracle, push it into the
+  // chat live without a refresh. Filtering on initiated_by_oracle=true
+  // keeps us from double-rendering messages we just sent ourselves —
+  // those come back via the /api/chat fetch response, not the realtime
+  // stream.
+  useEffect(() => {
+    if (!oracleId) return;
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`messages:${oracleId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+          filter: `oracle_id=eq.${oracleId}`,
+        },
+        (payload) => {
+          const row = payload.new as {
+            role: "user" | "assistant";
+            content: string;
+            initiated_by_oracle?: boolean;
+          };
+          if (!row.initiated_by_oracle) return;
+          if (row.role !== "assistant") return;
+          setMessages((prev) => {
+            // Idempotency: if the last message is identical, skip.
+            const last = prev[prev.length - 1];
+            if (last && last.role === row.role && last.content === row.content) {
+              return prev;
+            }
+            return [...prev, { role: row.role, content: row.content }];
+          });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [oracleId]);
 
   async function send(e: React.FormEvent) {
     e.preventDefault();
