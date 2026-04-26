@@ -3,30 +3,43 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { signOut } from "@/app/auth/actions";
+import { newOracle, switchOracle } from "@/app/oracles/actions";
+
+type OracleEntry = {
+  id: string;
+  name: string | null;
+};
 
 type Props = {
   oracleName: string;
   language: "en" | "es";
+  oracles: OracleEntry[];
+  activeOracleId: string | null;
 };
 
 const COPY = {
   en: {
-    current: "Current thirtyfive",
+    yours: "Your thirtyfives",
     newOracle: "+ New thirtyfive",
-    soon: "soon",
     settings: "Settings",
     signOut: "Sign out",
+    untitled: "(untitled)",
   },
   es: {
-    current: "Thirtyfive actual",
+    yours: "Tus thirtyfives",
     newOracle: "+ Nuevo thirtyfive",
-    soon: "pronto",
     settings: "Ajustes",
     signOut: "Cerrar sesión",
+    untitled: "(sin título)",
   },
 };
 
-export function UserMenu({ oracleName, language }: Props) {
+export function UserMenu({
+  oracleName,
+  language,
+  oracles,
+  activeOracleId,
+}: Props) {
   const t = COPY[language];
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
@@ -57,7 +70,11 @@ export function UserMenu({ oracleName, language }: Props) {
         className="flex items-center gap-2 h-9 px-3 rounded-full border border-warm-400/30 bg-warm-700/30 text-warm-100 hover:bg-warm-700/50 transition-colors text-sm"
       >
         <span className="font-serif">{oracleName}</span>
-        <span className={`text-warm-300 text-xs transition-transform ${open ? "rotate-180" : ""}`}>
+        <span
+          className={`text-warm-300 text-xs transition-transform ${
+            open ? "rotate-180" : ""
+          }`}
+        >
           ▾
         </span>
       </button>
@@ -65,30 +82,62 @@ export function UserMenu({ oracleName, language }: Props) {
       {open && (
         <div
           role="menu"
-          className="absolute right-0 mt-2 w-56 rounded-2xl border border-warm-400/30 bg-ink-soft shadow-xl overflow-hidden"
+          className="absolute right-0 mt-2 w-64 rounded-2xl border border-warm-400/30 bg-ink-soft shadow-xl overflow-hidden"
         >
-          <div className="px-4 py-3 border-b border-warm-700/60">
-            <p className="text-xs uppercase tracking-[0.2em] text-warm-400">
-              {t.current}
-            </p>
-            <p className="font-serif text-warm-50 text-base mt-1">{oracleName}</p>
-          </div>
+          {oracles.length > 0 && (
+            <>
+              <div className="px-4 pt-3 pb-1">
+                <p className="text-xs uppercase tracking-[0.2em] text-warm-400">
+                  {t.yours}
+                </p>
+              </div>
+              <div className="max-h-56 overflow-y-auto">
+                {oracles.map((o) => {
+                  const isActive = o.id === activeOracleId;
+                  return (
+                    <form
+                      action={switchOracle}
+                      key={o.id}
+                      className="contents"
+                    >
+                      <input type="hidden" name="oracle_id" value={o.id} />
+                      <button
+                        type="submit"
+                        disabled={isActive}
+                        className={`w-full text-left px-4 py-2 text-sm transition-colors flex items-center justify-between ${
+                          isActive
+                            ? "text-warm-50 bg-warm-700/40 cursor-default"
+                            : "text-warm-100 hover:bg-warm-700/30"
+                        }`}
+                      >
+                        <span className="font-serif truncate">
+                          {o.name?.trim() || t.untitled}
+                        </span>
+                        {isActive && (
+                          <span className="text-warm-300 text-xs">●</span>
+                        )}
+                      </button>
+                    </form>
+                  );
+                })}
+              </div>
+              <div className="border-t border-warm-700/60" />
+            </>
+          )}
 
-          <button
-            type="button"
-            disabled
-            className="w-full text-left px-4 py-2.5 text-sm text-warm-400 hover:bg-warm-700/30 transition-colors flex items-center justify-between cursor-not-allowed"
-          >
-            <span>{t.newOracle}</span>
-            <span className="text-xs uppercase tracking-wider text-warm-500">
-              {t.soon}
-            </span>
-          </button>
+          <form action={newOracle}>
+            <button
+              type="submit"
+              className="w-full text-left px-4 py-2.5 text-sm text-warm-100 hover:bg-warm-700/30 transition-colors"
+            >
+              {t.newOracle}
+            </button>
+          </form>
 
           <Link
             href="/settings"
             onClick={() => setOpen(false)}
-            className="block px-4 py-2.5 text-sm text-warm-100 hover:bg-warm-700/30 transition-colors"
+            className="block px-4 py-2.5 text-sm text-warm-100 hover:bg-warm-700/30 transition-colors border-t border-warm-700/60"
           >
             {t.settings}
           </Link>

@@ -20,7 +20,7 @@ export default async function DashboardPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("oracle_name, preferred_language, onboarding_completed")
+    .select("oracle_name, preferred_language, onboarding_completed, active_oracle_id")
     .eq("id", user.id)
     .single();
 
@@ -31,6 +31,13 @@ export default async function DashboardPage() {
   const oracleName = profile.oracle_name ?? "your chapter";
   const language = (profile.preferred_language ?? "en") as "en" | "es";
 
+  const { data: oracleRows } = await supabase
+    .from("oracles")
+    .select("id, name")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: true });
+  const oracles = oracleRows ?? [];
+
   return (
     <main className="flex-1 flex flex-col px-6 py-6 relative overflow-hidden">
       <header className="max-w-2xl w-full mx-auto flex items-center justify-between mb-8">
@@ -40,7 +47,12 @@ export default async function DashboardPage() {
         >
           chapter3five
         </Link>
-        <UserMenu oracleName={oracleName} language={language} />
+        <UserMenu
+          oracleName={oracleName}
+          language={language}
+          oracles={oracles}
+          activeOracleId={profile.active_oracle_id ?? null}
+        />
       </header>
 
       <div className="flex-1 flex justify-center">

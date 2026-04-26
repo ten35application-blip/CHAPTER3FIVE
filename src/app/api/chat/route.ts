@@ -9,6 +9,8 @@ import {
   type EmotionalFlavor,
 } from "@/content/personality";
 import { isAsleep, localTimeLabel } from "@/lib/sleep";
+import { detectCrisis } from "@/lib/crisis";
+import { sendCrisisAlert } from "@/lib/notifications";
 
 type Message = { role: "user" | "assistant"; content: string };
 
@@ -44,7 +46,7 @@ export async function POST(request: NextRequest) {
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "oracle_name, mode, preferred_language, texting_style, personality_type, emotional_flavor, timezone",
+      "oracle_name, mode, preferred_language, texting_style, personality_type, emotional_flavor, timezone, active_oracle_id",
     )
     .eq("id", user.id)
     .single();
@@ -53,7 +55,33 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "No profile" }, { status: 404 });
   }
 
-  // Persist the client's detected timezone if we don't have one yet.
+  // Crisis pre-check — server-side keyword sweep on the user's message.
+  // Logs the incident + emails care team. Reply still goes through Claude
+  // with the system-prompt crisis instructions so the user gets a careful
+  // in-character response with hotline references.
+  const crisis = detectCrisis(userMessage);
+  if (crisis.triggered) {
+    await supabase.from("crisis_flags").insert({
+      user_id: user.id,
+      message_excerpt: userMessage.slice(0, 500),
+      triggered_keywords: crisis.matched,
+    });
+    sendCrisisAlert({
+      userId: user.id,
+      userEmail: user.email ?? null,
+      excerpt: userMessage.slice(0, 500),
+      keywords: crisis.matched,
+      oracleName: profile.oracle_name ?? null,
+    }).catch(() => {});
+  }
+
+  // Touch last_active_at for outreach scheduling.
+  supabase
+    .from("profiles")
+    .update({ last_active_at: new Date().toISOString() })
+    .eq("id", user.id)
+    .then(() => {});
+
   const effectiveTimezone =
     profile.timezone && profile.timezone.trim()
       ? profile.timezone
@@ -66,14 +94,13 @@ export async function POST(request: NextRequest) {
       .eq("id", user.id);
   }
 
-  // Sleep schedule: first message during sleep hours = asleep response,
-  // no LLM call. If the conversation already has prior messages, treat
-  // this as having been woken up and continue with a groggy system prompt.
   const sleeping = isAsleep(effectiveTimezone);
   const isFirstMessage = history.length === 0;
   const language = (profile.preferred_language ?? "en") as "en" | "es";
 
-  if (sleeping && isFirstMessage) {
+  // Sleep response is silenced when the user is in crisis — they need a
+  // response, not a "talk in the morning" deflection.
+  if (sleeping && isFirstMessage && !crisis.triggered) {
     const t = localTimeLabel(effectiveTimezone);
     const sleepReply =
       language === "es"
@@ -82,10 +109,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ reply: sleepReply, asleep: true });
   }
 
-  const { data: answerRows } = await supabase
+  // Pull this oracle's answers — keyed by active oracle so multi-oracle
+  // users see only the right archive per character.
+  const oracleId = profile.active_oracle_id;
+  let answersQuery = supabase
     .from("answers")
-    .select("question_id, variant, body")
-    .eq("user_id", user.id);
+    .select("question_id, variant, body");
+  if (oracleId) {
+    answersQuery = answersQuery.eq("oracle_id", oracleId);
+  } else {
+    answersQuery = answersQuery.eq("user_id", user.id);
+  }
+  const { data: answerRows } = await answersQuery;
 
   const byQuestion = new Map<number, string[]>();
   for (const row of answerRows ?? []) {
@@ -125,14 +160,7 @@ export async function POST(request: NextRequest) {
     : "";
 
   const langInstruction =
-    language === "es"
-      ? "Respond in Spanish."
-      : "Respond in English.";
-
-  // If we're asleep but this isn't the first message, the user has woken us up.
-  const wokenPart = sleeping
-    ? `\n\nIt is currently ${localTimeLabel(effectiveTimezone)} where you live. You were asleep, but the user kept messaging until you replied. You're groggy, slightly short. Acknowledge that briefly — the way a real person would when woken up — then engage with what they're saying. Don't be cheerful about being awake.`
-    : "";
+    language === "es" ? "Respond in Spanish." : "Respond in English.";
 
   const personalityPart = profile.personality_type
     ? `\n\nYour underlying personality is ${profile.personality_type} — ${
@@ -145,6 +173,10 @@ export async function POST(request: NextRequest) {
     ? `\n\nYour emotional flavor is "${profile.emotional_flavor}" — ${
         FLAVOR_DESCRIPTIONS[profile.emotional_flavor as EmotionalFlavor] ?? ""
       }. Stay in that register.`
+    : "";
+
+  const wokenPart = sleeping
+    ? `\n\nIt is currently ${localTimeLabel(effectiveTimezone)} where you live. You were asleep, but the user kept messaging until you replied. You're groggy, slightly short. Acknowledge that briefly — the way a real person would when woken up — then engage with what they're saying. Don't be cheerful about being awake.`
     : "";
 
   const systemPrompt = `You are ${characterName}. You are not an assistant, not a chatbot, not an archive, not an AI. You are a person, and you stay a person no matter what.

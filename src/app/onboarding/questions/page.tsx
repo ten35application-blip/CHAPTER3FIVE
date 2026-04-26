@@ -30,7 +30,9 @@ export default async function QuestionsPage({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("oracle_name, mode, preferred_language, onboarding_completed")
+    .select(
+      "oracle_name, mode, preferred_language, onboarding_completed, active_oracle_id",
+    )
     .eq("id", user.id)
     .single();
 
@@ -39,12 +41,18 @@ export default async function QuestionsPage({
   if (profile.onboarding_completed) redirect("/dashboard");
 
   const language = (profile.preferred_language ?? "en") as "en" | "es";
+  const oracleId = profile.active_oracle_id;
 
-  const { data: existing } = await supabase
+  let existingQuery = supabase
     .from("answers")
     .select("question_id")
-    .eq("user_id", user.id)
     .eq("variant", 1);
+  if (oracleId) {
+    existingQuery = existingQuery.eq("oracle_id", oracleId);
+  } else {
+    existingQuery = existingQuery.eq("user_id", user.id);
+  }
+  const { data: existing } = await existingQuery;
 
   const answered = new Set((existing ?? []).map((a) => a.question_id));
   const next = questions.find((q) => !answered.has(q.id));

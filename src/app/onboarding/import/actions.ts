@@ -48,11 +48,29 @@ export async function importFromCode(formData: FormData) {
     redirect("/onboarding/import?error=Source%20archive%20not%20found");
   }
 
-  // Read the source's answers.
-  const { data: sourceAnswers } = await supabase
+  // Read the source's answers — prefer oracle-scoped if the source has an
+  // active oracle, otherwise fall back to user-scoped (legacy).
+  const { data: sourceProfile } = await supabase
+    .from("profiles")
+    .select("active_oracle_id")
+    .eq("id", share.source_user_id)
+    .single();
+
+  let sourceAnswersQuery = supabase
     .from("answers")
-    .select("question_id, language, variant, body")
-    .eq("user_id", share.source_user_id);
+    .select("question_id, language, variant, body");
+  if (sourceProfile?.active_oracle_id) {
+    sourceAnswersQuery = sourceAnswersQuery.eq(
+      "oracle_id",
+      sourceProfile.active_oracle_id,
+    );
+  } else {
+    sourceAnswersQuery = sourceAnswersQuery.eq(
+      "user_id",
+      share.source_user_id,
+    );
+  }
+  const { data: sourceAnswers } = await sourceAnswersQuery;
 
   if (!sourceAnswers || sourceAnswers.length === 0) {
     redirect(
@@ -65,7 +83,7 @@ export async function importFromCode(formData: FormData) {
   // use the source's name.
   const { data: existing } = await supabase
     .from("profiles")
-    .select("oracle_name")
+    .select("oracle_name, active_oracle_id")
     .eq("id", user.id)
     .single();
 
@@ -73,6 +91,10 @@ export async function importFromCode(formData: FormData) {
     existing?.oracle_name && existing.oracle_name.trim()
       ? existing.oracle_name
       : source.oracle_name;
+  const oracleId = existing?.active_oracle_id;
+  if (!oracleId) {
+    redirect("/onboarding/import?error=No%20active%20thirtyfive%20to%20write%20into");
+  }
 
   const { error: profErr } = await supabase
     .from("profiles")
@@ -92,6 +114,7 @@ export async function importFromCode(formData: FormData) {
   // Copy the answers, retargeted at the recipient.
   const rows = sourceAnswers.map((a) => ({
     user_id: user.id,
+    oracle_id: oracleId,
     question_id: a.question_id,
     language: a.language,
     variant: a.variant,
@@ -100,7 +123,7 @@ export async function importFromCode(formData: FormData) {
 
   const { error: ansErr } = await supabase
     .from("answers")
-    .upsert(rows, { onConflict: "user_id,question_id,variant" });
+    .upsert(rows, { onConflict: "oracle_id,question_id,variant" });
   if (ansErr) {
     redirect(`/onboarding/import?error=${encodeURIComponent(ansErr.message)}`);
   }

@@ -24,15 +24,19 @@ export async function generateRandomizedArchive(formData: FormData) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("preferred_language, mode")
+    .select("preferred_language, mode, active_oracle_id")
     .eq("id", user.id)
     .single();
 
   if (!profile) {
     redirect("/onboarding");
   }
+  if (!profile.active_oracle_id) {
+    redirect("/onboarding");
+  }
 
   const language = (profile.preferred_language ?? "en") as "en" | "es";
+  const oracleId = profile.active_oracle_id;
 
   // Per-question independent random pick from the gender-filtered pool.
   // Each question is sampled independently — the resulting character is a
@@ -46,6 +50,7 @@ export async function generateRandomizedArchive(formData: FormData) {
       const idx = allowed[Math.floor(Math.random() * allowed.length)];
       return {
         user_id: user.id,
+        oracle_id: oracleId,
         question_id: q.id,
         language,
         variant: 1,
@@ -60,7 +65,7 @@ export async function generateRandomizedArchive(formData: FormData) {
 
   const { error: insertError } = await supabase
     .from("answers")
-    .upsert(rows, { onConflict: "user_id,question_id,variant" });
+    .upsert(rows, { onConflict: "oracle_id,question_id,variant" });
 
   if (insertError) {
     redirect(

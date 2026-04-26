@@ -26,25 +26,30 @@ export async function saveAnswer(formData: FormData) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("preferred_language")
+    .select("preferred_language, active_oracle_id")
     .eq("id", user.id)
     .single();
 
   const language = profile?.preferred_language ?? "en";
+  const oracleId = profile?.active_oracle_id;
 
   if (!body) {
     redirect(`/onboarding/questions?error=Please%20write%20an%20answer`);
+  }
+  if (!oracleId) {
+    redirect("/onboarding");
   }
 
   const { error } = await supabase.from("answers").upsert(
     {
       user_id: user.id,
+      oracle_id: oracleId,
       question_id: questionId,
       language,
       variant: 1,
       body,
     },
-    { onConflict: "user_id,question_id,variant" },
+    { onConflict: "oracle_id,question_id,variant" },
   );
 
   if (error) {
