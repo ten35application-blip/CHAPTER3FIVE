@@ -97,7 +97,13 @@ export async function claimLegacy(formData: FormData) {
     targetId: ben.id,
   });
 
-  // Redirect to the first shared oracle, or dashboard if none.
+  // Redirect to the orientation page on the first shared oracle (or
+  // dashboard if for some reason there's nothing to claim). The
+  // welcome page sets context — what the archive is, how to chat,
+  // how to browse, that conversation is private — before dropping
+  // them into the chat itself.
   const firstOracleId = oracles?.[0]?.id;
-  redirect(firstOracleId ? `/shared/${firstOracleId}` : "/dashboard");
+  redirect(
+    firstOracleId ? `/shared/${firstOracleId}/welcome` : "/dashboard",
+  );
 }

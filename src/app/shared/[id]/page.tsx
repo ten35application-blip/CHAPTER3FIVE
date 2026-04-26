@@ -65,6 +65,13 @@ export default async function SharedOraclePage({
         </Link>
         <div className="flex items-center gap-4">
           <Link
+            href={`/shared/${id}/welcome`}
+            className="text-xs uppercase tracking-[0.2em] text-warm-300 hover:text-warm-100 transition-colors"
+            title={language === "es" ? "Bienvenida" : "Orientation"}
+          >
+            {language === "es" ? "Inicio" : "Welcome"}
+          </Link>
+          <Link
             href={`/shared/${id}/archive`}
             className="text-xs uppercase tracking-[0.2em] text-warm-300 hover:text-warm-100 transition-colors"
           >
