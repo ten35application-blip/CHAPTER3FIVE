@@ -15,6 +15,12 @@ export function Footer() {
 
         <nav className="flex flex-col gap-3 text-sm">
           <Link
+            href="/about"
+            className="text-warm-200 hover:text-warm-50 transition-colors"
+          >
+            About
+          </Link>
+          <Link
             href="/privacy"
             className="text-warm-200 hover:text-warm-50 transition-colors"
           >
