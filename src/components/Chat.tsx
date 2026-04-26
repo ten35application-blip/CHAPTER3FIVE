@@ -8,6 +8,8 @@ type Message = { role: "user" | "assistant"; content: string };
 type Props = {
   oracleName: string;
   language: "en" | "es";
+  initialHistory?: Message[];
+  avatarUrl?: string | null;
 };
 
 const COPY = {
@@ -51,9 +53,14 @@ function detectTimezone(): string {
   }
 }
 
-export function Chat({ oracleName, language }: Props) {
+export function Chat({
+  oracleName,
+  language,
+  initialHistory = [],
+  avatarUrl = null,
+}: Props) {
   const t = COPY[language];
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>(initialHistory);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -147,6 +154,14 @@ export function Chat({ oracleName, language }: Props) {
         <Orb size={260} intensity={sending ? "thinking" : "rest"} />
       </div>
 
+      {avatarUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={avatarUrl}
+          alt=""
+          className="w-16 h-16 rounded-full object-cover mb-3 border border-warm-400/30"
+        />
+      ) : null}
       <h1 className="font-serif text-3xl text-warm-50 mb-1">{oracleName}</h1>
       <p className="text-xs uppercase tracking-[0.2em] text-warm-300 mb-8 italic min-h-[1em]">
         {sending ? `${activityLabel}…` : ""}

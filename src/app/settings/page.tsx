@@ -10,6 +10,8 @@ import {
   revokeShareCode,
   toggleOutreach,
 } from "./actions";
+import { AvatarUpload } from "@/components/AvatarUpload";
+import { questions } from "@/content/questions";
 
 export const metadata = {
   title: "Settings — chapter3five",
@@ -40,10 +42,21 @@ export default async function SettingsPage({
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "oracle_name, mode, preferred_language, texting_style, created_at, outreach_enabled, randomize_credits, randomize_count",
+      "oracle_name, mode, preferred_language, texting_style, created_at, outreach_enabled, randomize_credits, randomize_count, avatar_url, active_oracle_id",
     )
     .eq("id", user.id)
     .single();
+
+  const { count: answeredCount } = profile?.active_oracle_id
+    ? await supabase
+        .from("answers")
+        .select("id", { count: "exact", head: true })
+        .eq("oracle_id", profile.active_oracle_id)
+        .eq("variant", 1)
+    : { count: 0 };
+
+  const totalQuestions = questions.length;
+  const progressPct = Math.round(((answeredCount ?? 0) / totalQuestions) * 100);
 
   const { data: shareRows } = await supabase
     .from("shares")
@@ -96,6 +109,50 @@ export default async function SettingsPage({
             <div className="rounded-lg bg-red-900/20 border border-red-300/30 px-4 py-3 mb-8 text-sm text-red-200">
               {error}
             </div>
+          )}
+
+          {profile?.active_oracle_id && (
+            <Section title={t.photoTitle}>
+              <p className="text-sm text-warm-300 mb-4 leading-relaxed">
+                {t.photoHint}
+              </p>
+              <AvatarUpload
+                initialUrl={profile.avatar_url ?? null}
+                oracleId={profile.active_oracle_id}
+                userId={user.id}
+                language={language}
+              />
+            </Section>
+          )}
+
+          {profile?.mode !== "randomize" && (
+            <Section title={t.progressTitle}>
+              <div className="flex items-baseline justify-between mb-2">
+                <p className="text-sm text-warm-200">
+                  {t.progressLabel(answeredCount ?? 0, totalQuestions)}
+                </p>
+                <p className="text-warm-300 text-xs">{progressPct}%</p>
+              </div>
+              <div className="h-1 bg-warm-700/60 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-warm-300/80 transition-all"
+                  style={{ width: `${progressPct}%` }}
+                />
+              </div>
+              <Link
+                href="/onboarding/questions"
+                className="inline-block mt-4 text-sm text-warm-200 underline underline-offset-2 hover:text-warm-50"
+              >
+                {t.continueAnswering}
+              </Link>{" "}
+              <span className="text-warm-400 text-sm">·</span>{" "}
+              <Link
+                href="/answers"
+                className="inline-block mt-4 text-sm text-warm-200 underline underline-offset-2 hover:text-warm-50"
+              >
+                {t.editAnswers}
+              </Link>
+            </Section>
           )}
 
           <Section title={t.accountTitle}>
@@ -456,6 +513,14 @@ const COPY = {
     stylePlaceholder:
       "lowercase, no periods, lol when funny, never emojis, short replies",
     save: "Save",
+    photoTitle: "A photo",
+    photoHint:
+      "Upload one photo of the person you&rsquo;re preserving — shown beside their name. Helps it feel real. JPG/PNG/WEBP, under 5MB.",
+    progressTitle: "Progress",
+    progressLabel: (a: number, t: number) =>
+      `${a} of ${t} answered`,
+    continueAnswering: "Continue answering",
+    editAnswers: "View / edit answers",
     outreachTitle: "Quiet-week nudges",
     outreachHint:
       "When you haven't messaged your thirtyfive in about a week, we'll send a gentle email reminding you they're there. Off by default if you'd rather we stay out of your inbox.",
@@ -516,6 +581,14 @@ const COPY = {
     stylePlaceholder:
       "minúsculas, sin puntos, jaja cuando es chistoso, sin emojis, respuestas cortas",
     save: "Guardar",
+    photoTitle: "Una foto",
+    photoHint:
+      "Sube una foto de la persona que estás preservando — se muestra junto a su nombre. Ayuda a que se sienta real. JPG/PNG/WEBP, menos de 5MB.",
+    progressTitle: "Progreso",
+    progressLabel: (a: number, t: number) =>
+      `${a} de ${t} respondidas`,
+    continueAnswering: "Continuar respondiendo",
+    editAnswers: "Ver / editar respuestas",
     outreachTitle: "Recordatorios después de una semana",
     outreachHint:
       "Cuando no le hayas escrito a tu thirtyfive por una semana más o menos, te mandamos un correo gentil para recordarte que está ahí. Apágalo si prefieres que no lleguemos a tu bandeja de entrada.",

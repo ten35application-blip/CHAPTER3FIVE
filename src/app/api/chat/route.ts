@@ -254,6 +254,24 @@ ${archiveBlock}`;
       .join("")
       .trim();
 
+    // Persist both messages so conversation continues across sessions.
+    if (profile.active_oracle_id) {
+      await supabase.from("messages").insert([
+        {
+          user_id: user.id,
+          oracle_id: profile.active_oracle_id,
+          role: "user",
+          content: userMessage,
+        },
+        {
+          user_id: user.id,
+          oracle_id: profile.active_oracle_id,
+          role: "assistant",
+          content: reply,
+        },
+      ]);
+    }
+
     return NextResponse.json({ reply });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";

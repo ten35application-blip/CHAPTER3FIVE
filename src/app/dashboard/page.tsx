@@ -20,7 +20,9 @@ export default async function DashboardPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("oracle_name, preferred_language, onboarding_completed, active_oracle_id")
+    .select(
+      "oracle_name, preferred_language, onboarding_completed, active_oracle_id, avatar_url",
+    )
     .eq("id", user.id)
     .single();
 
@@ -37,6 +39,22 @@ export default async function DashboardPage() {
     .eq("user_id", user.id)
     .order("created_at", { ascending: true });
   const oracles = oracleRows ?? [];
+
+  // Load last ~50 messages of the persistent conversation for the active oracle.
+  const { data: messageRows } = profile.active_oracle_id
+    ? await supabase
+        .from("messages")
+        .select("role, content, created_at")
+        .eq("oracle_id", profile.active_oracle_id)
+        .order("created_at", { ascending: false })
+        .limit(50)
+    : { data: [] };
+  const initialHistory = (messageRows ?? [])
+    .reverse()
+    .map((m) => ({
+      role: m.role as "user" | "assistant",
+      content: m.content,
+    }));
 
   return (
     <main className="flex-1 flex flex-col px-6 py-6 relative overflow-hidden">
@@ -56,7 +74,12 @@ export default async function DashboardPage() {
       </header>
 
       <div className="flex-1 flex justify-center">
-        <Chat oracleName={oracleName} language={language} />
+        <Chat
+          oracleName={oracleName}
+          language={language}
+          initialHistory={initialHistory}
+          avatarUrl={profile.avatar_url ?? null}
+        />
       </div>
     </main>
   );
