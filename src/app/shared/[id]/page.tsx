@@ -70,9 +70,18 @@ export default async function SharedOraclePage({
           >
             {language === "es" ? "Archivo" : "Archive"}
           </Link>
-          <span className="text-xs uppercase tracking-[0.2em] text-warm-300">
-            {language === "es" ? "Compartido" : "Shared"}
-          </span>
+          <a
+            href={`/api/conversation/export?oracle_id=${id}`}
+            download
+            className="text-xs uppercase tracking-[0.2em] text-warm-300 hover:text-warm-100 transition-colors"
+            title={
+              language === "es"
+                ? "Descargar conversación"
+                : "Download conversation"
+            }
+          >
+            {language === "es" ? "Descargar" : "Download"}
+          </a>
         </div>
       </header>
 

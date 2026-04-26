@@ -727,13 +727,24 @@ export default async function SettingsPage({
             <p className="text-sm text-warm-300 mb-4 leading-relaxed">
               {t.exportHint}
             </p>
-            <a
-              href="/api/user/export"
-              download
-              className="inline-flex h-11 items-center justify-center rounded-full border border-warm-300/40 px-5 text-sm text-warm-100 hover:bg-warm-700/40 transition-colors"
-            >
-              {t.exportCta}
-            </a>
+            <div className="flex flex-wrap gap-2">
+              <a
+                href="/api/user/export"
+                download
+                className="inline-flex h-11 items-center justify-center rounded-full border border-warm-300/40 px-5 text-sm text-warm-100 hover:bg-warm-700/40 transition-colors"
+              >
+                {t.exportCta}
+              </a>
+              {profile?.active_oracle_id && (
+                <a
+                  href={`/api/conversation/export?oracle_id=${profile.active_oracle_id}`}
+                  download
+                  className="inline-flex h-11 items-center justify-center rounded-full border border-warm-300/40 px-5 text-sm text-warm-100 hover:bg-warm-700/40 transition-colors"
+                >
+                  {t.exportConversation}
+                </a>
+              )}
+            </div>
           </Section>
 
           <Section title={t.helpTitle}>
@@ -1020,8 +1031,9 @@ const COPY = {
     purposeBeneficiarySlot: "Extra beneficiary slot",
     exportTitle: "Download your data",
     exportHint:
-      "Get a complete JSON copy of everything chapter3five stores about you — your profile, archives, answers, conversations, payments, beneficiaries, memories. Yours to keep.",
-    exportCta: "Download my data",
+      "Get a complete JSON copy of everything chapter3five stores about you — your profile, archives, answers, conversations, payments, beneficiaries, memories. Or just the conversation, formatted for reading.",
+    exportCta: "Download all (JSON)",
+    exportConversation: "Download conversation",
     statusPaid: "paid",
     statusPending: "pending",
     statusFailed: "failed",
@@ -1166,8 +1178,9 @@ const COPY = {
     purposeBeneficiarySlot: "Espacio de beneficiario adicional",
     exportTitle: "Descargar tus datos",
     exportHint:
-      "Obtén una copia completa en JSON de todo lo que chapter3five almacena sobre ti — tu perfil, archivos, respuestas, conversaciones, pagos, beneficiarios, memorias. Tuyo para guardar.",
-    exportCta: "Descargar mis datos",
+      "Obtén una copia completa en JSON de todo lo que chapter3five almacena sobre ti — tu perfil, archivos, respuestas, conversaciones, pagos, beneficiarios, memorias. O solo la conversación, formateada para leer.",
+    exportCta: "Descargar todo (JSON)",
+    exportConversation: "Descargar conversación",
     statusPaid: "pagado",
     statusPending: "pendiente",
     statusFailed: "fallido",
