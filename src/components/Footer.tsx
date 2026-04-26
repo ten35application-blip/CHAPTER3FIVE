@@ -21,6 +21,12 @@ export function Footer() {
             About
           </Link>
           <Link
+            href="/how"
+            className="text-warm-200 hover:text-warm-50 transition-colors"
+          >
+            How it works
+          </Link>
+          <Link
             href="/privacy"
             className="text-warm-200 hover:text-warm-50 transition-colors"
           >

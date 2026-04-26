@@ -19,6 +19,7 @@ const SOFT_DELETED_ALLOWED = [
   "/cookies",
   "/about",
   "/support",
+  "/how",
   "/sample",
   "/api/sample-chat",
 ];
@@ -27,6 +28,32 @@ function isSoftDeletedAllowed(pathname: string): boolean {
   if (pathname === "/" || pathname === "/landing") return true;
   return SOFT_DELETED_ALLOWED.some(
     (p) => pathname === p || pathname.startsWith(p + "/"),
+  );
+}
+
+/**
+ * Build a Supabase server client that mutates the given response so any
+ * refresh-token rotation Supabase decides to do here actually persists
+ * to the user's browser. The earlier version used `setAll() {}` (no-op)
+ * which silently dropped rotated cookies — the user would eventually
+ * end up signed out for no clear reason.
+ */
+function clientFor(request: NextRequest, response: NextResponse) {
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options),
+          );
+        },
+      },
+    },
   );
 }
 
@@ -41,18 +68,7 @@ export async function proxy(request: NextRequest) {
   // gating at the proxy means a non-admin never even gets the page
   // shell rendered. Returns 404 so the path doesn't leak its existence.
   if (ADMIN_PATH_RE.test(pathname)) {
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return request.cookies.getAll();
-          },
-          setAll() {},
-        },
-      },
-    );
+    const supabase = clientFor(request, response);
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -67,18 +83,7 @@ export async function proxy(request: NextRequest) {
   // can still read public pages, sign out, hit the export endpoint, and
   // pay to restore.
   if (!isSoftDeletedAllowed(pathname)) {
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return request.cookies.getAll();
-          },
-          setAll() {},
-        },
-      },
-    );
+    const supabase = clientFor(request, response);
     const {
       data: { user },
     } = await supabase.auth.getUser();

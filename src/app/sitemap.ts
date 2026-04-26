@@ -31,6 +31,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.6,
     },
     {
+      url: `${base}/how`,
+      lastModified,
+      changeFrequency: "monthly",
+      priority: 0.8,
+    },
+    {
       url: `${base}/auth/signup`,
       lastModified,
       changeFrequency: "yearly",

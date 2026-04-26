@@ -410,6 +410,115 @@ export async function deleteAccount(formData: FormData) {
   redirect("/account-deleted");
 }
 
+/**
+ * Hard delete — bypasses the 30-day grace period and irreversibly removes
+ * everything immediately. For users who want true GDPR-style "delete now."
+ * Same name+date confirmation as the soft-delete path.
+ */
+export async function deleteAccountPermanently(formData: FormData) {
+  const typedName = String(formData.get("confirm_name") ?? "");
+  const typedDate = String(formData.get("confirm_date") ?? "").trim();
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/auth/signin");
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("oracle_name, created_at")
+    .eq("id", user.id)
+    .single();
+
+  if (profile?.oracle_name) {
+    if (!namesMatch(typedName, profile.oracle_name)) {
+      redirect(
+        "/settings?error=Name%20does%20not%20match%20-%20delete%20cancelled",
+      );
+    }
+  } else {
+    if (typedName.trim().toLowerCase() !== (user.email ?? "").toLowerCase()) {
+      redirect(
+        "/settings?error=Email%20does%20not%20match%20-%20delete%20cancelled",
+      );
+    }
+  }
+
+  if (typedDate !== isoDate(profile?.created_at)) {
+    redirect(
+      "/settings?error=Created%20date%20does%20not%20match%20-%20delete%20cancelled",
+    );
+  }
+
+  // Audit BEFORE we lose the user record.
+  await recordAudit({
+    actorUserId: user.id,
+    actorEmail: user.email ?? null,
+    action: "account_purged_immediate",
+    targetUserId: user.id,
+  });
+
+  const admin = createAdminClient();
+
+  // Wipe app-side data, in dependency order. RLS-respecting deletes via
+  // service-role since deleted profile RLS may already block us.
+  await admin.from("answers").delete().eq("user_id", user.id);
+  await admin.from("agreements").delete().eq("user_id", user.id);
+  await admin.from("oracles").delete().eq("user_id", user.id);
+  await admin.from("shares").delete().eq("source_user_id", user.id);
+  await admin.from("payments").delete().eq("user_id", user.id);
+  await admin.from("crisis_flags").delete().eq("user_id", user.id);
+  await admin.from("message_reports").delete().eq("user_id", user.id);
+  await admin.from("device_tokens").delete().eq("user_id", user.id);
+  await admin.from("chat_usage").delete().eq("user_id", user.id);
+  await admin.from("profiles").delete().eq("id", user.id);
+
+  // Storage cleanup: avatars (flat <user_id>/<file>) + chat-photos
+  // (nested <user_id>/<oracle_id>/<file>). Walk both shapes.
+  try {
+    const { data: avatarFiles } = await admin.storage
+      .from("avatars")
+      .list(user.id, { limit: 1000 });
+    if (avatarFiles && avatarFiles.length > 0) {
+      await admin.storage
+        .from("avatars")
+        .remove(avatarFiles.map((f) => `${user.id}/${f.name}`));
+    }
+  } catch (err) {
+    console.error("avatars cleanup failed:", err);
+  }
+
+  try {
+    const { data: oracleFolders } = await admin.storage
+      .from("chat-photos")
+      .list(user.id, { limit: 1000 });
+    for (const folder of oracleFolders ?? []) {
+      const { data: photos } = await admin.storage
+        .from("chat-photos")
+        .list(`${user.id}/${folder.name}`, { limit: 1000 });
+      if (photos && photos.length > 0) {
+        await admin.storage
+          .from("chat-photos")
+          .remove(
+            photos.map((f) => `${user.id}/${folder.name}/${f.name}`),
+          );
+      }
+    }
+  } catch (err) {
+    console.error("chat-photos cleanup failed:", err);
+  }
+
+  // Auth row last. Email becomes free, account is truly gone.
+  const { error: deleteUserError } = await admin.auth.admin.deleteUser(user.id);
+  if (deleteUserError) {
+    console.error("auth.users delete failed:", deleteUserError);
+  }
+
+  await supabase.auth.signOut();
+  redirect("/account-deleted");
+}
+
 export async function addBeneficiary(formData: FormData) {
   const email =
     String(formData.get("email") ?? "").trim().toLowerCase();

@@ -57,17 +57,37 @@ export async function GET(request: NextRequest) {
       await admin.from("chat_usage").delete().eq("user_id", p.id);
       await admin.from("profiles").delete().eq("id", p.id);
 
-      // Storage cleanup (avatars).
+      // Storage cleanup: avatars (flat) + chat-photos (nested).
       try {
-        const { data: files } = await admin.storage
+        const { data: avatarFiles } = await admin.storage
           .from("avatars")
-          .list(p.id);
-        if (files && files.length > 0) {
-          const paths = files.map((f) => `${p.id}/${f.name}`);
-          await admin.storage.from("avatars").remove(paths);
+          .list(p.id, { limit: 1000 });
+        if (avatarFiles && avatarFiles.length > 0) {
+          await admin.storage
+            .from("avatars")
+            .remove(avatarFiles.map((f) => `${p.id}/${f.name}`));
         }
       } catch (err) {
-        console.error(`purge storage cleanup failed for ${p.id}`, err);
+        console.error(`purge avatars cleanup failed for ${p.id}`, err);
+      }
+      try {
+        const { data: oracleFolders } = await admin.storage
+          .from("chat-photos")
+          .list(p.id, { limit: 1000 });
+        for (const folder of oracleFolders ?? []) {
+          const { data: photos } = await admin.storage
+            .from("chat-photos")
+            .list(`${p.id}/${folder.name}`, { limit: 1000 });
+          if (photos && photos.length > 0) {
+            await admin.storage
+              .from("chat-photos")
+              .remove(
+                photos.map((f) => `${p.id}/${folder.name}/${f.name}`),
+              );
+          }
+        }
+      } catch (err) {
+        console.error(`purge chat-photos cleanup failed for ${p.id}`, err);
       }
 
       // Then the auth.users row itself — irreversible.
@@ -102,13 +122,11 @@ export async function GET(request: NextRequest) {
 
   for (const o of oraclesToDelete ?? []) {
     try {
-      // Storage: scrub avatar files for this oracle. We don't track
-      // exact filenames here, so list everything under the user folder
-      // and remove anything that starts with the oracle id.
+      // Avatar files for this oracle (in <user>/<oracleId>.<ext> shape).
       try {
         const { data: files } = await admin.storage
           .from("avatars")
-          .list(o.user_id);
+          .list(o.user_id, { limit: 1000 });
         if (files && files.length > 0) {
           const paths = files
             .filter((f) => f.name.startsWith(o.id))
@@ -118,7 +136,23 @@ export async function GET(request: NextRequest) {
           }
         }
       } catch (err) {
-        console.error(`purge oracle storage cleanup failed for ${o.id}`, err);
+        console.error(`purge oracle avatars cleanup failed for ${o.id}`, err);
+      }
+
+      // Chat photos sit at <user>/<oracleId>/<file> — list + remove.
+      try {
+        const { data: photos } = await admin.storage
+          .from("chat-photos")
+          .list(`${o.user_id}/${o.id}`, { limit: 1000 });
+        if (photos && photos.length > 0) {
+          await admin.storage
+            .from("chat-photos")
+            .remove(
+              photos.map((f) => `${o.user_id}/${o.id}/${f.name}`),
+            );
+        }
+      } catch (err) {
+        console.error(`purge oracle chat-photos cleanup failed for ${o.id}`, err);
       }
 
       // Cascade FKs handle messages/answers/grants/memories/beneficiaries.

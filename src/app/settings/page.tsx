@@ -17,6 +17,7 @@ import {
   buyBeneficiarySlot,
   deletePersonaMemory,
   restoreOracle,
+  deleteAccountPermanently,
 } from "./actions";
 import { AvatarUpload } from "@/components/AvatarUpload";
 import { questions } from "@/content/questions";
@@ -735,33 +736,23 @@ export default async function SettingsPage({
             </a>
           </Section>
 
-          <Section title={t.legalTitle}>
-            <ul className="space-y-2 text-sm">
-              <li>
-                <Link
-                  href="/terms"
-                  className="text-warm-200 underline underline-offset-2 hover:text-warm-50"
-                >
-                  {t.terms}
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/privacy"
-                  className="text-warm-200 underline underline-offset-2 hover:text-warm-50"
-                >
-                  {t.privacy}
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/cookies"
-                  className="text-warm-200 underline underline-offset-2 hover:text-warm-50"
-                >
-                  {t.cookies}
-                </Link>
-              </li>
-            </ul>
+          <Section title={t.helpTitle}>
+            <p className="text-sm text-warm-300 mb-5 leading-relaxed">
+              {t.helpHint}
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <HelpLink href="/how" label={t.helpHowItWorks} />
+              <HelpLink href="/support" label={t.helpFaq} />
+              <HelpLink href="/about" label={t.helpAbout} />
+              <HelpLink
+                href="mailto:care@chapter3five.app"
+                label={t.helpContact}
+                external
+              />
+              <HelpLink href="/terms" label={t.helpTerms} />
+              <HelpLink href="/privacy" label={t.helpPrivacy} />
+              <HelpLink href="/cookies" label={t.helpCookies} />
+            </div>
           </Section>
 
           {oracleName && (
@@ -864,6 +855,43 @@ export default async function SettingsPage({
                 {t.deleteAccountCta}
               </button>
             </form>
+
+            <details className="mt-8 group">
+              <summary className="text-xs text-warm-400 cursor-pointer hover:text-warm-200 transition-colors">
+                {t.permanentDeleteToggle}
+              </summary>
+              <div className="mt-4 rounded-2xl border border-red-300/40 bg-red-900/10 px-5 py-4">
+                <p className="text-sm text-red-200 mb-3 leading-relaxed">
+                  {t.permanentDeleteHint}
+                </p>
+                <form action={deleteAccountPermanently} className="space-y-3">
+                  <input
+                    type="text"
+                    name="confirm_name"
+                    required
+                    autoComplete="off"
+                    placeholder={
+                      oracleName ? t.oraclePlaceholder : t.emailPlaceholder
+                    }
+                    className="w-full h-11 rounded-full bg-warm-700/30 border border-red-300/40 px-4 text-warm-50 placeholder:text-warm-400 focus:outline-none focus:border-red-200 transition-colors"
+                  />
+                  <input
+                    type="text"
+                    name="confirm_date"
+                    required
+                    autoComplete="off"
+                    placeholder="YYYY-MM-DD"
+                    className="w-full h-11 rounded-full bg-warm-700/30 border border-red-300/40 px-4 text-warm-50 placeholder:text-warm-400 focus:outline-none focus:border-red-200 transition-colors font-mono text-sm"
+                  />
+                  <button
+                    type="submit"
+                    className="h-11 px-5 rounded-full border border-red-300/60 bg-red-900/40 text-red-100 hover:bg-red-900/60 transition-colors text-sm"
+                  >
+                    {t.permanentDeleteCta}
+                  </button>
+                </form>
+              </div>
+            </details>
           </Section>
         </div>
       </main>
@@ -890,6 +918,33 @@ function Section({
       <h2 className="font-serif text-2xl text-warm-50 mb-4">{title}</h2>
       {children}
     </section>
+  );
+}
+
+function HelpLink({
+  href,
+  label,
+  external,
+}: {
+  href: string;
+  label: string;
+  external?: boolean;
+}) {
+  const className =
+    "flex items-center justify-between px-4 py-3 rounded-xl border border-warm-700/60 bg-warm-700/15 text-sm text-warm-100 hover:bg-warm-700/40 transition-colors";
+  if (external) {
+    return (
+      <a href={href} className={className}>
+        <span>{label}</span>
+        <span className="text-warm-400">→</span>
+      </a>
+    );
+  }
+  return (
+    <Link href={href} className={className}>
+      <span>{label}</span>
+      <span className="text-warm-400">→</span>
+    </Link>
   );
 }
 
@@ -1039,7 +1094,21 @@ const COPY = {
     exportFirstCta: "Download my data first",
     deleteGracePeriod:
       "You'll have 30 days to bring it back if you change your mind. Restoration is $5 — covers the cost of keeping your data warm in the meantime. After 30 days, it's gone for good.",
-    deleteAccountCta: "Delete account permanently",
+    deleteAccountCta: "Delete account",
+    permanentDeleteToggle: "Or — skip the 30-day grace, delete immediately",
+    permanentDeleteHint:
+      "This irreversibly removes everything right now. No grace period, no recovery, no $5 to bring it back. The auth row, your archive, every photo, every conversation — gone the moment you click. Use this only if you genuinely want immediate erasure (e.g. for a privacy-sensitive reason).",
+    permanentDeleteCta: "Delete forever now",
+    helpTitle: "Help & legal",
+    helpHint:
+      "Everything you might want to revisit, in one place.",
+    helpHowItWorks: "How chapter3five works",
+    helpFaq: "FAQ & support",
+    helpTerms: "Terms of Service",
+    helpPrivacy: "Privacy Policy",
+    helpCookies: "Cookie Policy",
+    helpAbout: "About",
+    helpContact: "Email us",
     confirmInstruction: "To confirm, type",
     and: "and",
     oraclePlaceholder: "Type the name exactly",
@@ -1171,7 +1240,21 @@ const COPY = {
     exportFirstCta: "Descargar mis datos primero",
     deleteGracePeriod:
       "Tendrás 30 días para recuperarlo si cambias de opinión. Restaurar cuesta $5 — cubre mantener tus datos. Después de 30 días, se elimina permanentemente.",
-    deleteAccountCta: "Eliminar cuenta permanentemente",
+    deleteAccountCta: "Eliminar cuenta",
+    permanentDeleteToggle: "O — omitir el período de 30 días, eliminar inmediatamente",
+    permanentDeleteHint:
+      "Esto elimina todo de forma irreversible ahora mismo. Sin período de gracia, sin recuperación, sin $5 para traerlo de vuelta. La cuenta, tu archivo, cada foto, cada conversación — desaparece en cuanto presiones. Úsalo solo si genuinamente quieres borrado inmediato.",
+    permanentDeleteCta: "Eliminar para siempre ahora",
+    helpTitle: "Ayuda y legal",
+    helpHint:
+      "Todo lo que quizás quieras revisar, en un solo lugar.",
+    helpHowItWorks: "Cómo funciona chapter3five",
+    helpFaq: "FAQ y soporte",
+    helpTerms: "Términos del Servicio",
+    helpPrivacy: "Política de Privacidad",
+    helpCookies: "Política de Cookies",
+    helpAbout: "Acerca de",
+    helpContact: "Escríbenos",
     confirmInstruction: "Para confirmar, escribe",
     and: "y",
     oraclePlaceholder: "Escribe el nombre exacto",

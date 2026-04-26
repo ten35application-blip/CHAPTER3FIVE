@@ -52,6 +52,21 @@ export default function Home() {
               Try a sample first
             </Link>
           </div>
+          <p className="mt-6 text-xs text-warm-400">
+            <Link
+              href="/how"
+              className="hover:text-warm-200 underline underline-offset-2"
+            >
+              How it works
+            </Link>{" "}
+            ·{" "}
+            <Link
+              href="/support"
+              className="hover:text-warm-200 underline underline-offset-2"
+            >
+              FAQ
+            </Link>
+          </p>
         </section>
 
         {/* HOW IT WORKS */}
