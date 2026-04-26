@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import {
   updateLanguage,
   updateTextingStyle,
+  updateLocation,
   deleteOracle,
   deleteAccount,
   createShareCode,
@@ -114,6 +115,30 @@ export default async function SettingsPage({
     if (!o.scheduled_purge_at) return true;
     return new Date(o.scheduled_purge_at).getTime() > Date.now();
   });
+
+  const { data: activeOracle } = activeOracleId
+    ? await supabase
+        .from("oracles")
+        .select("location_anchor")
+        .eq("id", activeOracleId)
+        .maybeSingle()
+    : { data: null };
+  const locationAnchor = (activeOracle?.location_anchor ?? null) as
+    | { city?: string; neighborhood?: string; state?: string; country?: string }
+    | null;
+  const locationDisplay = locationAnchor
+    ? [
+        locationAnchor.neighborhood,
+        locationAnchor.city,
+        locationAnchor.state,
+        locationAnchor.country &&
+        locationAnchor.country.toLowerCase() !== "us"
+          ? locationAnchor.country
+          : null,
+      ]
+        .filter(Boolean)
+        .join(", ")
+    : "";
 
   const { data: beneficiaryRows } = await supabase
     .from("beneficiaries")
@@ -330,6 +355,28 @@ export default async function SettingsPage({
               </button>
             </form>
           </Section>
+
+          {activeOracleId && (
+            <Section title={t.locationTitle}>
+              <p className="text-sm text-warm-300 mb-3">{t.locationHint}</p>
+              <form action={updateLocation} className="space-y-3">
+                <input
+                  type="text"
+                  name="location"
+                  defaultValue={locationDisplay}
+                  placeholder={t.locationPlaceholder}
+                  maxLength={120}
+                  className="w-full h-11 rounded-full bg-warm-700/30 border border-warm-400/30 px-5 text-warm-50 placeholder:text-warm-400 focus:outline-none focus:border-warm-200 transition-colors text-sm"
+                />
+                <button
+                  type="submit"
+                  className="h-11 px-5 rounded-full bg-warm-50 text-ink font-medium hover:bg-warm-100 transition-colors text-sm"
+                >
+                  {t.save}
+                </button>
+              </form>
+            </Section>
+          )}
 
           {oracleName && (
             <Section title={t.shareTitle}>
@@ -1005,6 +1052,10 @@ const COPY = {
       "Describe how you actually text — punctuation, emojis, length, tone. Your thirtyfive will match it.",
     stylePlaceholder:
       "lowercase, no periods, lol when funny, never emojis, short replies",
+    locationTitle: "Where you live (optional)",
+    locationHint:
+      "Anchors local references in chat — neighborhood, food, walks, the train. We try to pull this from your answers automatically; correct it here if we got it wrong.",
+    locationPlaceholder: "Throgs Neck, Bronx, NY",
     save: "Save",
     trashTitle: "Removed thirtyfives",
     trashHint:
@@ -1153,6 +1204,10 @@ const COPY = {
       "Describe cómo escribes realmente — puntuación, emojis, largo, tono. Tu thirtyfive lo igualará.",
     stylePlaceholder:
       "minúsculas, sin puntos, jaja cuando es chistoso, sin emojis, respuestas cortas",
+    locationTitle: "Dónde vives (opcional)",
+    locationHint:
+      "Ancla referencias locales en el chat — colonia, comida, caminatas, el metro. Intentamos sacarlo de tus respuestas automáticamente; corrígelo aquí si nos equivocamos.",
+    locationPlaceholder: "Roma Norte, CDMX, México",
     save: "Guardar",
     trashTitle: "Thirtyfives eliminados",
     trashHint:

@@ -71,6 +71,46 @@ export async function updateTextingStyle(formData: FormData) {
   redirect("/settings?saved=style");
 }
 
+export async function updateLocation(formData: FormData) {
+  const raw = String(formData.get("location") ?? "").trim();
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/auth/signin");
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("active_oracle_id")
+    .eq("id", user.id)
+    .single();
+  if (!profile?.active_oracle_id) {
+    redirect("/settings?error=No%20active%20identity");
+  }
+
+  // Owner-supplied locations are stored as a single freeform string in
+  // the `city` slot. The chat-side prompt block joins parts with commas
+  // — a comma-separated string also flows through naturally without a
+  // structured parse.
+  const anchor = raw ? { city: raw } : {};
+
+  const { error } = await supabase
+    .from("oracles")
+    .update({
+      location_anchor: anchor,
+      location_extracted_at: new Date().toISOString(),
+    })
+    .eq("id", profile.active_oracle_id);
+
+  if (error) {
+    redirect(`/settings?error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePath("/settings");
+  redirect("/settings?saved=location");
+}
+
 function isoDate(input: string | null | undefined): string {
   if (!input) return "";
   return new Date(input).toISOString().slice(0, 10);
