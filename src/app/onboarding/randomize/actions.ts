@@ -24,7 +24,7 @@ export async function generateRandomizedArchive(formData: FormData) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("preferred_language, mode, active_oracle_id")
+    .select("preferred_language, mode, active_oracle_id, randomize_credits, randomize_count")
     .eq("id", user.id)
     .single();
 
@@ -35,12 +35,15 @@ export async function generateRandomizedArchive(formData: FormData) {
     redirect("/onboarding");
   }
 
+  // Paywall: must have at least one credit. Send to checkout if not.
+  if ((profile.randomize_credits ?? 0) <= 0) {
+    redirect("/randomize/pay");
+  }
+
   const language = (profile.preferred_language ?? "en") as "en" | "es";
   const oracleId = profile.active_oracle_id;
 
   // Per-question independent random pick from the gender-filtered pool.
-  // Each question is sampled independently — the resulting character is a
-  // one-of-a-kind combination across the entire archive.
   const rows = questions
     .filter((q) => q.randomizeOptions && q.randomizeOptions[language]?.length)
     .map((q) => {
@@ -77,11 +80,17 @@ export async function generateRandomizedArchive(formData: FormData) {
   const personalityType = pickPersonality();
   const emotionalFlavor = pickFlavor();
 
+  // Decrement credits + increment count atomically-ish.
+  const newCredits = Math.max(0, (profile.randomize_credits ?? 0) - 1);
+  const newCount = (profile.randomize_count ?? 0) + 1;
+
   await supabase
     .from("profiles")
     .update({
       personality_type: personalityType,
       emotional_flavor: emotionalFlavor,
+      randomize_credits: newCredits,
+      randomize_count: newCount,
     })
     .eq("id", user.id);
 
