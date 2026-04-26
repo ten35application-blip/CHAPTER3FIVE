@@ -639,7 +639,7 @@ export default async function SettingsPage({
             </Section>
           )}
 
-          <Section title={t.deleteAccountTitle} danger>
+          <Section title={t.deleteAccountTitle} danger id="delete">
             <p className="text-sm text-warm-300 mb-2">
               {t.deleteAccountHint}
             </p>
@@ -691,13 +691,16 @@ function Section({
   title,
   children,
   danger,
+  id,
 }: {
   title: string;
   children: React.ReactNode;
   danger?: boolean;
+  id?: string;
 }) {
   return (
     <section
+      id={id}
       className={`mb-10 pb-10 ${danger ? "border-t border-red-300/20 pt-10" : "border-b border-warm-700/40"}`}
     >
       <h2 className="font-serif text-2xl text-warm-50 mb-4">{title}</h2>
