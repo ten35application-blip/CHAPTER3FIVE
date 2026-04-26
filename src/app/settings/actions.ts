@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { generateShareCode } from "@/lib/share";
 
 export async function updateLanguage(formData: FormData) {
@@ -233,12 +234,27 @@ export async function deleteAccount(formData: FormData) {
     );
   }
 
-  // Cascade via FK: deleting profile removes answers, agreements via the
-  // schema's on-delete-cascade chains. The auth.users row is left for
-  // operational cleanup; RLS prevents any further access without a profile.
+  // Wipe app-side data first (RLS-respecting deletes via the user client).
   await supabase.from("answers").delete().eq("user_id", user.id);
   await supabase.from("agreements").delete().eq("user_id", user.id);
+  await supabase.from("oracles").delete().eq("user_id", user.id);
+  await supabase.from("shares").delete().eq("source_user_id", user.id);
+  await supabase.from("payments").delete().eq("user_id", user.id);
+  await supabase.from("crisis_flags").delete().eq("user_id", user.id);
+  await supabase.from("message_reports").delete().eq("user_id", user.id);
   await supabase.from("profiles").delete().eq("id", user.id);
+
+  // Then delete the auth.users row itself via the service-role admin client.
+  // Without this, the email stays "taken" forever and the account isn't
+  // actually gone.
+  const admin = createAdminClient();
+  const { error: deleteUserError } = await admin.auth.admin.deleteUser(user.id);
+  if (deleteUserError) {
+    // Don't surface the cascade error to the user — their data is gone, the
+    // residual auth row will be cleaned up by ops. Still log it for review.
+    console.error("auth.users delete failed:", deleteUserError);
+  }
+
   await supabase.auth.signOut();
-  redirect("/?deleted=true");
+  redirect("/account-deleted");
 }
