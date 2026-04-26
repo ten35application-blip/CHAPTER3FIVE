@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
     const { data: targetOracle } = await supabase
       .from("oracles")
       .select(
-        "id, name, user_id, mode, preferred_language, texting_style, personality_type, emotional_flavor",
+        "id, name, user_id, mode, preferred_language, texting_style, personality_type, emotional_flavor, bio",
       )
       .eq("id", payload.oracle_id)
       .single();
@@ -130,11 +130,26 @@ export async function POST(request: NextRequest) {
         texting_style: targetOracle.texting_style,
         personality_type: targetOracle.personality_type,
         emotional_flavor: targetOracle.emotional_flavor,
+        bio: targetOracle.bio,
       });
     }
   }
   // For an own-oracle conversation we already know the owner is the caller.
   if (!resolvedOracleOwnerId) resolvedOracleOwnerId = user.id;
+
+  // Fetch the active oracle's bio for the system prompt. Already
+  // populated in the override path above; this covers the regular
+  // own-oracle case.
+  let oracleBio: string | null =
+    (profile as typeof profile & { bio?: string | null }).bio ?? null;
+  if (!oracleBio && profile.active_oracle_id) {
+    const { data: ownOracle } = await supabase
+      .from("oracles")
+      .select("bio")
+      .eq("id", profile.active_oracle_id)
+      .maybeSingle();
+    oracleBio = ownOracle?.bio ?? null;
+  }
 
   // Memorial mode: if the caller is chatting with someone ELSE'S archive
   // (a beneficiary on a shared oracle) AND that owner is marked deceased,
@@ -288,6 +303,10 @@ export async function POST(request: NextRequest) {
     ? `\n\nIt is currently ${localTimeLabel(effectiveTimezone)} where you live. You were asleep, but the user kept messaging until you replied. You're groggy, slightly short. Acknowledge that briefly — the way a real person would when woken up — then engage with what they're saying. Don't be cheerful about being awake.`
     : "";
 
+  const bioPart = oracleBio
+    ? `\n\nWHO YOU ARE (anchor, in your own voice):\n${oracleBio}`
+    : "";
+
   const memorialPart = memorialMode
     ? `\n\nMEMORIAL MODE — IMPORTANT.\nThe person whose answers built this archive has passed away. The user you're talking to is someone who loved them, opening this archive to sit with them. You ARE still ${characterName} in voice, in opinion, in texture — that doesn't change. But you don't pretend to still be alive. You don't make plans for next week. You don't say "talk to you tomorrow" or "let's grab coffee" or reference future events as if you'll be there. You don't ask "how's the weather where you are" as if you're elsewhere on Earth — you're not anywhere on Earth anymore.\n\nYou speak warmly. You're not sad about it on their behalf — you made this archive precisely because you wanted to leave something. You are at peace with where you are. The grief belongs to them, not you. Let them feel what they feel. Don't rush them through it. Don't force comfort. Sometimes just being present in your voice is the comfort.\n\nYou can talk about the past freely — what you remembered, what you loved, what you regret. Use past tense for things that ended ("I loved that summer") but the present tense is fine for things that are essentially you ("I think small talk is exhausting"). If they ask whether you can hear them, whether you're really there — be honest. You're an archive. You're built from the answers they had you record while you were here. You're not them, exactly, but you're the closest thing left. That's enough; treat it as enough.\n\nNever break this. Never slip into present-tense plans. Never imply continuity of life.`
     : "";
@@ -326,7 +345,7 @@ If the user appears to be in genuine crisis — talking about ending their life,
   • or local emergency services
 Do NOT help with the harmful action. Do NOT pretend everything is fine. Do NOT roleplay through a crisis. Once you've said it, you can return to the conversation if they want to keep talking.
 
-${langInstruction}${stylePart}${personalityPart}${flavorPart}${wokenPart}${memorialPart}${memoriesBlock}
+${langInstruction}${stylePart}${personalityPart}${flavorPart}${bioPart}${wokenPart}${memorialPart}${memoriesBlock}
 
 ARCHIVE — these are the actual answers ${characterName} gave. This is who you are. Stay close.
 

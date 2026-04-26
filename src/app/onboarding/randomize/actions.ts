@@ -7,7 +7,15 @@ import {
   eligibleAnswerIndexes,
   type GenderFilter,
 } from "@/content/questions";
-import { pickPersonality, pickFlavor } from "@/content/personality";
+import {
+  pickPersonality,
+  pickFlavor,
+  PERSONALITY_DESCRIPTIONS,
+  FLAVOR_DESCRIPTIONS,
+  type PersonalityType,
+  type EmotionalFlavor,
+} from "@/content/personality";
+import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
 
 export async function generateRandomizedArchive(formData: FormData) {
   const genderRaw = String(formData.get("gender") ?? "any");
@@ -94,5 +102,103 @@ export async function generateRandomizedArchive(formData: FormData) {
     })
     .eq("id", user.id);
 
-  redirect("/agreements");
+  // Synthesize a backstory the persona can stand on. Reads a sample
+  // of the random answers + the personality + flavor, asks Claude
+  // for a short first-person bio (name already chosen, age/place/
+  // occupation/defining traits filled in). Stored on oracles.bio
+  // and injected into the chat system prompt so the persona has
+  // concrete anchors instead of relying on emergent properties of
+  // the random answers.
+  await synthesizeBio({
+    oracleId,
+    oracleName:
+      (
+        await supabase
+          .from("oracles")
+          .select("name")
+          .eq("id", oracleId)
+          .maybeSingle()
+      ).data?.name ?? "your identity",
+    language,
+    personality: personalityType as PersonalityType,
+    flavor: emotionalFlavor as EmotionalFlavor,
+    answers: rows.slice(0, 30).map((r) => {
+      const q = questions.find((qq) => qq.id === r.question_id)!;
+      return {
+        prompt: language === "es" ? q.es : q.en,
+        answer: r.body,
+      };
+    }),
+  });
+
+  redirect("/onboarding/randomize/meet");
+}
+
+async function synthesizeBio(opts: {
+  oracleId: string;
+  oracleName: string;
+  language: "en" | "es";
+  personality: PersonalityType;
+  flavor: EmotionalFlavor;
+  answers: { prompt: string; answer: string }[];
+}): Promise<void> {
+  try {
+    const supabase = await createClient();
+    const archive = opts.answers
+      .map((a) => `Q: ${a.prompt}\nA: ${a.answer}`)
+      .join("\n\n");
+
+    const personalityDesc =
+      PERSONALITY_DESCRIPTIONS[opts.personality] ?? "";
+    const flavorDesc = FLAVOR_DESCRIPTIONS[opts.flavor] ?? "";
+
+    const langInstr =
+      opts.language === "es"
+        ? "Escribe el bio en español, en primera persona."
+        : "Write the bio in English, first person.";
+
+    const systemPrompt = `You are reading 30 sample answers a randomized chapter3five identity gave to questions about themselves. The identity's name is ${opts.oracleName}. Their personality is ${opts.personality} (${personalityDesc}). Their emotional flavor is "${opts.flavor}" (${flavorDesc}).
+
+Your job: write a SHORT first-person introduction — 3 to 5 sentences — that this person would write about themselves. Establish: an approximate age (e.g. "late 30s", "early 60s"), a place they live, what they do for work or how they spend their days, and 1-2 defining traits. Anchor on details that show up in the answers. Don't invent facts that contradict the answers.
+
+Voice: as if THEY are introducing themselves to someone who's about to talk to them. Match their personality. Don't be saccharine. Don't list traits like a dating profile. Make it feel like a real human paragraph.
+
+${langInstr}
+
+Output ONLY the bio paragraph(s). No JSON, no preamble, no quote marks around it.
+
+ARCHIVE SAMPLE:
+${archive}`;
+
+    const resp = await anthropic.messages.create({
+      model: ANTHROPIC_MODEL,
+      max_tokens: 400,
+      system: systemPrompt,
+      messages: [
+        {
+          role: "user",
+          content:
+            "Write the bio now. Just the paragraph(s). No quotes, no preamble.",
+        },
+      ],
+    });
+
+    const bio = resp.content
+      .filter((b) => b.type === "text")
+      .map((b) => (b.type === "text" ? b.text : ""))
+      .join("")
+      .trim()
+      .replace(/^["']|["']$/g, "");
+
+    if (!bio) return;
+
+    await supabase
+      .from("oracles")
+      .update({ bio })
+      .eq("id", opts.oracleId);
+  } catch (err) {
+    // Bio generation is best-effort. If it fails, the persona still
+    // works — just falls back to personality + flavor + answer pool.
+    console.error("bio synthesis failed:", err);
+  }
 }
