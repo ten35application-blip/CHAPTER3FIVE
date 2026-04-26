@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { questions, type Depth } from "@/content/questions";
 import { updateAnswer } from "./actions";
 import { VoiceAnswer } from "@/components/VoiceAnswer";
+import { PhotoAnswer } from "@/components/PhotoAnswer";
 
 export const metadata = {
   title: "Your answers — chapter3five",
@@ -44,7 +45,7 @@ export default async function AnswersPage({
   const { data: answerRows } = await supabase
     .from("answers")
     .select(
-      "question_id, body, audio_url, audio_duration_seconds",
+      "question_id, body, audio_url, audio_duration_seconds, photo_url",
     )
     .eq("oracle_id", oracleId)
     .eq("variant", 1);
@@ -53,6 +54,7 @@ export default async function AnswersPage({
     body: string;
     audioUrl: string | null;
     audioDuration: number | null;
+    photoUrl: string | null;
   };
   const answersByQ = new Map<number, AnswerEntry>();
   for (const row of answerRows ?? []) {
@@ -60,6 +62,7 @@ export default async function AnswersPage({
       body: row.body,
       audioUrl: row.audio_url ?? null,
       audioDuration: row.audio_duration_seconds ?? null,
+      photoUrl: row.photo_url ?? null,
     });
   }
 
@@ -175,6 +178,12 @@ export default async function AnswersPage({
                     questionId={q.id}
                     initialAudioUrl={entry?.audioUrl ?? null}
                     initialDurationSeconds={entry?.audioDuration ?? null}
+                    language={language}
+                  />
+                  <PhotoAnswer
+                    oracleId={oracleId}
+                    questionId={q.id}
+                    initialPhotoUrl={entry?.photoUrl ?? null}
                     language={language}
                   />
                 </div>

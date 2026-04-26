@@ -51,7 +51,9 @@ export default async function SharedArchivePage({
 
   const { data: answerRows } = await supabase
     .from("answers")
-    .select("question_id, body, audio_url, audio_duration_seconds")
+    .select(
+      "question_id, body, audio_url, audio_duration_seconds, photo_url",
+    )
     .eq("oracle_id", id)
     .eq("variant", 1);
 
@@ -59,6 +61,7 @@ export default async function SharedArchivePage({
     body: string;
     audioUrl: string | null;
     audioDuration: number | null;
+    photoUrl: string | null;
   };
   const answersByQ = new Map<number, Entry>();
   for (const row of answerRows ?? []) {
@@ -66,6 +69,7 @@ export default async function SharedArchivePage({
       body: row.body,
       audioUrl: row.audio_url ?? null,
       audioDuration: row.audio_duration_seconds ?? null,
+      photoUrl: row.photo_url ?? null,
     });
   }
 
@@ -113,6 +117,13 @@ export default async function SharedArchivePage({
                   <h2 className="font-serif text-xl text-warm-50 leading-snug">
                     {language === "es" ? q.es : q.en}
                   </h2>
+                  {entry.photoUrl && (
+                    <img
+                      src={entry.photoUrl}
+                      alt=""
+                      className="rounded-2xl max-w-md w-full max-h-96 object-cover border border-warm-300/20"
+                    />
+                  )}
                   {entry.body && (
                     <p className="text-warm-100 font-serif text-lg leading-relaxed whitespace-pre-wrap">
                       {entry.body}
