@@ -29,8 +29,11 @@ export default function PrivacyPage() {
           <li>
             <strong>Account information.</strong> Email address and password
             (we store only a hashed credential, never the password in
-            plaintext). Optionally, an oracle name and language preference
-            you choose.
+            plaintext). Your date of birth, collected at onboarding to
+            verify you are 18 or older — we use this only for age
+            verification and (optionally, in the future) to send you a
+            small message on your birthday. Optionally, an identity name
+            and language preference you choose.
           </li>
           <li>
             <strong>Your archive content.</strong> The text answers you

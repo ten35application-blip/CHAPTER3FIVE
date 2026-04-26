@@ -27,7 +27,7 @@ export default async function OnboardingPage({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("oracle_name, mode, preferred_language, onboarding_completed, timezone")
+    .select("oracle_name, mode, preferred_language, onboarding_completed, timezone, birthdate")
     .eq("id", user.id)
     .single();
 
@@ -126,6 +126,24 @@ export default async function OnboardingPage({
                 defaultChecked={profile?.preferred_language === "es"}
               />
             </div>
+          </Field>
+
+          <Field
+            label="Your birthday."
+            hint="chapter3five is 18+. We use this to verify, and to remember when to wish you well."
+          >
+            <input
+              type="date"
+              name="birthdate"
+              required
+              max={new Date().toISOString().slice(0, 10)}
+              defaultValue={
+                profile?.birthdate
+                  ? String(profile.birthdate).slice(0, 10)
+                  : undefined
+              }
+              className="w-full sm:w-60 h-12 rounded-full bg-warm-700/30 border border-warm-400/30 px-5 text-warm-50 placeholder:text-warm-400 focus:outline-none focus:border-warm-200 transition-colors"
+            />
           </Field>
 
           <Field
