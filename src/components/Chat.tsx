@@ -159,6 +159,18 @@ export function Chat({
     };
   }, [oracleId]);
 
+  // First-message welcome. If the user opens the chat with zero
+  // messages, ask the server to generate a one-line opening from the
+  // identity. The route is idempotent + owner-only, so calling it on
+  // every mount is safe (and matches the "feels real" goal — empty
+  // chat is awkward, an opening line isn't).
+  const initialHistoryCount = initialHistory.length;
+  useEffect(() => {
+    if (!oracleId) return;
+    if (initialHistoryCount > 0) return;
+    fetch("/api/chat/welcome", { method: "POST" }).catch(() => {});
+  }, [oracleId, initialHistoryCount]);
+
   async function send(e: React.FormEvent) {
     e.preventDefault();
     const text = input.trim();
