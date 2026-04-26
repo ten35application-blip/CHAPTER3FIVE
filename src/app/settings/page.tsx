@@ -12,6 +12,9 @@ import {
   createArchiveInvite,
   revokeArchiveInvite,
   revokeArchiveGrant,
+  addBeneficiary,
+  removeBeneficiary,
+  buyBeneficiarySlot,
 } from "./actions";
 import { AvatarUpload } from "@/components/AvatarUpload";
 import { questions } from "@/content/questions";
@@ -47,7 +50,7 @@ export default async function SettingsPage({
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "oracle_name, mode, preferred_language, texting_style, created_at, outreach_enabled, randomize_credits, randomize_count, avatar_url, active_oracle_id",
+      "oracle_name, mode, preferred_language, texting_style, created_at, outreach_enabled, randomize_credits, randomize_count, avatar_url, active_oracle_id, paid_beneficiary_slots",
     )
     .eq("id", user.id)
     .single();
@@ -83,6 +86,21 @@ export default async function SettingsPage({
         .eq("oracle_id", activeOracleId)
         .order("granted_at", { ascending: false })
     : { data: [] };
+
+  const { data: beneficiaryRows } = await supabase
+    .from("beneficiaries")
+    .select("id, email, name, status, notified_at, created_at")
+    .eq("owner_user_id", user.id)
+    .order("created_at", { ascending: true });
+  const beneficiaries = beneficiaryRows ?? [];
+  const FREE_BENEFICIARIES = 3;
+  const beneficiarySlotsTotal =
+    FREE_BENEFICIARIES + (profile?.paid_beneficiary_slots ?? 0);
+  const beneficiarySlotsUsed = beneficiaries.length;
+  const beneficiarySlotsLeft = Math.max(
+    0,
+    beneficiarySlotsTotal - beneficiarySlotsUsed,
+  );
 
   const { data: paymentRows } = await supabase
     .from("payments")
@@ -422,6 +440,98 @@ export default async function SettingsPage({
             </form>
           </Section>
 
+          <Section title={t.beneficiaryTitle}>
+            <p className="text-sm text-warm-300 mb-2 leading-relaxed">
+              {t.beneficiaryHint}
+            </p>
+            <p className="text-sm text-warm-400 mb-5">
+              {t.beneficiarySlots(
+                beneficiarySlotsUsed,
+                beneficiarySlotsTotal,
+              )}
+            </p>
+
+            {beneficiarySlotsLeft > 0 ? (
+              <form
+                action={addBeneficiary}
+                className="flex flex-col sm:flex-row gap-2 mb-6"
+              >
+                <input
+                  type="email"
+                  name="email"
+                  required
+                  placeholder={t.beneficiaryEmailPlaceholder}
+                  className="flex-1 h-11 rounded-full bg-warm-700/30 border border-warm-400/30 px-4 text-warm-50 placeholder:text-warm-400 focus:outline-none focus:border-warm-200 transition-colors text-sm"
+                />
+                <input
+                  type="text"
+                  name="name"
+                  maxLength={80}
+                  placeholder={t.beneficiaryNamePlaceholder}
+                  className="sm:w-48 h-11 rounded-full bg-warm-700/30 border border-warm-400/30 px-4 text-warm-50 placeholder:text-warm-400 focus:outline-none focus:border-warm-200 transition-colors text-sm"
+                />
+                <button
+                  type="submit"
+                  className="h-11 px-5 rounded-full bg-warm-50 text-ink font-medium hover:bg-warm-100 transition-colors text-sm whitespace-nowrap"
+                >
+                  {t.beneficiaryAdd}
+                </button>
+              </form>
+            ) : (
+              <form action={buyBeneficiarySlot} className="mb-6">
+                <button
+                  type="submit"
+                  className="h-11 px-5 rounded-full border border-warm-300/40 text-warm-100 hover:bg-warm-700/40 transition-colors text-sm"
+                >
+                  {t.beneficiaryBuyMore}
+                </button>
+              </form>
+            )}
+
+            {beneficiaries.length > 0 && (
+              <div className="space-y-2">
+                {beneficiaries.map((b) => (
+                  <div
+                    key={b.id}
+                    className="flex items-center justify-between gap-3 px-4 py-2 rounded-lg border border-warm-700/60 bg-warm-700/15"
+                  >
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-sm text-warm-100 truncate">
+                        {b.name ?? b.email}
+                      </span>
+                      <span className="text-xs text-warm-400 truncate">
+                        {b.name ? `${b.email} · ` : ""}
+                        {b.status === "designated"
+                          ? b.notified_at
+                            ? t.beneficiaryNotified
+                            : t.beneficiaryDesignated
+                          : b.status === "activated"
+                          ? t.beneficiaryActivated
+                          : b.status === "claimed"
+                          ? t.beneficiaryClaimed
+                          : b.status === "declined"
+                          ? t.beneficiaryDeclined
+                          : t.revoked}
+                      </span>
+                    </div>
+                    {(b.status === "designated" ||
+                      b.status === "activated") && (
+                      <form action={removeBeneficiary}>
+                        <input type="hidden" name="id" value={b.id} />
+                        <button
+                          type="submit"
+                          className="text-xs text-warm-400 hover:text-warm-200 transition-colors whitespace-nowrap"
+                        >
+                          {t.remove}
+                        </button>
+                      </form>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </Section>
+
           {paymentRows && paymentRows.length > 0 && (
             <Section title={t.paymentsTitle}>
               <div className="space-y-2">
@@ -681,6 +791,21 @@ const COPY = {
     grantsHeading: "People with access",
     grantedOn: "Joined",
     revokeAccess: "Remove access",
+    beneficiaryTitle: "Beneficiaries",
+    beneficiaryHint:
+      "Choose who inherits this archive. If something happens to you, they'll get an email with a link to access what you've left — your answers, your texture, your voice. Three free beneficiaries; $5 per additional one.",
+    beneficiarySlots: (used: number, total: number) =>
+      `${used} of ${total} slots used.`,
+    beneficiaryEmailPlaceholder: "Email",
+    beneficiaryNamePlaceholder: "Name (optional)",
+    beneficiaryAdd: "Add beneficiary",
+    beneficiaryBuyMore: "Add a slot — $5",
+    beneficiaryDesignated: "designated",
+    beneficiaryNotified: "designated · email sent",
+    beneficiaryActivated: "activated · awaiting claim",
+    beneficiaryClaimed: "claimed",
+    beneficiaryDeclined: "declined",
+    remove: "Remove",
     legalTitle: "Legal",
     terms: "Terms of Service",
     privacy: "Privacy Policy",
@@ -763,6 +888,21 @@ const COPY = {
     grantsHeading: "Personas con acceso",
     grantedOn: "Se unió",
     revokeAccess: "Quitar acceso",
+    beneficiaryTitle: "Beneficiarios",
+    beneficiaryHint:
+      "Elige quién hereda este archivo. Si algo te sucede, recibirán un correo con un enlace para acceder a lo que dejaste — tus respuestas, tu textura, tu voz. Tres beneficiarios gratis; $5 por cada uno adicional.",
+    beneficiarySlots: (used: number, total: number) =>
+      `${used} de ${total} espacios usados.`,
+    beneficiaryEmailPlaceholder: "Correo",
+    beneficiaryNamePlaceholder: "Nombre (opcional)",
+    beneficiaryAdd: "Agregar beneficiario",
+    beneficiaryBuyMore: "Agregar un espacio — $5",
+    beneficiaryDesignated: "designado",
+    beneficiaryNotified: "designado · correo enviado",
+    beneficiaryActivated: "activado · esperando reclamo",
+    beneficiaryClaimed: "reclamado",
+    beneficiaryDeclined: "declinó",
+    remove: "Quitar",
     legalTitle: "Legal",
     terms: "Términos del Servicio",
     privacy: "Política de Privacidad",

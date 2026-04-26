@@ -11,10 +11,13 @@ import { createAdminClient } from "@/lib/supabase/admin";
  *   - "oracle"             — adds 1 to extra_oracle_credits
  */
 export async function POST(request: NextRequest) {
-  let purpose: "randomize" | "oracle" = "randomize";
+  type Purpose = "randomize" | "oracle" | "beneficiary_slot";
+  let purpose: Purpose = "randomize";
+  const isPurpose = (v: unknown): v is Purpose =>
+    v === "randomize" || v === "oracle" || v === "beneficiary_slot";
   try {
     const body = await request.clone().json();
-    if (body?.purpose === "oracle" || body?.purpose === "randomize") {
+    if (isPurpose(body?.purpose)) {
       purpose = body.purpose;
     }
   } catch {
@@ -22,7 +25,7 @@ export async function POST(request: NextRequest) {
   }
   const url = new URL(request.url);
   const qp = url.searchParams.get("purpose");
-  if (qp === "oracle" || qp === "randomize") {
+  if (isPurpose(qp)) {
     purpose = qp;
   }
 
@@ -44,16 +47,27 @@ export async function POST(request: NextRequest) {
   const productName =
     purpose === "oracle"
       ? "chapter3five — new thirtyfive"
-      : "chapter3five — randomize";
+      : purpose === "beneficiary_slot"
+        ? "chapter3five — extra beneficiary"
+        : "chapter3five — randomize";
   const productDesc =
     purpose === "oracle"
       ? "Create one additional thirtyfive in your account."
-      : "One additional randomized character generation.";
+      : purpose === "beneficiary_slot"
+        ? "Designate one additional beneficiary for your archive."
+        : "One additional randomized character generation.";
   const successPath =
     purpose === "oracle"
       ? "/oracle/success?session_id={CHECKOUT_SESSION_ID}"
-      : "/randomize/success?session_id={CHECKOUT_SESSION_ID}";
-  const cancelPath = purpose === "oracle" ? "/oracle/cancel" : "/randomize/cancel";
+      : purpose === "beneficiary_slot"
+        ? "/settings?saved=beneficiary-slot"
+        : "/randomize/success?session_id={CHECKOUT_SESSION_ID}";
+  const cancelPath =
+    purpose === "oracle"
+      ? "/oracle/cancel"
+      : purpose === "beneficiary_slot"
+        ? "/settings?error=Payment%20cancelled"
+        : "/randomize/cancel";
 
   const session = await stripe.checkout.sessions.create({
     mode: "payment",

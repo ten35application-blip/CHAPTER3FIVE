@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isAdmin } from "@/lib/admin";
+import { markUserDeceased, unmarkUserDeceased } from "@/app/admin/actions";
 
 export const metadata = {
   title: "User — chapter3five admin",
@@ -50,6 +51,7 @@ export default async function AdminUserPage({
     crisisResult,
     reportsResult,
     sharesResult,
+    beneficiariesResult,
   ] = await Promise.all([
     admin.from("profiles").select("*").eq("id", id).maybeSingle(),
     admin
@@ -81,6 +83,11 @@ export default async function AdminUserPage({
       .select("code, label, revoked_at, created_at")
       .eq("source_user_id", id)
       .order("created_at", { ascending: false }),
+    admin
+      .from("beneficiaries")
+      .select("id, email, name, status, notified_at, activated_at, claimed_at, created_at")
+      .eq("owner_user_id", id)
+      .order("created_at", { ascending: true }),
   ]);
 
   const profile = profileResult.data;
@@ -90,6 +97,7 @@ export default async function AdminUserPage({
   const crisis = crisisResult.data ?? [];
   const reports = reportsResult.data ?? [];
   const shares = sharesResult.data ?? [];
+  const beneficiaries = beneficiariesResult.data ?? [];
 
   const totalPaidCents = payments
     .filter((p) => p.status === "paid")
@@ -200,6 +208,90 @@ export default async function AdminUserPage({
                     <div className="text-xs text-warm-400 whitespace-nowrap">
                       {o.onboarding_completed ? "✓" : "—"}{" "}
                       {fmtDate(o.created_at).split(",")[0]}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-warm-400">None.</p>
+            )}
+          </section>
+
+          <section>
+            <h2 className="text-xs uppercase tracking-[0.25em] text-warm-300 mb-3">
+              Legacy status
+            </h2>
+            {profile?.deceased_at ? (
+              <div className="rounded-2xl border border-red-300/30 bg-red-900/10 p-5 space-y-3">
+                <div className="text-sm text-red-200">
+                  Marked deceased {fmtDate(profile.deceased_at)}
+                </div>
+                <p className="text-xs text-warm-400">
+                  Beneficiaries that hadn&rsquo;t already claimed received the
+                  activation email at this point. Use unmark only if this was
+                  done in error — already-claimed grants stay.
+                </p>
+                <form action={unmarkUserDeceased}>
+                  <input type="hidden" name="user_id" value={id} />
+                  <button
+                    type="submit"
+                    className="h-9 px-4 rounded-full border border-warm-300/40 text-warm-100 hover:bg-warm-700/40 transition-colors text-xs"
+                  >
+                    Unmark deceased
+                  </button>
+                </form>
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-warm-700/60 bg-warm-700/15 p-5 space-y-3">
+                <p className="text-sm text-warm-300">
+                  Marking this user deceased activates all{" "}
+                  {beneficiaries.filter((b) => b.status === "designated").length}{" "}
+                  designated beneficiar
+                  {beneficiaries.filter((b) => b.status === "designated").length === 1
+                    ? "y"
+                    : "ies"}{" "}
+                  and emails them a claim link. Only do this with confirmation
+                  (death certificate, obituary, family notification).
+                </p>
+                <form action={markUserDeceased}>
+                  <input type="hidden" name="user_id" value={id} />
+                  <button
+                    type="submit"
+                    className="h-9 px-4 rounded-full border border-red-300/40 bg-red-900/20 text-red-200 hover:bg-red-900/30 transition-colors text-xs"
+                  >
+                    Mark deceased + activate beneficiaries
+                  </button>
+                </form>
+              </div>
+            )}
+          </section>
+
+          <section>
+            <h2 className="text-xs uppercase tracking-[0.25em] text-warm-300 mb-3">
+              Beneficiaries ({beneficiaries.length})
+            </h2>
+            {beneficiaries.length > 0 ? (
+              <div className="space-y-1">
+                {beneficiaries.map((b) => (
+                  <div
+                    key={b.id}
+                    className="flex items-center justify-between gap-3 px-4 py-2 rounded-lg border border-warm-700/60 bg-warm-700/15"
+                  >
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-sm text-warm-100 truncate">
+                        {b.name ?? b.email}
+                      </span>
+                      <span className="text-xs text-warm-400 truncate">
+                        {b.name ? `${b.email} · ` : ""}
+                        {b.status}
+                        {b.claimed_at
+                          ? ` · claimed ${fmtDate(b.claimed_at).split(",")[0]}`
+                          : b.activated_at
+                          ? ` · activated ${fmtDate(b.activated_at).split(",")[0]}`
+                          : b.notified_at
+                          ? ` · notified ${fmtDate(b.notified_at).split(",")[0]}`
+                          : ""}
+                      </span>
                     </div>
                   </div>
                 ))}

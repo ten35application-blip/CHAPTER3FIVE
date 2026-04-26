@@ -32,6 +32,54 @@ This is auto-generated. The chat reply included crisis resources. Reach out to t
   });
 }
 
+export async function sendBeneficiaryDesignationEmail(opts: {
+  to: string;
+  ownerName: string;
+  ownerEmail: string;
+}) {
+  const subject = `${opts.ownerName} chose you for chapter3five.`;
+  const text = `${opts.ownerName} (${opts.ownerEmail}) chose you as a beneficiary on chapter3five.
+
+What this means:
+chapter3five is a place where someone answers questions about who they are, while they're alive. The result is an archive — answers, voice, texture — that the people they love can sit with later. ${opts.ownerName} chose you to inherit theirs.
+
+You don't need to do anything yet. If something happens to ${opts.ownerName}, we'll send you a link to access what they left.
+
+— chapter3five
+https://chapter3five.app`;
+
+  return resend.emails.send({
+    from: FROM,
+    to: opts.to,
+    subject,
+    text,
+  });
+}
+
+export async function sendBeneficiaryActivationEmail(opts: {
+  to: string;
+  ownerName: string;
+  claimUrl: string;
+}) {
+  const subject = `${opts.ownerName} left this for you.`;
+  const text = `We're so sorry.
+
+${opts.ownerName} chose you as a beneficiary of their chapter3five archive. The conversations, the answers, the voice they recorded — it's yours to sit with now.
+
+Open it when you're ready. There's no rush.
+
+${opts.claimUrl}
+
+— chapter3five`;
+
+  return resend.emails.send({
+    from: FROM,
+    to: opts.to,
+    subject,
+    text,
+  });
+}
+
 export async function sendOutreachEmail(opts: {
   to: string;
   oracleName: string;

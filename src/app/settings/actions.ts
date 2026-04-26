@@ -1,10 +1,24 @@
 "use server";
 
+import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateShareCode } from "@/lib/share";
+import { sendBeneficiaryDesignationEmail } from "@/lib/notifications";
+
+const FREE_BENEFICIARIES = 3;
+
+function generateClaimToken(): string {
+  // 32-char URL-safe token, ~190 bits entropy.
+  const bytes = new Uint8Array(24);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes)
+    .map((b) => b.toString(36).padStart(2, "0"))
+    .join("")
+    .slice(0, 32);
+}
 
 export async function updateLanguage(formData: FormData) {
   const language = String(formData.get("language") ?? "en").trim();
@@ -332,4 +346,128 @@ export async function deleteAccount(formData: FormData) {
 
   await supabase.auth.signOut();
   redirect("/account-deleted");
+}
+
+export async function addBeneficiary(formData: FormData) {
+  const email =
+    String(formData.get("email") ?? "").trim().toLowerCase();
+  const name = String(formData.get("name") ?? "").trim() || null;
+
+  if (!email || !email.includes("@")) {
+    redirect("/settings?error=Enter%20a%20valid%20email");
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/auth/signin");
+
+  if (email === (user.email ?? "").toLowerCase()) {
+    redirect("/settings?error=You%20can%27t%20designate%20yourself");
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("paid_beneficiary_slots, oracle_name")
+    .eq("id", user.id)
+    .single();
+  const cap = FREE_BENEFICIARIES + (profile?.paid_beneficiary_slots ?? 0);
+
+  const { count: activeCount } = await supabase
+    .from("beneficiaries")
+    .select("id", { count: "exact", head: true })
+    .eq("owner_user_id", user.id)
+    .neq("status", "removed");
+
+  if ((activeCount ?? 0) >= cap) {
+    redirect("/settings?error=At%20cap%20-%20add%20a%20slot%20to%20designate%20more");
+  }
+
+  const claimToken = generateClaimToken();
+  const { error } = await supabase.from("beneficiaries").insert({
+    owner_user_id: user.id,
+    email,
+    name,
+    claim_token: claimToken,
+  });
+
+  if (error) {
+    const e = error as { code?: string; message?: string };
+    if (e.code === "23505") {
+      redirect("/settings?error=That%20email%20is%20already%20a%20beneficiary");
+    }
+    redirect(`/settings?error=${encodeURIComponent(e.message ?? "Could not add")}`);
+  }
+
+  // Send designation email — fire-and-forget, don't fail the action on email error.
+  try {
+    await sendBeneficiaryDesignationEmail({
+      to: email,
+      ownerName: profile?.oracle_name ?? user.email ?? "Someone",
+      ownerEmail: user.email ?? "",
+    });
+    await supabase
+      .from("beneficiaries")
+      .update({ notified_at: new Date().toISOString() })
+      .eq("owner_user_id", user.id)
+      .eq("email", email);
+  } catch (err) {
+    console.error("beneficiary designation email failed:", err);
+  }
+
+  revalidatePath("/settings");
+  redirect("/settings?saved=beneficiary-added");
+}
+
+export async function buyBeneficiarySlot() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/auth/signin");
+
+  const headerList = await headers();
+  const host = headerList.get("host") ?? "chapter3five.app";
+  const proto = headerList.get("x-forwarded-proto") ?? "https";
+  const origin = `${proto}://${host}`;
+
+  const res = await fetch(`${origin}/api/stripe/checkout`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      cookie: headerList.get("cookie") ?? "",
+    },
+    body: JSON.stringify({ purpose: "beneficiary_slot" }),
+  });
+
+  const data = await res.json();
+  if (!res.ok || !data.url) {
+    redirect(
+      `/settings?error=${encodeURIComponent(data.error ?? "Could not start checkout")}`,
+    );
+  }
+  redirect(data.url);
+}
+
+export async function removeBeneficiary(formData: FormData) {
+  const id = String(formData.get("id") ?? "").trim();
+  if (!id) redirect("/settings?error=Missing%20id");
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/auth/signin");
+
+  // Hard-delete: a removed beneficiary slot should free up so they can
+  // designate someone else without bumping into the cap.
+  await supabase
+    .from("beneficiaries")
+    .delete()
+    .eq("id", id)
+    .eq("owner_user_id", user.id);
+
+  revalidatePath("/settings");
+  redirect("/settings?saved=beneficiary-removed");
 }

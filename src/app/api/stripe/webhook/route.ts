@@ -37,7 +37,12 @@ export async function POST(request: NextRequest) {
   const session = event.data.object as Stripe.Checkout.Session;
   const userId = session.metadata?.user_id;
   const purpose = session.metadata?.purpose;
-  if (!userId || (purpose !== "randomize" && purpose !== "oracle")) {
+  if (
+    !userId ||
+    (purpose !== "randomize" &&
+      purpose !== "oracle" &&
+      purpose !== "beneficiary_slot")
+  ) {
     return NextResponse.json({ received: true, ignored: "no metadata" });
   }
 
@@ -59,7 +64,11 @@ export async function POST(request: NextRequest) {
 
   // Grant the credit in the right pool.
   const column =
-    purpose === "oracle" ? "extra_oracle_credits" : "randomize_credits";
+    purpose === "oracle"
+      ? "extra_oracle_credits"
+      : purpose === "beneficiary_slot"
+        ? "paid_beneficiary_slots"
+        : "randomize_credits";
 
   const { data: profile } = await admin
     .from("profiles")
