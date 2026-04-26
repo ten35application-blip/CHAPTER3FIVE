@@ -117,7 +117,7 @@ export default async function SettingsPage({
 
   const { data: paymentRows } = await supabase
     .from("payments")
-    .select("amount_cents, currency, purpose, status, paid_at, created_at")
+    .select("amount_cents, currency, purpose, status, paid_at, refunded_at, created_at")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
     .limit(20);
@@ -583,39 +583,85 @@ export default async function SettingsPage({
           {paymentRows && paymentRows.length > 0 && (
             <Section title={t.paymentsTitle}>
               <div className="space-y-2">
-                {paymentRows.map((p, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center justify-between gap-3 px-4 py-2 rounded-lg border border-warm-700/60 bg-warm-700/15"
-                  >
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-sm text-warm-100 capitalize">
-                        {p.purpose === "randomize"
-                          ? t.purposeRandomize
-                          : p.purpose}
-                      </span>
-                      <span className="text-xs text-warm-400">
-                        {p.paid_at
-                          ? new Date(p.paid_at).toLocaleDateString()
-                          : new Date(p.created_at).toLocaleDateString()}{" "}
-                        ·{" "}
-                        {p.status === "paid"
-                          ? t.statusPaid
-                          : p.status === "pending"
-                          ? t.statusPending
-                          : p.status === "refunded"
-                          ? t.statusRefunded
-                          : t.statusFailed}
+                {paymentRows.map((p, i) => {
+                  const isRefunded = p.status === "refunded";
+                  const purposeLabel =
+                    p.purpose === "randomize"
+                      ? t.purposeRandomize
+                      : p.purpose === "oracle"
+                      ? t.purposeOracle
+                      : p.purpose === "beneficiary_slot"
+                      ? t.purposeBeneficiarySlot
+                      : p.purpose;
+                  return (
+                    <div
+                      key={i}
+                      className={`flex items-center justify-between gap-3 px-4 py-2 rounded-lg border ${
+                        isRefunded
+                          ? "border-amber-300/30 bg-amber-900/10"
+                          : "border-warm-700/60 bg-warm-700/15"
+                      }`}
+                    >
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-sm text-warm-100">
+                          {purposeLabel}
+                        </span>
+                        <span className="text-xs text-warm-400">
+                          {p.paid_at
+                            ? new Date(p.paid_at).toLocaleDateString()
+                            : new Date(p.created_at).toLocaleDateString()}{" "}
+                          ·{" "}
+                          <span
+                            className={
+                              isRefunded ? "text-amber-300" : "text-warm-400"
+                            }
+                          >
+                            {p.status === "paid"
+                              ? t.statusPaid
+                              : p.status === "pending"
+                              ? t.statusPending
+                              : p.status === "refunded"
+                              ? t.statusRefunded
+                              : t.statusFailed}
+                          </span>
+                          {isRefunded && p.refunded_at && (
+                            <>
+                              {" "}
+                              <span className="text-warm-400">
+                                ({new Date(p.refunded_at).toLocaleDateString()})
+                              </span>
+                            </>
+                          )}
+                        </span>
+                      </div>
+                      <span
+                        className={`font-serif tabular-nums ${
+                          isRefunded
+                            ? "text-warm-300 line-through"
+                            : "text-warm-50"
+                        }`}
+                      >
+                        ${(p.amount_cents / 100).toFixed(2)}
                       </span>
                     </div>
-                    <span className="font-serif text-warm-50 tabular-nums">
-                      ${(p.amount_cents / 100).toFixed(2)}
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </Section>
           )}
+
+          <Section title={t.exportTitle}>
+            <p className="text-sm text-warm-300 mb-4 leading-relaxed">
+              {t.exportHint}
+            </p>
+            <a
+              href="/api/user/export"
+              download
+              className="inline-flex h-11 items-center justify-center rounded-full border border-warm-300/40 px-5 text-sm text-warm-100 hover:bg-warm-700/40 transition-colors"
+            >
+              {t.exportCta}
+            </a>
+          </Section>
 
           <Section title={t.legalTitle}>
             <ul className="space-y-2 text-sm">
@@ -813,6 +859,12 @@ const COPY = {
     tapToEnable: "Tap to enable",
     paymentsTitle: "Payments",
     purposeRandomize: "Randomize generation",
+    purposeOracle: "New thirtyfive",
+    purposeBeneficiarySlot: "Extra beneficiary slot",
+    exportTitle: "Download your data",
+    exportHint:
+      "Get a complete JSON copy of everything chapter3five stores about you — your profile, archives, answers, conversations, payments, beneficiaries, memories. Yours to keep.",
+    exportCta: "Download my data",
     statusPaid: "paid",
     statusPending: "pending",
     statusFailed: "failed",
@@ -922,6 +974,12 @@ const COPY = {
     tapToEnable: "Toca para activar",
     paymentsTitle: "Pagos",
     purposeRandomize: "Generación de personaje",
+    purposeOracle: "Nuevo thirtyfive",
+    purposeBeneficiarySlot: "Espacio de beneficiario adicional",
+    exportTitle: "Descargar tus datos",
+    exportHint:
+      "Obtén una copia completa en JSON de todo lo que chapter3five almacena sobre ti — tu perfil, archivos, respuestas, conversaciones, pagos, beneficiarios, memorias. Tuyo para guardar.",
+    exportCta: "Descargar mis datos",
     statusPaid: "pagado",
     statusPending: "pendiente",
     statusFailed: "fallido",

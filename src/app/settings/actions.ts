@@ -355,10 +355,24 @@ export async function deleteAccount(formData: FormData) {
   await supabase.from("message_reports").delete().eq("user_id", user.id);
   await supabase.from("profiles").delete().eq("id", user.id);
 
+  // Clean up avatar files in Supabase Storage. Without this, deleted
+  // accounts leave orphan blobs in the avatars bucket forever.
+  const admin = createAdminClient();
+  try {
+    const { data: files } = await admin.storage
+      .from("avatars")
+      .list(user.id);
+    if (files && files.length > 0) {
+      const paths = files.map((f) => `${user.id}/${f.name}`);
+      await admin.storage.from("avatars").remove(paths);
+    }
+  } catch (err) {
+    console.error("storage cleanup on delete failed:", err);
+  }
+
   // Then delete the auth.users row itself via the service-role admin client.
   // Without this, the email stays "taken" forever and the account isn't
   // actually gone.
-  const admin = createAdminClient();
   const { error: deleteUserError } = await admin.auth.admin.deleteUser(user.id);
   if (deleteUserError) {
     // Don't surface the cascade error to the user — their data is gone, the
