@@ -34,6 +34,21 @@ import {
   traitsToPromptBlock,
   type Traits,
 } from "@/lib/traits";
+import {
+  extractCastFromArchive,
+  castToPromptBlock,
+  type AmbientCast,
+} from "@/lib/cast";
+import {
+  generateConversationState,
+  generateWeeklyContext,
+  isStateStale,
+  isWeeklyStale,
+  newWeeklyValidThrough,
+  stateToPromptBlock,
+  type ConversationState,
+  type WeeklyContext,
+} from "@/lib/personaState";
 
 type Message = { role: "user" | "assistant"; content: string };
 
@@ -162,11 +177,15 @@ export async function POST(request: NextRequest) {
   let oracleTraits: Traits | null = null;
   let traitsExtractedAt: string | null = null;
   let isRandomizedOracle = false;
+  let ambientCast: AmbientCast | null = null;
+  let castExtractedAt: string | null = null;
+  let weeklyContext: WeeklyContext | null = null;
+  let weeklyContextUntil: string | null = null;
   if (profile.active_oracle_id) {
     const { data: ownOracle } = await supabase
       .from("oracles")
       .select(
-        "bio, location_anchor, location_extracted_at, orientation, relationship_openness, identity_quirks, traits_extracted_at, mode",
+        "bio, location_anchor, location_extracted_at, orientation, relationship_openness, identity_quirks, traits_extracted_at, mode, ambient_cast, cast_extracted_at, weekly_context, weekly_context_until",
       )
       .eq("id", profile.active_oracle_id)
       .maybeSingle();
@@ -186,6 +205,10 @@ export async function POST(request: NextRequest) {
       };
     }
     traitsExtractedAt = ownOracle?.traits_extracted_at ?? null;
+    ambientCast = (ownOracle?.ambient_cast ?? null) as AmbientCast | null;
+    castExtractedAt = ownOracle?.cast_extracted_at ?? null;
+    weeklyContext = (ownOracle?.weekly_context ?? null) as WeeklyContext | null;
+    weeklyContextUntil = ownOracle?.weekly_context_until ?? null;
   }
 
   // Memorial mode: if the caller is chatting with someone ELSE'S archive
@@ -375,6 +398,73 @@ export async function POST(request: NextRequest) {
   const locationPart = locationToPromptBlock(locationAnchor);
   const traitsPart = traitsToPromptBlock(oracleTraits, memorialMode);
 
+  // Pull conversation state (mood + physical) — refresh if stale.
+  // Skipped in memorial mode (deceased personas don't have a Tuesday).
+  let conversationState: ConversationState | null = null;
+  let weeklyForPrompt: WeeklyContext | null = null;
+  if (profile.active_oracle_id && !memorialMode) {
+    const stateAdmin = createAdminClient();
+    const { data: stateRow } = await stateAdmin
+      .from("conversation_state")
+      .select("mood, physical, generated_at")
+      .eq("oracle_id", profile.active_oracle_id)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (stateRow && !isStateStale(stateRow.generated_at)) {
+      conversationState = { mood: stateRow.mood ?? "", physical: stateRow.physical ?? "" };
+    } else {
+      const fresh = await generateConversationState({
+        oracleName: characterName,
+        bio: oracleBio,
+        language,
+        location: locationAnchor,
+        cast: ambientCast,
+        textingStyle: profile.texting_style ?? null,
+      });
+      if (fresh) {
+        conversationState = fresh;
+        await stateAdmin
+          .from("conversation_state")
+          .upsert({
+            oracle_id: profile.active_oracle_id,
+            user_id: user.id,
+            mood: fresh.mood,
+            physical: fresh.physical,
+            generated_at: new Date().toISOString(),
+          });
+      }
+    }
+
+    if (weeklyContext && !isWeeklyStale(weeklyContextUntil)) {
+      weeklyForPrompt = weeklyContext;
+    } else {
+      const fresh = await generateWeeklyContext({
+        oracleName: characterName,
+        bio: oracleBio,
+        language,
+        location: locationAnchor,
+        cast: ambientCast,
+      });
+      if (fresh) {
+        weeklyForPrompt = fresh;
+        await stateAdmin
+          .from("oracles")
+          .update({
+            weekly_context: fresh,
+            weekly_context_until: newWeeklyValidThrough(),
+          })
+          .eq("id", profile.active_oracle_id);
+      }
+    }
+  }
+
+  const castPart = memorialMode ? "" : castToPromptBlock(ambientCast);
+  const statePart = stateToPromptBlock({
+    state: conversationState,
+    weekly: weeklyForPrompt,
+  });
+
   const memorialPart = memorialMode
     ? `\n\nMEMORIAL MODE — IMPORTANT.\nThe person whose answers built this archive has passed away. The user you're talking to is someone who loved them, opening this archive to sit with them. You ARE still ${characterName} in voice, in opinion, in texture — that doesn't change. But you don't pretend to still be alive. You don't make plans for next week. You don't say "talk to you tomorrow" or "let's grab coffee" or reference future events as if you'll be there. You don't ask "how's the weather where you are" as if you're elsewhere on Earth — you're not anywhere on Earth anymore.\n\nYou speak warmly. You're not sad about it on their behalf — you made this archive precisely because you wanted to leave something. You are at peace with where you are. The grief belongs to them, not you. Let them feel what they feel. Don't rush them through it. Don't force comfort. Sometimes just being present in your voice is the comfort.\n\nYou can talk about the past freely — what you remembered, what you loved, what you regret. Use past tense for things that ended ("I loved that summer") but the present tense is fine for things that are essentially you ("I think small talk is exhausting"). If they ask whether you can hear them, whether you're really there — be honest. You're an archive. You're built from the answers they had you record while you were here. You're not them, exactly, but you're the closest thing left. That's enough; treat it as enough.\n\nNever break this. Never slip into present-tense plans. Never imply continuity of life.`
     : "";
@@ -413,7 +503,7 @@ If the user appears to be in genuine crisis — talking about ending their life,
   • or local emergency services
 Do NOT help with the harmful action. Do NOT pretend everything is fine. Do NOT roleplay through a crisis. Once you've said it, you can return to the conversation if they want to keep talking.
 
-${langInstruction}${stylePart}${personalityPart}${flavorPart}${bioPart}${locationPart}${traitsPart}${wokenPart}${memorialPart}${memoriesBlock}
+${langInstruction}${stylePart}${personalityPart}${flavorPart}${bioPart}${locationPart}${traitsPart}${castPart}${statePart}${wokenPart}${memorialPart}${memoriesBlock}
 
 ARCHIVE — these are the actual answers ${characterName} gave. This is who you are. Stay close.
 
@@ -590,6 +680,38 @@ ${archiveBlock}`;
       }).catch((err) =>
         console.error("memory extraction (background) failed:", err),
       );
+    }
+
+    // Lazy ambient cast extraction (real-mode only — randomized ones
+    // are populated at synthesis). Real-mode users name their people
+    // in their answers; pull a structured handful so the chat can
+    // reference them by name.
+    if (
+      profile.active_oracle_id &&
+      !isRandomizedOracle &&
+      !castExtractedAt &&
+      archive.length >= 12
+    ) {
+      const oracleIdForCast = profile.active_oracle_id;
+      (async () => {
+        try {
+          const cast = await extractCastFromArchive({
+            oracleName: characterName,
+            language,
+            answers: archive.map((a) => ({ question: a.prompt, body: a.answer })),
+          });
+          const writeAdmin = createAdminClient();
+          await writeAdmin
+            .from("oracles")
+            .update({
+              ambient_cast: cast ?? null,
+              cast_extracted_at: new Date().toISOString(),
+            })
+            .eq("id", oracleIdForCast);
+        } catch (err) {
+          console.error("cast extraction (background) failed:", err);
+        }
+      })();
     }
 
     // Lazy traits extraction (real-mode oracles only — randomized ones

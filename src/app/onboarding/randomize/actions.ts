@@ -17,6 +17,7 @@ import {
 } from "@/content/personality";
 import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { rollRandomTraits } from "@/lib/traits";
+import { rollRandomCast } from "@/lib/cast";
 
 export async function generateRandomizedArchive(formData: FormData) {
   const genderRaw = String(formData.get("gender") ?? "any");
@@ -110,6 +111,7 @@ export async function generateRandomizedArchive(formData: FormData) {
   // page — so two randomized identities always feel like different
   // actual people.
   const traits = rollRandomTraits();
+  const cast = rollRandomCast();
   await supabase
     .from("oracles")
     .update({
@@ -117,6 +119,8 @@ export async function generateRandomizedArchive(formData: FormData) {
       relationship_openness: traits.openness,
       identity_quirks: traits.quirks,
       traits_extracted_at: new Date().toISOString(),
+      ambient_cast: cast,
+      cast_extracted_at: new Date().toISOString(),
     })
     .eq("id", oracleId);
 
