@@ -161,28 +161,54 @@ export function SampleChat() {
           </Link>
         </div>
       ) : (
-        <form
-          onSubmit={send}
-          className="flex gap-2 items-center pt-3 border-t border-warm-700/60"
-        >
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            disabled={sending}
-            placeholder={`Message ${SAMPLE_NAME}…`}
-            maxLength={1000}
-            className="flex-1 h-11 rounded-full bg-warm-700/30 border border-warm-400/30 px-5 text-warm-50 placeholder:text-warm-400 focus:outline-none focus:border-warm-200 transition-colors text-sm"
-          />
-          <button
-            type="submit"
-            disabled={!input.trim() || sending}
-            className="h-11 px-5 rounded-full bg-warm-50 text-ink font-medium hover:bg-warm-100 transition-colors text-sm disabled:opacity-50"
+        <>
+          {/* Starter prompts — only before the user has sent anything,
+              to lower the activation cost of an empty input box. */}
+          {messages.length <= 1 && (
+            <div className="flex flex-wrap gap-2 mb-3 justify-center">
+              {STARTERS.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setInput(s)}
+                  className="text-xs text-warm-200 italic px-3 py-1.5 rounded-full border border-warm-400/30 bg-warm-700/20 hover:bg-warm-700/40 transition-colors"
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <form
+            onSubmit={send}
+            className="flex gap-2 items-center pt-3 border-t border-warm-700/60"
           >
-            {sending ? "…" : "Send"}
-          </button>
-        </form>
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              disabled={sending}
+              placeholder={`Message ${SAMPLE_NAME}…`}
+              maxLength={1000}
+              className="flex-1 h-11 rounded-full bg-warm-700/30 border border-warm-400/30 px-5 text-warm-50 placeholder:text-warm-400 focus:outline-none focus:border-warm-200 transition-colors text-sm"
+            />
+            <button
+              type="submit"
+              disabled={!input.trim() || sending}
+              className="h-11 px-5 rounded-full bg-warm-50 text-ink font-medium hover:bg-warm-100 transition-colors text-sm disabled:opacity-50"
+            >
+              {sending ? "…" : "Send"}
+            </button>
+          </form>
+        </>
       )}
     </div>
   );
 }
+
+const STARTERS = [
+  "tell me about Rosa",
+  "what's the best advice you ever got?",
+  "what do you miss most?",
+  "are you really there?",
+];
