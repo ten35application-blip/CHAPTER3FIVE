@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { questions } from "@/content/questions";
+import { sendPushToUser } from "@/lib/push";
 
 /**
  * Daily proactive outreach via chat — your thirtyfive sometimes texts you
@@ -126,6 +127,18 @@ export async function GET(request: NextRequest) {
         .from("profiles")
         .update({ last_proactive_at: new Date().toISOString() })
         .eq("id", profile.id);
+
+      // Wake the device. Best-effort — failure here doesn't block the
+      // cron, the message is already in the DB and will show up on next
+      // app open either way.
+      sendPushToUser({
+        userId: profile.id,
+        title: profile.oracle_name ?? "your thirtyfive",
+        body: reply.length > 140 ? reply.slice(0, 140) + "…" : reply,
+        data: { kind: "proactive" },
+      }).catch((err) =>
+        console.error(`proactive push failed for ${profile.id}`, err),
+      );
 
       sent++;
     } catch (err) {
