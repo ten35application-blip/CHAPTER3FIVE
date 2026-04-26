@@ -34,8 +34,8 @@ export default async function AgreementsPage({
   const t = COPY[language];
 
   return (
-    <main className="flex-1 flex items-center justify-center px-6 py-16">
-      <div className="w-full max-w-xl">
+    <main className="flex-1 flex items-start justify-center px-6 py-16">
+      <div className="w-full max-w-2xl">
         <Link
           href="/"
           className="block text-center font-serif text-xl tracking-tight text-warm-100 hover:text-warm-50 transition-colors mb-12"
@@ -47,40 +47,66 @@ export default async function AgreementsPage({
           <h1 className="font-serif text-3xl sm:text-4xl text-warm-50 mb-3">
             {t.title}
           </h1>
-          <p className="text-warm-200 leading-relaxed">{t.intro}</p>
+          <p className="text-warm-200 leading-relaxed max-w-lg mx-auto">
+            {t.intro}
+          </p>
         </div>
 
         <form
           action={acceptAgreements}
-          className="space-y-4 rounded-2xl border border-warm-400/30 bg-warm-700/20 p-6"
+          className="space-y-3 rounded-2xl border border-warm-400/30 bg-warm-700/20 p-5 sm:p-6"
         >
-          <Checkbox
+          <Disclosure
             name="terms"
-            label={t.terms}
-            link={{ href: "/terms", text: t.read }}
+            title={t.termsTitle}
+            body={t.termsBody}
+            link={{ href: "/terms", text: t.readFull }}
           />
-          <Checkbox
+          <Disclosure
             name="privacy"
-            label={t.privacy}
-            link={{ href: "/privacy", text: t.read }}
+            title={t.privacyTitle}
+            body={t.privacyBody}
+            link={{ href: "/privacy", text: t.readFull }}
           />
-          <Checkbox
+          <Disclosure
+            name="ai_processing"
+            title={t.aiTitle}
+            body={t.aiBody}
+            link={{ href: "/privacy", text: t.readFull }}
+          />
+          <Disclosure
             name="cookies"
-            label={t.cookies}
-            link={{ href: "/cookies", text: t.read }}
+            title={t.cookiesTitle}
+            body={t.cookiesBody}
+            link={{ href: "/cookies", text: t.readFull }}
+          />
+          <Disclosure
+            name="age_18plus"
+            title={t.ageTitle}
+            body={t.ageBody}
+          />
+          <Disclosure
+            name="not_therapy"
+            title={t.notTherapyTitle}
+            body={t.notTherapyBody}
           />
 
           {error && (
-            <p className="text-sm text-red-300/80 text-center pt-2">{error}</p>
+            <p className="text-sm text-red-300/80 text-center pt-2">
+              {error}
+            </p>
           )}
 
-          <div className="pt-4">
+          <div className="pt-3">
             <button
               type="submit"
               className="w-full h-12 rounded-full bg-warm-50 text-ink font-medium hover:bg-warm-100 transition-colors"
             >
               {t.cta}
             </button>
+            <p className="text-xs text-warm-400 text-center mt-3 leading-relaxed">
+              {t.recordNote}
+            </p>
           </div>
         </form>
       </div>
@@ -88,33 +114,43 @@ export default async function AgreementsPage({
   );
 }
 
-function Checkbox({
+function Disclosure({
   name,
-  label,
+  title,
+  body,
   link,
 }: {
   name: string;
-  label: string;
-  link: { href: string; text: string };
+  title: string;
+  body: string;
+  link?: { href: string; text: string };
 }) {
   return (
-    <label className="flex items-start gap-3 cursor-pointer text-warm-100">
+    <label className="flex items-start gap-3 cursor-pointer text-warm-100 rounded-xl p-3 hover:bg-warm-700/30 transition-colors">
       <input
         type="checkbox"
         name={name}
-        className="mt-1 h-4 w-4 rounded border-warm-300/60 bg-warm-700/40 accent-warm-200"
+        className="mt-1 h-4 w-4 rounded border-warm-300/60 bg-warm-700/40 accent-warm-200 flex-shrink-0"
       />
-      <span className="text-sm leading-relaxed">
-        {label}{" "}
-        <Link
-          href={link.href}
-          className="text-warm-200 underline underline-offset-2 hover:text-warm-50"
-          target="_blank"
-        >
-          {link.text}
-        </Link>
-        .
-      </span>
+      <div className="flex-1 space-y-1">
+        <p className="text-sm font-medium text-warm-50">{title}</p>
+        <p className="text-xs text-warm-200 leading-relaxed">
+          {body}
+          {link && (
+            <>
+              {" "}
+              <Link
+                href={link.href}
+                target="_blank"
+                className="text-warm-100 underline underline-offset-2 hover:text-warm-50"
+              >
+                {link.text}
+              </Link>
+              .
+            </>
+          )}
+        </p>
+      </div>
     </label>
   );
 }
@@ -123,21 +159,55 @@ const COPY = {
   en: {
     title: "One more thing.",
     intro:
-      "Before you enter, please confirm you've read and agreed to how chapter3five handles your data.",
-    terms: "I agree to the Terms of Service.",
-    privacy: "I agree to the Privacy Policy.",
-    cookies: "I understand the Cookie Policy.",
-    read: "Read",
-    cta: "Continue",
+      "Before you go in — chapter3five works only because you've consented to a few specific things. Read each, check the box. We record what you agreed to and when.",
+    termsTitle: "Terms of Service.",
+    termsBody:
+      "How you use chapter3five — your account, your content, our limits, refunds, the dispute-resolution process, and the platform-specific provisions for the Apple App Store and Google Play.",
+    privacyTitle: "Privacy Policy.",
+    privacyBody:
+      "What we collect (your archive content, voice recordings, photos, persona memories, payment metadata, device tokens, etc.), how we use it, who processes it on our behalf, and how to delete it.",
+    aiTitle: "AI processing — Anthropic + OpenAI.",
+    aiBody:
+      "Your archive, your messages, your attached photos, your voice recordings, and your persona memories are sent to Anthropic and OpenAI to power the chat, memory retrieval, image moderation, and voice transcription. Both have default-no-retention and default-no-training-on-customer-data policies. We never train any model — ours or theirs — on your data.",
+    cookiesTitle: "Cookie Policy.",
+    cookiesBody:
+      "We use cookies (and on mobile, equivalent device storage) to keep you signed in, remember preferences, and run light aggregate analytics. No advertising cookies; no third-party tracking SDKs.",
+    ageTitle: "I am 18 or older.",
+    ageBody:
+      "chapter3five is an adults-only product. We've already taken your date of birth at the previous step; this is your final confirmation that the date you entered is true and that you are at least 18.",
+    notTherapyTitle: "This is not therapy or crisis support.",
+    notTherapyBody:
+      "chapter3five is not medical, psychological, or therapeutic care. The identity is built to step out of character if your messages suggest you need a real person — but if you're in crisis right now, please reach out: US 988 (call/text), UK Samaritans 116 123, Mexico SAPTEL +52 55 5259-8121, or your local emergency number.",
+    readFull: "Read full",
+    cta: "I agree — let me in.",
+    recordNote:
+      "We save a record of these acknowledgments tagged with the version of this page you saw, so we always know exactly what you agreed to.",
   },
   es: {
     title: "Una cosa más.",
     intro:
-      "Antes de entrar, confirma que leíste y aceptas cómo chapter3five maneja tu información.",
-    terms: "Acepto los Términos del Servicio.",
-    privacy: "Acepto la Política de Privacidad.",
-    cookies: "Entiendo la Política de Cookies.",
-    read: "Leer",
-    cta: "Continuar",
+      "Antes de entrar — chapter3five funciona solo porque consientes a unas cosas específicas. Lee cada una, marca la casilla. Guardamos un registro de lo que aceptaste y cuándo.",
+    termsTitle: "Términos del Servicio.",
+    termsBody:
+      "Cómo usas chapter3five — tu cuenta, tu contenido, nuestros límites, reembolsos, el proceso de resolución de disputas, y las cláusulas específicas para Apple App Store y Google Play.",
+    privacyTitle: "Política de Privacidad.",
+    privacyBody:
+      "Qué recopilamos (el contenido de tu archivo, grabaciones de voz, fotos, memorias del persona, metadatos de pagos, tokens de dispositivo, etc.), cómo lo usamos, quién lo procesa por nosotros, y cómo eliminarlo.",
+    aiTitle: "Procesamiento de IA — Anthropic + OpenAI.",
+    aiBody:
+      "Tu archivo, tus mensajes, las fotos que adjuntas, tus grabaciones de voz, y las memorias del persona se envían a Anthropic y OpenAI para impulsar el chat, la recuperación de memoria, la moderación de imágenes, y la transcripción de voz. Ambos tienen políticas predeterminadas de no retención y no entrenamiento sobre datos del cliente. Nunca entrenamos a ningún modelo — nuestro ni de ellos — con tu información.",
+    cookiesTitle: "Política de Cookies.",
+    cookiesBody:
+      "Usamos cookies (y en móvil, almacenamiento equivalente del dispositivo) para mantenerte conectado, recordar preferencias, y ejecutar analítica agregada. Sin cookies publicitarias; sin SDKs de terceros.",
+    ageTitle: "Tengo 18 años o más.",
+    ageBody:
+      "chapter3five es solo para adultos. Ya tomamos tu fecha de nacimiento en el paso anterior; esta es tu confirmación final de que la fecha que entraste es verdadera y que tienes al menos 18 años.",
+    notTherapyTitle: "Esto no es terapia ni soporte para crisis.",
+    notTherapyBody:
+      "chapter3five no es atención médica, psicológica, ni terapéutica. La identidad está diseñada para salir del personaje si tus mensajes sugieren que necesitas una persona real — pero si estás en crisis ahora, por favor comunícate: US 988, UK Samaritans 116 123, México SAPTEL +52 55 5259-8121, o tu número local de emergencias.",
+    readFull: "Leer completo",
+    cta: "Acepto — déjame entrar.",
+    recordNote:
+      "Guardamos un registro de estos consentimientos etiquetado con la versión de esta página que viste, para saber exactamente qué aceptaste.",
   },
 };

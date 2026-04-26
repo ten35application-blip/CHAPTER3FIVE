@@ -3,8 +3,22 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
-const AGREEMENT_VERSION = "2026-04-25";
-const REQUIRED_DOCS = ["terms", "privacy", "cookies"] as const;
+// Bumped when the agreements page changes meaningfully. Acceptance
+// rows record this version so we know exactly what each user agreed
+// to and when. If we change the disclosures, bump this and re-prompt.
+const AGREEMENT_VERSION = "2026-04-27";
+
+// Six required acknowledgments. Each becomes a row in the agreements
+// table tagged with this version. Match the form field names in
+// /agreements/page.tsx.
+const REQUIRED_DOCS = [
+  "terms",
+  "privacy",
+  "cookies",
+  "ai_processing",
+  "age_18plus",
+  "not_therapy",
+] as const;
 
 export async function acceptAgreements(formData: FormData) {
   const supabase = await createClient();
@@ -16,7 +30,9 @@ export async function acceptAgreements(formData: FormData) {
   for (const doc of REQUIRED_DOCS) {
     const accepted = formData.get(doc) === "on";
     if (!accepted) {
-      redirect(`/agreements?error=Please%20accept%20all%20three%20to%20continue`);
+      redirect(
+        `/agreements?error=Please%20check%20every%20box%20to%20continue`,
+      );
     }
   }
 
