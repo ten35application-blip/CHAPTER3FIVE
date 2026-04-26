@@ -5,6 +5,7 @@ import {
   updateLanguage,
   updateTextingStyle,
   updateLocation,
+  updateTraits,
   deleteOracle,
   deleteAccount,
   createShareCode,
@@ -119,13 +120,19 @@ export default async function SettingsPage({
   const { data: activeOracle } = activeOracleId
     ? await supabase
         .from("oracles")
-        .select("location_anchor")
+        .select(
+          "location_anchor, orientation, relationship_openness, identity_quirks, mode",
+        )
         .eq("id", activeOracleId)
         .maybeSingle()
     : { data: null };
   const locationAnchor = (activeOracle?.location_anchor ?? null) as
     | { city?: string; neighborhood?: string; state?: string; country?: string }
     | null;
+  const oracleOrientation = (activeOracle?.orientation ?? "") as string;
+  const oracleOpenness = (activeOracle?.relationship_openness ?? "") as string;
+  const oracleQuirks = (activeOracle?.identity_quirks ?? []) as string[];
+  const oracleIsRandomized = (activeOracle?.mode ?? "") === "randomize";
   const locationDisplay = locationAnchor
     ? [
         locationAnchor.neighborhood,
@@ -368,6 +375,64 @@ export default async function SettingsPage({
                   maxLength={120}
                   className="w-full h-11 rounded-full bg-warm-700/30 border border-warm-400/30 px-5 text-warm-50 placeholder:text-warm-400 focus:outline-none focus:border-warm-200 transition-colors text-sm"
                 />
+                <button
+                  type="submit"
+                  className="h-11 px-5 rounded-full bg-warm-50 text-ink font-medium hover:bg-warm-100 transition-colors text-sm"
+                >
+                  {t.save}
+                </button>
+              </form>
+            </Section>
+          )}
+
+          {activeOracleId && !oracleIsRandomized && (
+            <Section title={t.traitsTitle}>
+              <p className="text-sm text-warm-300 mb-4">{t.traitsHint}</p>
+              <form action={updateTraits} className="space-y-4">
+                <div className="space-y-2">
+                  <label className="block text-xs uppercase tracking-[0.2em] text-warm-300">
+                    {t.traitsOrientation}
+                  </label>
+                  <select
+                    name="orientation"
+                    defaultValue={oracleOrientation}
+                    className="w-full h-11 rounded-full bg-warm-700/30 border border-warm-400/30 px-5 text-warm-50 focus:outline-none focus:border-warm-200 transition-colors text-sm"
+                  >
+                    {Object.entries(t.traitsOrientations).map(([k, v]) => (
+                      <option key={k} value={k}>
+                        {v}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-xs uppercase tracking-[0.2em] text-warm-300">
+                    {t.traitsOpenness}
+                  </label>
+                  <select
+                    name="openness"
+                    defaultValue={oracleOpenness}
+                    className="w-full h-11 rounded-full bg-warm-700/30 border border-warm-400/30 px-5 text-warm-50 focus:outline-none focus:border-warm-200 transition-colors text-sm"
+                  >
+                    {Object.entries(t.traitsOpennessOptions).map(([k, v]) => (
+                      <option key={k} value={k}>
+                        {v}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {oracleQuirks.length > 0 && (
+                  <div className="space-y-2">
+                    <label className="block text-xs uppercase tracking-[0.2em] text-warm-300">
+                      {t.traitsQuirks}
+                    </label>
+                    <ul className="text-sm text-warm-200 space-y-1 pl-4 list-disc">
+                      {oracleQuirks.map((q, i) => (
+                        <li key={i}>{q}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 <button
                   type="submit"
                   className="h-11 px-5 rounded-full bg-warm-50 text-ink font-medium hover:bg-warm-100 transition-colors text-sm"
@@ -1056,6 +1121,31 @@ const COPY = {
     locationHint:
       "Anchors local references in chat — neighborhood, food, walks, the train. We try to pull this from your answers automatically; correct it here if we got it wrong.",
     locationPlaceholder: "Throgs Neck, Bronx, NY",
+    traitsTitle: "Orientation & openness",
+    traitsHint:
+      "Shapes how your thirtyfive responds when conversation drifts toward romance. Pulled from your answers automatically; correct it here.",
+    traitsOrientation: "Sexuality",
+    traitsOpenness: "Romantic openness",
+    traitsQuirks: "Other things about you",
+    traitsQuirksEmpty: "Nothing specific — yet.",
+    traitsOrientations: {
+      "": "—",
+      straight: "Straight",
+      gay: "Gay",
+      lesbian: "Lesbian",
+      bi: "Bi",
+      pan: "Pan",
+      ace: "Asexual",
+      unspecified: "Prefer not to label",
+    },
+    traitsOpennessOptions: {
+      "": "—",
+      flirty: "Flirty",
+      warm: "Warm — open if it shows up",
+      reserved: "Reserved",
+      partnered: "In a relationship",
+      uninterested: "Not interested in romance",
+    },
     save: "Save",
     trashTitle: "Removed thirtyfives",
     trashHint:
@@ -1208,6 +1298,31 @@ const COPY = {
     locationHint:
       "Ancla referencias locales en el chat — colonia, comida, caminatas, el metro. Intentamos sacarlo de tus respuestas automáticamente; corrígelo aquí si nos equivocamos.",
     locationPlaceholder: "Roma Norte, CDMX, México",
+    traitsTitle: "Orientación y apertura",
+    traitsHint:
+      "Da forma a cómo responde tu thirtyfive cuando la conversación va hacia el romance. Lo sacamos de tus respuestas; corrígelo aquí.",
+    traitsOrientation: "Sexualidad",
+    traitsOpenness: "Apertura romántica",
+    traitsQuirks: "Otras cosas sobre ti",
+    traitsQuirksEmpty: "Nada específico — aún.",
+    traitsOrientations: {
+      "": "—",
+      straight: "Heterosexual",
+      gay: "Gay",
+      lesbian: "Lesbiana",
+      bi: "Bisexual",
+      pan: "Pansexual",
+      ace: "Asexual",
+      unspecified: "Prefiero no etiquetar",
+    },
+    traitsOpennessOptions: {
+      "": "—",
+      flirty: "Coqueta/o",
+      warm: "Cálida/o — abierto si surge",
+      reserved: "Reservada/o",
+      partnered: "En una relación",
+      uninterested: "No me interesa el romance",
+    },
     save: "Guardar",
     trashTitle: "Thirtyfives eliminados",
     trashHint:

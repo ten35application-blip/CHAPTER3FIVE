@@ -71,6 +71,68 @@ export async function updateTextingStyle(formData: FormData) {
   redirect("/settings?saved=style");
 }
 
+const ORIENTATION_VALUES = [
+  "straight",
+  "gay",
+  "lesbian",
+  "bi",
+  "pan",
+  "ace",
+  "unspecified",
+] as const;
+const OPENNESS_VALUES = [
+  "flirty",
+  "warm",
+  "reserved",
+  "partnered",
+  "uninterested",
+] as const;
+
+export async function updateTraits(formData: FormData) {
+  const rawOrientation = String(formData.get("orientation") ?? "").trim();
+  const rawOpenness = String(formData.get("openness") ?? "").trim();
+
+  const orientation =
+    (ORIENTATION_VALUES as readonly string[]).includes(rawOrientation)
+      ? rawOrientation
+      : null;
+  const openness =
+    (OPENNESS_VALUES as readonly string[]).includes(rawOpenness)
+      ? rawOpenness
+      : null;
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/auth/signin");
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("active_oracle_id")
+    .eq("id", user.id)
+    .single();
+  if (!profile?.active_oracle_id) {
+    redirect("/settings?error=No%20active%20identity");
+  }
+
+  const { error } = await supabase
+    .from("oracles")
+    .update({
+      orientation,
+      relationship_openness: openness,
+      traits_extracted_at: new Date().toISOString(),
+    })
+    .eq("id", profile.active_oracle_id);
+
+  if (error) {
+    redirect(`/settings?error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePath("/settings");
+  redirect("/settings?saved=traits");
+}
+
 export async function updateLocation(formData: FormData) {
   const raw = String(formData.get("location") ?? "").trim();
 

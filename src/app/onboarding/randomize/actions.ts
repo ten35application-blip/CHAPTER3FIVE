@@ -16,6 +16,7 @@ import {
   type EmotionalFlavor,
 } from "@/content/personality";
 import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
+import { rollRandomTraits } from "@/lib/traits";
 
 export async function generateRandomizedArchive(formData: FormData) {
   const genderRaw = String(formData.get("gender") ?? "any");
@@ -101,6 +102,23 @@ export async function generateRandomizedArchive(formData: FormData) {
       randomize_count: newCount,
     })
     .eq("id", user.id);
+
+  // Roll the persona's orientation, romantic openness, and 0–3
+  // identity quirks from a wide weird pool. Persisted on the oracle
+  // so the chat system prompt has them on every turn. The user
+  // discovers these by talking — never shown on a profile or stat
+  // page — so two randomized identities always feel like different
+  // actual people.
+  const traits = rollRandomTraits();
+  await supabase
+    .from("oracles")
+    .update({
+      orientation: traits.orientation,
+      relationship_openness: traits.openness,
+      identity_quirks: traits.quirks,
+      traits_extracted_at: new Date().toISOString(),
+    })
+    .eq("id", oracleId);
 
   // Synthesize a backstory the persona can stand on. Reads a sample
   // of the random answers + the personality + flavor, asks Claude

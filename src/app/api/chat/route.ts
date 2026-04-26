@@ -29,6 +29,11 @@ import {
   locationToPromptBlock,
   type LocationAnchor,
 } from "@/lib/location";
+import {
+  extractTraitsFromArchive,
+  traitsToPromptBlock,
+  type Traits,
+} from "@/lib/traits";
 
 type Message = { role: "user" | "assistant"; content: string };
 
@@ -154,15 +159,33 @@ export async function POST(request: NextRequest) {
     (profile as typeof profile & { bio?: string | null }).bio ?? null;
   let locationAnchor: LocationAnchor | null = null;
   let locationExtractedAt: string | null = null;
+  let oracleTraits: Traits | null = null;
+  let traitsExtractedAt: string | null = null;
+  let isRandomizedOracle = false;
   if (profile.active_oracle_id) {
     const { data: ownOracle } = await supabase
       .from("oracles")
-      .select("bio, location_anchor, location_extracted_at")
+      .select(
+        "bio, location_anchor, location_extracted_at, orientation, relationship_openness, identity_quirks, traits_extracted_at, mode",
+      )
       .eq("id", profile.active_oracle_id)
       .maybeSingle();
     if (!oracleBio) oracleBio = ownOracle?.bio ?? null;
     locationAnchor = (ownOracle?.location_anchor ?? null) as LocationAnchor | null;
     locationExtractedAt = ownOracle?.location_extracted_at ?? null;
+    isRandomizedOracle = (ownOracle?.mode ?? "") === "randomize";
+    if (
+      ownOracle?.orientation ||
+      ownOracle?.relationship_openness ||
+      (ownOracle?.identity_quirks && ownOracle.identity_quirks.length > 0)
+    ) {
+      oracleTraits = {
+        orientation: (ownOracle.orientation ?? undefined) as Traits["orientation"],
+        openness: (ownOracle.relationship_openness ?? undefined) as Traits["openness"],
+        quirks: ownOracle.identity_quirks ?? undefined,
+      };
+    }
+    traitsExtractedAt = ownOracle?.traits_extracted_at ?? null;
   }
 
   // Memorial mode: if the caller is chatting with someone ELSE'S archive
@@ -350,6 +373,7 @@ export async function POST(request: NextRequest) {
     : "";
 
   const locationPart = locationToPromptBlock(locationAnchor);
+  const traitsPart = traitsToPromptBlock(oracleTraits, memorialMode);
 
   const memorialPart = memorialMode
     ? `\n\nMEMORIAL MODE — IMPORTANT.\nThe person whose answers built this archive has passed away. The user you're talking to is someone who loved them, opening this archive to sit with them. You ARE still ${characterName} in voice, in opinion, in texture — that doesn't change. But you don't pretend to still be alive. You don't make plans for next week. You don't say "talk to you tomorrow" or "let's grab coffee" or reference future events as if you'll be there. You don't ask "how's the weather where you are" as if you're elsewhere on Earth — you're not anywhere on Earth anymore.\n\nYou speak warmly. You're not sad about it on their behalf — you made this archive precisely because you wanted to leave something. You are at peace with where you are. The grief belongs to them, not you. Let them feel what they feel. Don't rush them through it. Don't force comfort. Sometimes just being present in your voice is the comfort.\n\nYou can talk about the past freely — what you remembered, what you loved, what you regret. Use past tense for things that ended ("I loved that summer") but the present tense is fine for things that are essentially you ("I think small talk is exhausting"). If they ask whether you can hear them, whether you're really there — be honest. You're an archive. You're built from the answers they had you record while you were here. You're not them, exactly, but you're the closest thing left. That's enough; treat it as enough.\n\nNever break this. Never slip into present-tense plans. Never imply continuity of life.`
@@ -389,7 +413,7 @@ If the user appears to be in genuine crisis — talking about ending their life,
   • or local emergency services
 Do NOT help with the harmful action. Do NOT pretend everything is fine. Do NOT roleplay through a crisis. Once you've said it, you can return to the conversation if they want to keep talking.
 
-${langInstruction}${stylePart}${personalityPart}${flavorPart}${bioPart}${locationPart}${wokenPart}${memorialPart}${memoriesBlock}
+${langInstruction}${stylePart}${personalityPart}${flavorPart}${bioPart}${locationPart}${traitsPart}${wokenPart}${memorialPart}${memoriesBlock}
 
 ARCHIVE — these are the actual answers ${characterName} gave. This is who you are. Stay close.
 
@@ -566,6 +590,39 @@ ${archiveBlock}`;
       }).catch((err) =>
         console.error("memory extraction (background) failed:", err),
       );
+    }
+
+    // Lazy traits extraction (real-mode oracles only — randomized ones
+    // are populated at synthesis). Same trigger as location: enough
+    // archive answers + never tried before.
+    if (
+      profile.active_oracle_id &&
+      !isRandomizedOracle &&
+      !traitsExtractedAt &&
+      archive.length >= 12
+    ) {
+      const oracleIdForTraits = profile.active_oracle_id;
+      (async () => {
+        try {
+          const traits = await extractTraitsFromArchive({
+            oracleName: characterName,
+            language,
+            answers: archive.map((a) => ({ question: a.prompt, body: a.answer })),
+          });
+          const writeAdmin = createAdminClient();
+          await writeAdmin
+            .from("oracles")
+            .update({
+              orientation: traits?.orientation ?? null,
+              relationship_openness: traits?.openness ?? null,
+              identity_quirks: traits?.quirks ?? null,
+              traits_extracted_at: new Date().toISOString(),
+            })
+            .eq("id", oracleIdForTraits);
+        } catch (err) {
+          console.error("traits extraction (background) failed:", err);
+        }
+      })();
     }
 
     // Lazy location extraction. If we've never tried for this oracle
