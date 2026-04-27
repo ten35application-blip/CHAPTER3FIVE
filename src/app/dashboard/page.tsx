@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { NewConversationMenu } from "@/components/NewConversationMenu";
+import { FavoriteTile } from "@/components/FavoriteTile";
 import { toggleFavorite } from "../settings/actions";
 
 export const metadata = {
@@ -288,6 +289,10 @@ export default async function DashboardPage() {
     .map((f) => rowByKey.get(`${f.kind}:${f.id}`))
     .filter((r): r is ConvRow => r !== undefined);
 
+  // Pinned conversations only appear in the favorites strip — pull
+  // them out of the main list so they don't show up twice.
+  const listRows = rows.filter((r) => !r.isFavorite);
+
   return (
     <main className="flex-1">
       <header className="border-b border-warm-700/40">
@@ -324,10 +329,13 @@ export default async function DashboardPage() {
             </p>
             <div className="flex gap-3">
               {favoriteRows.map((r) => (
-                <Link
+                <FavoriteTile
                   key={`fav-${r.favoriteKind}-${r.favoriteId}`}
                   href={r.href}
-                  className="flex flex-col items-center w-20 flex-shrink-0 group"
+                  title={r.title}
+                  favoriteId={r.favoriteId}
+                  favoriteKind={r.favoriteKind}
+                  language={language}
                 >
                   <div className="w-16 h-20 rounded-[40%] overflow-hidden border border-warm-700/60 bg-warm-700/40 group-hover:border-warm-300/50 transition-colors mb-2">
                     {r.kind === "group" &&
@@ -353,7 +361,7 @@ export default async function DashboardPage() {
                   <span className="text-xs text-warm-200 text-center truncate w-full leading-tight">
                     {r.title}
                   </span>
-                </Link>
+                </FavoriteTile>
               ))}
             </div>
           </div>
@@ -365,7 +373,7 @@ export default async function DashboardPage() {
           </p>
         ) : (
           <div className="space-y-1">
-            {rows.map((r, i) => (
+            {listRows.map((r, i) => (
               <div
                 key={r.href + i}
                 className="flex items-center gap-3 px-3 py-3 rounded-2xl hover:bg-warm-700/20 active:bg-warm-700/40 transition-colors group/row"
@@ -423,15 +431,11 @@ export default async function DashboardPage() {
                   <input type="hidden" name="id" value={r.favoriteId} />
                   <button
                     type="submit"
-                    aria-label={r.isFavorite ? t.unfavorite : t.favorite}
-                    title={r.isFavorite ? t.unfavorite : t.favorite}
-                    className={`p-2 rounded-full transition-colors ${
-                      r.isFavorite
-                        ? "text-amber"
-                        : "text-warm-500 hover:text-warm-200"
-                    }`}
+                    aria-label={t.favorite}
+                    title={t.favorite}
+                    className="p-2 rounded-full text-warm-500 hover:text-warm-200 transition-colors"
                   >
-                    <FavStar filled={r.isFavorite} />
+                    <FavStar filled={false} />
                   </button>
                 </form>
               </div>
