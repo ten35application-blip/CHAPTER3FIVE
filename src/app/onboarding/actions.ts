@@ -69,6 +69,27 @@ export async function startOnboarding(formData: FormData) {
     redirect(`/onboarding?error=${encodeURIComponent(error.message)}`);
   }
 
+  // Mirror the chosen name + mode + language onto the active oracle row.
+  // Without this, the oracle stays "untitled" forever — the chat
+  // header, dashboards, group-chat picker, and randomize meet page all
+  // pull from oracles.name.
+  const { data: profileRow } = await supabase
+    .from("profiles")
+    .select("active_oracle_id")
+    .eq("id", user.id)
+    .single();
+  if (profileRow?.active_oracle_id) {
+    await supabase
+      .from("oracles")
+      .update({
+        name: oracleName,
+        mode,
+        preferred_language: language,
+      })
+      .eq("id", profileRow.active_oracle_id)
+      .eq("user_id", user.id);
+  }
+
   if (mode === "randomize") {
     redirect("/onboarding/randomize");
   }
