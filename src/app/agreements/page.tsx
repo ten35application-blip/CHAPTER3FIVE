@@ -130,8 +130,27 @@ function Disclosure({
       <input
         type="checkbox"
         name={name}
-        className="mt-1 h-4 w-4 rounded border-warm-300/60 bg-warm-700/40 accent-warm-200 flex-shrink-0"
+        className="peer sr-only"
       />
+      {/* Custom checkbox: warm-700 fill + warm border when unchecked,
+          cream fill + dark ✓ when checked. Higher contrast than the
+          default accent-warm-200 which blended into the page. */}
+      <span
+        aria-hidden
+        className="mt-0.5 h-5 w-5 flex-shrink-0 rounded border-2 border-warm-300/70 bg-warm-700/40 flex items-center justify-center transition-colors peer-checked:bg-warm-50 peer-checked:border-warm-50 peer-focus-visible:ring-2 peer-focus-visible:ring-warm-200 [&>svg]:opacity-0 peer-checked:[&>svg]:opacity-100"
+      >
+        <svg
+          viewBox="0 0 16 16"
+          className="w-3.5 h-3.5 text-ink"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <polyline points="3 8 7 12 13 4" />
+        </svg>
+      </span>
       <div className="flex-1 space-y-1">
         <p className="text-sm font-medium text-warm-50">{title}</p>
         <p className="text-xs text-warm-200 leading-relaxed">
