@@ -71,7 +71,7 @@ export default async function SharingPage({
 
   const { data: beneficiaryRows } = await supabase
     .from("beneficiaries")
-    .select("id, email, name, status, notified_at, created_at")
+    .select("id, email, name, status, notified_at, created_at, claim_token")
     .eq("owner_user_id", user.id)
     .order("created_at", { ascending: true });
   const beneficiaries = beneficiaryRows ?? [];
@@ -345,49 +345,80 @@ export default async function SharingPage({
                 </div>
               )}
 
-              {/* Beneficiaries (will inherit on death). */}
+              {/* Beneficiaries (will inherit on death). Show their
+                  pre-shareable claim URL so the owner can hand it
+                  off NOW — no one has to "reach chapter3five" later
+                  for the inheritance to work. */}
               {beneficiaries.length > 0 && (
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <p className="text-xs uppercase tracking-[0.2em] text-warm-400 mb-1">
                     {t.beneficiariesHeading}
                   </p>
-                  {beneficiaries.map((b) => (
-                  <div
-                    key={b.id}
-                    className="flex items-center justify-between gap-3 px-4 py-2 rounded-lg border border-warm-700/60 bg-warm-700/15"
-                  >
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-sm text-warm-100 truncate">
-                        {b.name ?? b.email}
-                      </span>
-                      <span className="text-xs text-warm-400 truncate">
-                        {b.name ? `${b.email} · ` : ""}
-                        {b.status === "designated"
-                          ? b.notified_at
-                            ? t.beneficiaryNotified
-                            : t.beneficiaryDesignated
-                          : b.status === "activated"
-                            ? t.beneficiaryActivated
-                            : b.status === "claimed"
-                              ? t.beneficiaryClaimed
-                              : b.status === "declined"
-                                ? t.beneficiaryDeclined
-                                : t.revoked}
-                      </span>
-                    </div>
-                    {(b.status === "designated" || b.status === "activated") && (
-                      <form action={removeBeneficiary}>
-                        <input type="hidden" name="id" value={b.id} />
-                        <button
-                          type="submit"
-                          className="text-xs text-warm-400 hover:text-warm-200 transition-colors whitespace-nowrap"
-                        >
-                          {t.remove}
-                        </button>
-                      </form>
-                    )}
-                  </div>
-                  ))}
+                  <p className="text-xs text-warm-300 leading-relaxed mb-2">
+                    {t.beneficiariesShareHint}
+                  </p>
+                  {beneficiaries.map((b) => {
+                    const claimUrl = b.claim_token
+                      ? `https://chapter3five.app/legacy/${b.claim_token}`
+                      : null;
+                    return (
+                      <div
+                        key={b.id}
+                        className="rounded-lg border border-warm-700/60 bg-warm-700/15 px-4 py-3 space-y-2"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex flex-col min-w-0 flex-1">
+                            <span className="text-sm text-warm-100 truncate">
+                              {b.name ?? b.email}
+                            </span>
+                            <span className="text-xs text-warm-400 truncate">
+                              {b.name ? `${b.email} · ` : ""}
+                              {b.status === "designated"
+                                ? b.notified_at
+                                  ? t.beneficiaryNotified
+                                  : t.beneficiaryDesignated
+                                : b.status === "activated"
+                                  ? t.beneficiaryActivated
+                                  : b.status === "claimed"
+                                    ? t.beneficiaryClaimed
+                                    : b.status === "declined"
+                                      ? t.beneficiaryDeclined
+                                      : t.revoked}
+                            </span>
+                          </div>
+                          {(b.status === "designated" ||
+                            b.status === "activated") && (
+                            <form action={removeBeneficiary}>
+                              <input type="hidden" name="id" value={b.id} />
+                              <button
+                                type="submit"
+                                className="text-xs text-warm-400 hover:text-warm-200 transition-colors whitespace-nowrap"
+                              >
+                                {t.remove}
+                              </button>
+                            </form>
+                          )}
+                        </div>
+                        {claimUrl &&
+                          (b.status === "designated" ||
+                            b.status === "activated") && (
+                            <details className="rounded border border-warm-700/40 bg-ink-soft px-3 py-2">
+                              <summary className="text-xs text-warm-300 cursor-pointer hover:text-warm-100 transition-colors">
+                                {t.beneficiaryClaimLinkLabel}
+                              </summary>
+                              <div className="mt-2 space-y-1.5">
+                                <code className="block font-mono text-[11px] text-warm-100 break-all bg-warm-700/30 px-2 py-1.5 rounded">
+                                  {claimUrl}
+                                </code>
+                                <p className="text-[11px] text-warm-400 leading-relaxed">
+                                  {t.beneficiaryClaimLinkHint}
+                                </p>
+                              </div>
+                            </details>
+                          )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 
@@ -474,6 +505,11 @@ const COPY = {
     grantedOn: "Granted",
     revokeAccess: "Revoke access",
     beneficiariesHeading: "Inheritance (when I'm gone)",
+    beneficiariesShareHint:
+      "Each person below has their own private claim link — tap to see it. Share it with them now (text, email, your will, on a piece of paper in your safe) so they have it ready. They use it to confirm your passing and unlock the archive. No need for them to find chapter3five later.",
+    beneficiaryClaimLinkLabel: "Show their claim link",
+    beneficiaryClaimLinkHint:
+      "Send this to them now. When they visit it, the page tells them the archive is dormant while you're alive. If you've passed, they confirm — you get a 72-hour cancel window via email — then the archive opens for them.",
     beneficiarySlots: (used: number, total: number) =>
       `${used} of ${total} slots used.`,
     beneficiaryPreview: "Preview what they'll see →",
@@ -534,6 +570,11 @@ const COPY = {
     grantedOn: "Otorgado",
     revokeAccess: "Revocar acceso",
     beneficiariesHeading: "Herencia (cuando ya no esté)",
+    beneficiariesShareHint:
+      "Cada persona abajo tiene su propio enlace privado de reclamo — toca para verlo. Compártelo con ellos ahora (texto, correo, en tu testamento, en un papel en tu caja fuerte) para que lo tengan listo. Lo usan para confirmar tu fallecimiento y desbloquear el archivo. No tienen que buscar chapter3five después.",
+    beneficiaryClaimLinkLabel: "Mostrar su enlace de reclamo",
+    beneficiaryClaimLinkHint:
+      "Mándaselo ahora. Cuando lo visiten, la página les dice que el archivo está dormido mientras estás vivo. Si ya falleciste, lo confirman — tú recibes una ventana de cancelación de 72 horas por correo — y el archivo se abre para ellos.",
     beneficiarySlots: (used: number, total: number) =>
       `${used} de ${total} espacios usados.`,
     beneficiaryPreview: "Ver lo que verán →",
