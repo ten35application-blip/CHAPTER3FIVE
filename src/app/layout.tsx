@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Cormorant_Garamond } from "next/font/google";
+import { createClient } from "@/lib/supabase/server";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -61,14 +62,36 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Read the signed-in user's theme preference so we can set
+  // data-theme on <html> for CSS palette swap. Anonymous visitors
+  // (landing, sign-in) just get the default "dusk".
+  let theme = "dusk";
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (user) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("theme")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (profile?.theme === "daylight") theme = "daylight";
+    }
+  } catch {
+    /* fall back to dusk on any error */
+  }
+
   return (
     <html
       lang="en"
+      data-theme={theme}
       className={`${geistSans.variable} ${cormorant.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-ink text-warm-50">

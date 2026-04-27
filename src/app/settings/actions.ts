@@ -24,6 +24,29 @@ function generateClaimToken(): string {
     .slice(0, 32);
 }
 
+export async function updateTheme(formData: FormData) {
+  const raw = String(formData.get("theme") ?? "").trim();
+  const theme = raw === "daylight" ? "daylight" : "dusk";
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/auth/signin");
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ theme })
+    .eq("id", user.id);
+
+  if (error) {
+    redirect(`/account?error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePath("/", "layout");
+  redirect("/account?saved=theme");
+}
+
 export async function updateLanguage(formData: FormData) {
   const language = String(formData.get("language") ?? "en").trim();
   if (language !== "en" && language !== "es") {

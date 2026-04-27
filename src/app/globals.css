@@ -4,15 +4,8 @@
   --font-sans: var(--font-geist-sans);
   --font-serif: var(--font-cormorant);
 
-  /* Warm/sepia identity retained, but pushed harder in both
-     directions for legibility. The page background is brighter
-     (less eye-strain than near-pure black), and the text colors
-     are pushed toward near-white-cream so body copy, labels, and
-     hint text are all comfortably readable.
-     - 50-100: body text (near-white-cream)
-     - 200-300: labels, secondary text
-     - 400: hint text — now actually visible
-     - 500-700: borders, panels, dividers */
+  /* DUSK — default. Warm-dark. The product's home tone: intimate,
+     somber, paperback-at-night. */
   --color-ink: #1a140f;
   --color-ink-soft: #281e15;
   --color-warm-50: #fff8ec;
@@ -25,6 +18,24 @@
   --color-warm-700: #30231a;
   --color-amber: #ffd8a0;
   --color-amber-soft: #ffc585;
+}
+
+/* DAYLIGHT — warm parchment background with deep sepia text. Same
+   warm hue, lightness inverted. Reads in bright rooms without
+   abandoning the brand mood. */
+:root[data-theme="daylight"] {
+  --color-ink: #faf2dd;
+  --color-ink-soft: #f0e4c8;
+  --color-warm-50: #2a1d10;
+  --color-warm-100: #3a2818;
+  --color-warm-200: #553d24;
+  --color-warm-300: #785836;
+  --color-warm-400: #9a7a52;
+  --color-warm-500: #b89c70;
+  --color-warm-600: #d4bb95;
+  --color-warm-700: #e2cea8;
+  --color-amber: #b8742a;
+  --color-amber-soft: #c98a3e;
 }
 
 html,

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
   updateLanguage,
+  updateTheme,
   toggleOutreach,
   deleteAccount,
   deleteAccountPermanently,
@@ -33,7 +34,9 @@ export default async function AccountPage({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("oracle_name, mode, preferred_language, created_at, outreach_enabled")
+    .select(
+      "oracle_name, mode, preferred_language, created_at, outreach_enabled, theme",
+    )
     .eq("id", user.id)
     .single();
 
@@ -121,6 +124,35 @@ export default async function AccountPage({
               >
                 {t.save}
               </button>
+            </form>
+          </Section>
+
+          <Section title={t.themeTitle}>
+            <p className="text-sm text-warm-300 mb-4 leading-relaxed">
+              {t.themeHint}
+            </p>
+            <form
+              action={updateTheme}
+              className="grid grid-cols-1 sm:grid-cols-2 gap-3"
+            >
+              <ThemeOption
+                value="dusk"
+                current={profile?.theme ?? "dusk"}
+                title={t.themeDusk}
+                body={t.themeDuskBody}
+                swatchBg="#1a140f"
+                swatchFg="#fff8ec"
+                swatchAccent="#d8b27a"
+              />
+              <ThemeOption
+                value="daylight"
+                current={profile?.theme ?? "dusk"}
+                title={t.themeDaylight}
+                body={t.themeDaylightBody}
+                swatchBg="#faf2dd"
+                swatchFg="#2a1d10"
+                swatchAccent="#785836"
+              />
             </form>
           </Section>
 
@@ -327,6 +359,66 @@ export default async function AccountPage({
   );
 }
 
+function ThemeOption({
+  value,
+  current,
+  title,
+  body,
+  swatchBg,
+  swatchFg,
+  swatchAccent,
+}: {
+  value: string;
+  current: string;
+  title: string;
+  body: string;
+  swatchBg: string;
+  swatchFg: string;
+  swatchAccent: string;
+}) {
+  const isCurrent = value === current;
+  return (
+    <button
+      type="submit"
+      name="theme"
+      value={value}
+      className={`text-left rounded-2xl border p-4 transition-colors ${
+        isCurrent
+          ? "border-warm-50 bg-warm-700/30"
+          : "border-warm-700/60 bg-warm-700/15 hover:bg-warm-700/30 hover:border-warm-300/50"
+      }`}
+    >
+      <div className="flex items-start gap-3 mb-3">
+        <div
+          className="w-12 h-12 rounded-xl border flex-shrink-0 overflow-hidden"
+          style={{ background: swatchBg, borderColor: swatchAccent }}
+          aria-hidden
+        >
+          <div className="h-1/2" style={{ background: swatchBg }} />
+          <div className="h-px" style={{ background: swatchAccent }} />
+          <div
+            className="h-[calc(50%-1px)] flex items-center justify-center"
+            style={{ background: swatchBg }}
+          >
+            <span style={{ color: swatchFg, fontSize: 10 }}>Aa</span>
+          </div>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-serif text-lg text-warm-50">
+            {title}
+            {isCurrent && (
+              <span className="text-[10px] uppercase tracking-[0.2em] ml-2 text-warm-200">
+                ✓
+              </span>
+            )}
+          </p>
+          <p className="text-xs text-warm-300 leading-relaxed mt-1">{body}</p>
+        </div>
+      </div>
+    </button>
+  );
+}
+
 const COPY = {
   en: {
     title: "Your account.",
@@ -338,6 +430,13 @@ const COPY = {
     email: "Email",
     created: "Created",
     languageTitle: "Language",
+    themeTitle: "Theme",
+    themeHint:
+      "Pick how the app reads. Dusk is the default — warm and dark, made for reading at night. Daylight inverts it for bright rooms while keeping the warm tone.",
+    themeDusk: "Dusk",
+    themeDuskBody: "Warm-dark. Default.",
+    themeDaylight: "Daylight",
+    themeDaylightBody: "Warm parchment, deep sepia text.",
     outreachTitle: "Quiet-week nudges",
     outreachHint:
       "When you haven't messaged your identity in about a week, we'll send a gentle email reminding you they're there. Off by default if you'd rather we stay out of your inbox.",
@@ -391,6 +490,13 @@ const COPY = {
     email: "Correo",
     created: "Creada",
     languageTitle: "Idioma",
+    themeTitle: "Tema",
+    themeHint:
+      "Elige cómo se lee la app. Dusk es lo predeterminado — cálido y oscuro, hecho para leer de noche. Daylight lo invierte para cuartos con luz manteniendo el tono cálido.",
+    themeDusk: "Dusk",
+    themeDuskBody: "Cálido y oscuro. Predeterminado.",
+    themeDaylight: "Daylight",
+    themeDaylightBody: "Pergamino cálido, texto sepia profundo.",
     outreachTitle: "Recordatorios de la semana",
     outreachHint:
       "Cuando no le hayas escrito a tu identidad por una semana más o menos, te mandamos un correo gentil para recordarte que está ahí. Apágalo si prefieres que no lleguemos a tu bandeja de entrada.",
