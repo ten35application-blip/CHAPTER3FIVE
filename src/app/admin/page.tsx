@@ -269,9 +269,17 @@ export default async function AdminPage({
           >
             chapter3five
           </Link>
-          <span className="text-xs uppercase tracking-[0.2em] text-warm-300">
-            admin
-          </span>
+          <div className="flex items-center gap-5">
+            <Link
+              href="/dashboard"
+              className="text-xs uppercase tracking-[0.2em] text-warm-200 hover:text-warm-50 transition-colors"
+            >
+              ← Dashboard
+            </Link>
+            <span className="text-xs uppercase tracking-[0.2em] text-warm-300">
+              admin
+            </span>
+          </div>
         </div>
       </header>
 
@@ -311,6 +319,50 @@ export default async function AdminPage({
 
           <section>
             <h2 className="text-xs uppercase tracking-[0.25em] text-warm-300 mb-4">
+              Users
+            </h2>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+              <Stat label="Total accounts" value={stat(profilesCount).toLocaleString()} />
+              <Stat label="Completed onboarding" value={stat(onboardedCount).toLocaleString()} />
+              <Stat label="Active in 7 days" value={stat(activeLastSevenCount).toLocaleString()} />
+              <Stat label="Outreach sent (30d)" value={stat(outreachSentLast30).toLocaleString()} />
+            </div>
+            <h3 className="text-xs uppercase tracking-[0.25em] text-warm-400 mb-3">
+              Recent signups
+            </h3>
+            {recentSignups.data && recentSignups.data.length > 0 ? (
+              <div className="space-y-1">
+                {recentSignups.data.map((p) => (
+                  <div
+                    key={p.id}
+                    className="flex items-center justify-between gap-3 px-4 py-2 rounded-lg border border-warm-700/60 bg-warm-700/15"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <code className="font-mono text-xs text-warm-400">
+                        {p.id.slice(0, 8)}
+                      </code>
+                      <span className="text-sm text-warm-100 truncate font-serif">
+                        {p.oracle_name ?? "—"}
+                      </span>
+                      <span className="text-xs text-warm-400">{p.mode ?? "—"}</span>
+                      <span className="text-xs text-warm-400">
+                        {p.preferred_language ?? "—"}
+                      </span>
+                    </div>
+                    <div className="text-xs text-warm-400 whitespace-nowrap">
+                      {p.onboarding_completed ? "✓" : "—"}{" "}
+                      {new Date(p.created_at).toLocaleDateString()}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-warm-400">No signups yet.</p>
+            )}
+          </section>
+
+          <section>
+            <h2 className="text-xs uppercase tracking-[0.25em] text-warm-300 mb-4">
               Revenue
             </h2>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -322,18 +374,6 @@ export default async function AdminPage({
             <p className="mt-3 text-xs text-warm-400">
               {paidCount} paid randomize{paidCount === 1 ? "" : "s"} all-time.
             </p>
-          </section>
-
-          <section>
-            <h2 className="text-xs uppercase tracking-[0.25em] text-warm-300 mb-4">
-              Users
-            </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <Stat label="Total accounts" value={stat(profilesCount).toLocaleString()} />
-              <Stat label="Completed onboarding" value={stat(onboardedCount).toLocaleString()} />
-              <Stat label="Active in 7 days" value={stat(activeLastSevenCount).toLocaleString()} />
-              <Stat label="Outreach sent (30d)" value={stat(outreachSentLast30).toLocaleString()} />
-            </div>
           </section>
 
           <section>
@@ -770,40 +810,6 @@ export default async function AdminPage({
             )}
           </section>
 
-          <section>
-            <h2 className="text-xs uppercase tracking-[0.25em] text-warm-300 mb-4">
-              Recent signups
-            </h2>
-            {recentSignups.data && recentSignups.data.length > 0 ? (
-              <div className="space-y-1">
-                {recentSignups.data.map((p) => (
-                  <div
-                    key={p.id}
-                    className="flex items-center justify-between gap-3 px-4 py-2 rounded-lg border border-warm-700/60 bg-warm-700/15"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <code className="font-mono text-xs text-warm-400">
-                        {p.id.slice(0, 8)}
-                      </code>
-                      <span className="text-sm text-warm-100 truncate font-serif">
-                        {p.oracle_name ?? "—"}
-                      </span>
-                      <span className="text-xs text-warm-400">{p.mode ?? "—"}</span>
-                      <span className="text-xs text-warm-400">
-                        {p.preferred_language ?? "—"}
-                      </span>
-                    </div>
-                    <div className="text-xs text-warm-400 whitespace-nowrap">
-                      {p.onboarding_completed ? "✓" : "—"}{" "}
-                      {new Date(p.created_at).toLocaleDateString()}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-warm-400">No signups yet.</p>
-            )}
-          </section>
         </div>
       </main>
     </>

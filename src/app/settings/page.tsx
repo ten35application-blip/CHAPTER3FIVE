@@ -301,14 +301,29 @@ export default async function SettingsPage({
 
           <Section title={t.languageTitle}>
             <form action={updateLanguage} className="flex items-center gap-3">
-              <select
-                name="language"
-                defaultValue={language}
-                className="h-11 rounded-full bg-warm-700/30 border border-warm-400/30 px-4 text-warm-50 focus:outline-none focus:border-warm-200"
-              >
-                <option value="en">English</option>
-                <option value="es">Español</option>
-              </select>
+              <div className="relative">
+                <select
+                  name="language"
+                  defaultValue={language}
+                  className="h-11 rounded-full bg-warm-700/40 border-2 border-warm-300/50 pl-5 pr-10 text-warm-50 focus:outline-none focus:border-warm-200 appearance-none cursor-pointer hover:bg-warm-700/60 transition-colors text-sm"
+                >
+                  <option value="en">English</option>
+                  <option value="es">Español</option>
+                </select>
+                {/* Caret indicator so users see it's a dropdown */}
+                <svg
+                  aria-hidden
+                  viewBox="0 0 12 8"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 w-3 h-2 text-warm-200 pointer-events-none"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polyline points="1 1.5 6 6.5 11 1.5" />
+                </svg>
+              </div>
               <button
                 type="submit"
                 className="h-11 px-5 rounded-full bg-warm-50 text-ink font-medium hover:bg-warm-100 transition-colors text-sm"

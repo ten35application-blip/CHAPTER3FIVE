@@ -4,16 +4,20 @@
   --font-sans: var(--font-geist-sans);
   --font-serif: var(--font-cormorant);
 
-  --color-ink: #0a0806;
-  --color-ink-soft: #14100c;
-  --color-warm-50: #f4ead8;
-  --color-warm-100: #ebdcc0;
-  --color-warm-200: #d9c19c;
-  --color-warm-300: #b8946a;
-  --color-warm-400: #8a6840;
-  --color-warm-500: #5e4628;
-  --color-warm-600: #3a2c1c;
-  --color-warm-700: #221912;
+  /* Tones: warm/sepia identity, but boosted mid-range so labels and
+     hint text don't disappear against dark backgrounds. The dark
+     half (500-700) is unchanged — those are for borders and panels.
+     The light half (50-400) gets brighter values. */
+  --color-ink: #0c0a08;
+  --color-ink-soft: #181410;
+  --color-warm-50: #fbf4e3;
+  --color-warm-100: #f4e6c8;
+  --color-warm-200: #e6d0a8;
+  --color-warm-300: #cfae80;
+  --color-warm-400: #a98260;
+  --color-warm-500: #76583a;
+  --color-warm-600: #463424;
+  --color-warm-700: #2a201a;
   --color-amber: #ffc88a;
   --color-amber-soft: #ffb56a;
 }

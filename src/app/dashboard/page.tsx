@@ -89,8 +89,8 @@ export default async function DashboardPage() {
     .eq("id", user.id);
 
   return (
-    <main className="flex-1 flex flex-col px-6 py-6 relative overflow-hidden">
-      <header className="max-w-2xl w-full mx-auto flex items-center justify-between mb-12">
+    <main className="flex-1 flex flex-col px-6 py-4 relative overflow-hidden h-[100dvh]">
+      <header className="max-w-2xl w-full mx-auto flex items-center justify-between mb-4 flex-shrink-0">
         <Link
           href="/"
           className="font-serif text-xl tracking-tight text-warm-100 hover:text-warm-50 transition-colors"

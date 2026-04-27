@@ -352,9 +352,9 @@ export function Chat({
   }
 
   return (
-    <div className="w-full max-w-2xl flex flex-col items-center">
-      <div className="mb-6">
-        <Orb size={260} intensity={sending ? "thinking" : "rest"} />
+    <div className="w-full max-w-2xl flex flex-col items-center flex-1 min-h-0">
+      <div className="mb-3 flex-shrink-0">
+        <Orb size={140} intensity={sending ? "thinking" : "rest"} />
       </div>
 
       {avatarUrl ? (
@@ -362,15 +362,17 @@ export function Chat({
         <img
           src={avatarUrl}
           alt=""
-          className="w-16 h-16 rounded-full object-cover mb-3 border border-warm-400/30"
+          className="w-12 h-12 rounded-full object-cover mb-2 border border-warm-400/30 flex-shrink-0"
         />
       ) : null}
-      <h1 className="font-serif text-3xl text-warm-50 mb-1">{oracleName}</h1>
-      <p className="text-xs uppercase tracking-[0.2em] text-warm-300 mb-8 italic min-h-[1em]">
+      <h1 className="font-serif text-2xl text-warm-50 mb-1 flex-shrink-0">
+        {oracleName}
+      </h1>
+      <p className="text-xs uppercase tracking-[0.2em] text-warm-300 mb-3 italic min-h-[1em] flex-shrink-0">
         {sending ? `${activityLabel}…` : ""}
       </p>
 
-      <div className="w-full flex flex-col h-[55svh]">
+      <div className="w-full flex flex-col flex-1 min-h-0">
         <div
           ref={scrollerRef}
           className="flex-1 overflow-y-auto px-1 py-2 space-y-6"
