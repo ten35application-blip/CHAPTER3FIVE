@@ -294,11 +294,7 @@ export function ConversationRow({
             startX.current === null ? "transform 200ms ease-out" : "none",
           touchAction: "pan-y",
         }}
-        className={
-          unread
-            ? "relative bg-warm-700/15"
-            : "relative bg-ink-soft"
-        }
+        className="relative bg-ink-soft"
       >
         <Link
           href={href}
