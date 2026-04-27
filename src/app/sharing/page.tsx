@@ -390,6 +390,17 @@ export default async function SharingPage({
                   ))}
                 </div>
               )}
+
+              {/* Honest explainer of the death-notification path so
+                  users know the inheritance email isn't magic. */}
+              <details className="mt-8 rounded-xl border border-warm-700/60 bg-warm-700/15 px-4 py-3">
+                <summary className="text-sm text-warm-200 cursor-pointer hover:text-warm-50 transition-colors">
+                  {t.familyTriggerTitle}
+                </summary>
+                <p className="mt-3 text-sm text-warm-300 leading-relaxed">
+                  {t.familyTriggerBody}
+                </p>
+              </details>
             </Section>
           )}
         </div>
@@ -440,17 +451,20 @@ const COPY = {
     revoke: "Revoke",
     familyTitle: "Family who can access this archive",
     familyIntro:
-      "Add the people you want to give access to your archive — now while you're alive, after you're gone, or both. Three free people; $5 per additional one.",
+      "The people who can talk to your identity now — or step into it after you're gone. Three included; $5 for each beyond that.",
     familyEmailPlaceholder: "Their email",
     familyNamePlaceholder: "Name (optional)",
     familyAccessNow: "Talk to it now",
     familyAccessNowHint:
-      "Sends them an invite link. They sign up (or in) and can chat with this same identity. Each person gets their own private thread.",
+      "We send an invite link. They sign up (or in), open this same identity in their own private thread. They don't see your conversations; you don't see theirs.",
     familyAccessAfter: "Inherit when I'm gone",
     familyAccessAfterHint:
-      "If something happens to me, they'll get an email with a claim link — answers, voice, photos, the whole archive. Memorial mode.",
-    familyAddCta: "Add to family",
+      "When something happens to you, they get an email with a claim link to the whole archive — every answer, voice clip, photo. The identity stays in your voice but no longer pretends to still be alive.",
+    familyAddCta: "Add",
     familyAccessNowBadge: "Live access",
+    familyTriggerTitle: "How does the inheritance email get sent?",
+    familyTriggerBody:
+      "It triggers the moment your account is marked deceased. The honest current path: a family member or friend writes to care@chapter3five.app with your account email, we verify, and flip it. Every designated beneficiary then gets their claim link automatically — no logging in, no password, just the link. (We're building a periodic \"still here?\" check-in so the archive isn't dependent on someone remembering chapter3five exists. Coming soon.)",
     inviteJustCreated: "Invite link created:",
     invitesHeading: "Live access (talk to me now)",
     grantsHeading: "Currently has access",
@@ -497,17 +511,20 @@ const COPY = {
     revoke: "Revocar",
     familyTitle: "Familia con acceso a este archivo",
     familyIntro:
-      "Agrega a las personas a quienes quieres dar acceso — ahora mientras vives, cuando ya no estés, o ambos. Tres personas gratis; $5 por cada una adicional.",
+      "Las personas que pueden hablar con tu identidad ahora — o entrar en ella cuando ya no estés. Tres incluidas; $5 por cada una adicional.",
     familyEmailPlaceholder: "Su correo",
     familyNamePlaceholder: "Nombre (opcional)",
     familyAccessNow: "Hablarme ahora",
     familyAccessNowHint:
-      "Le enviamos un enlace de invitación. Se registra (o inicia sesión) y puede chatear con esta misma identidad. Cada persona tiene su propio hilo privado.",
+      "Le enviamos un enlace de invitación. Se registra (o inicia sesión), abre esta misma identidad en su propio hilo privado. No ven tus conversaciones; tú no ves las suyas.",
     familyAccessAfter: "Heredar cuando ya no esté",
     familyAccessAfterHint:
-      "Si algo me sucede, recibe un correo con un enlace de reclamo — respuestas, voz, fotos, el archivo entero. Modo memorial.",
-    familyAddCta: "Agregar a la familia",
+      "Cuando algo te suceda, reciben un correo con un enlace de reclamo al archivo completo — cada respuesta, audio, foto. La identidad mantiene tu voz pero ya no finge seguir viva.",
+    familyAddCta: "Agregar",
     familyAccessNowBadge: "Acceso en vida",
+    familyTriggerTitle: "¿Cómo se envía el correo de herencia?",
+    familyTriggerBody:
+      "Se dispara en el momento que tu cuenta se marca como fallecida. El camino honesto actual: un familiar o amigo escribe a care@chapter3five.app con el correo de tu cuenta, verificamos, y lo activamos. Cada beneficiario designado recibe su enlace de reclamo automáticamente — sin iniciar sesión, sin contraseña, solo el enlace. (Estamos construyendo un check-in periódico de \"¿sigues aquí?\" para que el archivo no dependa de que alguien recuerde que chapter3five existe. Pronto.)",
     inviteJustCreated: "Enlace creado:",
     invitesHeading: "Acceso en vida (hablarme ahora)",
     grantsHeading: "Tiene acceso actualmente",
