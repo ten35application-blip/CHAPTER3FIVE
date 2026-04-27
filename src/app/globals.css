@@ -20,22 +20,24 @@
   --color-amber-soft: #ffc585;
 }
 
-/* DAYLIGHT — warm parchment background with deep sepia text. Same
-   warm hue, lightness inverted. Reads in bright rooms without
-   abandoning the brand mood. */
+/* DAYLIGHT — warm parchment background, deep sepia text. The whole
+   warm scale stays "dark warm" so borders, dividers, and the
+   bg-warm-700/X panel tints (used everywhere) still create visible
+   contrast against the cream background. The flip is just: page bg
+   becomes light, text stays high-contrast against it. */
 :root[data-theme="daylight"] {
   --color-ink: #faf2dd;
-  --color-ink-soft: #f0e4c8;
-  --color-warm-50: #2a1d10;
-  --color-warm-100: #3a2818;
-  --color-warm-200: #553d24;
-  --color-warm-300: #785836;
-  --color-warm-400: #9a7a52;
-  --color-warm-500: #b89c70;
-  --color-warm-600: #d4bb95;
-  --color-warm-700: #e2cea8;
-  --color-amber: #b8742a;
-  --color-amber-soft: #c98a3e;
+  --color-ink-soft: #f0e2c5;
+  --color-warm-50: #1a140f;
+  --color-warm-100: #2a1d12;
+  --color-warm-200: #3d2a1c;
+  --color-warm-300: #553d24;
+  --color-warm-400: #785836;
+  --color-warm-500: #9a7a52;
+  --color-warm-600: #b89c70;
+  --color-warm-700: #c4a87f;
+  --color-amber: #b06a1c;
+  --color-amber-soft: #c98230;
 }
 
 html,

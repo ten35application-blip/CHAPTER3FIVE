@@ -191,16 +191,6 @@ export function UserMenu({
             </>
           )}
 
-          {oracles.length >= 2 && (
-            <Link
-              href="/dashboard/group"
-              onClick={() => setOpen(false)}
-              className="block px-4 py-2.5 text-sm text-warm-100 hover:bg-warm-600/60 transition-colors"
-            >
-              {language === "es" ? "Chat grupal" : "Group chat"}
-            </Link>
-          )}
-
           <form action={newOracle}>
             <button
               type="submit"

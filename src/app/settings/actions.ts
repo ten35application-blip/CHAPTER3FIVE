@@ -50,7 +50,7 @@ export async function updateTheme(formData: FormData) {
 export async function updateLanguage(formData: FormData) {
   const language = String(formData.get("language") ?? "en").trim();
   if (language !== "en" && language !== "es") {
-    redirect("/settings?error=Invalid%20language");
+    redirect("/account?error=Invalid%20language");
   }
 
   const supabase = await createClient();
@@ -65,11 +65,11 @@ export async function updateLanguage(formData: FormData) {
     .eq("id", user.id);
 
   if (error) {
-    redirect(`/settings?error=${encodeURIComponent(error.message)}`);
+    redirect(`/account?error=${encodeURIComponent(error.message)}`);
   }
 
-  revalidatePath("/settings");
-  redirect("/settings?saved=language");
+  revalidatePath("/account");
+  redirect("/account?saved=language");
 }
 
 export async function updateTextingStyle(formData: FormData) {
@@ -87,11 +87,11 @@ export async function updateTextingStyle(formData: FormData) {
     .eq("id", user.id);
 
   if (error) {
-    redirect(`/settings?error=${encodeURIComponent(error.message)}`);
+    redirect(`/sharing?error=${encodeURIComponent(error.message)}`);
   }
 
-  revalidatePath("/settings");
-  redirect("/settings?saved=style");
+  revalidatePath("/sharing");
+  redirect("/sharing?saved=style");
 }
 
 const ORIENTATION_VALUES = [
@@ -136,7 +136,7 @@ export async function updateTraits(formData: FormData) {
     .eq("id", user.id)
     .single();
   if (!profile?.active_oracle_id) {
-    redirect("/settings?error=No%20active%20identity");
+    redirect("/sharing?error=No%20active%20identity");
   }
 
   const { error } = await supabase
@@ -149,11 +149,11 @@ export async function updateTraits(formData: FormData) {
     .eq("id", profile.active_oracle_id);
 
   if (error) {
-    redirect(`/settings?error=${encodeURIComponent(error.message)}`);
+    redirect(`/sharing?error=${encodeURIComponent(error.message)}`);
   }
 
-  revalidatePath("/settings");
-  redirect("/settings?saved=traits");
+  revalidatePath("/sharing");
+  redirect("/sharing?saved=traits");
 }
 
 export async function updateLocation(formData: FormData) {
@@ -171,7 +171,7 @@ export async function updateLocation(formData: FormData) {
     .eq("id", user.id)
     .single();
   if (!profile?.active_oracle_id) {
-    redirect("/settings?error=No%20active%20identity");
+    redirect("/sharing?error=No%20active%20identity");
   }
 
   // Owner-supplied locations are stored as a single freeform string in
@@ -189,11 +189,11 @@ export async function updateLocation(formData: FormData) {
     .eq("id", profile.active_oracle_id);
 
   if (error) {
-    redirect(`/settings?error=${encodeURIComponent(error.message)}`);
+    redirect(`/sharing?error=${encodeURIComponent(error.message)}`);
   }
 
-  revalidatePath("/settings");
-  redirect("/settings?saved=location");
+  revalidatePath("/sharing");
+  redirect("/sharing?saved=location");
 }
 
 function isoDate(input: string | null | undefined): string {
@@ -221,11 +221,11 @@ export async function toggleOutreach(formData: FormData) {
     .eq("id", user.id);
 
   if (error) {
-    redirect(`/settings?error=${encodeURIComponent(error.message)}`);
+    redirect(`/account?error=${encodeURIComponent(error.message)}`);
   }
 
-  revalidatePath("/settings");
-  redirect(`/settings?saved=outreach`);
+  revalidatePath("/account");
+  redirect(`/account?saved=outreach`);
 }
 
 export async function deleteOracle(formData: FormData) {
@@ -350,16 +350,16 @@ export async function createShareCode(formData: FormData) {
       label,
     });
     if (!error) {
-      revalidatePath("/settings");
-      redirect(`/settings?saved=share&code=${encodeURIComponent(code)}`);
+      revalidatePath("/sharing");
+      redirect(`/sharing?saved=share&code=${encodeURIComponent(code)}`);
     }
     // 23505 = unique violation. Anything else, abort.
     const e = error as { code?: string; message?: string };
     if (e.code !== "23505") {
-      redirect(`/settings?error=${encodeURIComponent(e.message ?? "Could not create share code")}`);
+      redirect(`/sharing?error=${encodeURIComponent(e.message ?? "Could not create share code")}`);
     }
   }
-  redirect("/settings?error=Could%20not%20generate%20a%20unique%20share%20code");
+  redirect("/sharing?error=Could%20not%20generate%20a%20unique%20share%20code");
 }
 
 export async function createArchiveInvite(formData: FormData) {
@@ -378,7 +378,7 @@ export async function createArchiveInvite(formData: FormData) {
     .eq("id", user.id)
     .single();
   if (!profile?.active_oracle_id) {
-    redirect("/settings?error=No%20active%20identity");
+    redirect("/sharing?error=No%20active%20identity");
   }
 
   for (let attempt = 0; attempt < 5; attempt++) {
@@ -390,20 +390,20 @@ export async function createArchiveInvite(formData: FormData) {
       code,
     });
     if (!error) {
-      revalidatePath("/settings");
-      redirect(`/settings?saved=invite&code=${encodeURIComponent(code)}`);
+      revalidatePath("/sharing");
+      redirect(`/sharing?saved=invite&code=${encodeURIComponent(code)}`);
     }
     const e = error as { code?: string; message?: string };
     if (e.code !== "23505") {
-      redirect(`/settings?error=${encodeURIComponent(e.message ?? "Could not create invite")}`);
+      redirect(`/sharing?error=${encodeURIComponent(e.message ?? "Could not create invite")}`);
     }
   }
-  redirect("/settings?error=Could%20not%20generate%20a%20unique%20invite");
+  redirect("/sharing?error=Could%20not%20generate%20a%20unique%20invite");
 }
 
 export async function revokeArchiveInvite(formData: FormData) {
   const code = String(formData.get("code") ?? "").trim();
-  if (!code) redirect("/settings?error=Missing%20code");
+  if (!code) redirect("/sharing?error=Missing%20code");
 
   const supabase = await createClient();
   const {
@@ -417,13 +417,13 @@ export async function revokeArchiveInvite(formData: FormData) {
     .eq("code", code)
     .eq("inviter_user_id", user.id);
 
-  revalidatePath("/settings");
-  redirect("/settings?saved=invite-revoked");
+  revalidatePath("/sharing");
+  redirect("/sharing?saved=invite-revoked");
 }
 
 export async function revokeArchiveGrant(formData: FormData) {
   const grantId = String(formData.get("grant_id") ?? "").trim();
-  if (!grantId) redirect("/settings?error=Missing%20id");
+  if (!grantId) redirect("/sharing?error=Missing%20id");
 
   const supabase = await createClient();
   const {
@@ -447,7 +447,7 @@ export async function revokeArchiveGrant(formData: FormData) {
       : (grant?.oracles as unknown as { user_id: string } | null)?.user_id;
 
   if (!grant || oracleOwnerId !== user.id) {
-    redirect("/settings?error=Not%20authorized");
+    redirect("/sharing?error=Not%20authorized");
   }
 
   await supabase
@@ -455,13 +455,13 @@ export async function revokeArchiveGrant(formData: FormData) {
     .delete()
     .eq("id", grantId);
 
-  revalidatePath("/settings");
-  redirect("/settings?saved=grant-revoked");
+  revalidatePath("/sharing");
+  redirect("/sharing?saved=grant-revoked");
 }
 
 export async function revokeShareCode(formData: FormData) {
   const code = String(formData.get("code") ?? "").trim();
-  if (!code) redirect("/settings?error=Missing%20code");
+  if (!code) redirect("/sharing?error=Missing%20code");
 
   const supabase = await createClient();
   const {
@@ -476,11 +476,11 @@ export async function revokeShareCode(formData: FormData) {
     .eq("source_user_id", user.id);
 
   if (error) {
-    redirect(`/settings?error=${encodeURIComponent(error.message)}`);
+    redirect(`/sharing?error=${encodeURIComponent(error.message)}`);
   }
 
-  revalidatePath("/settings");
-  redirect("/settings?saved=revoked");
+  revalidatePath("/sharing");
+  redirect("/sharing?saved=revoked");
 }
 
 export async function deleteAccount(formData: FormData) {
@@ -504,20 +504,20 @@ export async function deleteAccount(formData: FormData) {
   if (profile?.oracle_name) {
     if (!namesMatch(typedName, profile.oracle_name)) {
       redirect(
-        "/settings?error=Name%20does%20not%20match%20-%20delete%20cancelled",
+        "/account?error=Name%20does%20not%20match%20-%20delete%20cancelled",
       );
     }
   } else {
     if (typedName.trim().toLowerCase() !== (user.email ?? "").toLowerCase()) {
       redirect(
-        "/settings?error=Email%20does%20not%20match%20-%20delete%20cancelled",
+        "/account?error=Email%20does%20not%20match%20-%20delete%20cancelled",
       );
     }
   }
 
   if (typedDate !== isoDate(profile?.created_at)) {
     redirect(
-      "/settings?error=Created%20date%20does%20not%20match%20-%20delete%20cancelled",
+      "/account?error=Created%20date%20does%20not%20match%20-%20delete%20cancelled",
     );
   }
 
@@ -576,20 +576,20 @@ export async function deleteAccountPermanently(formData: FormData) {
   if (profile?.oracle_name) {
     if (!namesMatch(typedName, profile.oracle_name)) {
       redirect(
-        "/settings?error=Name%20does%20not%20match%20-%20delete%20cancelled",
+        "/account?error=Name%20does%20not%20match%20-%20delete%20cancelled",
       );
     }
   } else {
     if (typedName.trim().toLowerCase() !== (user.email ?? "").toLowerCase()) {
       redirect(
-        "/settings?error=Email%20does%20not%20match%20-%20delete%20cancelled",
+        "/account?error=Email%20does%20not%20match%20-%20delete%20cancelled",
       );
     }
   }
 
   if (typedDate !== isoDate(profile?.created_at)) {
     redirect(
-      "/settings?error=Created%20date%20does%20not%20match%20-%20delete%20cancelled",
+      "/account?error=Created%20date%20does%20not%20match%20-%20delete%20cancelled",
     );
   }
 
@@ -667,7 +667,7 @@ export async function addBeneficiary(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim() || null;
 
   if (!email || !email.includes("@")) {
-    redirect("/settings?error=Enter%20a%20valid%20email");
+    redirect("/sharing?error=Enter%20a%20valid%20email");
   }
 
   const supabase = await createClient();
@@ -677,7 +677,7 @@ export async function addBeneficiary(formData: FormData) {
   if (!user) redirect("/auth/signin");
 
   if (email === (user.email ?? "").toLowerCase()) {
-    redirect("/settings?error=You%20can%27t%20designate%20yourself");
+    redirect("/sharing?error=You%20can%27t%20designate%20yourself");
   }
 
   const { data: profile } = await supabase
@@ -694,7 +694,7 @@ export async function addBeneficiary(formData: FormData) {
     .neq("status", "removed");
 
   if ((activeCount ?? 0) >= cap) {
-    redirect("/settings?error=At%20cap%20-%20add%20a%20slot%20to%20designate%20more");
+    redirect("/sharing?error=At%20cap%20-%20add%20a%20slot%20to%20designate%20more");
   }
 
   const claimToken = generateClaimToken();
@@ -708,9 +708,9 @@ export async function addBeneficiary(formData: FormData) {
   if (error) {
     const e = error as { code?: string; message?: string };
     if (e.code === "23505") {
-      redirect("/settings?error=That%20email%20is%20already%20a%20beneficiary");
+      redirect("/sharing?error=That%20email%20is%20already%20a%20beneficiary");
     }
-    redirect(`/settings?error=${encodeURIComponent(e.message ?? "Could not add")}`);
+    redirect(`/sharing?error=${encodeURIComponent(e.message ?? "Could not add")}`);
   }
 
   // Send designation email — fire-and-forget, don't fail the action on email error.
@@ -729,13 +729,13 @@ export async function addBeneficiary(formData: FormData) {
     console.error("beneficiary designation email failed:", err);
   }
 
-  revalidatePath("/settings");
-  redirect("/settings?saved=beneficiary-added");
+  revalidatePath("/sharing");
+  redirect("/sharing?saved=beneficiary-added");
 }
 
 export async function deletePersonaMemory(formData: FormData) {
   const id = String(formData.get("id") ?? "").trim();
-  if (!id) redirect("/settings?error=Missing%20id");
+  if (!id) redirect("/identities?error=Missing%20id");
 
   const supabase = await createClient();
   const {
@@ -750,13 +750,13 @@ export async function deletePersonaMemory(formData: FormData) {
     .eq("id", id)
     .eq("user_id", user.id);
 
-  revalidatePath("/settings");
-  redirect("/settings?saved=memory-removed");
+  revalidatePath("/identities");
+  redirect("/identities?saved=memory-removed");
 }
 
 export async function restoreOracle(formData: FormData) {
   const oracleId = String(formData.get("oracle_id") ?? "").trim();
-  if (!oracleId) redirect("/settings?error=Missing%20id");
+  if (!oracleId) redirect("/identities?error=Missing%20id");
 
   const supabase = await createClient();
   const {
@@ -772,13 +772,13 @@ export async function restoreOracle(formData: FormData) {
     .eq("user_id", user.id)
     .maybeSingle();
   if (!oracle || !oracle.deleted_at) {
-    redirect("/settings?error=Not%20found%20or%20not%20deleted");
+    redirect("/identities?error=Not%20found%20or%20not%20deleted");
   }
   if (
     oracle.scheduled_purge_at &&
     new Date(oracle.scheduled_purge_at).getTime() < Date.now()
   ) {
-    redirect("/settings?error=Grace%20period%20expired");
+    redirect("/identities?error=Grace%20period%20expired");
   }
 
   const headerList = await headers();
@@ -801,7 +801,7 @@ export async function restoreOracle(formData: FormData) {
   const data = await res.json();
   if (!res.ok || !data.url) {
     redirect(
-      `/settings?error=${encodeURIComponent(data.error ?? "Could not start checkout")}`,
+      `/sharing?error=${encodeURIComponent(data.error ?? "Could not start checkout")}`,
     );
   }
   redirect(data.url);
@@ -831,7 +831,7 @@ export async function buyBeneficiarySlot() {
   const data = await res.json();
   if (!res.ok || !data.url) {
     redirect(
-      `/settings?error=${encodeURIComponent(data.error ?? "Could not start checkout")}`,
+      `/sharing?error=${encodeURIComponent(data.error ?? "Could not start checkout")}`,
     );
   }
   redirect(data.url);
@@ -839,7 +839,7 @@ export async function buyBeneficiarySlot() {
 
 export async function removeBeneficiary(formData: FormData) {
   const id = String(formData.get("id") ?? "").trim();
-  if (!id) redirect("/settings?error=Missing%20id");
+  if (!id) redirect("/sharing?error=Missing%20id");
 
   const supabase = await createClient();
   const {
@@ -882,6 +882,6 @@ export async function removeBeneficiary(formData: FormData) {
     );
   }
 
-  revalidatePath("/settings");
-  redirect("/settings?saved=beneficiary-removed");
+  revalidatePath("/sharing");
+  redirect("/sharing?saved=beneficiary-removed");
 }

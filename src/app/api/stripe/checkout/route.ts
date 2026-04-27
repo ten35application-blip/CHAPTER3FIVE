@@ -81,21 +81,21 @@ export async function POST(request: NextRequest) {
     purpose === "oracle"
       ? "/oracle/success?session_id={CHECKOUT_SESSION_ID}"
       : purpose === "beneficiary_slot"
-        ? "/settings?saved=beneficiary-slot"
+        ? "/sharing?saved=beneficiary-slot"
         : purpose === "restore_account"
           ? "/dashboard?restored=1"
           : purpose === "restore_oracle"
-            ? "/settings?saved=oracle-restored"
+            ? "/identities?saved=oracle-restored"
             : "/randomize/success?session_id={CHECKOUT_SESSION_ID}";
   const cancelPath =
     purpose === "oracle"
       ? "/oracle/cancel"
       : purpose === "beneficiary_slot"
-        ? "/settings?error=Payment%20cancelled"
+        ? "/sharing?error=Payment%20cancelled"
         : purpose === "restore_account"
           ? "/restore?error=Payment%20cancelled"
           : purpose === "restore_oracle"
-            ? "/settings?error=Payment%20cancelled"
+            ? "/identities?error=Payment%20cancelled"
             : "/randomize/cancel";
 
   const session = await stripe.checkout.sessions.create({

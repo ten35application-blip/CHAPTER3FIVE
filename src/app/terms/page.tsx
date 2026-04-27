@@ -529,10 +529,10 @@ export default function TermsPage() {
           <li>
             <strong>Account deletion.</strong> You can request account
             deletion from within the chapter3five mobile application
-            (Settings → Delete account, which links to the chapter3five
-            website for confirmation), or directly at{" "}
-            <a href="https://chapter3five.app/settings#delete">
-              chapter3five.app/settings#delete
+            (Settings → Your account → Delete account, which links to
+            the chapter3five website for confirmation), or directly at{" "}
+            <a href="https://chapter3five.app/account#delete">
+              chapter3five.app/account#delete
             </a>
             .
           </li>
