@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Orb } from "@/components/Orb";
-import { startOnboarding, suggestRandomName } from "./actions";
+import { startOnboarding, suggestRandomName, cancelNewIdentity } from "./actions";
 import { TimezoneSelect } from "@/components/TimezoneSelect";
 
 export const metadata = {
@@ -27,7 +27,9 @@ export default async function OnboardingPage({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("oracle_name, mode, preferred_language, onboarding_completed, timezone, birthdate")
+    .select(
+      "oracle_name, mode, preferred_language, onboarding_completed, timezone, birthdate, active_oracle_id",
+    )
     .eq("id", user.id)
     .single();
 
@@ -36,6 +38,21 @@ export default async function OnboardingPage({
   }
 
   const nameValue = suggested ?? profile?.oracle_name ?? "";
+
+  // Detect "I pressed + New identity by accident" case: user has
+  // OTHER non-deleted oracles besides the current incomplete one.
+  // Show a cancel-and-go-back link so they're not trapped.
+  const { data: priorOracles } = profile?.active_oracle_id
+    ? await supabase
+        .from("oracles")
+        .select("id, name")
+        .eq("user_id", user.id)
+        .is("deleted_at", null)
+        .neq("id", profile.active_oracle_id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+    : { data: null };
+  const fallbackName = priorOracles?.[0]?.name ?? null;
 
   return (
     <main className="flex-1 flex flex-col items-center px-6 py-16 relative overflow-hidden">
@@ -54,9 +71,21 @@ export default async function OnboardingPage({
         <h1 className="font-serif text-4xl sm:text-5xl text-warm-50 mb-4 leading-tight">
           <span className="italic font-light">Begin a chapter.</span>
         </h1>
-        <p className="text-warm-200 text-lg mb-16 max-w-lg leading-relaxed">
+        <p className="text-warm-200 text-lg mb-6 max-w-lg leading-relaxed">
           Before we start, three small choices.
         </p>
+
+        {fallbackName && (
+          <form action={cancelNewIdentity} className="mb-10">
+            <button
+              type="submit"
+              className="text-sm text-warm-300 hover:text-warm-100 underline underline-offset-2 transition-colors"
+            >
+              ← Cancel — back to {fallbackName}
+            </button>
+          </form>
+        )}
+        {!fallbackName && <div className="mb-10" />}
 
         <form
           action={startOnboarding}

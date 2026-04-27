@@ -143,6 +143,78 @@ export async function startOnboarding(formData: FormData) {
   redirect("/onboarding/questions");
 }
 
+/**
+ * Bail-out from /onboarding when the user pressed "+ New identity"
+ * by accident or changed their mind. Soft-deletes the empty new
+ * oracle (it has no answers, no chats, nothing of value), switches
+ * active_oracle_id back to a previously-existing identity, and
+ * marks onboarding_completed=true so the dashboard loads cleanly.
+ */
+export async function cancelNewIdentity() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/auth/signin");
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("active_oracle_id")
+    .eq("id", user.id)
+    .single();
+  const currentId = profile?.active_oracle_id ?? null;
+
+  // Find the most recently-created non-deleted oracle that ISN'T
+  // the one we're trying to bail on.
+  const { data: candidates } = await supabase
+    .from("oracles")
+    .select("id, name, mode, preferred_language, texting_style, personality_type, emotional_flavor, timezone")
+    .eq("user_id", user.id)
+    .is("deleted_at", null)
+    .neq("id", currentId ?? "00000000-0000-0000-0000-000000000000")
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  const fallback = candidates?.[0];
+  if (!fallback) {
+    // No prior identity — can't cancel back to nothing. Stay put.
+    redirect("/onboarding?error=No%20previous%20identity%20to%20return%20to");
+  }
+
+  // Soft-delete the abandoned new oracle (zero data lost — it had
+  // nothing) so it doesn't clutter /identities forever.
+  if (currentId) {
+    const now = new Date();
+    const purgeAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    await supabase
+      .from("oracles")
+      .update({
+        deleted_at: now.toISOString(),
+        scheduled_purge_at: purgeAt.toISOString(),
+      })
+      .eq("id", currentId)
+      .eq("user_id", user.id);
+  }
+
+  // Restore profile to point at the fallback identity.
+  await supabase
+    .from("profiles")
+    .update({
+      active_oracle_id: fallback.id,
+      oracle_name: fallback.name,
+      mode: fallback.mode ?? "real",
+      preferred_language: fallback.preferred_language ?? "en",
+      texting_style: fallback.texting_style ?? null,
+      personality_type: fallback.personality_type ?? null,
+      emotional_flavor: fallback.emotional_flavor ?? null,
+      timezone: fallback.timezone ?? null,
+      onboarding_completed: true,
+    })
+    .eq("id", user.id);
+
+  redirect("/dashboard?notice=cancelled");
+}
+
 export async function suggestRandomName() {
   const pick = names[Math.floor(Math.random() * names.length)];
   redirect(`/onboarding?suggested=${encodeURIComponent(pick)}`);

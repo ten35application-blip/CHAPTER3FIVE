@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Cormorant_Garamond } from "next/font/google";
 import { createClient } from "@/lib/supabase/server";
+import { isAdmin } from "@/lib/admin";
+import { NavFab } from "@/components/NavFab";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -67,35 +69,42 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Read the signed-in user's theme preference so we can set
-  // data-theme on <html> for CSS palette swap. Anonymous visitors
-  // (landing, sign-in) just get the default "dusk".
+  // Read the signed-in user's theme + language so we can set
+  // data-theme on <html> for CSS palette swap and pass language to
+  // the nav FAB. Anonymous visitors (landing, sign-in) get defaults.
   let theme = "dusk";
+  let language: "en" | "es" = "en";
+  let userIsAdmin = false;
+  let signedIn = false;
   try {
     const supabase = await createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
     if (user) {
+      signedIn = true;
+      userIsAdmin = isAdmin(user.email);
       const { data: profile } = await supabase
         .from("profiles")
-        .select("theme")
+        .select("theme, preferred_language")
         .eq("id", user.id)
         .maybeSingle();
       if (profile?.theme === "daylight") theme = "daylight";
+      if (profile?.preferred_language === "es") language = "es";
     }
   } catch {
-    /* fall back to dusk on any error */
+    /* fall back to defaults on any error */
   }
 
   return (
     <html
-      lang="en"
+      lang={language}
       data-theme={theme}
       className={`${geistSans.variable} ${cormorant.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-ink text-warm-50">
         {children}
+        {signedIn && <NavFab language={language} isAdmin={userIsAdmin} />}
       </body>
     </html>
   );
