@@ -15,6 +15,8 @@ type ConvRow = {
   title: string;
   subtitle: string;
   avatarUrl: string | null;
+  /** For groups: up to 4 member avatars to collage. */
+  collageAvatars?: (string | null)[];
   kind: ConvKind;
   lastMessageAt: number;
 };
@@ -77,12 +79,33 @@ export default async function DashboardPage() {
         .is("deleted_at", null)
     : { data: [] };
 
-  // 3) Group rooms (owned by user).
+  // 3) Group rooms (owned by user) + their member avatars for the
+  // iMessage-style collage on each row.
   const { data: groupRoomsRaw } = await supabase
     .from("group_rooms")
     .select("id, name, last_message_at, created_at")
     .eq("owner_user_id", user.id)
     .order("last_message_at", { ascending: false, nullsFirst: false });
+  const groupRoomIds = (groupRoomsRaw ?? []).map((r) => r.id);
+  const { data: groupMemberRows } = groupRoomIds.length
+    ? await admin
+        .from("group_room_members")
+        .select("room_id, oracle_id, oracles(avatar_url)")
+        .in("room_id", groupRoomIds)
+        .is("left_at", null)
+    : { data: [] };
+  type GroupMemberRow = {
+    room_id: string;
+    oracle_id: string;
+    oracles: { avatar_url: string | null } | { avatar_url: string | null }[] | null;
+  };
+  const avatarsByRoom = new Map<string, (string | null)[]>();
+  for (const m of (groupMemberRows ?? []) as unknown as GroupMemberRow[]) {
+    const o = Array.isArray(m.oracles) ? m.oracles[0] : m.oracles;
+    const list = avatarsByRoom.get(m.room_id) ?? [];
+    if (list.length < 4) list.push(o?.avatar_url ?? null);
+    avatarsByRoom.set(m.room_id, list);
+  }
 
   // 4) Beneficiary group rooms (user is member).
   const { data: benefMembership } = await admin
@@ -188,6 +211,7 @@ export default async function DashboardPage() {
       title: r.name,
       subtitle: t.groupChat,
       avatarUrl: null,
+      collageAvatars: avatarsByRoom.get(r.id) ?? [],
       kind: "group",
       lastMessageAt: r.last_message_at
         ? new Date(r.last_message_at).getTime()
@@ -256,7 +280,11 @@ export default async function DashboardPage() {
                 className="flex items-center gap-3 px-3 py-3 rounded-2xl hover:bg-warm-700/20 active:bg-warm-700/40 transition-colors"
               >
                 <div className="relative flex-shrink-0">
-                  {r.avatarUrl ? (
+                  {r.kind === "group" &&
+                  r.collageAvatars &&
+                  r.collageAvatars.length > 0 ? (
+                    <GroupCollage avatars={r.collageAvatars} title={r.title} />
+                  ) : r.avatarUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={r.avatarUrl}
@@ -268,7 +296,7 @@ export default async function DashboardPage() {
                       {r.title.slice(0, 1).toUpperCase()}
                     </span>
                   )}
-                  {r.kind !== "owned" && (
+                  {r.kind !== "owned" && r.kind !== "group" && (
                     <span
                       className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-ink-soft border border-warm-700/80 flex items-center justify-center"
                       title={KIND_LABELS[language][r.kind]}
@@ -302,6 +330,74 @@ export default async function DashboardPage() {
         )}
       </div>
     </main>
+  );
+}
+
+/**
+ * iMessage-style collage for group rooms — up to 4 avatars
+ * arranged so each is visible. Falls back to monogram squares
+ * for members without a photo.
+ */
+function GroupCollage({
+  avatars,
+  title,
+}: {
+  avatars: (string | null)[];
+  title: string;
+}) {
+  const visible = avatars.slice(0, 4);
+  const fallbackChar = title.slice(0, 1).toUpperCase();
+
+  // 1 avatar: full-size circle.
+  if (visible.length <= 1) {
+    const a = visible[0] ?? null;
+    return a ? (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={a}
+        alt=""
+        className="w-12 h-12 rounded-full object-cover border border-warm-700/60"
+      />
+    ) : (
+      <span className="w-12 h-12 rounded-full bg-warm-700/40 border border-warm-700/60 inline-flex items-center justify-center font-serif text-warm-200 text-lg">
+        {fallbackChar}
+      </span>
+    );
+  }
+
+  // 2-4 avatars: a 2x2 collage clipped to a circle.
+  return (
+    <div className="w-12 h-12 rounded-full overflow-hidden border border-warm-700/60 grid grid-cols-2 grid-rows-2 gap-0.5 bg-warm-700/40">
+      {[0, 1, 2, 3].map((i) => {
+        const a = visible[i];
+        if (a === undefined && visible.length === 2 && i >= 2) {
+          // Hide the bottom row for 2-avatar collages by extending
+          // the top row — we render two halves stacked instead. But
+          // with 2-cell layout, simplest is to just leave bottom
+          // empty.
+          return <span key={i} className="bg-warm-700/40" />;
+        }
+        if (a === undefined) {
+          return <span key={i} className="bg-warm-700/40" />;
+        }
+        return a ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            key={i}
+            src={a}
+            alt=""
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <span
+            key={i}
+            className="w-full h-full bg-warm-700/60 flex items-center justify-center text-warm-200 text-[10px] font-serif"
+          >
+            {fallbackChar}
+          </span>
+        );
+      })}
+    </div>
   );
 }
 

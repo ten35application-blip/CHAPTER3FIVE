@@ -59,9 +59,9 @@ export const metadata: Metadata = {
       "max-snippet": -1,
     },
   },
-  icons: {
-    icon: "/favicon.ico",
-  },
+  // Favicon + apple-touch-icon are picked up automatically from
+  // src/app/icon.png + src/app/apple-icon.png (Next 15 convention).
+  // No explicit `icons` field needed.
 };
 
 export default async function RootLayout({
