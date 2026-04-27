@@ -7,12 +7,14 @@ export const metadata = {
   title: "Conversations — chapter3five",
 };
 
+type ConvKind = "owned" | "randomized" | "shared" | "group" | "together";
+
 type ConvRow = {
   href: string;
   title: string;
   subtitle: string;
   avatarUrl: string | null;
-  badge: string | null;
+  kind: ConvKind;
   lastMessageAt: number;
 };
 
@@ -156,7 +158,7 @@ export default async function DashboardPage() {
         ? `${last.role === "user" ? `${t.you}: ` : ""}${last.content}`
         : t.startConversation,
       avatarUrl: o.avatar_url,
-      badge: o.mode === "randomize" ? t.randomized : null,
+      kind: o.mode === "randomize" ? "randomized" : "owned",
       lastMessageAt: last
         ? new Date(last.created_at).getTime()
         : new Date(o.created_at).getTime(),
@@ -172,7 +174,7 @@ export default async function DashboardPage() {
         ? `${last.role === "user" ? `${t.you}: ` : ""}${last.content}`
         : t.startConversation,
       avatarUrl: o.avatar_url,
-      badge: t.shared,
+      kind: "shared",
       lastMessageAt: last
         ? new Date(last.created_at).getTime()
         : 0,
@@ -185,7 +187,7 @@ export default async function DashboardPage() {
       title: r.name,
       subtitle: t.groupChat,
       avatarUrl: null,
-      badge: t.group,
+      kind: "group",
       lastMessageAt: r.last_message_at
         ? new Date(r.last_message_at).getTime()
         : new Date(r.created_at).getTime(),
@@ -212,7 +214,7 @@ export default async function DashboardPage() {
       title: r.name,
       subtitle: t.beneficiaryGroup(o?.name ?? t.unnamed),
       avatarUrl: o?.avatar_url ?? null,
-      badge: t.together,
+      kind: "together",
       lastMessageAt: r.last_message_at
         ? new Date(r.last_message_at).getTime()
         : new Date(r.created_at).getTime(),
@@ -234,7 +236,7 @@ export default async function DashboardPage() {
         </div>
       </header>
 
-      <div className="max-w-2xl mx-auto px-4 py-6">
+      <div className="max-w-2xl mx-auto px-4 py-6 pb-32">
         <h1 className="font-serif text-3xl text-warm-50 mb-6 px-2">
           {t.title}
         </h1>
@@ -251,18 +253,29 @@ export default async function DashboardPage() {
                 href={r.href}
                 className="flex items-center gap-3 px-3 py-3 rounded-2xl hover:bg-warm-700/20 active:bg-warm-700/40 transition-colors"
               >
-                {r.avatarUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={r.avatarUrl}
-                    alt=""
-                    className="w-12 h-12 rounded-full object-cover flex-shrink-0 border border-warm-700/60"
-                  />
-                ) : (
-                  <span className="w-12 h-12 rounded-full bg-warm-700/40 border border-warm-700/60 flex-shrink-0 inline-flex items-center justify-center font-serif text-warm-200 text-lg">
-                    {r.title.slice(0, 1).toUpperCase()}
-                  </span>
-                )}
+                <div className="relative flex-shrink-0">
+                  {r.avatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={r.avatarUrl}
+                      alt=""
+                      className="w-12 h-12 rounded-full object-cover border border-warm-700/60"
+                    />
+                  ) : (
+                    <span className="w-12 h-12 rounded-full bg-warm-700/40 border border-warm-700/60 inline-flex items-center justify-center font-serif text-warm-200 text-lg">
+                      {r.title.slice(0, 1).toUpperCase()}
+                    </span>
+                  )}
+                  {r.kind !== "owned" && (
+                    <span
+                      className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-ink-soft border border-warm-700/80 flex items-center justify-center"
+                      title={KIND_LABELS[language][r.kind]}
+                      aria-label={KIND_LABELS[language][r.kind]}
+                    >
+                      <KindIcon kind={r.kind} />
+                    </span>
+                  )}
+                </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-baseline justify-between gap-2 mb-0.5">
                     <span className="font-serif text-warm-50 text-base truncate">
@@ -277,16 +290,9 @@ export default async function DashboardPage() {
                         : ""}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {r.badge && (
-                      <span className="text-[10px] uppercase tracking-[0.18em] px-1.5 py-0.5 rounded-full border border-warm-400/40 text-warm-300 flex-shrink-0">
-                        {r.badge}
-                      </span>
-                    )}
-                    <p className="text-sm text-warm-300 truncate">
-                      {r.subtitle}
-                    </p>
-                  </div>
+                  <p className="text-sm text-warm-300 truncate">
+                    {r.subtitle}
+                  </p>
                 </div>
               </Link>
             ))}
@@ -297,16 +303,74 @@ export default async function DashboardPage() {
   );
 }
 
+function KindIcon({ kind }: { kind: ConvKind }) {
+  const stroke = "currentColor";
+  const className = "w-3 h-3 text-warm-200";
+  if (kind === "randomized") {
+    // Dice — a randomly-rolled identity.
+    return (
+      <svg viewBox="0 0 16 16" className={className} fill="none" stroke={stroke} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="3" width="10" height="10" rx="2" />
+        <circle cx="6" cy="6" r="0.6" fill={stroke} />
+        <circle cx="10" cy="10" r="0.6" fill={stroke} />
+      </svg>
+    );
+  }
+  if (kind === "shared") {
+    // Inbox-arrow — an archive that came TO you (inherited / shared).
+    return (
+      <svg viewBox="0 0 16 16" className={className} fill="none" stroke={stroke} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M8 2v8" />
+        <polyline points="5 7 8 10 11 7" />
+        <path d="M3 12v1.5a.5.5 0 0 0 .5.5h9a.5.5 0 0 0 .5-.5V12" />
+      </svg>
+    );
+  }
+  if (kind === "group") {
+    // Three small circles — group chat.
+    return (
+      <svg viewBox="0 0 16 16" className={className} fill="none" stroke={stroke} strokeWidth="1.4">
+        <circle cx="5" cy="6" r="1.6" />
+        <circle cx="11" cy="6" r="1.6" />
+        <circle cx="8" cy="11" r="1.6" />
+      </svg>
+    );
+  }
+  if (kind === "together") {
+    // Two interlocking arcs — beneficiaries together with the deceased.
+    return (
+      <svg viewBox="0 0 16 16" className={className} fill="none" stroke={stroke} strokeWidth="1.6" strokeLinecap="round">
+        <path d="M3 8a3 3 0 0 1 5.5 -1.7" />
+        <path d="M13 8a3 3 0 0 0 -5.5 1.7" />
+      </svg>
+    );
+  }
+  return null;
+}
+
+const KIND_LABELS: Record<"en" | "es", Record<ConvKind, string>> = {
+  en: {
+    owned: "Identity",
+    randomized: "Randomized identity",
+    shared: "Inherited / shared",
+    group: "Group chat",
+    together: "Together with this archive",
+  },
+  es: {
+    owned: "Identidad",
+    randomized: "Identidad aleatoria",
+    shared: "Heredado / compartido",
+    group: "Chat grupal",
+    together: "Juntos con este archivo",
+  },
+};
+
 const COPY = {
   en: {
     title: "Conversations.",
     empty: "No conversations yet. Tap + New identity to start.",
     unnamed: "(unnamed)",
     you: "you",
-    randomized: "Randomized",
-    shared: "Shared",
-    group: "Group",
-    together: "Together",
     groupChat: "Group chat",
     beneficiaryGroup: (oracle: string) => `with ${oracle}`,
     startConversation: "Tap to start",
@@ -316,10 +380,6 @@ const COPY = {
     empty: "Aún no hay conversaciones. Toca + Nueva identidad para empezar.",
     unnamed: "(sin nombre)",
     you: "tú",
-    randomized: "Aleatoria",
-    shared: "Compartido",
-    group: "Grupo",
-    together: "Juntos",
     groupChat: "Chat grupal",
     beneficiaryGroup: (oracle: string) => `con ${oracle}`,
     startConversation: "Toca para empezar",

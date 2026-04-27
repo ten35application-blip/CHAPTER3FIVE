@@ -91,7 +91,7 @@ export default async function AnswersPage({
       </header>
 
       <main className="flex-1">
-        <div className="max-w-3xl mx-auto px-6 py-12">
+        <div className="max-w-3xl mx-auto px-6 py-12 pb-32">
           <h1 className="font-serif text-4xl text-warm-50 mb-2">
             {t.title}
           </h1>
