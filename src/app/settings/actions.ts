@@ -161,6 +161,9 @@ export async function markConversationUnread(formData: FormData) {
  * Stamp the read-cursor for one conversation. Called from each chat
  * page on load (server component) so opening a conversation marks
  * its messages read. Stored as a single jsonb blob on the profile.
+ *
+ * Revalidates /dashboard so the unread dot disappears as soon as
+ * the user navigates back, not on the next full reload.
  */
 const READ_KINDS = new Set(["owned", "shared", "group", "together"]);
 export async function markConversationRead(kind: string, id: string) {
@@ -182,12 +185,24 @@ export async function markConversationRead(kind: string, id: string) {
       ? (profile.last_read as Record<string, string>)
       : {};
   const key = `${kind}:${id}`;
-  current[key] = new Date().toISOString();
+  const prev = current[key];
+  const now = new Date().toISOString();
+
+  // Skip the write + revalidate if we already stamped within the
+  // last few seconds — the chat page can re-render on navigation
+  // and we don't want to thrash the row.
+  if (prev) {
+    const prevMs = new Date(prev).getTime();
+    if (Date.now() - prevMs < 5_000) return;
+  }
+  current[key] = now;
 
   await supabase
     .from("profiles")
     .update({ last_read: current })
     .eq("id", user.id);
+
+  revalidatePath("/dashboard");
 }
 
 /**
