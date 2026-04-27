@@ -13,10 +13,10 @@ export default async function LegacyClaimPage({
   searchParams,
 }: {
   params: Promise<{ token: string }>;
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; reported?: string }>;
 }) {
   const { token } = await params;
-  const { error } = await searchParams;
+  const { error, reported } = await searchParams;
 
   const supabase = await createClient();
   const {
@@ -74,22 +74,52 @@ export default async function LegacyClaimPage({
             </Link>
           </>
         ) : ben.status === "designated" ? (
-          <>
-            <h1 className="font-serif text-3xl text-warm-50 mb-4">
-              Not yet.
-            </h1>
-            <p className="text-warm-200 leading-relaxed mb-10 max-w-sm">
-              {ownerName ?? "The person who chose you"} is still here. This
-              link will only become active if something changes — we&rsquo;ll
-              email you then.
-            </p>
-            <Link
-              href="/"
-              className="text-warm-200 underline underline-offset-2 hover:text-warm-100 text-sm"
-            >
-              Back to start
-            </Link>
-          </>
+          reported === "1" ? (
+            <>
+              <h1 className="font-serif text-3xl text-warm-50 mb-4">
+                We received the report.
+              </h1>
+              <p className="text-warm-200 leading-relaxed mb-6 max-w-sm">
+                We&rsquo;ve emailed{" "}
+                {ownerName ?? "the person who chose you"} so they can
+                confirm. If we don&rsquo;t hear back from them within 72
+                hours, you&rsquo;ll receive a link to access what was left
+                for you.
+              </p>
+              <p className="text-warm-300 text-sm leading-relaxed mb-10 max-w-sm">
+                We don&rsquo;t share that you reported.
+              </p>
+              <Link
+                href="/"
+                className="text-warm-200 underline underline-offset-2 hover:text-warm-100 text-sm"
+              >
+                Back to start
+              </Link>
+            </>
+          ) : (
+            <>
+              <h1 className="font-serif text-3xl text-warm-50 mb-4">
+                Not yet.
+              </h1>
+              <p className="text-warm-200 leading-relaxed mb-6 max-w-sm">
+                {ownerName ?? "The person who chose you"} is still here.
+                This link will only become active if something changes —
+                we&rsquo;ll email you then.
+              </p>
+              <Link
+                href={`/legacy/${token}/report`}
+                className="text-warm-300 underline underline-offset-2 hover:text-warm-100 text-sm mb-8"
+              >
+                Have they passed away? Report it →
+              </Link>
+              <Link
+                href="/"
+                className="text-warm-200 underline underline-offset-2 hover:text-warm-100 text-sm mt-4"
+              >
+                Back to start
+              </Link>
+            </>
+          )
         ) : ben.status === "claimed" ? (
           <>
             <h1 className="font-serif text-3xl text-warm-50 mb-4">

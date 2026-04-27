@@ -12,7 +12,9 @@ type EmailKind =
   | "beneficiary_activation"
   | "beneficiary_claimed"
   | "beneficiary_removed"
-  | "account_restored";
+  | "account_restored"
+  | "passing_report_received"
+  | "passing_report_vetoed";
 
 async function logEmail(opts: {
   recipient: string;
@@ -217,6 +219,87 @@ https://chapter3five.app`;
     text,
     kind: "beneficiary_removed",
     user_id: opts.ownerUserId,
+  });
+}
+
+/**
+ * Sent to the owner when someone reports their passing. The veto
+ * link in the email cancels the report and keeps the archive locked.
+ * If they don't click within 72 hours, the report transitions to
+ * 'confirmed' and beneficiaries are activated.
+ *
+ * This is the load-bearing email of the inheritance flow. It needs
+ * to land in the owner's inbox, not spam — keep the subject calm,
+ * the body specific.
+ */
+export async function sendPassingReportSubmitted(opts: {
+  to: string;
+  ownerName: string;
+  reporterEmail: string;
+  reporterName: string | null;
+  passedOn: string | null;
+  notes: string | null;
+  vetoUrl: string;
+  deadlineText: string;
+  ownerUserId?: string | null;
+}) {
+  const subject = "Are you there? Action needed within 72 hours.";
+  const reporterLine = opts.reporterName
+    ? `${opts.reporterName} (${opts.reporterEmail})`
+    : opts.reporterEmail;
+  const passedLine = opts.passedOn
+    ? `Date they reported: ${opts.passedOn}`
+    : "";
+  const notesLine = opts.notes ? `Notes they left:\n${opts.notes}` : "";
+
+  const text = `Someone submitted a passing report on your chapter3five account.
+
+Submitted by: ${reporterLine}
+${passedLine}
+${notesLine}
+
+If this is a mistake, please cancel it within 72 hours by clicking below. After ${opts.deadlineText}, your archive will open to your beneficiaries and we'll mark the account as passed.
+
+Cancel the report (one click — keeps your account active):
+${opts.vetoUrl}
+
+If this is correct, you don't need to do anything. The report will confirm automatically and your beneficiaries will receive their access links.
+
+— chapter3five
+https://chapter3five.app`;
+
+  return send({
+    to: opts.to,
+    subject,
+    text,
+    kind: "passing_report_received",
+    user_id: opts.ownerUserId,
+  });
+}
+
+/**
+ * Sent to the reporter when the owner vetoes their passing report.
+ * Quiet, non-accusatory — most false reports are well-meaning.
+ */
+export async function sendPassingReportVetoed(opts: {
+  to: string;
+  ownerName: string;
+}) {
+  const subject = "We couldn't verify the report.";
+  const text = `Thanks for reaching out about ${opts.ownerName}'s chapter3five account.
+
+We sent ${opts.ownerName} a notice and they let us know they're still here. The archive remains private to them for now.
+
+If something changes, you can submit another report through the same link. We don't share that you reported.
+
+— chapter3five
+https://chapter3five.app`;
+
+  return send({
+    to: opts.to,
+    subject,
+    text,
+    kind: "passing_report_vetoed",
   });
 }
 
