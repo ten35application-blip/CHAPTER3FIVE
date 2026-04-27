@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { newOracle } from "@/app/oracles/actions";
+import { normalizeShareCode } from "@/lib/share";
 
 type Oracle = { id: string; name: string; avatarUrl: string | null };
 
@@ -16,12 +17,20 @@ type Props = {
 const COPY = {
   en: {
     open: "New",
+    sectionMake: "Make",
+    sectionLovedOne: "A loved one",
     newIdentity: "+ New identity",
     newIdentityHint: "Start a fresh archive — yours, your dad's, anyone's.",
     newGroup: "+ New group chat",
     newGroupHint: "Put two or more of your identities in one room.",
     seeRemoved: "See removed identities",
     seeRemovedHint: "Soft-deleted identities still in their 30-day grace.",
+    enterCode: "Connect with their code",
+    enterCodeHint:
+      "Got an access code from someone close? Type it here to open their archive.",
+    codePlaceholder: "XXXX-XXXX-XXXX",
+    codeCta: "Connect",
+    codeError: "That code doesn't look right.",
     modalTitle: "Make a group chat",
     modalIntro:
       "Pick 2–4 of your identities. Name the room. Once you say the first thing, they'll know they're together and can talk to you and to each other.",
@@ -35,12 +44,20 @@ const COPY = {
   },
   es: {
     open: "Nuevo",
+    sectionMake: "Crear",
+    sectionLovedOne: "Un ser querido",
     newIdentity: "+ Nueva identidad",
     newIdentityHint: "Empieza un archivo nuevo — tuyo, de tu papá, de quien sea.",
     newGroup: "+ Nuevo chat grupal",
     newGroupHint: "Pon dos o más de tus identidades en un cuarto.",
     seeRemoved: "Ver identidades eliminadas",
     seeRemovedHint: "Identidades en su periodo de gracia de 30 días.",
+    enterCode: "Conectar con su código",
+    enterCodeHint:
+      "¿Te dieron un código de acceso? Escríbelo aquí para abrir su archivo.",
+    codePlaceholder: "XXXX-XXXX-XXXX",
+    codeCta: "Conectar",
+    codeError: "Ese código no parece correcto.",
     modalTitle: "Crear chat grupal",
     modalIntro:
       "Elige 2–4 de tus identidades. Nombra el cuarto. Cuando digas lo primero, sabrán que están juntas y podrán hablar contigo y entre ellas.",
@@ -75,7 +92,29 @@ export function NewConversationMenu({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [creating, setCreating] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [codeInputOpen, setCodeInputOpen] = useState(false);
+  const [code, setCode] = useState("");
+  const [codeErr, setCodeErr] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement | null>(null);
+
+  function submitCode(e: React.FormEvent) {
+    e.preventDefault();
+    const normalized = normalizeShareCode(code);
+    if (normalized.length === 12) {
+      // Standard 12-char share/invite code → existing /invite/[code] page.
+      const formatted = `${normalized.slice(0, 4)}-${normalized.slice(4, 8)}-${normalized.slice(8, 12)}`;
+      router.push(`/invite/${encodeURIComponent(formatted)}`);
+      setOpen(false);
+      return;
+    }
+    if (normalized.length === 32) {
+      // 32-char beneficiary claim token → /legacy page.
+      router.push(`/legacy/${encodeURIComponent(normalized.toLowerCase())}`);
+      setOpen(false);
+      return;
+    }
+    setCodeErr(t.codeError);
+  }
 
   function toggleSel(id: string) {
     setSelected((prev) => {
@@ -144,7 +183,12 @@ export function NewConversationMenu({
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-72 rounded-2xl border border-warm-300/60 bg-ink-soft shadow-2xl backdrop-blur-xl overflow-hidden z-40">
+        <div className="absolute right-0 mt-2 w-80 rounded-2xl border border-warm-300/60 bg-ink-soft shadow-2xl backdrop-blur-xl overflow-hidden z-40">
+          {/* Section 1 — make your own */}
+          <p className="text-[10px] uppercase tracking-[0.25em] text-warm-400 px-4 pt-3 pb-1">
+            {t.sectionMake}
+          </p>
+
           <form action={newOracle}>
             <button
               type="submit"
@@ -183,6 +227,73 @@ export function NewConversationMenu({
               {t.seeRemovedHint}
             </p>
           </Link>
+
+          {/* Section 2 — connect to a loved one */}
+          <div className="border-t-2 border-warm-700/60">
+            <p className="text-[10px] uppercase tracking-[0.25em] text-warm-400 px-4 pt-3 pb-1">
+              {t.sectionLovedOne}
+            </p>
+
+            {!codeInputOpen ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setCodeInputOpen(true);
+                  setCodeErr(null);
+                }}
+                className="block w-full text-left px-4 py-3 hover:bg-warm-700/40 transition-colors"
+              >
+                <p className="text-sm font-medium text-warm-50">
+                  {t.enterCode}
+                </p>
+                <p className="text-xs text-warm-300 mt-0.5 leading-relaxed">
+                  {t.enterCodeHint}
+                </p>
+              </button>
+            ) : (
+              <form
+                onSubmit={submitCode}
+                className="px-4 py-3 space-y-2"
+              >
+                <input
+                  type="text"
+                  value={code}
+                  onChange={(e) => {
+                    setCode(e.target.value);
+                    setCodeErr(null);
+                  }}
+                  placeholder={t.codePlaceholder}
+                  autoFocus
+                  spellCheck={false}
+                  autoCapitalize="characters"
+                  className="w-full h-11 rounded-full bg-warm-700/40 border border-warm-400/40 px-4 text-warm-50 placeholder:text-warm-400 focus:outline-none focus:border-warm-200 transition-colors text-sm font-mono tracking-wider uppercase"
+                />
+                {codeErr && (
+                  <p className="text-xs text-red-300/80 px-1">{codeErr}</p>
+                )}
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCodeInputOpen(false);
+                      setCode("");
+                      setCodeErr(null);
+                    }}
+                    className="h-10 px-4 rounded-full border border-warm-400/30 text-warm-100 hover:bg-warm-700/40 transition-colors text-sm"
+                  >
+                    {t.cancel}
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!code.trim()}
+                    className="flex-1 h-10 rounded-full bg-warm-50 text-ink font-medium hover:bg-warm-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                  >
+                    {t.codeCta}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
         </div>
       )}
 
