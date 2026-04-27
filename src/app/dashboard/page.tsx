@@ -304,7 +304,14 @@ export default async function DashboardPage() {
       <div className="max-w-2xl mx-auto px-4 py-6 pb-32">
         <div className="flex items-center justify-between mb-6 px-2 gap-3">
           <h1 className="font-serif text-3xl text-warm-50">{t.title}</h1>
-          <NewConversationMenu language={language} />
+          <NewConversationMenu
+            language={language}
+            ownedOracles={(oracles ?? []).map((o) => ({
+              id: o.id,
+              name: o.name?.trim() || t.unnamed,
+              avatarUrl: o.avatar_url,
+            }))}
+          />
         </div>
 
         {/* Favorites row — pinned conversations as oval tiles
@@ -421,7 +428,7 @@ export default async function DashboardPage() {
                     className={`p-2 rounded-full transition-colors ${
                       r.isFavorite
                         ? "text-amber"
-                        : "text-warm-400 hover:text-warm-200 opacity-0 group-hover/row:opacity-100 focus:opacity-100"
+                        : "text-warm-500 hover:text-warm-200"
                     }`}
                   >
                     <FavStar filled={r.isFavorite} />

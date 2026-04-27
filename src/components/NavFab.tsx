@@ -86,14 +86,37 @@ export function NavFab({ language, isAdmin = false }: Props) {
 
   if (hidden) return null;
 
-  // FAB lives top-right of every authenticated page. Plenty of
-  // whitespace up there (just the wordmark on most pages); doesn't
-  // sit on top of buttons, send forms, or the last row of a list.
+  // FAB lives bottom-right. On chat pages it sits higher (bottom-24)
+  // so it clears the send button; on list/settings pages it sits
+  // closer to the corner. Pages have pb-32 so content doesn't end
+  // under it.
+  const onChatPage =
+    pathname === "/dashboard" ||
+    pathname.startsWith("/chat/") ||
+    pathname.startsWith("/shared/") ||
+    /^\/groups\/[^/]+$/.test(pathname) ||
+    /^\/beneficiary-groups\/[^/]+$/.test(pathname);
+  // Dashboard isn't a chat page anymore, but we lift on real chat
+  // pages where there's a send button at the bottom.
+  const isRealChatPage = onChatPage && pathname !== "/dashboard";
+  const positionClass = isRealChatPage ? "bottom-24" : "bottom-5";
+
   return (
     <div
       ref={ref}
-      className="fixed top-5 right-5 z-50 flex flex-col items-end gap-2"
+      className={`fixed ${positionClass} right-5 z-50 flex flex-col items-end gap-2`}
     >
+      {open && (
+        <div className="rounded-2xl border border-warm-300/60 bg-ink-soft shadow-2xl backdrop-blur-xl overflow-hidden w-56">
+          <NavLink href="/dashboard" label={t.dashboard} />
+          <NavLink href="/identities" label={t.identities} />
+          <NavLink href="/sharing" label={t.sharing} />
+          <NavLink href="/account" label={t.account} />
+          <NavLink href="/settings" label={t.settings} />
+          {isAdmin && <NavLink href="/admin" label={t.admin} />}
+        </div>
+      )}
+
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -126,17 +149,6 @@ export function NavFab({ language, isAdmin = false }: Props) {
           )}
         </svg>
       </button>
-
-      {open && (
-        <div className="rounded-2xl border border-warm-300/60 bg-ink-soft shadow-2xl backdrop-blur-xl overflow-hidden w-56">
-          <NavLink href="/dashboard" label={t.dashboard} />
-          <NavLink href="/identities" label={t.identities} />
-          <NavLink href="/sharing" label={t.sharing} />
-          <NavLink href="/account" label={t.account} />
-          <NavLink href="/settings" label={t.settings} />
-          {isAdmin && <NavLink href="/admin" label={t.admin} />}
-        </div>
-      )}
     </div>
   );
 }
