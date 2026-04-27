@@ -6,15 +6,7 @@ import {
   updateTextingStyle,
   deleteOracle,
   deleteAccount,
-  createShareCode,
-  revokeShareCode,
   toggleOutreach,
-  createArchiveInvite,
-  revokeArchiveInvite,
-  revokeArchiveGrant,
-  addBeneficiary,
-  removeBeneficiary,
-  buyBeneficiarySlot,
   deletePersonaMemory,
   restoreOracle,
   deleteAccountPermanently,
@@ -37,12 +29,9 @@ export default async function SettingsPage({
   searchParams: Promise<{
     saved?: string;
     error?: string;
-    code?: string;
-    invite?: string;
   }>;
 }) {
-  const { saved, error, code: justCreatedCode, invite: justCreatedInvite } =
-    await searchParams;
+  const { saved, error } = await searchParams;
 
   const supabase = await createClient();
   const {
@@ -53,7 +42,7 @@ export default async function SettingsPage({
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "oracle_name, mode, preferred_language, texting_style, created_at, outreach_enabled, randomize_credits, randomize_count, avatar_url, active_oracle_id, paid_beneficiary_slots",
+      "oracle_name, mode, preferred_language, texting_style, created_at, outreach_enabled, randomize_credits, randomize_count, avatar_url, active_oracle_id",
     )
     .eq("id", user.id)
     .single();
@@ -69,26 +58,7 @@ export default async function SettingsPage({
   const totalQuestions = questions.length;
   const progressPct = Math.round(((answeredCount ?? 0) / totalQuestions) * 100);
 
-  const { data: shareRows } = await supabase
-    .from("shares")
-    .select("code, label, revoked_at, created_at")
-    .eq("source_user_id", user.id)
-    .order("created_at", { ascending: false });
-
-  const { data: inviteRows } = await supabase
-    .from("archive_invites")
-    .select("code, invitee_email, status, created_at")
-    .eq("inviter_user_id", user.id)
-    .order("created_at", { ascending: false });
-
   const activeOracleId = profile?.active_oracle_id ?? null;
-  const { data: grantRows } = activeOracleId
-    ? await supabase
-        .from("archive_grants")
-        .select("id, user_id, granted_at")
-        .eq("oracle_id", activeOracleId)
-        .order("granted_at", { ascending: false })
-    : { data: [] };
 
   // Memories the active identity has formed about you (per-relationship).
   const { data: memoryRows } = activeOracleId
@@ -121,20 +91,8 @@ export default async function SettingsPage({
   // archive. Users wanted "what people get is what they get" — no
   // tweaking who the persona is after creation.
 
-  const { data: beneficiaryRows } = await supabase
-    .from("beneficiaries")
-    .select("id, email, name, status, notified_at, created_at")
-    .eq("owner_user_id", user.id)
-    .order("created_at", { ascending: true });
-  const beneficiaries = beneficiaryRows ?? [];
-  const FREE_BENEFICIARIES = 3;
-  const beneficiarySlotsTotal =
-    FREE_BENEFICIARIES + (profile?.paid_beneficiary_slots ?? 0);
-  const beneficiarySlotsUsed = beneficiaries.length;
-  const beneficiarySlotsLeft = Math.max(
-    0,
-    beneficiarySlotsTotal - beneficiarySlotsUsed,
-  );
+  // Beneficiaries data has moved to /sharing — settings just shows
+  // the CTA card now.
 
   const { data: paymentRows } = await supabase
     .from("payments")
@@ -353,169 +311,16 @@ export default async function SettingsPage({
           </Section>
 
           {oracleName && (
-            <Section title={t.shareTitle}>
-              <p className="text-sm text-warm-300 mb-4 leading-relaxed">
-                {t.shareHint}
+            <Section title={t.shareCardTitle}>
+              <p className="text-sm text-warm-300 mb-5 leading-relaxed">
+                {t.shareCardBody}
               </p>
-
-              {justCreatedCode && (
-                <div className="rounded-lg border border-warm-300/40 bg-warm-700/40 px-4 py-3 mb-4 text-sm">
-                  <p className="text-warm-200 mb-2">{t.justCreated}</p>
-                  <code className="font-mono text-warm-50 text-base tracking-wide">
-                    {justCreatedCode}
-                  </code>
-                </div>
-              )}
-
-              <form action={createShareCode} className="flex gap-2 mb-6">
-                <input
-                  type="text"
-                  name="label"
-                  maxLength={80}
-                  placeholder={t.labelPlaceholder}
-                  className="flex-1 h-11 rounded-full bg-warm-700/30 border border-warm-400/30 px-4 text-warm-50 placeholder:text-warm-400 focus:outline-none focus:border-warm-200 transition-colors text-sm"
-                />
-                <button
-                  type="submit"
-                  className="h-11 px-5 rounded-full bg-warm-50 text-ink font-medium hover:bg-warm-100 transition-colors text-sm whitespace-nowrap"
-                >
-                  {t.shareCta}
-                </button>
-              </form>
-
-              {shareRows && shareRows.length > 0 && (
-                <div className="space-y-2">
-                  {shareRows.map((s) => (
-                    <div
-                      key={s.code}
-                      className="flex items-center justify-between gap-3 px-4 py-2 rounded-lg border border-warm-700/60 bg-warm-700/15"
-                    >
-                      <div className="flex flex-col min-w-0">
-                        <code className="font-mono text-sm text-warm-100 truncate">
-                          {s.code}
-                        </code>
-                        <span className="text-xs text-warm-400 truncate">
-                          {s.label ?? t.unlabeled} ·{" "}
-                          {s.revoked_at ? t.revoked : t.active}
-                        </span>
-                      </div>
-                      {!s.revoked_at && (
-                        <form action={revokeShareCode}>
-                          <input type="hidden" name="code" value={s.code} />
-                          <button
-                            type="submit"
-                            className="text-xs text-warm-400 hover:text-warm-200 transition-colors whitespace-nowrap"
-                          >
-                            {t.revoke}
-                          </button>
-                        </form>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Section>
-          )}
-
-          {oracleName && (
-            <Section title={t.inviteTitle}>
-              <p className="text-sm text-warm-300 mb-4 leading-relaxed">
-                {t.inviteHint}
-              </p>
-
-              {justCreatedInvite && (
-                <div className="rounded-lg border border-warm-300/40 bg-warm-700/40 px-4 py-3 mb-4 text-sm">
-                  <p className="text-warm-200 mb-2">{t.inviteJustCreated}</p>
-                  <code className="font-mono text-warm-50 text-base tracking-wide break-all">
-                    chapter3five.app/invite/{justCreatedInvite}
-                  </code>
-                </div>
-              )}
-
-              <form action={createArchiveInvite} className="flex gap-2 mb-6">
-                <input
-                  type="email"
-                  name="invitee_email"
-                  maxLength={120}
-                  placeholder={t.inviteEmailPlaceholder}
-                  className="flex-1 h-11 rounded-full bg-warm-700/30 border border-warm-400/30 px-4 text-warm-50 placeholder:text-warm-400 focus:outline-none focus:border-warm-200 transition-colors text-sm"
-                />
-                <button
-                  type="submit"
-                  className="h-11 px-5 rounded-full bg-warm-50 text-ink font-medium hover:bg-warm-100 transition-colors text-sm whitespace-nowrap"
-                >
-                  {t.inviteCta}
-                </button>
-              </form>
-
-              {inviteRows && inviteRows.length > 0 && (
-                <div className="space-y-2 mb-4">
-                  <p className="text-xs uppercase tracking-[0.2em] text-warm-400 mb-1">
-                    {t.invitesHeading}
-                  </p>
-                  {inviteRows.map((iv) => (
-                    <div
-                      key={iv.code}
-                      className="flex items-center justify-between gap-3 px-4 py-2 rounded-lg border border-warm-700/60 bg-warm-700/15"
-                    >
-                      <div className="flex flex-col min-w-0">
-                        <code className="font-mono text-sm text-warm-100 truncate">
-                          {iv.code}
-                        </code>
-                        <span className="text-xs text-warm-400 truncate">
-                          {iv.invitee_email ?? t.noEmail} ·{" "}
-                          {iv.status === "pending"
-                            ? t.invitePending
-                            : iv.status === "accepted"
-                            ? t.inviteAccepted
-                            : t.revoked}
-                        </span>
-                      </div>
-                      {iv.status === "pending" && (
-                        <form action={revokeArchiveInvite}>
-                          <input type="hidden" name="code" value={iv.code} />
-                          <button
-                            type="submit"
-                            className="text-xs text-warm-400 hover:text-warm-200 transition-colors whitespace-nowrap"
-                          >
-                            {t.revoke}
-                          </button>
-                        </form>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {grantRows && grantRows.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-xs uppercase tracking-[0.2em] text-warm-400 mb-1">
-                    {t.grantsHeading}
-                  </p>
-                  {grantRows.map((g) => (
-                    <div
-                      key={g.id}
-                      className="flex items-center justify-between gap-3 px-4 py-2 rounded-lg border border-warm-700/60 bg-warm-700/15"
-                    >
-                      <div className="flex flex-col min-w-0">
-                        <span className="text-sm text-warm-100 truncate">
-                          {t.grantedOn}{" "}
-                          {new Date(g.granted_at).toLocaleDateString()}
-                        </span>
-                      </div>
-                      <form action={revokeArchiveGrant}>
-                        <input type="hidden" name="grant_id" value={g.id} />
-                        <button
-                          type="submit"
-                          className="text-xs text-warm-400 hover:text-warm-200 transition-colors whitespace-nowrap"
-                        >
-                          {t.revokeAccess}
-                        </button>
-                      </form>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <Link
+                href="/sharing"
+                className="inline-flex h-11 items-center justify-center rounded-full bg-warm-50 px-6 text-sm font-medium text-ink hover:bg-warm-100 transition-colors"
+              >
+                {t.shareCardCta}
+              </Link>
             </Section>
           )}
 
@@ -582,105 +387,7 @@ export default async function SettingsPage({
             </Section>
           )}
 
-          <Section title={t.beneficiaryTitle}>
-            <p className="text-sm text-warm-300 mb-2 leading-relaxed">
-              {t.beneficiaryHint}
-            </p>
-            <p className="text-sm text-warm-400 mb-3">
-              {t.beneficiarySlots(
-                beneficiarySlotsUsed,
-                beneficiarySlotsTotal,
-              )}
-            </p>
-            {activeOracleId && (
-              <Link
-                href={`/preview/${activeOracleId}`}
-                className="inline-block text-xs text-warm-200 hover:text-warm-50 underline underline-offset-2 mb-5"
-              >
-                {t.beneficiaryPreview}
-              </Link>
-            )}
-
-            {beneficiarySlotsLeft > 0 ? (
-              <form
-                action={addBeneficiary}
-                className="flex flex-col sm:flex-row gap-2 mb-6"
-              >
-                <input
-                  type="email"
-                  name="email"
-                  required
-                  placeholder={t.beneficiaryEmailPlaceholder}
-                  className="flex-1 h-11 rounded-full bg-warm-700/30 border border-warm-400/30 px-4 text-warm-50 placeholder:text-warm-400 focus:outline-none focus:border-warm-200 transition-colors text-sm"
-                />
-                <input
-                  type="text"
-                  name="name"
-                  maxLength={80}
-                  placeholder={t.beneficiaryNamePlaceholder}
-                  className="sm:w-48 h-11 rounded-full bg-warm-700/30 border border-warm-400/30 px-4 text-warm-50 placeholder:text-warm-400 focus:outline-none focus:border-warm-200 transition-colors text-sm"
-                />
-                <button
-                  type="submit"
-                  className="h-11 px-5 rounded-full bg-warm-50 text-ink font-medium hover:bg-warm-100 transition-colors text-sm whitespace-nowrap"
-                >
-                  {t.beneficiaryAdd}
-                </button>
-              </form>
-            ) : (
-              <form action={buyBeneficiarySlot} className="mb-6">
-                <button
-                  type="submit"
-                  className="h-11 px-5 rounded-full border border-warm-300/40 text-warm-100 hover:bg-warm-700/40 transition-colors text-sm"
-                >
-                  {t.beneficiaryBuyMore}
-                </button>
-              </form>
-            )}
-
-            {beneficiaries.length > 0 && (
-              <div className="space-y-2">
-                {beneficiaries.map((b) => (
-                  <div
-                    key={b.id}
-                    className="flex items-center justify-between gap-3 px-4 py-2 rounded-lg border border-warm-700/60 bg-warm-700/15"
-                  >
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-sm text-warm-100 truncate">
-                        {b.name ?? b.email}
-                      </span>
-                      <span className="text-xs text-warm-400 truncate">
-                        {b.name ? `${b.email} · ` : ""}
-                        {b.status === "designated"
-                          ? b.notified_at
-                            ? t.beneficiaryNotified
-                            : t.beneficiaryDesignated
-                          : b.status === "activated"
-                          ? t.beneficiaryActivated
-                          : b.status === "claimed"
-                          ? t.beneficiaryClaimed
-                          : b.status === "declined"
-                          ? t.beneficiaryDeclined
-                          : t.revoked}
-                      </span>
-                    </div>
-                    {(b.status === "designated" ||
-                      b.status === "activated") && (
-                      <form action={removeBeneficiary}>
-                        <input type="hidden" name="id" value={b.id} />
-                        <button
-                          type="submit"
-                          className="text-xs text-warm-400 hover:text-warm-200 transition-colors whitespace-nowrap"
-                        >
-                          {t.remove}
-                        </button>
-                      </form>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </Section>
+          {/* Beneficiaries moved to /sharing alongside Share + Invite. */}
 
           {paymentRows && paymentRows.length > 0 && (
             <Section title={t.paymentsTitle}>
@@ -773,25 +480,6 @@ export default async function SettingsPage({
                   {t.exportConversation}
                 </a>
               )}
-            </div>
-          </Section>
-
-          <Section title={t.helpTitle}>
-            <p className="text-sm text-warm-300 mb-5 leading-relaxed">
-              {t.helpHint}
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <HelpLink href="/how" label={t.helpHowItWorks} />
-              <HelpLink href="/support" label={t.helpFaq} />
-              <HelpLink href="/about" label={t.helpAbout} />
-              <HelpLink
-                href="mailto:care@chapter3five.app"
-                label={t.helpContact}
-                external
-              />
-              <HelpLink href="/terms" label={t.helpTerms} />
-              <HelpLink href="/privacy" label={t.helpPrivacy} />
-              <HelpLink href="/cookies" label={t.helpCookies} />
             </div>
           </Section>
 
@@ -933,6 +621,25 @@ export default async function SettingsPage({
               </div>
             </details>
           </Section>
+
+          <Section title={t.helpTitle}>
+            <p className="text-sm text-warm-300 mb-5 leading-relaxed">
+              {t.helpHint}
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <HelpLink href="/how" label={t.helpHowItWorks} />
+              <HelpLink href="/support" label={t.helpFaq} />
+              <HelpLink href="/about" label={t.helpAbout} />
+              <HelpLink
+                href="mailto:care@chapter3five.app"
+                label={t.helpContact}
+                external
+              />
+              <HelpLink href="/terms" label={t.helpTerms} />
+              <HelpLink href="/privacy" label={t.helpPrivacy} />
+              <HelpLink href="/cookies" label={t.helpCookies} />
+            </div>
+          </Section>
         </div>
       </main>
     </>
@@ -1051,6 +758,10 @@ const COPY = {
     modeRandomize: "Randomize",
     created: "Created",
     languageTitle: "Language",
+    shareCardTitle: "Sharing & inheritance",
+    shareCardBody:
+      "Want family or friends to be able to talk to your identity now, or inherit it later? Generate codes, send invite links, designate beneficiaries — all on one page.",
+    shareCardCta: "Open share & inherit →",
     styleTitle: "Texting style (optional)",
     styleHint:
       "Describe how you actually text — punctuation, emojis, length, tone. Your identity will match it.",
@@ -1238,6 +949,10 @@ const COPY = {
     modeRandomize: "Aleatorio",
     created: "Creada",
     languageTitle: "Idioma",
+    shareCardTitle: "Compartir y heredar",
+    shareCardBody:
+      "¿Quieres que la familia o amigos puedan hablar con tu identidad ahora, o heredarla después? Códigos, invitaciones, beneficiarios — todo en una página.",
+    shareCardCta: "Abrir compartir y heredar →",
     styleTitle: "Estilo al escribir (opcional)",
     styleHint:
       "Describe cómo escribes realmente — puntuación, emojis, largo, tono. Tu identity lo igualará.",
