@@ -74,6 +74,10 @@ export default async function QuestionsPage({
   const continueLabel = language === "es" ? "Guardar y continuar" : "Save & continue";
   const laterLabel = language === "es" ? "Continuar después" : "Continue later";
   const ofLabel = language === "es" ? "de" : "of";
+  const writeAsYouSpeak =
+    language === "es"
+      ? "Escríbelo como lo dirías. Tu identidad va a sonar como tú escribes aquí — minúsculas, abreviaciones, emojis, puntuación, todo. Mejor resultado: sé tú mismo."
+      : "Write it the way you'd actually say it. Your identity will sound exactly like how you write here — lowercase, abbreviations, emojis, punctuation, all of it. Best results: be yourself.";
 
   return (
     <main className="flex-1 flex flex-col px-6 py-8">
@@ -97,7 +101,7 @@ export default async function QuestionsPage({
           />
         </div>
 
-        <div className="space-y-2 mb-10 text-center">
+        <div className="space-y-2 mb-6 text-center">
           <p className="text-xs uppercase tracking-[0.25em] text-warm-300">
             {depthLabel}
           </p>
@@ -105,6 +109,10 @@ export default async function QuestionsPage({
             {promptText}
           </h1>
         </div>
+
+        <p className="text-sm text-warm-300 italic text-center mb-6 max-w-xl mx-auto leading-relaxed">
+          {writeAsYouSpeak}
+        </p>
 
         <form action={saveAnswer} className="space-y-6">
           <input type="hidden" name="question_id" value={next.id} />

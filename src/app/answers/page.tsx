@@ -98,8 +98,13 @@ export default async function AnswersPage({
           <p className="text-warm-300 mb-2">
             {t.subtitle(profile.oracle_name ?? "your identity")}
           </p>
-          <p className="text-warm-200 mb-8 text-sm">
+          <p className="text-warm-200 mb-3 text-sm">
             {totalAnswered} {t.of} {totalQuestions} {t.answered}.
+          </p>
+          <p className="text-sm text-warm-300 italic mb-8 leading-relaxed">
+            {language === "es"
+              ? "Escribe como hablas — minúsculas, abreviaciones, emojis, todo. Tu identidad sonará como tú escribes aquí."
+              : "Write the way you talk — lowercase, abbreviations, emojis, all of it. Your identity will sound exactly like how you write here."}
           </p>
 
           {saved && (

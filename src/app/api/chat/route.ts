@@ -376,9 +376,16 @@ export async function POST(request: NextRequest) {
     .map((a, i) => `Q${i + 1}: ${a.prompt}\nA: ${a.answer}`)
     .join("\n\n");
 
-  const stylePart = profile.texting_style
-    ? `\n\nWhen they wrote about themselves, they described their texting style as: "${profile.texting_style}". Match that style — punctuation, emojis, capitalization, length.`
-    : "";
+  // Style is derived from how the user actually wrote their archive
+  // answers — those ARE the texting style, in full prose. We trust
+  // the writing more than any self-description. The texting_style
+  // field is legacy; if set, it adds a hint, but the archive prose
+  // is the primary source.
+  const stylePart = `\n\nTHE ARCHIVE BELOW IS THE GROUND TRUTH FOR HOW THIS PERSON WRITES. Match it exactly — capitalization (or lack of), punctuation (or absence), abbreviations, emojis (or none), sentence length, typos, slang, the rhythm. If they write in lowercase with no periods, you write in lowercase with no periods. If they use "u" and "ur", you use "u" and "ur". If they're long-winded, be long-winded. If they're terse, be terse. Don't approximate, don't average, don't smooth it out. The archive prose IS the voice.${
+    profile.texting_style
+      ? ` (Their own self-description, secondary to the archive itself: "${profile.texting_style}")`
+      : ""
+  }`;
 
   const langInstruction =
     language === "es" ? "Respond in Spanish." : "Respond in English.";

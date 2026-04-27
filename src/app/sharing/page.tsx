@@ -10,7 +10,6 @@ import {
   addBeneficiary,
   removeBeneficiary,
   buyBeneficiarySlot,
-  updateTextingStyle,
 } from "../settings/actions";
 
 export const metadata = {
@@ -48,7 +47,8 @@ export default async function SharingPage({
   const t = COPY[language];
   const oracleName = profile?.oracle_name ?? null;
   const activeOracleId = profile?.active_oracle_id ?? null;
-  const isRealMode = (profile?.mode ?? "real") === "real";
+  // (mode no longer matters here — texting style was removed from
+  // sharing; it's now derived from the archive prose itself.)
 
   const { data: shareRows } = await supabase
     .from("shares")
@@ -114,36 +114,10 @@ export default async function SharingPage({
             </div>
           )}
 
-          {oracleName && isRealMode && (
-            <Section title={t.styleTitle}>
-              <p className="text-sm text-warm-300 mb-3 leading-relaxed">
-                {t.styleHint}
-              </p>
-              <form action={updateTextingStyle} className="space-y-3">
-                <textarea
-                  name="texting_style"
-                  rows={3}
-                  defaultValue={profile?.texting_style ?? ""}
-                  placeholder={t.stylePlaceholder}
-                  className="w-full rounded-2xl bg-warm-700/30 border border-warm-400/30 px-4 py-3 text-warm-50 placeholder:text-warm-400 focus:outline-none focus:border-warm-200 transition-colors leading-relaxed"
-                />
-                <button
-                  type="submit"
-                  className="h-11 px-5 rounded-full bg-warm-50 text-ink font-medium hover:bg-warm-100 transition-colors text-sm"
-                >
-                  {t.save}
-                </button>
-              </form>
-            </Section>
-          )}
-
-          {oracleName && !isRealMode && (
-            <Section title={t.styleTitle}>
-              <p className="text-sm text-warm-300 leading-relaxed">
-                {t.styleRandomNote}
-              </p>
-            </Section>
-          )}
+          {/* Texting style is derived from how the user actually
+              writes their archive answers — no separate field. The
+              answer UI prompts users to write the way they'd
+              actually say it. */}
 
           {oracleName && (
             <Section title={t.shareTitle}>
