@@ -33,6 +33,23 @@ export default async function InvitePage({
     .eq("code", code)
     .maybeSingle();
 
+  // Fall-through: 12-char codes are shared between invite codes and
+  // import codes (different tables, same generator). If this is an
+  // import code (shares.code), surface a clear message rather than
+  // the generic "we don't recognize this code." Import codes are
+  // only valid during fresh-account onboarding.
+  let isImportCode = false;
+  if (!invite) {
+    const { data: share } = await admin
+      .from("shares")
+      .select("id, revoked_at")
+      .eq("code", code)
+      .maybeSingle();
+    if (share && !share.revoked_at) {
+      isImportCode = true;
+    }
+  }
+
   let oracleName: string | null = null;
   if (invite) {
     const { data: oracle } = await admin
@@ -57,7 +74,28 @@ export default async function InvitePage({
           chapter3five
         </Link>
 
-        {!invite ? (
+        {!invite && isImportCode ? (
+          <>
+            <h1 className="font-serif text-3xl text-warm-50 mb-4">
+              This is an import code.
+            </h1>
+            <p className="text-warm-200 leading-relaxed mb-3 max-w-sm">
+              It&rsquo;s for importing a copy of someone&rsquo;s archive into
+              a brand-new account — different from accepting an invite.
+            </p>
+            <p className="text-warm-300 text-sm leading-relaxed mb-10 max-w-sm">
+              {user
+                ? "Sign out, create a new account, and on the second step paste this code."
+                : "Sign up for a new account, and on the second step paste this code."}
+            </p>
+            <Link
+              href={user ? "/account" : "/auth/signup"}
+              className="inline-flex h-12 items-center justify-center rounded-full bg-warm-50 px-10 text-sm font-medium text-ink hover:bg-warm-100 transition-colors"
+            >
+              {user ? "Go to account" : "Create an account"}
+            </Link>
+          </>
+        ) : !invite ? (
           <>
             <h1 className="font-serif text-3xl text-warm-50 mb-4">
               We don&rsquo;t recognize this code.

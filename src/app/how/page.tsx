@@ -73,7 +73,7 @@ export default function HowItWorksPage() {
           <Step
             number="05"
             title="Pass it on"
-            body="In Settings → Beneficiaries, designate up to 3 people who inherit access if something happens to you. They get an email letting them know. If you ever pass, we send them a claim link — they can read and chat with what you left, plus browse the answers (text + voice + photo per question) in a quiet read-only archive. Their conversations stay private, even from each other. Once an account is marked deceased, the persona shifts gently into memorial mode — still themselves, no pretending to still be alive."
+            body="In Sharing, designate up to 3 people who inherit access if something happens to you. They get an email letting them know — and you can also share their personal claim link with them now (text it, drop it in your will, whatever) so they have a path even if your email account is unreachable later. If a beneficiary reports your passing, we don't activate immediately: you get a one-click email to cancel the report within 72 hours. Only if you don't cancel does the archive open to them. Conversations stay private from each other. Once an account is marked deceased, the persona shifts gently into memorial mode — still themselves, no pretending to still be alive."
           />
         </section>
 
@@ -110,6 +110,18 @@ export default function HowItWorksPage() {
             <Tip
               title="On birthdays and anniversaries"
               body="Your identity remembers dates. Your birthday, the anniversary of when you signed up, the anniversary of the day they first spoke to you — on each one, they'll send a short message. Like a real person who noticed."
+            />
+            <Tip
+              title="The dashboard reads like a Messages app"
+              body="Tap a row to open it. Swipe LEFT to delete (identities go to a 30-day grace; group rooms are gone; shared archives just drop the access). Swipe RIGHT to mark as unread. Long-press (or right-click on a laptop) for the full menu — Pin/Unpin to the favorites strip up top, Hide alerts to silence proactive pings, Mark unread, Delete. Pinned conversations show an amber dot when there's something new to see. Muted ones show a small bell-with-slash."
+            />
+            <Tip
+              title="Three kinds of codes, three different things"
+              body="Invite code — 12 characters like XXXX-XXXX-XXXX. The owner is alive and wants to share read+chat access with you. Paste it from + New → Connect with their code, or visit the /invite link they sent. Claim link — a 32-character URL like chapter3five.app/legacy/… You hold this in case the person passes; only after a 72-hour window with no veto does it activate. Import code — also 12 characters, but for a brand-new account: someone wants you to start with a copy of their archive. You can't redeem it from an existing dashboard — sign out and create a fresh account, paste it on the second step."
+            />
+            <Tip
+              title="Rename, mute, pin"
+              body="Identities you named yourself (real mode) can be renamed any time from Settings → Identities — tap one to expand, type a new name, hit Save. The new name shows up everywhere. Randomized identities keep the name we generated for them. Mute (Hide alerts) silences proactive pings + the daily question for that conversation; the row stays in your list but with a bell-slash icon. Pin (long-press → Pin) moves a conversation to the favorites strip up top so it's always one tap away."
             />
           </div>
         </section>

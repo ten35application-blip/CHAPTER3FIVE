@@ -191,17 +191,42 @@ export default function TermsPage() {
 
       <Section title="9. Sharing and importing archives">
         <p>
-          chapter3five lets you generate a share code that allows another
-          user to import a copy of your archive into their own account. Each
-          recipient maintains a separate copy in their own account. By
-          generating a share code, you authorize any holder of that code to
-          receive a copy of your archive&rsquo;s content and metadata.
+          chapter3five supports three distinct ways to give another person
+          access to your archive content. They are not interchangeable;
+          each grants a different scope of access:
         </p>
         <ul>
-          <li>You may revoke a share code at any time. Revocation prevents future imports but does not retract copies already made.</li>
-          <li>Do not share codes that contain content about a third person without that person&rsquo;s consent.</li>
-          <li>Recipients are bound by these Terms in their own use of the imported archive.</li>
+          <li>
+            <strong>Import code.</strong> A 12-character code (formatted
+            as XXXX-XXXX-XXXX) that allows another user, during initial
+            account creation, to import a copy of your archive content
+            into their own account. Each recipient maintains a separate
+            copy. You may revoke an import code at any time. Revocation
+            prevents future imports but does not retract copies already
+            made.
+          </li>
+          <li>
+            <strong>Invite code.</strong> A 12-character code (same format
+            as an import code, different table) that grants the recipient
+            an &ldquo;archive grant&rdquo; — read-only access to your
+            archive plus their own private conversation thread with the
+            persona, while you remain the owner. The recipient does not
+            receive a copy. You may revoke any granted access at any time
+            from Sharing.
+          </li>
+          <li>
+            <strong>Beneficiary claim link.</strong> A 32-character token
+            (resolvable as chapter3five.app/legacy/[token]) tied to a
+            specific beneficiary designation. Inert until a passing
+            report is submitted and the 72-hour veto window elapses
+            without a cancel (see Section 10).
+          </li>
         </ul>
+        <p>
+          Do not share codes or links that contain content about a third
+          person without that person&rsquo;s consent. All recipients are
+          bound by these Terms in their own use of the archive content.
+        </p>
       </Section>
 
       <Section title="10. Beneficiaries; death and inheritance">
@@ -215,23 +240,38 @@ export default function TermsPage() {
         </p>
         <ul>
           <li>
-            <strong>Activation.</strong> If we receive credible documentation
-            of your death (e.g., death certificate, obituary, family
-            notification through identity-verified channels), our team may
-            mark your account deceased. Each designated beneficiary will
-            then receive an email with a one-time claim link.
+            <strong>Passing report + 72-hour veto window.</strong> A
+            beneficiary, or anyone holding a valid claim link, may submit
+            a passing report through their /legacy/[token] link. Submission
+            does not immediately activate the inheritance. Instead, we
+            email the account holder a one-click link to cancel the report
+            and provide a seventy-two (72) hour window for the cancel link
+            to be used. The cancel link is itself sufficient authorization;
+            no sign-in is required, on the assumption that the account
+            holder may not have access to the device they are signed in
+            on. If the cancel link is used within the 72-hour window, the
+            report is dismissed, the archive remains private, and the
+            reporter is sent a polite "could not verify" notice without
+            disclosing who reported. If the 72-hour window elapses without
+            a cancel, the report is treated as confirmed: we mark the
+            account deceased (using the date the reporter provided), each
+            designated beneficiary becomes activated, and each receives an
+            email containing their personal claim link.
           </li>
           <li>
-            <strong>Verification.</strong> We may, in our discretion,
-            require identity verification before honoring a beneficiary
-            claim. We may decline activation if documentation is
-            insufficient.
+            <strong>Pre-shared claim links.</strong> Each beneficiary's
+            claim link is generated at the time of designation and shown
+            to you in Sharing. You may pre-share a beneficiary's link with
+            them through any channel you choose (text, will, written
+            instructions). The link is inert (status &quot;designated&quot;) until a
+            confirmed passing report transitions it to active.
           </li>
           <li>
-            <strong>Mistake correction.</strong> If we mark an account
-            deceased in error, we will reverse the designation, restore
-            account access, and revoke any pending beneficiary claims (but
-            not claims that have already been accepted).
+            <strong>Mistake correction.</strong> If an account is marked
+            deceased in error and the error is brought to our attention,
+            we will reverse the designation, restore account access, and
+            revoke any pending beneficiary claims (but not claims that
+            have already been accepted by a beneficiary).
           </li>
           <li>
             <strong>Inactivity.</strong> We may, after extended inactivity

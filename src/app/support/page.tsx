@@ -118,19 +118,46 @@ export default function SupportPage() {
           <FaqGroup title="Beneficiaries & sharing">
             <Faq
               q="What's a beneficiary?"
-              a="Someone you designate who inherits access to your archive if something happens to you. They get an email when you choose them, and another with a claim link if your account is ever marked as deceased. You can have three free beneficiaries; additional slots are $5 each."
+              a="Someone you designate who inherits access to your archive if something happens to you. They get an email when you choose them — and you can also pre-share their personal claim link directly (text it, drop it in your will), so they have a path even if your email account is unreachable later. Three free beneficiary slots; additional slots $5 each."
             />
             <Faq
-              q="What's the difference between a share code and a beneficiary?"
-              a="A share code lets someone import a copy of your archive into their own account — they get their own version. A beneficiary gets read-only access to your same archive — same answers, same photo, but with their own private conversation thread. Beneficiaries are for family who'll inherit; share codes are for letting someone else carry your identity forward independently."
+              q="There are three kinds of codes — which is which?"
+              a="Invite code (12 chars, XXXX-XXXX-XXXX). The owner is alive; you read + chat with their archive, owner keeps it. Paste from + New → Connect with their code, or open the /invite link they sent. Claim link (32-char URL like /legacy/…). The post-passing inheritance link. Hold onto it; only activates 72 hours after a passing is reported, and only if the owner doesn't cancel that report. Import code (12 chars, same format as invite). For starting a brand-new account with a copy of someone's archive — sign out and sign up, paste it on the second step."
             />
             <Faq
-              q="What happens when I die?"
-              a="Beneficiaries you designated each get an email with a link to claim access to your archive. They can sign up or sign in, then read + chat with what you left them, plus browse all 355 answers (text + voice + photo) in a quiet read-only archive view. They can download a Markdown of their conversation with you any time. We confirm the death with documentation before activating — we don't act on rumors."
+              q="What happens when I pass away?"
+              a="A beneficiary opens their claim link and submits a passing report (date + optional notes). We don't activate the archive immediately — instead, we email you with a one-click link to cancel the report. You have 72 hours. If you cancel, the report is dismissed and the archive stays private. If you don't cancel, after 72 hours the archive transitions to inheritance mode: each beneficiary gets their own claim link by email, can sign in, and read + chat with what you left. The 72-hour window is the safety net against false reports — accidents, drama, fraud."
+            />
+            <Faq
+              q="What if a beneficiary submits a passing report and I'm fine?"
+              a="Open the email we send you (subject: 'Are you there? Action needed within 72 hours.') and click the cancel link. One tap, no sign-in required — the cancel link itself is your authorization. The reporter gets a polite 'we couldn't verify' note; we don't share who reported."
             />
             <Faq
               q="Does the persona keep acting alive after I'm gone?"
-              a="No. Once an account is marked deceased, the persona shifts into memorial mode for beneficiaries. Still themselves — same voice, same opinions, same texture — but they don't pretend to still be alive. No 'talk to you tomorrow,' no 'let's grab coffee.' If asked, they're honest about being an archive."
+              a="No. Once an account is marked deceased — only after the 72-hour window has elapsed without a veto — the persona shifts into memorial mode for beneficiaries. Still themselves — same voice, same opinions, same texture — but they don't pretend to still be alive. No 'talk to you tomorrow,' no 'let's grab coffee.' If asked, they're honest about being an archive."
+            />
+          </FaqGroup>
+
+          <FaqGroup title="Using the dashboard">
+            <Faq
+              q="How do I delete a conversation?"
+              a="Swipe LEFT on the row in your conversation list. A red Delete button appears on the right; tap it, or swipe past the commit threshold and let go for a one-motion delete. We always show a confirmation that's specific to what's happening — for an identity, it's clear you're deleting the IDENTITY (with a 30-day grace window), not just clearing the chat. For a group, the room disappears for everyone in it. For a shared archive, you just lose access; the original isn't touched."
+            />
+            <Faq
+              q="How do I mark something unread again?"
+              a="Swipe RIGHT on the row, or long-press → Mark as unread. The amber dot comes back so you remember to revisit it. Just opening a conversation marks it read again, even if you didn't reply."
+            />
+            <Faq
+              q="Hide alerts / mute — what does that do?"
+              a="Long-press a row → Hide alerts. The conversation stays in your list but the proactive 'haven't heard from you' pings, the daily question, and outreach emails for that conversation stop. A small bell-with-slash icon shows next to the timestamp so you remember it's silenced. Long-press again → Show alerts to undo it."
+            />
+            <Faq
+              q="Can I rename an identity?"
+              a="Yes — for identities you named yourself (real mode). Settings → Identities, tap one to expand, change the name, hit Save. The new name appears everywhere immediately: dashboard, chat, beneficiary view. Randomized identities keep the name we generated for them — the name is part of the persona."
+            />
+            <Faq
+              q="What's pinning?"
+              a="Long-press a row → Pin. The conversation moves into the favorites strip at the top of your dashboard as a small oval tile, always one tap away. New activity on a pinned conversation shows an amber dot on the tile. Long-press the tile → Unfavorite to drop it back into the main list."
             />
           </FaqGroup>
 

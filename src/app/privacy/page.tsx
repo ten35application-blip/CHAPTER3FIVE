@@ -104,7 +104,37 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong>Beneficiary designations.</strong> Email addresses (and
-            optionally names) of people you designate as beneficiaries.
+            optionally names) of people you designate as beneficiaries,
+            plus a 32-character claim token per designation that resolves
+            to the beneficiary&rsquo;s personal claim link
+            (chapter3five.app/legacy/[token]). The token has no semantic
+            meaning and is generated from cryptographically secure
+            randomness.
+          </li>
+          <li>
+            <strong>Passing reports.</strong> If a beneficiary or someone
+            else holding a valid claim link reports your passing, we
+            store: the date they reported, optional notes (an obituary
+            link, the funeral home, anything that helps confirm), the
+            reporter&rsquo;s name and email, and a separate 32-character
+            veto token used to authorize the one-click cancel link in the
+            email we send you. We track when the report was submitted,
+            when the 72-hour veto deadline elapses, and whether you
+            cancelled (vetoed) or the report was confirmed.
+          </li>
+          <li>
+            <strong>Per-conversation read cursors and mute state.</strong>{" "}
+            We store, on your profile, a small JSON map of when you last
+            opened each conversation (so the dashboard can clear unread
+            indicators) and a list of conversations you&rsquo;ve muted
+            (Hide alerts) so proactive pings + outreach + check-in emails
+            for those conversations are suppressed. Both are private to
+            you.
+          </li>
+          <li>
+            <strong>Pinned conversations.</strong> A list of conversations
+            you&rsquo;ve pinned to your dashboard&rsquo;s favorites strip,
+            stored on your profile.
           </li>
           <li>
             <strong>Payment information</strong>, if you make a purchase.
@@ -390,18 +420,33 @@ export default function PrivacyPage() {
           chapter3five is designed so that an archive may persist after
           the person who created it has died. You may designate up to
           three (3) beneficiaries free of charge, with additional slots
-          available for a one-time fee. If we receive credible
-          documentation of your death, your beneficiaries each receive an
-          email with a claim link granting them read access plus their own
-          private conversation thread with the archive.
+          available for a one-time fee. Each designation generates a
+          32-character claim token, resolvable as a personal claim link
+          (chapter3five.app/legacy/[token]). The token is private and
+          inert until activated.
         </p>
         <p>
-          We may, in our discretion, require identity verification before
-          honoring a beneficiary claim, and may decline activation if
-          documentation is insufficient. If we mark an account deceased
-          in error, we will reverse the designation and restore account
-          access. Inactive archives with no designated beneficiary may be
-          deleted after extended inactivity and notice.
+          <strong>Passing report and 72-hour veto window.</strong> Any
+          person holding a valid claim link may submit a passing report
+          through that link (date plus optional notes). Submission does
+          not immediately grant access. We email the account holder a
+          one-click cancel link with a 72-hour deadline. If the link is
+          used within the window, the report is dismissed, the archive
+          remains private, and the reporter receives a polite "could not
+          verify" notice without disclosure of who reported. If the
+          window elapses without a cancel, the report is treated as
+          confirmed: we mark the account deceased (using the date the
+          reporter provided) and each designated beneficiary receives
+          their personal claim link by email, granting read access plus
+          their own private conversation thread.
+        </p>
+        <p>
+          If an account is marked deceased in error, we will reverse the
+          designation and restore account access. Claims that have
+          already been accepted by a beneficiary cannot be retroactively
+          revoked (the beneficiary&rsquo;s conversation is theirs). We
+          may, after extended inactivity and notice, delete archives for
+          which no beneficiary has been designated.
         </p>
       </Section>
 

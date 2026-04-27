@@ -27,7 +27,7 @@ const COPY = {
     seeRemovedHint: "Soft-deleted identities still in their 30-day grace.",
     enterCode: "Connect with their code",
     enterCodeHint:
-      "Got an access code from someone close? Type it here to open their archive.",
+      "An invite code (alive) or claim link (passed). Import codes belong to a fresh account — sign up instead.",
     codePlaceholder: "XXXX-XXXX-XXXX",
     codeCta: "Connect",
     codeError: "That code doesn't look right.",
@@ -54,7 +54,7 @@ const COPY = {
     seeRemovedHint: "Identidades en su periodo de gracia de 30 días.",
     enterCode: "Conectar con su código",
     enterCodeHint:
-      "¿Te dieron un código de acceso? Escríbelo aquí para abrir su archivo.",
+      "Un código de invitación (vivo) o enlace de herencia (fallecido). Los códigos de importación son para una cuenta nueva.",
     codePlaceholder: "XXXX-XXXX-XXXX",
     codeCta: "Conectar",
     codeError: "Ese código no parece correcto.",
