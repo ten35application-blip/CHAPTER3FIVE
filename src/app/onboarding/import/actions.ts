@@ -93,7 +93,7 @@ export async function importFromCode(formData: FormData) {
       : source.oracle_name;
   const oracleId = existing?.active_oracle_id;
   if (!oracleId) {
-    redirect("/onboarding/import?error=No%20active%20thirtyfive%20to%20write%20into");
+    redirect("/onboarding/import?error=No%20active%20identity%20to%20write%20into");
   }
 
   const { error: profErr } = await supabase

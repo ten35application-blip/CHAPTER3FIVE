@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "No profile" }, { status: 404 });
   }
   if (!profile.active_oracle_id) {
-    return NextResponse.json({ error: "No active thirtyfive" }, { status: 400 });
+    return NextResponse.json({ error: "No active identity" }, { status: 400 });
   }
   if ((profile.randomize_credits ?? 0) <= 0) {
     return NextResponse.json(

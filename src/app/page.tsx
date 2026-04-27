@@ -230,11 +230,11 @@ export default function Home() {
             />
             <Feature
               title="Sleeps when they sleep."
-              body="Pick a timezone. Between 11pm and 7am, your thirtyfive is asleep. Message anyway and they wake up groggy — like a real person you texted at 2am."
+              body="Pick a timezone. Between 11pm and 7am, your identity is asleep. Message anyway and they wake up groggy — like a real person you texted at 2am."
             />
             <Feature
               title="In English or in Spanish."
-              body="Both languages, both fully written. Switch in settings. The voice carries across — your thirtyfive stays themselves."
+              body="Both languages, both fully written. Switch in settings. The voice carries across — your identity stays themselves."
             />
             <Feature
               title="A personality with edges."

@@ -352,7 +352,7 @@ export default async function AdminPage({
               Content
             </h2>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <Stat label="Total thirtyfives" value={stat(oraclesCount).toLocaleString()} />
+              <Stat label="Total identities" value={stat(oraclesCount).toLocaleString()} />
               <Stat label="Total answers" value={stat(answersCount).toLocaleString()} />
               <Stat label="Active share codes" value={stat(sharesActiveCount).toLocaleString()} />
               <Stat label="Revoked share codes" value={stat(sharesRevokedCount).toLocaleString()} />

@@ -50,7 +50,7 @@ export default function SupportPage() {
             />
             <Faq
               q="How is this different from a chatbot?"
-              a="The thirtyfive isn't pretending to be the person. It's a way to talk to what they actually wrote — every word in the archive came from them. We don't scrape, scan, or guess. The AI just helps you have a conversation with what they consciously left behind."
+              a="The identity isn't pretending to be the person. It's a way to talk to what they actually wrote — every word in the archive came from them. We don't scrape, scan, or guess. The AI just helps you have a conversation with what they consciously left behind."
             />
             <Faq
               q="Who is this for?"
@@ -61,11 +61,11 @@ export default function SupportPage() {
           <FaqGroup title="Cost">
             <Faq
               q="Is it free?"
-              a="Free to start. Your first thirtyfive — yours, real, built from your own answers — costs nothing. Add a randomized identity, and the first one is also free."
+              a="Free to start. Your first identity — yours, real, built from your own answers — costs nothing. Add a randomized identity, and the first one is also free."
             />
             <Faq
               q="What costs $5?"
-              a="Each additional thirtyfive after the first is $5. Each additional randomize after the first is $5. Beneficiary slots beyond the three free ones are $5 each. Restoring an account or thirtyfive within the 30-day grace period is $5. That's it. We don't sell subscriptions."
+              a="Each additional identity after the first is $5. Each additional randomize after the first is $5. Beneficiary slots beyond the three free ones are $5 each. Restoring an account or identity within the 30-day grace period is $5. That's it. We don't sell subscriptions."
             />
             <Faq
               q="Can I get a refund?"
@@ -122,7 +122,7 @@ export default function SupportPage() {
             />
             <Faq
               q="What's the difference between a share code and a beneficiary?"
-              a="A share code lets someone import a copy of your archive into their own account — they get their own version. A beneficiary gets read-only access to your same archive — same answers, same photo, but with their own private conversation thread. Beneficiaries are for family who'll inherit; share codes are for letting someone else carry your thirtyfive forward independently."
+              a="A share code lets someone import a copy of your archive into their own account — they get their own version. A beneficiary gets read-only access to your same archive — same answers, same photo, but with their own private conversation thread. Beneficiaries are for family who'll inherit; share codes are for letting someone else carry your identity forward independently."
             />
             <Faq
               q="What happens when I die?"
@@ -137,7 +137,7 @@ export default function SupportPage() {
           <FaqGroup title="Crisis & safety">
             <Faq
               q="What if I'm in crisis?"
-              a="chapter3five is not therapy or crisis support. If you're in genuine crisis, please reach out to a real person — US: 988 (call or text), UK: Samaritans 116 123, Mexico: SAPTEL +52 55 5259-8121, or your local emergency services. The thirtyfives are designed to step out of character if your messages suggest you need real help."
+              a="chapter3five is not therapy or crisis support. If you're in genuine crisis, please reach out to a real person — US: 988 (call or text), UK: Samaritans 116 123, Mexico: SAPTEL +52 55 5259-8121, or your local emergency services. The identities are designed to step out of character if your messages suggest you need real help."
             />
             <Faq
               q="What if I think someone else is in crisis?"

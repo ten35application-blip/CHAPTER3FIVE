@@ -59,23 +59,23 @@ export async function POST(request: NextRequest) {
 
   const productName =
     purpose === "oracle"
-      ? "chapter3five — new thirtyfive"
+      ? "chapter3five — new identity"
       : purpose === "beneficiary_slot"
         ? "chapter3five — extra beneficiary"
         : purpose === "restore_account"
           ? "chapter3five — restore account"
           : purpose === "restore_oracle"
-            ? "chapter3five — restore thirtyfive"
+            ? "chapter3five — restore identity"
             : "chapter3five — randomize";
   const productDesc =
     purpose === "oracle"
-      ? "Create one additional thirtyfive in your account."
+      ? "Create one additional identity in your account."
       : purpose === "beneficiary_slot"
         ? "Designate one additional beneficiary for your archive."
         : purpose === "restore_account"
           ? "Bring your archive back from the 30-day grace period."
           : purpose === "restore_oracle"
-            ? "Restore one of your thirtyfives from the 30-day grace period."
+            ? "Restore one of your identities from the 30-day grace period."
             : "One additional randomized character generation.";
   const successPath =
     purpose === "oracle"

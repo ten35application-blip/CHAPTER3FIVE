@@ -105,7 +105,7 @@ export default async function SharedOraclePage({
 
       <div className="flex-1 flex justify-center">
         <Chat
-          oracleName={oracle.name ?? "your thirtyfive"}
+          oracleName={oracle.name ?? "your identity"}
           language={language}
           initialHistory={initialHistory}
           avatarUrl={oracle.avatar_url}

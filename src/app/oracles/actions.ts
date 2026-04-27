@@ -49,8 +49,8 @@ export async function newOracle() {
     .eq("id", user.id)
     .single();
 
-  // First thirtyfive (the auto-created one on signup) is free. Every
-  // additional thirtyfive needs a credit ($5 via Stripe). Admin
+  // First identity (the auto-created one on signup) is free. Every
+  // additional identity needs a credit ($5 via Stripe). Admin
   // emails get unlimited free creates for testing + dogfooding.
   const { count: oracleCount } = await supabase
     .from("oracles")
@@ -80,7 +80,7 @@ export async function newOracle() {
     .single();
 
   if (error || !created) {
-    redirect("/dashboard?error=Could%20not%20create%20a%20new%20thirtyfive");
+    redirect("/dashboard?error=Could%20not%20create%20a%20new%20identity");
   }
 
   // Decrement credit if this was a paid creation (not the first).
@@ -104,7 +104,7 @@ export async function newOracle() {
 
 export async function switchOracle(formData: FormData) {
   const targetId = String(formData.get("oracle_id") ?? "").trim();
-  if (!targetId) redirect("/dashboard?error=No%20thirtyfive%20selected");
+  if (!targetId) redirect("/dashboard?error=No%20identity%20selected");
 
   const supabase = await createClient();
   const {
@@ -136,7 +136,7 @@ export async function switchOracle(formData: FormData) {
     .single();
 
   if (!target) {
-    redirect("/dashboard?error=Thirtyfive%20not%20found");
+    redirect("/dashboard?error=Identity%20not%20found");
   }
 
   await supabase

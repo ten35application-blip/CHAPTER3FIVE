@@ -184,7 +184,7 @@ export default async function AdminUserPage({
 
           <section>
             <h2 className="text-xs uppercase tracking-[0.25em] text-warm-300 mb-3">
-              Thirtyfives ({oracles.length})
+              Identities ({oracles.length})
             </h2>
             {oracles.length > 0 ? (
               <div className="space-y-1">

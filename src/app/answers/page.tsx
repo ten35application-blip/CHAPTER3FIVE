@@ -102,7 +102,7 @@ export default async function AnswersPage({
             {t.title}
           </h1>
           <p className="text-warm-300 mb-2">
-            {t.subtitle(profile.oracle_name ?? "your thirtyfive")}
+            {t.subtitle(profile.oracle_name ?? "your identity")}
           </p>
           <p className="text-warm-200 mb-8 text-sm">
             {totalAnswered} {t.of} {totalQuestions} {t.answered}.

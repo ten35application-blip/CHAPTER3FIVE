@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error:
-          "You've hit today's message limit. Try again tomorrow — your thirtyfive will be here.",
+          "You've hit today's message limit. Try again tomorrow — your identity will be here.",
       },
       { status: 429 },
     );

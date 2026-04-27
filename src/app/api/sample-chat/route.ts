@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error:
-          "You've used your sample messages for the hour. To keep talking, sign up — your own thirtyfive remembers you.",
+          "You've used your sample messages for the hour. To keep talking, sign up — your own identity remembers you.",
       },
       {
         status: 429,

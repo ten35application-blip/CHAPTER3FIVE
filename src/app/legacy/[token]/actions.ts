@@ -83,7 +83,7 @@ export async function claimLegacy(formData: FormData) {
       sendBeneficiaryClaimedNotice({
         to: ownerAuth.user.email,
         beneficiaryEmail: user.email ?? "(no email)",
-        ownerName: ownerProfile.oracle_name ?? "your thirtyfive",
+        ownerName: ownerProfile.oracle_name ?? "your identity",
         ownerUserId: ben.owner_user_id,
       }).catch((e) => console.error("claimed notice failed:", e));
     }

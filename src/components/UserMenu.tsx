@@ -21,20 +21,22 @@ type Props = {
 
 const COPY = {
   en: {
-    yours: "Your thirtyfives",
-    newOracle: "+ New thirtyfive",
+    yours: "Your identities",
+    sharedHeader: "Shared with you",
+    newOracle: "+ New identity",
     settings: "Settings",
     groups: "Group chats",
     signOut: "Sign out",
-    untitled: "(untitled)",
+    untitled: "(unnamed)",
   },
   es: {
-    yours: "Tus thirtyfives",
-    newOracle: "+ Nuevo thirtyfive",
+    yours: "Tus identidades",
+    sharedHeader: "Compartidos contigo",
+    newOracle: "+ Nueva identidad",
     settings: "Ajustes",
     groups: "Chats grupales",
     signOut: "Cerrar sesión",
-    untitled: "(sin título)",
+    untitled: "(sin nombre)",
   },
 };
 
@@ -121,7 +123,7 @@ export function UserMenu({
       {open && (
         <div
           role="menu"
-          className="absolute right-0 mt-2 w-64 rounded-2xl border border-warm-300/40 bg-warm-700 shadow-2xl overflow-hidden"
+          className="absolute right-0 mt-2 w-64 rounded-2xl border border-warm-300/60 bg-ink-soft shadow-2xl overflow-hidden backdrop-blur-xl"
         >
           {oracles.length > 0 && (
             <>
@@ -168,7 +170,7 @@ export function UserMenu({
             <>
               <div className="px-4 pt-3 pb-1">
                 <p className="text-xs uppercase tracking-[0.2em] text-warm-300">
-                  {language === "es" ? "Compartidos contigo" : "Shared with you"}
+                  {t.sharedHeader}
                 </p>
               </div>
               {sharedOracles.map((o) => (

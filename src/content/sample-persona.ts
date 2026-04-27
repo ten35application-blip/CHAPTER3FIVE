@@ -1,5 +1,5 @@
 /**
- * The sample thirtyfive — a curated character so prospects can chat
+ * The sample identity — a curated character so prospects can chat
  * without signing up. Hand-written archive (not generated). Designed to
  * feel like a real person you might know.
  *

@@ -34,7 +34,7 @@ export default async function RandomizePage({
 
   const language = (profile.preferred_language ?? "en") as "en" | "es";
   const t = COPY[language];
-  const oracleName = profile.oracle_name ?? "your thirtyfive";
+  const oracleName = profile.oracle_name ?? "your identity";
 
   return (
     <main className="flex-1 flex items-center justify-center px-6 py-16 relative overflow-hidden">

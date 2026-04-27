@@ -2,7 +2,7 @@ import Link from "next/link";
 import { SampleChat } from "./SampleChat";
 
 export const metadata = {
-  title: "Try chapter3five — meet a sample thirtyfive",
+  title: "Try chapter3five — meet a sample identity",
   description:
     "Talk to a sample person archived on chapter3five. No sign-up needed. See what an archive feels like before you make your own.",
 };
@@ -32,7 +32,7 @@ export default function SamplePage() {
 
       <div className="max-w-2xl w-full mx-auto text-center mb-6">
         <p className="text-warm-300 text-sm leading-relaxed">
-          This is a sample thirtyfive — a real-feeling person built from the
+          This is a sample identity — a real-feeling person built from the
           kind of answers you&rsquo;d give yourself. Try a conversation. No
           sign-up needed.
         </p>

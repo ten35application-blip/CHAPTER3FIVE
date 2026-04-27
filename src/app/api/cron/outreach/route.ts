@@ -3,7 +3,7 @@ import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { sendOutreachEmail } from "@/lib/notifications";
 
 /**
- * Daily cron — emails users whose thirtyfives haven't heard from them in a
+ * Daily cron — emails users whose identities haven't heard from them in a
  * week. Skips users who have been emailed in the last fortnight, who've
  * disabled outreach, or who haven't completed onboarding.
  *
@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
 
       await sendOutreachEmail({
         to: email,
-        oracleName: profile.oracle_name ?? "your thirtyfive",
+        oracleName: profile.oracle_name ?? "your identity",
         language: (profile.preferred_language ?? "en") as "en" | "es",
       });
 

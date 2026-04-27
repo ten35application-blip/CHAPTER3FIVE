@@ -153,7 +153,7 @@ export default function TermsPage() {
             <strong>Report a message.</strong> Within any conversation, you
             can report an AI-generated message that you find harmful,
             inappropriate, or out of character. Reports are reviewed by our
-            care team. We may, in response, retrain a thirtyfive&rsquo;s
+            care team. We may, in response, retrain a identity&rsquo;s
             behavior, suspend an account, or take other action.
           </li>
           <li>
@@ -268,14 +268,14 @@ export default function TermsPage() {
 
       <Section title="12. Fees and payment">
         <p>
-          The first thirtyfive is free. Additional features and services
+          The first identity is free. Additional features and services
           are available for a fee, currently:
         </p>
         <ul>
-          <li>$5 — additional thirtyfive after the first</li>
+          <li>$5 — additional identity after the first</li>
           <li>$5 — additional randomized character generation after the first</li>
           <li>$5 — each beneficiary slot beyond the three free slots</li>
-          <li>$5 — restoration of a soft-deleted account or thirtyfive</li>
+          <li>$5 — restoration of a soft-deleted account or identity</li>
         </ul>
         <p>
           Payments are processed by Stripe. Card data is handled by Stripe

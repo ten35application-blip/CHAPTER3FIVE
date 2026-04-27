@@ -236,7 +236,7 @@ export async function deleteOracle(formData: FormData) {
     );
   }
 
-  // Soft-delete the active thirtyfive: mark it deleted + schedule a 30-day
+  // Soft-delete the active identity: mark it deleted + schedule a 30-day
   // purge. Answers, messages, memories stay attached to the oracle row, so
   // restoring just clears deleted_at and everything reappears. The
   // profile's active_oracle_id gets cleared so the dashboard doesn't try
@@ -249,7 +249,7 @@ export async function deleteOracle(formData: FormData) {
   const oracleId = activeProfile?.active_oracle_id;
 
   if (!oracleId) {
-    redirect("/settings?error=No%20active%20thirtyfive");
+    redirect("/settings?error=No%20active%20identity");
   }
 
   const now = new Date();
@@ -268,7 +268,7 @@ export async function deleteOracle(formData: FormData) {
   }
 
   // Reset profile: detach the deleted oracle, clear back to a pre-onboard
-  // state so the user can start fresh or pick another thirtyfive.
+  // state so the user can start fresh or pick another identity.
   await supabase
     .from("profiles")
     .update({
@@ -338,7 +338,7 @@ export async function createArchiveInvite(formData: FormData) {
     .eq("id", user.id)
     .single();
   if (!profile?.active_oracle_id) {
-    redirect("/settings?error=No%20active%20thirtyfive");
+    redirect("/settings?error=No%20active%20identity");
   }
 
   for (let attempt = 0; attempt < 5; attempt++) {

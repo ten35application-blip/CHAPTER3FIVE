@@ -8,7 +8,7 @@ export const runtime = "nodejs";
  *
  * Hard-deletes:
  *   - profiles where scheduled_purge_at < now() (30-day grace expired)
- *   - oracles  where scheduled_purge_at < now() (single thirtyfive expired)
+ *   - oracles  where scheduled_purge_at < now() (single identity expired)
  *
  * For an account purge: removes all owned rows (answers, oracles,
  * shares, payments, etc.), wipes avatar storage, then deletes the

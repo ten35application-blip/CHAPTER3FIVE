@@ -1,5 +1,5 @@
 /**
- * Default sleep window — thirtyfive is asleep 11pm to 7am in their timezone.
+ * Default sleep window — identity is asleep 11pm to 7am in their timezone.
  * Mirrors the loose schedule of a real person without configuration friction.
  */
 export const SLEEP_HOUR_START = 23;

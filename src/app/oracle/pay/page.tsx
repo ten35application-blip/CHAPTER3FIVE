@@ -5,7 +5,7 @@ import { Orb } from "@/components/Orb";
 import { startOracleCheckout } from "./actions";
 
 export const metadata = {
-  title: "New thirtyfive — chapter3five",
+  title: "New identity — chapter3five",
 };
 
 export default async function OraclePayPage({
@@ -49,7 +49,7 @@ export default async function OraclePayPage({
         </Link>
 
         <h1 className="font-serif text-4xl sm:text-5xl text-warm-50 mb-4 leading-tight">
-          <span className="italic font-light">Another thirtyfive.</span>
+          <span className="italic font-light">Another identity.</span>
         </h1>
         <p className="text-warm-200 text-lg leading-relaxed mb-2">
           {t.intro}
@@ -84,13 +84,13 @@ export default async function OraclePayPage({
 
 const COPY = {
   en: {
-    intro: "Your first thirtyfive was on us. Each new one is $5.",
+    intro: "Your first identity was on us. Each new one is $5.",
     note: "Set it up however you like — for someone real, for someone you imagine, or randomize a stranger.",
     cta: "Pay $5 and create",
     back: "Back",
   },
   es: {
-    intro: "Tu primer thirtyfive fue de regalo. Cada uno nuevo cuesta $5.",
+    intro: "Tu primer identity fue de regalo. Cada uno nuevo cuesta $5.",
     note: "Hazlo como quieras — para alguien real, para alguien que imaginas, o aleatorízalo.",
     cta: "Pagar $5 y crear",
     back: "Atrás",

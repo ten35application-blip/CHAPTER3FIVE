@@ -33,7 +33,7 @@ export default async function OracleSuccessPage() {
         </h1>
         <p className="text-warm-200 leading-relaxed mb-10 max-w-sm">
           Your credit is on its way. Open the user menu and tap{" "}
-          <span className="text-warm-100">+ New thirtyfive</span> to begin.
+          <span className="text-warm-100">+ New identity</span> to begin.
         </p>
 
         <Link

@@ -5,7 +5,7 @@ import { questions } from "@/content/questions";
 import { sendPushToUser } from "@/lib/push";
 
 /**
- * Daily proactive outreach via chat — your thirtyfive sometimes texts you
+ * Daily proactive outreach via chat — your identity sometimes texts you
  * first. Picks eligible users (opted in, recently active, not pinged in the
  * last week), composes a short in-character message for each, and inserts
  * it into the messages table marked initiated_by_oracle=true.
@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
         ? `\n\nThis person's texting style: "${profile.texting_style}". Match it.`
         : "";
 
-      const systemPrompt = `You are ${profile.oracle_name ?? "a thirtyfive"}. The user has been quiet for a while. Send them a short, in-character text — the way a real person who cares would: a quick check-in, a passing thought, a question, a memory, a "you up?" Keep it brief — usually one sentence. Do NOT explain that you're proactively reaching out. Do NOT mention being an AI or archive. Just text them like a friend would. ${langInstruction}${stylePart}\n\nARCHIVE (just for voice — don't recite, don't reference unless you have something specific to say):\n${archiveBlock}`;
+      const systemPrompt = `You are ${profile.oracle_name ?? "a identity"}. The user has been quiet for a while. Send them a short, in-character text — the way a real person who cares would: a quick check-in, a passing thought, a question, a memory, a "you up?" Keep it brief — usually one sentence. Do NOT explain that you're proactively reaching out. Do NOT mention being an AI or archive. Just text them like a friend would. ${langInstruction}${stylePart}\n\nARCHIVE (just for voice — don't recite, don't reference unless you have something specific to say):\n${archiveBlock}`;
 
       const response = await anthropic.messages.create({
         model: ANTHROPIC_MODEL,
@@ -134,7 +134,7 @@ export async function GET(request: NextRequest) {
       // app open either way.
       sendPushToUser({
         userId: profile.id,
-        title: profile.oracle_name ?? "your thirtyfive",
+        title: profile.oracle_name ?? "your identity",
         body: reply.length > 140 ? reply.slice(0, 140) + "…" : reply,
         data: { kind: "proactive" },
         badge: 1,

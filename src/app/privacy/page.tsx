@@ -66,7 +66,7 @@ export default function PrivacyPage() {
           <li>
             <strong>Persona memories.</strong> Short structured facts
             extracted from your conversations (e.g., &ldquo;they have a
-            daughter named Maya&rdquo;) so the thirtyfive can carry context
+            daughter named Maya&rdquo;) so the identity can carry context
             across sessions. You can review and delete these from Settings.
           </li>
           <li>
@@ -115,7 +115,7 @@ export default function PrivacyPage() {
           <li>
             <strong>Device tokens (mobile).</strong> If you grant push
             permission, we store an Expo push token tied to your account so
-            we can wake your device when your thirtyfive sends a message.
+            we can wake your device when your identity sends a message.
             You can revoke this in your device settings; we delete dead
             tokens automatically.
           </li>

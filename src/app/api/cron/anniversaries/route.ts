@@ -261,7 +261,7 @@ Respond in ${language === "es" ? "Spanish" : "English"}.
         // Push the device(s).
         sendPushToUser({
           userId: p.id,
-          title: p.oracle_name ?? "your thirtyfive",
+          title: p.oracle_name ?? "your identity",
           body: reply.length > 140 ? reply.slice(0, 140) + "…" : reply,
           data: { kind: "anniversary", anniversary_kind: hit.kind },
           badge: 1,

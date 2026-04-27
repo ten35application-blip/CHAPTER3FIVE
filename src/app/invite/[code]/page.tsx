@@ -97,7 +97,7 @@ export default async function InvitePage({
             <p className="text-warm-200 leading-relaxed mb-2 max-w-sm">
               You&rsquo;ve been invited to talk to{" "}
               <span className="text-warm-100 font-serif">
-                {oracleName ?? "a thirtyfive"}
+                {oracleName ?? "a identity"}
               </span>
               .
             </p>

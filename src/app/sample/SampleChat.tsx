@@ -151,13 +151,13 @@ export function SampleChat() {
         <div className="text-center py-6">
           <p className="text-warm-200 text-sm leading-relaxed mb-4 max-w-md mx-auto">
             You&rsquo;ve used your sample messages. To keep talking — and to
-            have a thirtyfive that actually <em>remembers</em> you — sign up.
+            have a identity that actually <em>remembers</em> you — sign up.
           </p>
           <Link
             href="/auth/signup"
             className="inline-flex h-12 items-center justify-center rounded-full bg-warm-50 px-10 text-sm font-medium text-ink hover:bg-warm-100 transition-colors"
           >
-            Make your own thirtyfive
+            Make your own identity
           </Link>
         </div>
       ) : (

@@ -4,8 +4,6 @@ import { createClient } from "@/lib/supabase/server";
 import {
   updateLanguage,
   updateTextingStyle,
-  updateLocation,
-  updateTraits,
   deleteOracle,
   deleteAccount,
   createShareCode,
@@ -92,7 +90,7 @@ export default async function SettingsPage({
         .order("granted_at", { ascending: false })
     : { data: [] };
 
-  // Memories the active thirtyfive has formed about you (per-relationship).
+  // Memories the active identity has formed about you (per-relationship).
   const { data: memoryRows } = activeOracleId
     ? await supabase
         .from("persona_memories")
@@ -104,7 +102,7 @@ export default async function SettingsPage({
     : { data: [] };
   const memories = memoryRows ?? [];
 
-  // Soft-deleted thirtyfives owned by this user that are still inside
+  // Soft-deleted identities owned by this user that are still inside
   // the 30-day grace window. Restorable for $5 each.
   const { data: trashedRows } = await supabase
     .from("oracles")
@@ -117,35 +115,11 @@ export default async function SettingsPage({
     return new Date(o.scheduled_purge_at).getTime() > Date.now();
   });
 
-  const { data: activeOracle } = activeOracleId
-    ? await supabase
-        .from("oracles")
-        .select(
-          "location_anchor, orientation, relationship_openness, identity_quirks, mode",
-        )
-        .eq("id", activeOracleId)
-        .maybeSingle()
-    : { data: null };
-  const locationAnchor = (activeOracle?.location_anchor ?? null) as
-    | { city?: string; neighborhood?: string; state?: string; country?: string }
-    | null;
-  const oracleOrientation = (activeOracle?.orientation ?? "") as string;
-  const oracleOpenness = (activeOracle?.relationship_openness ?? "") as string;
-  const oracleQuirks = (activeOracle?.identity_quirks ?? []) as string[];
-  const oracleIsRandomized = (activeOracle?.mode ?? "") === "randomize";
-  const locationDisplay = locationAnchor
-    ? [
-        locationAnchor.neighborhood,
-        locationAnchor.city,
-        locationAnchor.state,
-        locationAnchor.country &&
-        locationAnchor.country.toLowerCase() !== "us"
-          ? locationAnchor.country
-          : null,
-      ]
-        .filter(Boolean)
-        .join(", ")
-    : "";
+  // Identity traits (orientation, openness, location, quirks) are
+  // intentionally NOT editable from Settings. The randomizer rolls
+  // them and that's what you get; real-mode pulls them from the
+  // archive. Users wanted "what people get is what they get" — no
+  // tweaking who the persona is after creation.
 
   const { data: beneficiaryRows } = await supabase
     .from("beneficiaries")
@@ -362,86 +336,6 @@ export default async function SettingsPage({
               </button>
             </form>
           </Section>
-
-          {activeOracleId && (
-            <Section title={t.locationTitle}>
-              <p className="text-sm text-warm-300 mb-3">{t.locationHint}</p>
-              <form action={updateLocation} className="space-y-3">
-                <input
-                  type="text"
-                  name="location"
-                  defaultValue={locationDisplay}
-                  placeholder={t.locationPlaceholder}
-                  maxLength={120}
-                  className="w-full h-11 rounded-full bg-warm-700/30 border border-warm-400/30 px-5 text-warm-50 placeholder:text-warm-400 focus:outline-none focus:border-warm-200 transition-colors text-sm"
-                />
-                <button
-                  type="submit"
-                  className="h-11 px-5 rounded-full bg-warm-50 text-ink font-medium hover:bg-warm-100 transition-colors text-sm"
-                >
-                  {t.save}
-                </button>
-              </form>
-            </Section>
-          )}
-
-          {activeOracleId && !oracleIsRandomized && (
-            <Section title={t.traitsTitle}>
-              <p className="text-sm text-warm-300 mb-4">{t.traitsHint}</p>
-              <form action={updateTraits} className="space-y-4">
-                <div className="space-y-2">
-                  <label className="block text-xs uppercase tracking-[0.2em] text-warm-300">
-                    {t.traitsOrientation}
-                  </label>
-                  <select
-                    name="orientation"
-                    defaultValue={oracleOrientation}
-                    className="w-full h-11 rounded-full bg-warm-700/30 border border-warm-400/30 px-5 text-warm-50 focus:outline-none focus:border-warm-200 transition-colors text-sm"
-                  >
-                    {Object.entries(t.traitsOrientations).map(([k, v]) => (
-                      <option key={k} value={k}>
-                        {v}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <label className="block text-xs uppercase tracking-[0.2em] text-warm-300">
-                    {t.traitsOpenness}
-                  </label>
-                  <select
-                    name="openness"
-                    defaultValue={oracleOpenness}
-                    className="w-full h-11 rounded-full bg-warm-700/30 border border-warm-400/30 px-5 text-warm-50 focus:outline-none focus:border-warm-200 transition-colors text-sm"
-                  >
-                    {Object.entries(t.traitsOpennessOptions).map(([k, v]) => (
-                      <option key={k} value={k}>
-                        {v}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                {oracleQuirks.length > 0 && (
-                  <div className="space-y-2">
-                    <label className="block text-xs uppercase tracking-[0.2em] text-warm-300">
-                      {t.traitsQuirks}
-                    </label>
-                    <ul className="text-sm text-warm-200 space-y-1 pl-4 list-disc">
-                      {oracleQuirks.map((q, i) => (
-                        <li key={i}>{q}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                <button
-                  type="submit"
-                  className="h-11 px-5 rounded-full bg-warm-50 text-ink font-medium hover:bg-warm-100 transition-colors text-sm"
-                >
-                  {t.save}
-                </button>
-              </form>
-            </Section>
-          )}
 
           {oracleName && (
             <Section title={t.shareTitle}>
@@ -887,7 +781,7 @@ export default async function SettingsPage({
           </Section>
 
           {oracleName && (
-            <Section title={t.deleteOracleTitle} danger>
+            <Section title={t.deleteOracleTitle(oracleName)} danger>
               <p className="text-sm text-warm-300 mb-2">
                 {t.deleteOracleHint}
               </p>
@@ -921,7 +815,7 @@ export default async function SettingsPage({
                   type="submit"
                   className="h-11 px-5 rounded-full border border-red-300/40 bg-red-900/20 text-red-200 hover:bg-red-900/30 transition-colors text-sm"
                 >
-                  {t.deleteOracleCta}
+                  {t.deleteOracleCta(oracleName)}
                 </button>
               </form>
             </Section>
@@ -1052,6 +946,28 @@ function Section({
   );
 }
 
+function GroupHeader({
+  title,
+  hint,
+}: {
+  title: string;
+  hint?: string;
+}) {
+  return (
+    <div className="mt-12 mb-8 first:mt-0">
+      <p className="text-xs uppercase tracking-[0.3em] text-warm-300 mb-2">
+        {title}
+      </p>
+      <div className="h-px bg-warm-300/40 mb-4" />
+      {hint && (
+        <p className="text-sm text-warm-400 leading-relaxed max-w-prose">
+          {hint}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function HelpLink({
   href,
   label,
@@ -1101,12 +1017,20 @@ function Row({
 const COPY = {
   en: {
     title: "Settings",
-    intro: "Manage your account, language, and how chapter3five sounds.",
+    intro: "Three sections: you, this identity, and what you're passing down.",
     back: "Back",
     saved: "Saved.",
+    groupYou: "You",
+    groupYouHint: "Your account, your preferences, your data.",
+    groupIdentity: "This identity",
+    groupIdentityHint:
+      "Per-identity stuff. Who they are — orientation, where they live, what they're into — isn't editable. They are who they are.",
+    groupLegacy: "Passing it down",
+    groupLegacyHint:
+      "Sharing this archive while you're alive, and designating who inherits it after you're gone.",
     accountTitle: "Account",
     email: "Email",
-    oracle: "Thirtyfive name",
+    oracle: "Identity name",
     mode: "Mode",
     modeReal: "Real",
     modeRandomize: "Randomize",
@@ -1114,7 +1038,7 @@ const COPY = {
     languageTitle: "Language",
     styleTitle: "Texting style (optional)",
     styleHint:
-      "Describe how you actually text — punctuation, emojis, length, tone. Your thirtyfive will match it.",
+      "Describe how you actually text — punctuation, emojis, length, tone. Your identity will match it.",
     stylePlaceholder:
       "lowercase, no periods, lol when funny, never emojis, short replies",
     locationTitle: "Where you live (optional)",
@@ -1123,7 +1047,7 @@ const COPY = {
     locationPlaceholder: "Throgs Neck, Bronx, NY",
     traitsTitle: "Orientation & openness",
     traitsHint:
-      "Shapes how your thirtyfive responds when conversation drifts toward romance. Pulled from your answers automatically; correct it here.",
+      "Shapes how your identity responds when conversation drifts toward romance. Pulled from your answers automatically; correct it here.",
     traitsOrientation: "Sexuality",
     traitsOpenness: "Romantic openness",
     traitsQuirks: "Other things about you",
@@ -1147,9 +1071,9 @@ const COPY = {
       uninterested: "Not interested in romance",
     },
     save: "Save",
-    trashTitle: "Removed thirtyfives",
+    trashTitle: "Removed identities",
     trashHint:
-      "These are thirtyfives you deleted recently. They’re held safely for 30 days. To bring one back, $5 — it returns exactly as it was. After the countdown, they’re gone for good.",
+      "These are identities you deleted recently. They’re held safely for 30 days. To bring one back, $5 — it returns exactly as it was. After the countdown, they’re gone for good.",
     daysLeft: (d: number) =>
       d === 0
         ? "Less than a day left"
@@ -1169,14 +1093,14 @@ const COPY = {
     editAnswers: "View / edit answers",
     outreachTitle: "Quiet-week nudges",
     outreachHint:
-      "When you haven't messaged your thirtyfive in about a week, we'll send a gentle email reminding you they're there. Off by default if you'd rather we stay out of your inbox.",
+      "When you haven't messaged your identity in about a week, we'll send a gentle email reminding you they're there. Off by default if you'd rather we stay out of your inbox.",
     outreachOn: "On",
     outreachOff: "Off",
     tapToDisable: "Tap to disable",
     tapToEnable: "Tap to enable",
     paymentsTitle: "Payments",
     purposeRandomize: "Randomize generation",
-    purposeOracle: "New thirtyfive",
+    purposeOracle: "New identity",
     purposeBeneficiarySlot: "Extra beneficiary slot",
     exportTitle: "Download your data",
     exportHint:
@@ -1189,7 +1113,7 @@ const COPY = {
     statusRefunded: "refunded",
     shareTitle: "Share this archive",
     shareHint:
-      "Generate a code that lets someone else import a copy of your archive into their own account. Useful when you want family to carry your thirtyfive forward. Codes can be revoked at any time.",
+      "Generate a code that lets someone else import a copy of your archive into their own account. Useful when you want family to carry your identity forward. Codes can be revoked at any time.",
     labelPlaceholder: "Label (e.g. \"For my daughter\")",
     shareCta: "Generate code",
     justCreated:
@@ -1200,11 +1124,11 @@ const COPY = {
     revoke: "Revoke",
     inviteTitle: "Invite family to this archive",
     inviteHint:
-      "Send a link that lets a family member talk to the SAME thirtyfive — same answers, same photo. Each person gets their own private conversation. Different from share codes (those copy the archive into someone else's account).",
+      "Send a link that lets a family member talk to the SAME identity — same answers, same photo. Each person gets their own private conversation. Different from share codes (those copy the archive into someone else's account).",
     inviteEmailPlaceholder: "Their email (optional, just a reminder for you)",
     inviteCta: "Create invite link",
     inviteJustCreated:
-      "Send this link to the person you want to invite. They'll create or sign in to their own account, then can talk to your thirtyfive.",
+      "Send this link to the person you want to invite. They'll create or sign in to their own account, then can talk to your identity.",
     invitesHeading: "Invite links",
     invitePending: "pending",
     inviteAccepted: "accepted",
@@ -1244,10 +1168,12 @@ const COPY = {
     terms: "Terms of Service",
     privacy: "Privacy Policy",
     cookies: "Cookie Policy",
-    deleteOracleTitle: "Delete this thirtyfive",
+    deleteOracleTitle: (name: string | null) =>
+      name ? `Delete ${name}` : "Delete this identity",
     deleteOracleHint:
-      "Removes the character, every answer recorded, and all conversations. Your account stays. You can create a new thirtyfive from a clean slate.",
-    deleteOracleCta: "Delete thirtyfive",
+      "Removes this identity, every answer recorded, and all conversations with them. Your account stays. You can create a new identity from a clean slate.",
+    deleteOracleCta: (name: string | null) =>
+      name ? `Delete ${name}` : "Delete identity",
     deleteAccountTitle: "Delete account",
     deleteAccountHint:
       "Removes your account from chapter3five. Your archive — answers, conversations, memories, beneficiaries — is hidden from you and from anyone you've shared with.",
@@ -1278,12 +1204,20 @@ const COPY = {
   },
   es: {
     title: "Ajustes",
-    intro: "Administra tu cuenta, idioma, y cómo suena chapter3five.",
+    intro: "Tres secciones: tú, esta identidad, y lo que estás pasando.",
     back: "Atrás",
     saved: "Guardado.",
+    groupYou: "Tú",
+    groupYouHint: "Tu cuenta, tus preferencias, tus datos.",
+    groupIdentity: "Esta identidad",
+    groupIdentityHint:
+      "Cosas por identidad. Quién es — orientación, dónde vive, qué le interesa — no se edita. Es quien es.",
+    groupLegacy: "Pasarlo",
+    groupLegacyHint:
+      "Compartir este archivo mientras vives, y designar quién lo hereda cuando ya no estés.",
     accountTitle: "Cuenta",
     email: "Correo",
-    oracle: "Nombre del thirtyfive",
+    oracle: "Nombre de la identidad",
     mode: "Modo",
     modeReal: "Real",
     modeRandomize: "Aleatorio",
@@ -1291,7 +1225,7 @@ const COPY = {
     languageTitle: "Idioma",
     styleTitle: "Estilo al escribir (opcional)",
     styleHint:
-      "Describe cómo escribes realmente — puntuación, emojis, largo, tono. Tu thirtyfive lo igualará.",
+      "Describe cómo escribes realmente — puntuación, emojis, largo, tono. Tu identity lo igualará.",
     stylePlaceholder:
       "minúsculas, sin puntos, jaja cuando es chistoso, sin emojis, respuestas cortas",
     locationTitle: "Dónde vives (opcional)",
@@ -1300,7 +1234,7 @@ const COPY = {
     locationPlaceholder: "Roma Norte, CDMX, México",
     traitsTitle: "Orientación y apertura",
     traitsHint:
-      "Da forma a cómo responde tu thirtyfive cuando la conversación va hacia el romance. Lo sacamos de tus respuestas; corrígelo aquí.",
+      "Da forma a cómo responde tu identidad cuando la conversación va hacia el romance. Lo sacamos de tus respuestas; corrígelo aquí.",
     traitsOrientation: "Sexualidad",
     traitsOpenness: "Apertura romántica",
     traitsQuirks: "Otras cosas sobre ti",
@@ -1324,9 +1258,9 @@ const COPY = {
       uninterested: "No me interesa el romance",
     },
     save: "Guardar",
-    trashTitle: "Thirtyfives eliminados",
+    trashTitle: "Identities eliminados",
     trashHint:
-      "Estos son thirtyfives que eliminaste recientemente. Los guardamos por 30 días. Para recuperar uno, $5 — vuelve exactamente como estaba. Después de la cuenta regresiva, se eliminan permanentemente.",
+      "Estos son identities que eliminaste recientemente. Los guardamos por 30 días. Para recuperar uno, $5 — vuelve exactamente como estaba. Después de la cuenta regresiva, se eliminan permanentemente.",
     daysLeft: (d: number) =>
       d === 0
         ? "Menos de un día"
@@ -1346,14 +1280,14 @@ const COPY = {
     editAnswers: "Ver / editar respuestas",
     outreachTitle: "Recordatorios después de una semana",
     outreachHint:
-      "Cuando no le hayas escrito a tu thirtyfive por una semana más o menos, te mandamos un correo gentil para recordarte que está ahí. Apágalo si prefieres que no lleguemos a tu bandeja de entrada.",
+      "Cuando no le hayas escrito a tu identidad por una semana más o menos, te mandamos un correo gentil para recordarte que está ahí. Apágalo si prefieres que no lleguemos a tu bandeja de entrada.",
     outreachOn: "Activado",
     outreachOff: "Apagado",
     tapToDisable: "Toca para desactivar",
     tapToEnable: "Toca para activar",
     paymentsTitle: "Pagos",
     purposeRandomize: "Generación de personaje",
-    purposeOracle: "Nuevo thirtyfive",
+    purposeOracle: "Nuevo identity",
     purposeBeneficiarySlot: "Espacio de beneficiario adicional",
     exportTitle: "Descargar tus datos",
     exportHint:
@@ -1366,7 +1300,7 @@ const COPY = {
     statusRefunded: "reembolsado",
     shareTitle: "Compartir este archivo",
     shareHint:
-      "Genera un código que permite que otra persona importe una copia de tu archivo en su propia cuenta. Útil cuando quieres que la familia cargue tu thirtyfive adelante. Los códigos se pueden revocar cuando quieras.",
+      "Genera un código que permite que otra persona importe una copia de tu archivo en su propia cuenta. Útil cuando quieres que la familia cargue tu identidad adelante. Los códigos se pueden revocar cuando quieras.",
     labelPlaceholder: "Etiqueta (p. ej. \"Para mi hija\")",
     shareCta: "Generar código",
     justCreated:
@@ -1377,11 +1311,11 @@ const COPY = {
     revoke: "Revocar",
     inviteTitle: "Invitar a la familia a este archivo",
     inviteHint:
-      "Envía un enlace para que un familiar hable con el MISMO thirtyfive — mismas respuestas, misma foto. Cada persona tiene su propia conversación privada. Diferente a los códigos para compartir (esos copian el archivo a la cuenta de otra persona).",
+      "Envía un enlace para que un familiar hable con el MISMO identity — mismas respuestas, misma foto. Cada persona tiene su propia conversación privada. Diferente a los códigos para compartir (esos copian el archivo a la cuenta de otra persona).",
     inviteEmailPlaceholder: "Su correo (opcional, solo un recordatorio para ti)",
     inviteCta: "Crear enlace de invitación",
     inviteJustCreated:
-      "Envía este enlace a la persona que quieres invitar. Creará o iniciará sesión en su propia cuenta, y luego podrá hablar con tu thirtyfive.",
+      "Envía este enlace a la persona que quieres invitar. Creará o iniciará sesión en su propia cuenta, y luego podrá hablar con tu identidad.",
     invitesHeading: "Enlaces de invitación",
     invitePending: "pendiente",
     inviteAccepted: "aceptado",
@@ -1421,10 +1355,12 @@ const COPY = {
     terms: "Términos del Servicio",
     privacy: "Política de Privacidad",
     cookies: "Política de Cookies",
-    deleteOracleTitle: "Eliminar este thirtyfive",
+    deleteOracleTitle: (name: string | null) =>
+      name ? `Eliminar a ${name}` : "Eliminar esta identidad",
     deleteOracleHint:
-      "Elimina al personaje, cada respuesta grabada y todas las conversaciones. Tu cuenta queda. Puedes crear un nuevo thirtyfive desde cero.",
-    deleteOracleCta: "Eliminar thirtyfive",
+      "Elimina a esta identidad, cada respuesta grabada y todas las conversaciones con ella. Tu cuenta queda. Puedes crear una nueva identidad desde cero.",
+    deleteOracleCta: (name: string | null) =>
+      name ? `Eliminar a ${name}` : "Eliminar identidad",
     deleteAccountTitle: "Eliminar cuenta",
     deleteAccountHint:
       "Elimina tu cuenta de chapter3five. Tu archivo — respuestas, conversaciones, memorias, beneficiarios — se oculta para ti y para quien lo hayas compartido.",

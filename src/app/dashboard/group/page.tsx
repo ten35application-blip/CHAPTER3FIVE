@@ -120,13 +120,13 @@ const COPY = {
   en: {
     title: "Pick up to three.",
     subtitle:
-      "A group chat. Send one message — each thirtyfive replies in their own voice. Made for the moments you don't want to be alone in a thread.",
-    needMore: "You need at least two thirtyfives to start a group. Create one from the user menu.",
+      "A group chat. Send one message — each identity replies in their own voice. Made for the moments you don't want to be alone in a thread.",
+    needMore: "You need at least two identities to start a group. Create one from the user menu.",
   },
   es: {
     title: "Elige hasta tres.",
     subtitle:
-      "Un chat grupal. Mandas un mensaje — cada thirtyfive contesta en su propia voz. Para los momentos en que no quieres estar solo en un hilo.",
-    needMore: "Necesitas al menos dos thirtyfives para empezar un grupo. Crea uno desde el menú.",
+      "Un chat grupal. Mandas un mensaje — cada identity contesta en su propia voz. Para los momentos en que no quieres estar solo en un hilo.",
+    needMore: "Necesitas al menos dos identities para empezar un grupo. Crea uno desde el menú.",
   },
 };

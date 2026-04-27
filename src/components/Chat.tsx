@@ -499,7 +499,7 @@ export function Chat({
         {!blockedUntil && (
         <form
           onSubmit={send}
-          className="flex gap-2 pt-3 border-t border-warm-700/60"
+          className="flex gap-2 pt-3 border-t border-warm-700/60 items-end"
         >
           <input
             ref={fileInputRef}
@@ -518,24 +518,38 @@ export function Chat({
             onClick={() => fileInputRef.current?.click()}
             aria-label="Attach photo"
             title="Attach photo"
-            className="h-12 w-12 rounded-full border border-warm-400/30 bg-warm-700/30 text-warm-200 hover:bg-warm-700/50 transition-colors disabled:opacity-50 flex items-center justify-center text-xl"
+            className="h-12 w-12 rounded-full border border-warm-400/30 bg-warm-700/30 text-warm-200 hover:bg-warm-700/50 transition-colors disabled:opacity-50 flex items-center justify-center text-xl flex-shrink-0"
           >
             +
           </button>
-          <input
-            type="text"
+          <textarea
+            ref={(el) => {
+              if (!el) return;
+              // Auto-grow: reset then expand to fit content, capped so the
+              // chat area still has room.
+              el.style.height = "auto";
+              el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+            }}
             value={input}
             onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              // Enter sends; Shift+Enter inserts a newline (iMessage feel).
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                send(e as unknown as React.FormEvent);
+              }
+            }}
             placeholder={t.placeholder(oracleName)}
             aria-label={t.placeholder(oracleName)}
             autoFocus
             disabled={sending}
-            className="flex-1 h-12 rounded-full bg-warm-700/30 border border-warm-400/30 px-5 text-warm-50 placeholder:text-warm-400 focus:outline-none focus:border-warm-200 transition-colors disabled:opacity-60"
+            rows={1}
+            className="flex-1 min-h-[48px] max-h-[160px] resize-none rounded-3xl bg-warm-700/30 border border-warm-400/30 px-5 py-3 text-warm-50 placeholder:text-warm-400 focus:outline-none focus:border-warm-200 transition-colors disabled:opacity-60 leading-relaxed"
           />
           <button
             type="submit"
             disabled={sending || (!input.trim() && !pendingImage)}
-            className="h-12 px-6 rounded-full bg-warm-50 text-ink font-medium hover:bg-warm-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="h-12 px-6 rounded-full bg-warm-50 text-ink font-medium hover:bg-warm-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
           >
             {sending ? t.sending : t.send}
           </button>
