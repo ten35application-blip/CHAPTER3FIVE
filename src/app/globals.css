@@ -1,11 +1,15 @@
 @import "tailwindcss";
 
-@theme inline {
+/* @theme (without `inline`) — Tailwind 4 generates utilities like
+   `.bg-warm-50 { background: var(--color-warm-50); }`, so runtime
+   theme overrides via `[data-theme="X"]` actually take effect.
+   With `inline`, values are baked at compile time and runtime
+   overrides do nothing (the bug we just fixed). */
+@theme {
   --font-sans: var(--font-geist-sans);
   --font-serif: var(--font-cormorant);
 
-  /* DUSK — default. Warm-dark. The product's home tone: intimate,
-     somber, paperback-at-night. */
+  /* DUSK — default. Warm-dark. Intimate, somber, paperback-at-night. */
   --color-ink: #1a140f;
   --color-ink-soft: #281e15;
   --color-warm-50: #fff8ec;
@@ -20,24 +24,22 @@
   --color-amber-soft: #ffc585;
 }
 
-/* DAYLIGHT — warm parchment background, deep sepia text. The whole
-   warm scale stays "dark warm" so borders, dividers, and the
-   bg-warm-700/X panel tints (used everywhere) still create visible
-   contrast against the cream background. The flip is just: page bg
-   becomes light, text stays high-contrast against it. */
+/* DAYLIGHT — warm parchment background, deep sepia text. Aggressive
+   contrast: very dark headings, mid-dark body, clearly-visible
+   borders against the cream. */
 :root[data-theme="daylight"] {
-  --color-ink: #faf2dd;
-  --color-ink-soft: #f0e2c5;
-  --color-warm-50: #1a140f;
-  --color-warm-100: #2a1d12;
-  --color-warm-200: #3d2a1c;
-  --color-warm-300: #553d24;
-  --color-warm-400: #785836;
-  --color-warm-500: #9a7a52;
-  --color-warm-600: #b89c70;
-  --color-warm-700: #c4a87f;
-  --color-amber: #b06a1c;
-  --color-amber-soft: #c98230;
+  --color-ink: #fdf7e6;
+  --color-ink-soft: #f1e3c4;
+  --color-warm-50: #0d0805;
+  --color-warm-100: #1a140f;
+  --color-warm-200: #2e2418;
+  --color-warm-300: #4a3826;
+  --color-warm-400: #6b5238;
+  --color-warm-500: #8a6f50;
+  --color-warm-600: #a88c70;
+  --color-warm-700: #b89a78;
+  --color-amber: #a25c0c;
+  --color-amber-soft: #b87420;
 }
 
 html,
