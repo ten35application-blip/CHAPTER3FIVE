@@ -24,6 +24,7 @@ const COPY = {
     yours: "Your thirtyfives",
     newOracle: "+ New thirtyfive",
     settings: "Settings",
+    groups: "Group chats",
     signOut: "Sign out",
     untitled: "(untitled)",
   },
@@ -31,6 +32,7 @@ const COPY = {
     yours: "Tus thirtyfives",
     newOracle: "+ Nuevo thirtyfive",
     settings: "Ajustes",
+    groups: "Chats grupales",
     signOut: "Cerrar sesión",
     untitled: "(sin título)",
   },
@@ -201,6 +203,14 @@ export function UserMenu({
               {t.newOracle}
             </button>
           </form>
+
+          <Link
+            href="/groups"
+            onClick={() => setOpen(false)}
+            className="block px-4 py-2.5 text-sm text-warm-100 hover:bg-warm-600/60 transition-colors border-t border-warm-600/80"
+          >
+            {t.groups}
+          </Link>
 
           <Link
             href="/settings"
