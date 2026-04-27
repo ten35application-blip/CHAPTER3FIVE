@@ -6,7 +6,7 @@ import {
   deletePersonaMemory,
   restoreOracle,
 } from "../settings/actions";
-import { newOracle, switchOracle } from "../oracles/actions";
+import { newOracle, switchOracle, renameOracle } from "../oracles/actions";
 import { Section } from "@/components/SettingsBlocks";
 import { AvatarUpload } from "@/components/AvatarUpload";
 import { questions } from "@/content/questions";
@@ -200,6 +200,42 @@ export default async function IdentitiesPage({
                         language={language}
                       />
                     </div>
+
+                    {/* Rename — only for identities you named (not random). */}
+                    {!isRandom && (
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.2em] text-warm-300 mb-2">
+                          {t.renameLabel}
+                        </p>
+                        <p className="text-sm text-warm-300 mb-3 leading-relaxed">
+                          {t.renameHint}
+                        </p>
+                        <form
+                          action={renameOracle}
+                          className="flex gap-2 items-center"
+                        >
+                          <input
+                            type="hidden"
+                            name="oracle_id"
+                            value={o.id}
+                          />
+                          <input
+                            type="text"
+                            name="name"
+                            defaultValue={o.name ?? ""}
+                            maxLength={60}
+                            required
+                            className="flex-1 h-10 rounded-full bg-warm-700/30 border border-warm-400/30 px-4 text-warm-50 placeholder:text-warm-400 focus:outline-none focus:border-warm-200 transition-colors text-sm"
+                          />
+                          <button
+                            type="submit"
+                            className="h-10 px-4 rounded-full bg-warm-50 text-ink text-sm font-medium hover:bg-warm-100 transition-colors flex-shrink-0"
+                          >
+                            {t.renameCta}
+                          </button>
+                        </form>
+                      </div>
+                    )}
 
                     {/* Set active (if not already) */}
                     {!isActive && (
@@ -451,6 +487,10 @@ const COPY = {
     photoHintRandom:
       "A photo for this randomized identity — shown beside their name in chats. Optional.",
     setActive: "Set as active",
+    renameLabel: "Name",
+    renameHint:
+      "Rename this identity. The new name shows up everywhere — dashboard, chats, beneficiary view.",
+    renameCta: "Save",
     progressLabel: "Progress",
     progressText: (n: number, total: number) =>
       `${n.toLocaleString()} of ${total.toLocaleString()} answers recorded.`,
@@ -496,6 +536,10 @@ const COPY = {
     photoHintRandom:
       "Una foto para esta identidad aleatoria — se muestra junto a su nombre en los chats. Opcional.",
     setActive: "Hacerla activa",
+    renameLabel: "Nombre",
+    renameHint:
+      "Renombra esta identidad. El nuevo nombre aparece en todos lados — dashboard, chats, vista de beneficiarios.",
+    renameCta: "Guardar",
     progressLabel: "Progreso",
     progressText: (n: number, total: number) =>
       `${n.toLocaleString()} de ${total.toLocaleString()} respuestas grabadas.`,

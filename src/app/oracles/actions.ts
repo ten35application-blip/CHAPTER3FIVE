@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isAdmin } from "@/lib/admin";
@@ -100,6 +101,67 @@ export async function newOracle() {
   await supabase.from("profiles").update(updates).eq("id", user.id);
 
   redirect("/onboarding");
+}
+
+/**
+ * Rename a non-random identity. Only allowed for "real" mode oracles
+ * (the user named them) — randomized identities have generated names
+ * tied to the persona and shouldn't be edited from here.
+ *
+ * Updates oracles.name and (if this is the active identity) keeps
+ * profiles.oracle_name in sync so the dashboard / nav reflect the
+ * new name immediately.
+ */
+export async function renameOracle(formData: FormData) {
+  const oracleId = String(formData.get("oracle_id") ?? "").trim();
+  const rawName = String(formData.get("name") ?? "").trim();
+  if (!oracleId) redirect("/identities?error=Missing%20id");
+  if (!rawName)
+    redirect(`/identities?error=${encodeURIComponent("Name can't be empty")}`);
+  const name = rawName.slice(0, 60);
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/auth/signin");
+
+  const { data: oracle } = await supabase
+    .from("oracles")
+    .select("id, mode, user_id")
+    .eq("id", oracleId)
+    .maybeSingle();
+  if (!oracle || oracle.user_id !== user.id) {
+    redirect("/identities?error=Identity%20not%20found");
+  }
+  if (oracle.mode === "randomize") {
+    redirect(
+      `/identities?error=${encodeURIComponent("Randomized identities can't be renamed")}`,
+    );
+  }
+
+  await supabase
+    .from("oracles")
+    .update({ name })
+    .eq("id", oracleId)
+    .eq("user_id", user.id);
+
+  // Keep the active-identity name in profile in sync.
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("active_oracle_id")
+    .eq("id", user.id)
+    .single();
+  if (profile?.active_oracle_id === oracleId) {
+    await supabase
+      .from("profiles")
+      .update({ oracle_name: name })
+      .eq("id", user.id);
+  }
+
+  revalidatePath("/identities");
+  revalidatePath("/dashboard");
+  redirect("/identities?saved=renamed");
 }
 
 export async function switchOracle(formData: FormData) {
