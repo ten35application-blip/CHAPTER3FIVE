@@ -7,7 +7,14 @@ export default function Home() {
     <>
       <header className="absolute top-0 left-0 right-0 z-10">
         <div className="max-w-5xl mx-auto px-6 py-6 flex items-center justify-between">
-          <span className="font-serif text-xl tracking-tight text-warm-100">
+          <span className="flex items-center gap-2.5 font-serif text-xl tracking-tight text-warm-100">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo.png"
+              alt=""
+              aria-hidden
+              className="w-8 h-8 rounded-lg"
+            />
             chapter3five
           </span>
           <Link
