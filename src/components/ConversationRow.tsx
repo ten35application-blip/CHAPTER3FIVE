@@ -26,6 +26,31 @@ type Props = {
   children: React.ReactNode;
 };
 
+type ConfirmKind = "owned" | "shared" | "group" | "together";
+
+const CONFIRMS: Record<"en" | "es", Record<ConfirmKind, string>> = {
+  en: {
+    owned:
+      "Heads up — this isn't just clearing the chat.\n\nYou're deleting the IDENTITY itself: every answer, every message, every photo tied to it. It moves to a 30-day grace window where you can bring it back from /identities. After 30 days it's gone for good.\n\nDelete this identity?",
+    together:
+      "Heads up — this is the randomized identity itself, not just the conversation.\n\nDeleting it moves the identity to a 30-day grace window. You can restore it from /identities before then. After 30 days it's gone for good.\n\nDelete this identity?",
+    group:
+      "Delete this group room?\n\nThe room and everything said in it disappears for everyone in it — the identities themselves stay (you'll still see them as separate 1:1 conversations).",
+    shared:
+      "Drop this shared archive?\n\nYou'll lose access to it, but the archive itself isn't touched — it stays exactly where it is for the person who shared it with you. They won't be told you dropped it.",
+  },
+  es: {
+    owned:
+      "Atención — esto no es solo borrar el chat.\n\nEstás eliminando la IDENTIDAD: cada respuesta, cada mensaje, cada foto. Pasa a un periodo de gracia de 30 días desde el cual puedes restaurarla en /identities. Después de 30 días se elimina para siempre.\n\n¿Eliminar esta identidad?",
+    together:
+      "Atención — esta es la identidad aleatoria misma, no solo el chat.\n\nEliminarla la pone en un periodo de gracia de 30 días. Puedes restaurarla desde /identities antes de eso. Después de 30 días se elimina para siempre.\n\n¿Eliminar esta identidad?",
+    group:
+      "¿Eliminar este chat grupal?\n\nEl cuarto y todo lo dicho en él desaparece para todos sus miembros — las identidades en sí permanecen (las verás como conversaciones 1:1).",
+    shared:
+      "¿Salir de este archivo compartido?\n\nPerderás acceso, pero el archivo en sí queda intacto — sigue siendo de la persona que lo compartió contigo. No le avisaremos.",
+  },
+};
+
 const COPY = {
   en: {
     delete: "Delete",
@@ -36,8 +61,6 @@ const COPY = {
     unmute: "Show alerts",
     markUnread: "Mark as unread",
     markRead: "Mark as read",
-    confirm:
-      "Delete this conversation? Identities go to a 30-day grace window; group rooms are gone.",
   },
   es: {
     delete: "Eliminar",
@@ -48,8 +71,6 @@ const COPY = {
     unmute: "Activar alertas",
     markUnread: "Marcar como no leído",
     markRead: "Marcar como leído",
-    confirm:
-      "¿Eliminar esta conversación? Las identidades pasan a un periodo de gracia de 30 días; los chats grupales se eliminan.",
   },
 };
 
@@ -194,7 +215,8 @@ export function ConversationRow({
 
   function commitDelete() {
     if (deleting || !removable) return;
-    if (typeof window !== "undefined" && !window.confirm(t.confirm)) {
+    const message = CONFIRMS[language][removeKind];
+    if (typeof window !== "undefined" && !window.confirm(message)) {
       setOffset(0);
       setRevealedSide(null);
       return;
