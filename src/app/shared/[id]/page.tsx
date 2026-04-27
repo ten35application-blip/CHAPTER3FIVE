@@ -77,6 +77,17 @@ export default async function SharedOraclePage({
           >
             {language === "es" ? "Archivo" : "Archive"}
           </Link>
+          <Link
+            href="/beneficiary-groups"
+            className="text-xs uppercase tracking-[0.2em] text-warm-300 hover:text-warm-100 transition-colors"
+            title={
+              language === "es"
+                ? "Cuartos grupales con otros beneficiarios"
+                : "Group rooms with other beneficiaries"
+            }
+          >
+            {language === "es" ? "Juntos" : "Together"}
+          </Link>
           <a
             href={`/api/conversation/export?oracle_id=${id}`}
             download

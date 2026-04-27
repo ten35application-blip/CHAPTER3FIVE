@@ -98,7 +98,10 @@ export default function TermsPage() {
             extraction, weekly reflection, anniversary messages, welcome
             messages, image-vision processing of attached photos, group
             chat orchestration (urge-to-respond judging, cross-replies,
-            walk-out judging, farewell line generation), tone-judging on
+            walk-out judging, farewell line generation), beneficiary
+            group room orchestration (deceased persona replies to
+            multi-beneficiary threads), multi-message reply bursts,
+            tone-judging on
             hostile or cruel messages, persona realism state generation
             (mood, physical, weekly context, ambient cast), and
             extraction of structured traits (orientation, openness,

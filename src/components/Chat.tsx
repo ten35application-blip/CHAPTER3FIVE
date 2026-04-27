@@ -283,7 +283,25 @@ export function Chat({
         return;
       }
       if (!res.ok) throw new Error(data.error ?? t.error);
-      setMessages([...next, { role: "assistant", content: data.reply }]);
+
+      // Multi-message bursts: persona may have split into 2-3
+      // messages. Render the first immediately, stagger the rest
+      // with a short delay so it feels like real typing-in-bursts
+      // rather than a simultaneous dump.
+      const replies: string[] =
+        Array.isArray(data.replies) && data.replies.length > 0
+          ? data.replies
+          : [data.reply];
+      setMessages([...next, { role: "assistant", content: replies[0] }]);
+      for (let i = 1; i < replies.length; i++) {
+        const delay = 900 + Math.min(replies[i].length * 30, 1800);
+        await new Promise((r) => setTimeout(r, delay));
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", content: replies[i] },
+        ]);
+      }
+
       if (data?.blocked && data.blocked_until) {
         // The reply IS the persona's stepping-out line. Lock further
         // input until the cron unblocks + checks in.

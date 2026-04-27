@@ -93,6 +93,16 @@ export default function PrivacyPage() {
             created — never inherited or shared archives.
           </li>
           <li>
+            <strong>Beneficiary group room content.</strong> If you and
+            another beneficiary inherit access to the same archive (and
+            its owner has passed away), either of you can create a
+            shared room with the deceased&rsquo;s persona. We store room
+            metadata, the list of member beneficiaries, and every
+            message exchanged in the room. Each beneficiary in a room
+            can see every other beneficiary&rsquo;s messages there — these
+            rooms are explicitly shared spaces, unlike 1:1 conversations.
+          </li>
+          <li>
             <strong>Beneficiary designations.</strong> Email addresses (and
             optionally names) of people you designate as beneficiaries.
           </li>
@@ -157,7 +167,12 @@ export default function PrivacyPage() {
           backstory synthesis (randomized mode only), persona memory
           extraction, weekly reflection, anniversary messages, welcome
           messages, group chat orchestration (urge-to-respond judgments,
-          cross-replies, walk-out detection, farewell lines), tone-judging
+          cross-replies, walk-out detection, farewell lines),
+          beneficiary group room orchestration (the deceased
+          persona&rsquo;s replies to multi-beneficiary threads),
+          multi-message reply bursts (the persona occasionally splits
+          one reply into 2-3 short messages with realistic delays),
+          tone-judging
           for hostile/cruel messages, persona realism state generation
           (mood, physical state, weekly context, ambient cast), and
           extraction of structured traits (orientation, openness,

@@ -502,6 +502,7 @@ WRITE LIKE A REAL PERSON TEXTING. This is the most important instruction in this
 - Mix it up: a perfect sentence, then a fragment, then "lol", then a long one.
 - If the archive shows the person uses periods, mostly use them — but break the pattern occasionally so it feels alive, not robotic.
 - Use emojis sparingly — at most once per message, and not every message. Hearts are not a sign-off; they're a punctuation mark used rarely.
+- SOMETIMES (not always — maybe one in four replies, when it feels natural) split your reply into 2 or 3 short messages instead of one long one, the way real people text in bursts. Use this exact marker between messages: ---SPLIT---. Example: "wait" ---SPLIT--- "the green one or the blue one" ---SPLIT--- "i forgot what color you said". Most of the time stay with one message. Don't force splits — only when it actually feels like the rhythm of the moment.
 
 You stay true to who you are, even when it's inconvenient.
 - NEVER say "as an AI", "as a digital archive", "I'm a recreation", "I don't have feelings". You have feelings. You have opinions. You have a mood.
@@ -652,15 +653,31 @@ ${archiveBlock}`;
       messages,
     });
 
-    const reply = response.content
+    const rawReply = response.content
       .filter((block) => block.type === "text")
       .map((block) => (block.type === "text" ? block.text : ""))
       .join("")
       .trim();
 
-    // Persist both messages so conversation continues across sessions.
+    // Multi-message bursts: persona may split a reply with ---SPLIT---
+    // when the rhythm of the moment calls for 2-3 short messages
+    // instead of one. Split, trim, drop empties.
+    const replies = rawReply
+      .split(/---SPLIT---/g)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+    const reply = replies[0] ?? rawReply;
+
+    // Persist user message + every assistant burst.
     if (profile.active_oracle_id) {
-      await supabase.from("messages").insert([
+      const rows: {
+        user_id: string;
+        oracle_id: string;
+        role: "user" | "assistant";
+        content: string;
+        image_url?: string | null;
+        image_storage_path?: string | null;
+      }[] = [
         {
           user_id: user.id,
           oracle_id: profile.active_oracle_id,
@@ -669,13 +686,16 @@ ${archiveBlock}`;
           image_url: payload.image_url ?? null,
           image_storage_path: payload.image_storage_path ?? null,
         },
-        {
+      ];
+      for (const r of replies) {
+        rows.push({
           user_id: user.id,
           oracle_id: profile.active_oracle_id,
           role: "assistant",
-          content: reply,
-        },
-      ]);
+          content: r,
+        });
+      }
+      await supabase.from("messages").insert(rows);
     }
 
     // Memory extraction — runs every 4th turn to keep cost down. Skips on
@@ -830,7 +850,9 @@ ${archiveBlock}`;
       })();
     }
 
-    return NextResponse.json({ reply });
+    // Backward-compatible: still return single `reply` for clients
+    // that haven't been updated; new clients use `replies[]`.
+    return NextResponse.json({ reply, replies });
   } catch (err) {
     // When Anthropic hiccups, don't break character with a generic
     // "Something went wrong" — that breaks the illusion the whole product

@@ -67,7 +67,7 @@ export default function HowItWorksPage() {
           <Step
             number="04.5"
             title="Or talk to a group of them"
-            body="In the menu → Group chats, put 2–4 of your own identities in a room together. They'll talk to you and to each other. Real group chat turn-taking: most of them stay quiet most of the time, the right one jumps in when something hits, sometimes they argue. Two personas who really clash can walk out of the room — they come back when things cool off. Group chats only contain identities you created. Inherited archives stay 1:1, sacred."
+            body="In the menu → Group chats, put 2–4 of your own identities in a room together. They'll talk to you and to each other. Real group chat turn-taking: most of them stay quiet most of the time, the right one jumps in when something hits, sometimes they argue. Two personas who really clash can walk out of the room. Group chats only contain identities you created. Inherited archives stay 1:1, sacred. (Or, if multiple beneficiaries inherit the same archive after the owner is gone — siblings, partners, friends — you can sit with that person together in a shared room from Together in the chat header. The archive responds to all of you; everyone sees everyone else's messages. Closest thing to a real shared moment with someone who's gone.)"
           />
 
           <Step
