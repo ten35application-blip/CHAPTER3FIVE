@@ -208,6 +208,10 @@ export async function toggleOutreach(formData: FormData) {
 export async function deleteOracle(formData: FormData) {
   const typedName = String(formData.get("confirm_name") ?? "");
   const typedDate = String(formData.get("confirm_date") ?? "").trim();
+  // Optional explicit target id (from the per-identity card on
+  // /identities). Falls back to the active oracle for back-compat
+  // with any older form that didn't pass an id.
+  const explicitId = String(formData.get("oracle_id") ?? "").trim();
 
   const supabase = await createClient();
   const {
@@ -217,39 +221,44 @@ export async function deleteOracle(formData: FormData) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("oracle_name, created_at")
+    .select("oracle_name, created_at, active_oracle_id")
     .eq("id", user.id)
     .single();
 
   if (!profile) {
-    redirect("/settings?error=Profile%20not%20found");
+    redirect("/identities?error=Profile%20not%20found");
   }
 
-  if (!namesMatch(typedName, profile.oracle_name)) {
-    redirect(
-      "/settings?error=Name%20does%20not%20match%20-%20delete%20cancelled",
-    );
+  // Resolve which identity we're actually deleting + its name + created.
+  let oracleId = explicitId || profile.active_oracle_id || "";
+  let targetName: string | null = null;
+  let targetCreatedIso = "";
+  if (oracleId) {
+    const { data: target } = await supabase
+      .from("oracles")
+      .select("name, created_at, user_id")
+      .eq("id", oracleId)
+      .maybeSingle();
+    if (!target || target.user_id !== user.id) {
+      redirect("/identities?error=Identity%20not%20found");
+    }
+    targetName = target.name;
+    targetCreatedIso = isoDate(target.created_at);
   }
-  if (typedDate !== isoDate(profile.created_at)) {
-    redirect(
-      "/settings?error=Created%20date%20does%20not%20match%20-%20delete%20cancelled",
-    );
-  }
-
-  // Soft-delete the active identity: mark it deleted + schedule a 30-day
-  // purge. Answers, messages, memories stay attached to the oracle row, so
-  // restoring just clears deleted_at and everything reappears. The
-  // profile's active_oracle_id gets cleared so the dashboard doesn't try
-  // to load the soft-deleted oracle.
-  const { data: activeProfile } = await supabase
-    .from("profiles")
-    .select("active_oracle_id")
-    .eq("id", user.id)
-    .maybeSingle();
-  const oracleId = activeProfile?.active_oracle_id;
 
   if (!oracleId) {
-    redirect("/settings?error=No%20active%20identity");
+    redirect("/identities?error=No%20identity%20selected");
+  }
+
+  if (!namesMatch(typedName, targetName)) {
+    redirect(
+      "/identities?error=Name%20does%20not%20match%20-%20delete%20cancelled",
+    );
+  }
+  if (typedDate !== targetCreatedIso) {
+    redirect(
+      "/identities?error=Created%20date%20does%20not%20match%20-%20delete%20cancelled",
+    );
   }
 
   const now = new Date();
@@ -264,21 +273,24 @@ export async function deleteOracle(formData: FormData) {
     .eq("id", oracleId)
     .eq("user_id", user.id);
   if (oracleErr) {
-    redirect(`/settings?error=${encodeURIComponent(oracleErr.message)}`);
+    redirect(`/identities?error=${encodeURIComponent(oracleErr.message)}`);
   }
 
-  // Reset profile: detach the deleted oracle, clear back to a pre-onboard
-  // state so the user can start fresh or pick another identity.
-  await supabase
-    .from("profiles")
-    .update({
-      active_oracle_id: null,
-      oracle_name: null,
-      mode: "real",
-      texting_style: null,
-      onboarding_completed: false,
-    })
-    .eq("id", user.id);
+  // If we just deleted the ACTIVE identity, detach + reset profile
+  // (same as before). If we deleted a non-active one, leave profile
+  // alone so the user keeps using their current active identity.
+  if (oracleId === profile.active_oracle_id) {
+    await supabase
+      .from("profiles")
+      .update({
+        active_oracle_id: null,
+        oracle_name: null,
+        mode: "real",
+        texting_style: null,
+        onboarding_completed: false,
+      })
+      .eq("id", user.id);
+  }
 
   await recordAudit({
     actorUserId: user.id,
@@ -289,7 +301,12 @@ export async function deleteOracle(formData: FormData) {
     details: { scheduled_purge_at: purgeAt.toISOString() },
   });
 
-  redirect("/onboarding?notice=oracle-deleted");
+  // Active deletion → goes through onboarding. Non-active → back to
+  // the identities list with confirmation.
+  if (oracleId === profile.active_oracle_id) {
+    redirect("/onboarding?notice=oracle-deleted");
+  }
+  redirect("/identities?saved=deleted");
 }
 
 export async function createShareCode(formData: FormData) {
