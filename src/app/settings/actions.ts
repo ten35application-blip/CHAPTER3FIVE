@@ -24,6 +24,52 @@ function generateClaimToken(): string {
     .slice(0, 32);
 }
 
+/**
+ * Toggle a conversation as favorited (or unfavorited) for the
+ * current user. Powers the favorites row at the top of /dashboard.
+ *
+ * The favorites array on profiles holds { kind, id } pointers; we
+ * filter out a matching entry on toggle-off, append on toggle-on.
+ */
+const FAVORITE_KINDS = new Set(["owned", "shared", "group", "together"]);
+
+export async function toggleFavorite(formData: FormData) {
+  const kind = String(formData.get("kind") ?? "").trim();
+  const id = String(formData.get("id") ?? "").trim();
+  if (!FAVORITE_KINDS.has(kind) || !id) {
+    redirect("/dashboard?error=Bad%20favorite%20input");
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/auth/signin");
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("favorites")
+    .eq("id", user.id)
+    .single();
+
+  type FavEntry = { kind: string; id: string };
+  const current = Array.isArray(profile?.favorites)
+    ? (profile!.favorites as FavEntry[])
+    : [];
+  const exists = current.some((f) => f.kind === kind && f.id === id);
+  const next = exists
+    ? current.filter((f) => !(f.kind === kind && f.id === id))
+    : [...current, { kind, id }];
+
+  await supabase
+    .from("profiles")
+    .update({ favorites: next })
+    .eq("id", user.id);
+
+  revalidatePath("/dashboard");
+  redirect("/dashboard");
+}
+
 export async function updateTheme(formData: FormData) {
   const raw = String(formData.get("theme") ?? "").trim();
   const theme = raw === "daylight" ? "daylight" : "dusk";

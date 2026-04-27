@@ -3,12 +3,15 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { NewConversationMenu } from "@/components/NewConversationMenu";
+import { toggleFavorite } from "../settings/actions";
 
 export const metadata = {
   title: "Conversations — chapter3five",
 };
 
 type ConvKind = "owned" | "randomized" | "shared" | "group" | "together";
+/** Bucket used for favoriting; collapses 'randomized' into 'owned'. */
+type FavoriteKind = "owned" | "shared" | "group" | "together";
 
 type ConvRow = {
   href: string;
@@ -18,6 +21,12 @@ type ConvRow = {
   /** For groups: up to 4 member avatars to collage. */
   collageAvatars?: (string | null)[];
   kind: ConvKind;
+  /** Storage id used for favoriting. For "owned"/"randomized" this
+      is the oracle id; for "group" the room id; etc. */
+  favoriteId: string;
+  /** Bucket the favorites store uses. */
+  favoriteKind: FavoriteKind;
+  isFavorite: boolean;
   lastMessageAt: number;
 };
 
@@ -46,7 +55,7 @@ export default async function DashboardPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("preferred_language, onboarding_completed")
+    .select("preferred_language, onboarding_completed, favorites")
     .eq("id", user.id)
     .single();
 
@@ -54,6 +63,15 @@ export default async function DashboardPage() {
 
   const language = (profile.preferred_language ?? "en") as "en" | "es";
   const t = COPY[language];
+
+  // Set of "kind:id" keys for fast favorite lookup.
+  type FavEntry = { kind: string; id: string };
+  const favorites = Array.isArray(profile.favorites)
+    ? (profile.favorites as FavEntry[])
+    : [];
+  const favoriteKeys = new Set(favorites.map((f) => `${f.kind}:${f.id}`));
+  const isFav = (kind: FavoriteKind, id: string) =>
+    favoriteKeys.has(`${kind}:${id}`);
 
   const admin = createAdminClient();
 
@@ -183,6 +201,9 @@ export default async function DashboardPage() {
         : t.startConversation,
       avatarUrl: o.avatar_url,
       kind: o.mode === "randomize" ? "randomized" : "owned",
+      favoriteId: o.id,
+      favoriteKind: "owned",
+      isFavorite: isFav("owned", o.id),
       lastMessageAt: last
         ? new Date(last.created_at).getTime()
         : new Date(o.created_at).getTime(),
@@ -199,6 +220,9 @@ export default async function DashboardPage() {
         : t.startConversation,
       avatarUrl: o.avatar_url,
       kind: "shared",
+      favoriteId: o.id,
+      favoriteKind: "shared",
+      isFavorite: isFav("shared", o.id),
       lastMessageAt: last
         ? new Date(last.created_at).getTime()
         : 0,
@@ -213,6 +237,9 @@ export default async function DashboardPage() {
       avatarUrl: null,
       collageAvatars: avatarsByRoom.get(r.id) ?? [],
       kind: "group",
+      favoriteId: r.id,
+      favoriteKind: "group",
+      isFavorite: isFav("group", r.id),
       lastMessageAt: r.last_message_at
         ? new Date(r.last_message_at).getTime()
         : new Date(r.created_at).getTime(),
@@ -240,6 +267,9 @@ export default async function DashboardPage() {
       subtitle: t.beneficiaryGroup(o?.name ?? t.unnamed),
       avatarUrl: o?.avatar_url ?? null,
       kind: "together",
+      favoriteId: r.id,
+      favoriteKind: "together",
+      isFavorite: isFav("together", r.id),
       lastMessageAt: r.last_message_at
         ? new Date(r.last_message_at).getTime()
         : new Date(r.created_at).getTime(),
@@ -247,6 +277,16 @@ export default async function DashboardPage() {
   }
 
   rows.sort((a, b) => b.lastMessageAt - a.lastMessageAt);
+
+  // Favorites in the order the user pinned them (preserved by
+  // appending to the array on toggle-on). Skip any that no longer
+  // resolve to a row (the underlying conversation was deleted).
+  const rowByKey = new Map<string, ConvRow>(
+    rows.map((r) => [`${r.favoriteKind}:${r.favoriteId}`, r]),
+  );
+  const favoriteRows = favorites
+    .map((f) => rowByKey.get(`${f.kind}:${f.id}`))
+    .filter((r): r is ConvRow => r !== undefined);
 
   return (
     <main className="flex-1">
@@ -267,6 +307,51 @@ export default async function DashboardPage() {
           <NewConversationMenu language={language} />
         </div>
 
+        {/* Favorites row — pinned conversations as oval tiles
+            (intentionally not circles, to be visually distinct from
+            iMessage's pattern). Horizontal scroll if it overflows. */}
+        {favoriteRows.length > 0 && (
+          <div className="mb-6 -mx-4 px-4 pb-4 overflow-x-auto">
+            <p className="text-xs uppercase tracking-[0.25em] text-warm-300 mb-3 px-2">
+              {t.favoritesLabel}
+            </p>
+            <div className="flex gap-3">
+              {favoriteRows.map((r) => (
+                <Link
+                  key={`fav-${r.favoriteKind}-${r.favoriteId}`}
+                  href={r.href}
+                  className="flex flex-col items-center w-20 flex-shrink-0 group"
+                >
+                  <div className="w-16 h-20 rounded-[40%] overflow-hidden border border-warm-700/60 bg-warm-700/40 group-hover:border-warm-300/50 transition-colors mb-2">
+                    {r.kind === "group" &&
+                    r.collageAvatars &&
+                    r.collageAvatars.length > 0 ? (
+                      <FavoriteCollage
+                        avatars={r.collageAvatars}
+                        title={r.title}
+                      />
+                    ) : r.avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={r.avatarUrl}
+                        alt=""
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="w-full h-full flex items-center justify-center font-serif text-warm-200 text-2xl">
+                        {r.title.slice(0, 1).toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-xs text-warm-200 text-center truncate w-full leading-tight">
+                    {r.title}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
         {rows.length === 0 ? (
           <p className="text-warm-300 italic text-center py-12">
             {t.empty}
@@ -274,11 +359,11 @@ export default async function DashboardPage() {
         ) : (
           <div className="space-y-1">
             {rows.map((r, i) => (
-              <Link
+              <div
                 key={r.href + i}
-                href={r.href}
-                className="flex items-center gap-3 px-3 py-3 rounded-2xl hover:bg-warm-700/20 active:bg-warm-700/40 transition-colors"
+                className="flex items-center gap-3 px-3 py-3 rounded-2xl hover:bg-warm-700/20 active:bg-warm-700/40 transition-colors group/row"
               >
+                <Link href={r.href} className="flex items-center gap-3 flex-1 min-w-0">
                 <div className="relative flex-shrink-0">
                   {r.kind === "group" &&
                   r.collageAvatars &&
@@ -324,7 +409,25 @@ export default async function DashboardPage() {
                     {r.subtitle}
                   </p>
                 </div>
-              </Link>
+                </Link>
+
+                <form action={toggleFavorite} className="flex-shrink-0">
+                  <input type="hidden" name="kind" value={r.favoriteKind} />
+                  <input type="hidden" name="id" value={r.favoriteId} />
+                  <button
+                    type="submit"
+                    aria-label={r.isFavorite ? t.unfavorite : t.favorite}
+                    title={r.isFavorite ? t.unfavorite : t.favorite}
+                    className={`p-2 rounded-full transition-colors ${
+                      r.isFavorite
+                        ? "text-amber"
+                        : "text-warm-400 hover:text-warm-200 opacity-0 group-hover/row:opacity-100 focus:opacity-100"
+                    }`}
+                  >
+                    <FavStar filled={r.isFavorite} />
+                  </button>
+                </form>
+              </div>
             ))}
           </div>
         )}
@@ -401,6 +504,69 @@ function GroupCollage({
   );
 }
 
+/** Same shape as GroupCollage but sized for the favorite oval. */
+function FavoriteCollage({
+  avatars,
+  title,
+}: {
+  avatars: (string | null)[];
+  title: string;
+}) {
+  const visible = avatars.slice(0, 4);
+  const fallbackChar = title.slice(0, 1).toUpperCase();
+  if (visible.length <= 1) {
+    const a = visible[0] ?? null;
+    return a ? (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={a} alt="" className="w-full h-full object-cover" />
+    ) : (
+      <span className="w-full h-full flex items-center justify-center font-serif text-warm-200 text-2xl">
+        {fallbackChar}
+      </span>
+    );
+  }
+  return (
+    <div className="w-full h-full grid grid-cols-2 grid-rows-2 gap-px bg-warm-700/40">
+      {[0, 1, 2, 3].map((i) => {
+        const a = visible[i];
+        if (a === undefined) return <span key={i} className="bg-warm-700/40" />;
+        return a ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            key={i}
+            src={a}
+            alt=""
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <span
+            key={i}
+            className="w-full h-full bg-warm-700/60 flex items-center justify-center text-warm-200 text-[10px] font-serif"
+          >
+            {fallbackChar}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+function FavStar({ filled }: { filled: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      className="w-4 h-4"
+      fill={filled ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <polygon points="10 2 12.4 7.6 18.4 8.2 13.9 12.3 15.2 18.2 10 15 4.8 18.2 6.1 12.3 1.6 8.2 7.6 7.6" />
+    </svg>
+  );
+}
+
 function KindIcon({ kind }: { kind: ConvKind }) {
   const stroke = "currentColor";
   const className = "w-3 h-3 text-warm-200";
@@ -472,6 +638,9 @@ const COPY = {
     groupChat: "Group chat",
     beneficiaryGroup: (oracle: string) => `with ${oracle}`,
     startConversation: "Tap to start",
+    favoritesLabel: "Favorites",
+    favorite: "Add to favorites",
+    unfavorite: "Remove from favorites",
   },
   es: {
     title: "Conversaciones.",
@@ -481,5 +650,8 @@ const COPY = {
     groupChat: "Chat grupal",
     beneficiaryGroup: (oracle: string) => `con ${oracle}`,
     startConversation: "Toca para empezar",
+    favoritesLabel: "Favoritos",
+    favorite: "Agregar a favoritos",
+    unfavorite: "Quitar de favoritos",
   },
 };
