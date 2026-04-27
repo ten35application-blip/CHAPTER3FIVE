@@ -131,7 +131,6 @@ export function NavFab({ language, isAdmin = false }: Props) {
         <div className="rounded-2xl border border-warm-300/60 bg-ink-soft shadow-2xl backdrop-blur-xl overflow-hidden w-56">
           <NavLink href="/dashboard" label={t.dashboard} />
           <NavLink href="/identities" label={t.identities} />
-          <NavLink href="/groups" label={t.groups} />
           <NavLink href="/sharing" label={t.sharing} />
           <NavLink href="/account" label={t.account} />
           <NavLink href="/settings" label={t.settings} />

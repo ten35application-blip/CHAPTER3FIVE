@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { NewConversationMenu } from "@/components/NewConversationMenu";
 
 export const metadata = {
   title: "Conversations — chapter3five",
@@ -237,9 +238,10 @@ export default async function DashboardPage() {
       </header>
 
       <div className="max-w-2xl mx-auto px-4 py-6 pb-32">
-        <h1 className="font-serif text-3xl text-warm-50 mb-6 px-2">
-          {t.title}
-        </h1>
+        <div className="flex items-center justify-between mb-6 px-2 gap-3">
+          <h1 className="font-serif text-3xl text-warm-50">{t.title}</h1>
+          <NewConversationMenu language={language} />
+        </div>
 
         {rows.length === 0 ? (
           <p className="text-warm-300 italic text-center py-12">
