@@ -36,6 +36,12 @@ export async function GET(request: NextRequest) {
     .maybeSingle();
 
   if (!data) return NextResponse.json({ blocked: false });
+  // If the cooldown has passed, treat as unblocked from the UI's
+  // perspective — the daily check-in cron will mark unblocked_at
+  // when it runs. No reason to keep the input locked while waiting.
+  if (new Date(data.blocked_until).getTime() <= Date.now()) {
+    return NextResponse.json({ blocked: false });
+  }
   return NextResponse.json({
     blocked: true,
     blocked_until: data.blocked_until,

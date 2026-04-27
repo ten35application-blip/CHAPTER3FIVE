@@ -239,13 +239,14 @@ export async function POST(request: NextRequest) {
 
   // Block gate — if the persona has stepped out of this conversation
   // for hostility/cruelty, refuse the message until the cooldown
-  // expires (the check-in cron will unblock + reach out). Service
-  // role read so we don't depend on RLS shape.
+  // expires. Self-unblocks here when the cooldown passes so users
+  // don't have to wait for the daily cron just to send again — the
+  // cron only handles the persona-initiated comeback message.
   if (profile.active_oracle_id) {
     const blockClient = createAdminClient();
     const { data: activeBlock } = await blockClient
       .from("chat_blocks")
-      .select("blocked_until, severity")
+      .select("id, blocked_until, severity")
       .eq("oracle_id", profile.active_oracle_id)
       .eq("user_id", user.id)
       .is("unblocked_at", null)
@@ -253,15 +254,25 @@ export async function POST(request: NextRequest) {
       .limit(1)
       .maybeSingle();
     if (activeBlock) {
-      return NextResponse.json(
-        {
-          error: "blocked",
-          blocked: true,
-          blocked_until: activeBlock.blocked_until,
-          severity: activeBlock.severity,
-        },
-        { status: 403 },
-      );
+      const cooldownPassed =
+        new Date(activeBlock.blocked_until).getTime() <= Date.now();
+      // If the cooldown has passed, let the message through. We do
+      // NOT mark unblocked_at here — the daily check-in cron is the
+      // source of truth for unblocking + sending the comeback line,
+      // and it filters by unblocked_at IS NULL. Touching it here
+      // would make the cron skip this row and the persona would
+      // never reach out.
+      if (!cooldownPassed) {
+        return NextResponse.json(
+          {
+            error: "blocked",
+            blocked: true,
+            blocked_until: activeBlock.blocked_until,
+            severity: activeBlock.severity,
+          },
+          { status: 403 },
+        );
+      }
     }
   }
 
