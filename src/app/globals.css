@@ -4,22 +4,27 @@
   --font-sans: var(--font-geist-sans);
   --font-serif: var(--font-cormorant);
 
-  /* Tones: warm/sepia identity, but boosted mid-range so labels and
-     hint text don't disappear against dark backgrounds. The dark
-     half (500-700) is unchanged — those are for borders and panels.
-     The light half (50-400) gets brighter values. */
-  --color-ink: #0c0a08;
-  --color-ink-soft: #181410;
-  --color-warm-50: #fbf4e3;
-  --color-warm-100: #f4e6c8;
-  --color-warm-200: #e6d0a8;
-  --color-warm-300: #cfae80;
-  --color-warm-400: #a98260;
-  --color-warm-500: #76583a;
-  --color-warm-600: #463424;
-  --color-warm-700: #2a201a;
-  --color-amber: #ffc88a;
-  --color-amber-soft: #ffb56a;
+  /* Warm/sepia identity retained, but pushed harder in both
+     directions for legibility. The page background is brighter
+     (less eye-strain than near-pure black), and the text colors
+     are pushed toward near-white-cream so body copy, labels, and
+     hint text are all comfortably readable.
+     - 50-100: body text (near-white-cream)
+     - 200-300: labels, secondary text
+     - 400: hint text — now actually visible
+     - 500-700: borders, panels, dividers */
+  --color-ink: #1a140f;
+  --color-ink-soft: #281e15;
+  --color-warm-50: #fff8ec;
+  --color-warm-100: #fae9c8;
+  --color-warm-200: #efd5a8;
+  --color-warm-300: #d8b27a;
+  --color-warm-400: #b88a5e;
+  --color-warm-500: #806239;
+  --color-warm-600: #4d3a25;
+  --color-warm-700: #30231a;
+  --color-amber: #ffd8a0;
+  --color-amber-soft: #ffc585;
 }
 
 html,
