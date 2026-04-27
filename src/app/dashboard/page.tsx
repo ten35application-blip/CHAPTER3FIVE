@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Chat } from "@/components/Chat";
 import { UserMenu } from "@/components/UserMenu";
+import { isAdmin } from "@/lib/admin";
 
 export const metadata = {
   title: "Dashboard — chapter3five",
@@ -103,6 +104,7 @@ export default async function DashboardPage() {
           sharedOracles={sharedOracles}
           activeOracleId={profile.active_oracle_id ?? null}
           lastSeenAt={lastSeenAt}
+          isAdmin={isAdmin(user.email)}
         />
       </header>
 

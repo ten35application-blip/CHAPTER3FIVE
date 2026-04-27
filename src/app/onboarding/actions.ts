@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { names } from "@/content/names";
+import { isAdmin } from "@/lib/admin";
 
 export async function startOnboarding(formData: FormData) {
   const oracleName = String(formData.get("oracle_name") ?? "").trim();
@@ -70,15 +71,58 @@ export async function startOnboarding(formData: FormData) {
   }
 
   // Mirror the chosen name + mode + language onto the active oracle row.
-  // Without this, the oracle stays "untitled" forever — the chat
-  // header, dashboards, group-chat picker, and randomize meet page all
-  // pull from oracles.name.
+  // If active_oracle_id is null (e.g. user deleted their previous
+  // identity and is back here making a new one), enforce paywall and
+  // create the new oracle row before continuing — otherwise the rest
+  // of onboarding has nothing to write into and randomize generate
+  // will kick back to this same form.
   const { data: profileRow } = await supabase
     .from("profiles")
-    .select("active_oracle_id")
+    .select("active_oracle_id, extra_oracle_credits")
     .eq("id", user.id)
     .single();
-  if (profileRow?.active_oracle_id) {
+
+  let activeOracleId = profileRow?.active_oracle_id ?? null;
+
+  if (!activeOracleId) {
+    // Count includes soft-deleted oracles by design — if you've ever
+    // had one, the next requires payment (or admin bypass).
+    const { count: oracleCount } = await supabase
+      .from("oracles")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id);
+    const hasAtLeastOne = (oracleCount ?? 0) >= 1;
+    const credits = profileRow?.extra_oracle_credits ?? 0;
+
+    if (hasAtLeastOne && credits <= 0 && !isAdmin(user.email)) {
+      redirect("/oracle/pay?after=onboard");
+    }
+
+    const { data: created, error: createErr } = await supabase
+      .from("oracles")
+      .insert({
+        user_id: user.id,
+        name: oracleName,
+        mode,
+        preferred_language: language,
+      })
+      .select("id")
+      .single();
+    if (createErr || !created) {
+      redirect(
+        `/onboarding?error=${encodeURIComponent(createErr?.message ?? "Could not create identity")}`,
+      );
+    }
+    activeOracleId = created.id;
+
+    const profileUpdates: Record<string, unknown> = {
+      active_oracle_id: created.id,
+    };
+    if (hasAtLeastOne && !isAdmin(user.email)) {
+      profileUpdates.extra_oracle_credits = Math.max(0, credits - 1);
+    }
+    await supabase.from("profiles").update(profileUpdates).eq("id", user.id);
+  } else {
     await supabase
       .from("oracles")
       .update({
@@ -86,7 +130,7 @@ export async function startOnboarding(formData: FormData) {
         mode,
         preferred_language: language,
       })
-      .eq("id", profileRow.active_oracle_id)
+      .eq("id", activeOracleId)
       .eq("user_id", user.id);
   }
 

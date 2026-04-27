@@ -17,6 +17,7 @@ type Props = {
   sharedOracles?: OracleEntry[];
   activeOracleId: string | null;
   lastSeenAt?: string | null;
+  isAdmin?: boolean;
 };
 
 const COPY = {
@@ -26,6 +27,7 @@ const COPY = {
     newOracle: "+ New identity",
     settings: "Settings",
     groups: "Group chats",
+    admin: "Admin",
     signOut: "Sign out",
     untitled: "(unnamed)",
   },
@@ -35,6 +37,7 @@ const COPY = {
     newOracle: "+ Nueva identidad",
     settings: "Ajustes",
     groups: "Chats grupales",
+    admin: "Admin",
     signOut: "Cerrar sesión",
     untitled: "(sin nombre)",
   },
@@ -47,6 +50,7 @@ export function UserMenu({
   sharedOracles = [],
   activeOracleId,
   lastSeenAt,
+  isAdmin = false,
 }: Props) {
   const t = COPY[language];
   const [open, setOpen] = useState(false);
@@ -221,6 +225,16 @@ export function UserMenu({
           >
             {t.settings}
           </Link>
+
+          {isAdmin && (
+            <Link
+              href="/admin"
+              onClick={() => setOpen(false)}
+              className="block px-4 py-2.5 text-sm text-warm-100 hover:bg-warm-600/60 transition-colors border-t border-warm-600/80"
+            >
+              {t.admin}
+            </Link>
+          )}
 
           <form action={signOut}>
             <button
