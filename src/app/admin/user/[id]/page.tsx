@@ -111,7 +111,7 @@ export default async function AdminUserPage({
             href="/admin"
             className="font-serif text-xl tracking-tight text-warm-100 hover:text-warm-50 transition-colors"
           >
-            ← admin
+            chapter3five
           </Link>
           <span className="text-xs uppercase tracking-[0.2em] text-warm-300">
             user detail

@@ -98,10 +98,10 @@ export default async function BeneficiaryGroupsPage() {
       <div className="max-w-3xl mx-auto">
         <header className="mb-12 flex items-center justify-between">
           <Link
-            href="/dashboard"
+            href="/"
             className="font-serif text-xl tracking-tight text-warm-100 hover:text-warm-50 transition-colors"
           >
-            ← chapter3five
+            chapter3five
           </Link>
           <span className="text-xs uppercase tracking-[0.25em] text-warm-300">
             {t.heading}

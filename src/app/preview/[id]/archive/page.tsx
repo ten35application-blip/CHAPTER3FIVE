@@ -106,7 +106,7 @@ export default async function OwnerPreviewArchivePage({
             href={`/preview/${id}`}
             className="font-serif text-xl tracking-tight text-warm-100 hover:text-warm-50 transition-colors"
           >
-            ← {oracle.name ?? "your archive"}
+            {oracle.name ?? "your archive"}
           </Link>
           <span className="text-xs uppercase tracking-[0.2em] text-warm-300">
             {language === "es" ? "Archivo" : "Archive"}

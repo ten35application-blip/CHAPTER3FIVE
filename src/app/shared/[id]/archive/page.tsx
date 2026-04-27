@@ -99,7 +99,7 @@ export default async function SharedArchivePage({
             href={`/shared/${id}`}
             className="font-serif text-xl tracking-tight text-warm-100 hover:text-warm-50 transition-colors"
           >
-            ← {oracle.name ?? "their archive"}
+            {oracle.name ?? "their archive"}
           </Link>
           <span className="text-xs uppercase tracking-[0.2em] text-warm-300">
             {language === "es" ? "Archivo" : "Archive"}

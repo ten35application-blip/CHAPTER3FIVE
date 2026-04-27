@@ -269,17 +269,9 @@ export default async function AdminPage({
           >
             chapter3five
           </Link>
-          <div className="flex items-center gap-5">
-            <Link
-              href="/dashboard"
-              className="text-xs uppercase tracking-[0.2em] text-warm-200 hover:text-warm-50 transition-colors"
-            >
-              ← Dashboard
-            </Link>
-            <span className="text-xs uppercase tracking-[0.2em] text-warm-300">
-              admin
-            </span>
-          </div>
+          <span className="text-xs uppercase tracking-[0.2em] text-warm-300">
+            admin
+          </span>
         </div>
       </header>
 

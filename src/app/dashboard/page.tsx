@@ -31,7 +31,7 @@ export default async function DashboardPage() {
     redirect("/onboarding");
   }
 
-  const oracleName = profile.oracle_name ?? "your chapter";
+  const oracleName = profile.oracle_name ?? "your identity";
   const language = (profile.preferred_language ?? "en") as "en" | "es";
 
   const { data: oracleRows } = await supabase

@@ -58,10 +58,10 @@ export default async function SharedOraclePage({
     <main className="flex-1 flex flex-col px-6 py-6 relative overflow-hidden">
       <header className="max-w-2xl w-full mx-auto flex items-center justify-between mb-12">
         <Link
-          href="/dashboard"
+          href="/"
           className="font-serif text-xl tracking-tight text-warm-100 hover:text-warm-50 transition-colors"
         >
-          ← chapter3five
+          chapter3five
         </Link>
         <div className="flex items-center gap-4">
           <Link

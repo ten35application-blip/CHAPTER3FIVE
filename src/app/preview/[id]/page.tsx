@@ -101,12 +101,6 @@ export default async function OwnerPreviewWelcomePage({
             {t.previewArchive}
           </Link>
 
-          <Link
-            href="/settings"
-            className="mt-4 text-sm text-warm-300 hover:text-warm-100 transition-colors"
-          >
-            {t.backToSettings}
-          </Link>
         </div>
       </main>
     </>

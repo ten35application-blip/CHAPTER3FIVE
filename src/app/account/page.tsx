@@ -57,18 +57,12 @@ export default async function AccountPage({
   return (
     <>
       <header className="border-b border-warm-700/40">
-        <div className="max-w-2xl mx-auto px-6 py-6 flex items-center justify-between">
+        <div className="max-w-2xl mx-auto px-6 py-6">
           <Link
             href="/"
             className="font-serif text-xl tracking-tight text-warm-100 hover:text-warm-50 transition-colors"
           >
             chapter3five
-          </Link>
-          <Link
-            href="/settings"
-            className="text-xs uppercase tracking-[0.2em] text-warm-300 hover:text-warm-100 transition-colors"
-          >
-            ← {t.back}
           </Link>
         </div>
       </header>

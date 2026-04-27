@@ -86,10 +86,20 @@ export function NavFab({ language, isAdmin = false }: Props) {
 
   if (hidden) return null;
 
+  // Lift the FAB up on chat pages so it clears the send button.
+  // On other pages (settings, identities, etc.) it sits closer to
+  // the bottom corner like a normal floating action button.
+  const onChatPage =
+    pathname === "/dashboard" ||
+    pathname.startsWith("/shared/") ||
+    /^\/groups\/[^/]+$/.test(pathname) ||
+    /^\/beneficiary-groups\/[^/]+$/.test(pathname);
+  const positionClass = onChatPage ? "bottom-24" : "bottom-5";
+
   return (
     <div
       ref={ref}
-      className="fixed bottom-24 right-5 z-50 flex flex-col items-end gap-2"
+      className={`fixed ${positionClass} right-5 z-50 flex flex-col items-end gap-2`}
     >
       {open && (
         <div className="rounded-2xl border border-warm-300/60 bg-ink-soft shadow-2xl backdrop-blur-xl overflow-hidden w-56 mb-1">

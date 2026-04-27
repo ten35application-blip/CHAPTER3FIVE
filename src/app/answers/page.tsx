@@ -87,12 +87,6 @@ export default async function AnswersPage({
           >
             chapter3five
           </Link>
-          <Link
-            href="/dashboard"
-            className="text-xs uppercase tracking-[0.2em] text-warm-300 hover:text-warm-100 transition-colors"
-          >
-            ← {t.back}
-          </Link>
         </div>
       </header>
 
