@@ -4,12 +4,11 @@ import { createClient } from "@/lib/supabase/server";
 import {
   createShareCode,
   revokeShareCode,
-  createArchiveInvite,
   revokeArchiveInvite,
   revokeArchiveGrant,
-  addBeneficiary,
   removeBeneficiary,
   buyBeneficiarySlot,
+  addFamilyMember,
 } from "../settings/actions";
 
 export const metadata = {
@@ -185,9 +184,20 @@ export default async function SharingPage({
           )}
 
           {oracleName && (
-            <Section title={t.inviteTitle}>
-              <p className="text-sm text-warm-300 mb-4 leading-relaxed">
-                {t.inviteHint}
+            <Section title={t.familyTitle}>
+              <p className="text-sm text-warm-300 mb-2 leading-relaxed">
+                {t.familyIntro}
+              </p>
+              <p className="text-sm text-warm-400 mb-5">
+                {t.beneficiarySlots(beneficiarySlotsUsed, beneficiarySlotsTotal)}{" "}
+                {activeOracleId && (
+                  <Link
+                    href={`/preview/${activeOracleId}`}
+                    className="text-warm-200 underline underline-offset-2 hover:text-warm-50"
+                  >
+                    {t.beneficiaryPreview}
+                  </Link>
+                )}
               </p>
 
               {justCreatedInvite && (
@@ -199,24 +209,72 @@ export default async function SharingPage({
                 </div>
               )}
 
-              <form action={createArchiveInvite} className="flex gap-2 mb-6">
-                <input
-                  type="email"
-                  name="invitee_email"
-                  maxLength={120}
-                  placeholder={t.inviteEmailPlaceholder}
-                  className="flex-1 h-11 rounded-full bg-warm-700/30 border border-warm-400/30 px-4 text-warm-50 placeholder:text-warm-400 focus:outline-none focus:border-warm-200 transition-colors text-sm"
-                />
-                <button
-                  type="submit"
-                  className="h-11 px-5 rounded-full bg-warm-50 text-ink font-medium hover:bg-warm-100 transition-colors text-sm whitespace-nowrap"
-                >
-                  {t.inviteCta}
-                </button>
-              </form>
+              {beneficiarySlotsLeft > 0 ? (
+                <form action={addFamilyMember} className="space-y-3 mb-6">
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <input
+                      type="email"
+                      name="email"
+                      required
+                      placeholder={t.familyEmailPlaceholder}
+                      className="flex-1 h-11 rounded-full bg-warm-700/30 border border-warm-400/30 px-4 text-warm-50 placeholder:text-warm-400 focus:outline-none focus:border-warm-200 transition-colors text-sm"
+                    />
+                    <input
+                      type="text"
+                      name="name"
+                      maxLength={80}
+                      placeholder={t.familyNamePlaceholder}
+                      className="sm:w-48 h-11 rounded-full bg-warm-700/30 border border-warm-400/30 px-4 text-warm-50 placeholder:text-warm-400 focus:outline-none focus:border-warm-200 transition-colors text-sm"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="flex items-start gap-3 cursor-pointer text-sm text-warm-100 leading-relaxed">
+                      <input
+                        type="checkbox"
+                        name="access_now"
+                        defaultChecked
+                        className="mt-1 h-4 w-4 accent-warm-300 flex-shrink-0"
+                      />
+                      <span>
+                        <strong className="text-warm-50">{t.familyAccessNow}</strong>{" "}
+                        — {t.familyAccessNowHint}
+                      </span>
+                    </label>
+                    <label className="flex items-start gap-3 cursor-pointer text-sm text-warm-100 leading-relaxed">
+                      <input
+                        type="checkbox"
+                        name="access_after"
+                        className="mt-1 h-4 w-4 accent-warm-300 flex-shrink-0"
+                      />
+                      <span>
+                        <strong className="text-warm-50">
+                          {t.familyAccessAfter}
+                        </strong>{" "}
+                        — {t.familyAccessAfterHint}
+                      </span>
+                    </label>
+                  </div>
+                  <button
+                    type="submit"
+                    className="h-11 px-5 rounded-full bg-warm-50 text-ink font-medium hover:bg-warm-100 transition-colors text-sm"
+                  >
+                    {t.familyAddCta}
+                  </button>
+                </form>
+              ) : (
+                <form action={buyBeneficiarySlot} className="mb-6">
+                  <button
+                    type="submit"
+                    className="h-11 px-5 rounded-full border border-warm-300/40 text-warm-100 hover:bg-warm-700/40 transition-colors text-sm"
+                  >
+                    {t.beneficiaryBuyMore}
+                  </button>
+                </form>
+              )}
 
+              {/* Active live-access invites (pending or accepted). */}
               {inviteRows && inviteRows.length > 0 && (
-                <div className="space-y-2 mb-4">
+                <div className="space-y-2 mb-3">
                   <p className="text-xs uppercase tracking-[0.2em] text-warm-400 mb-1">
                     {t.invitesHeading}
                   </p>
@@ -226,16 +284,18 @@ export default async function SharingPage({
                       className="flex items-center justify-between gap-3 px-4 py-2 rounded-lg border border-warm-700/60 bg-warm-700/15"
                     >
                       <div className="flex flex-col min-w-0">
-                        <code className="font-mono text-sm text-warm-100 truncate">
-                          {iv.code}
-                        </code>
+                        <span className="text-sm text-warm-100 truncate">
+                          {iv.invitee_email ?? t.noEmail}
+                        </span>
                         <span className="text-xs text-warm-400 truncate">
-                          {iv.invitee_email ?? t.noEmail} ·{" "}
+                          {t.familyAccessNowBadge} ·{" "}
                           {iv.status === "pending"
                             ? t.invitePending
                             : iv.status === "accepted"
                               ? t.inviteAccepted
                               : t.revoked}
+                          {" · "}
+                          <code className="font-mono">{iv.code}</code>
                         </span>
                       </div>
                       {iv.status === "pending" && (
@@ -254,8 +314,9 @@ export default async function SharingPage({
                 </div>
               )}
 
+              {/* Currently has access (already accepted invites). */}
               {grantRows && grantRows.length > 0 && (
-                <div className="space-y-2">
+                <div className="space-y-2 mb-3">
                   <p className="text-xs uppercase tracking-[0.2em] text-warm-400 mb-1">
                     {t.grantsHeading}
                   </p>
@@ -283,65 +344,14 @@ export default async function SharingPage({
                   ))}
                 </div>
               )}
-            </Section>
-          )}
 
-          <Section title={t.beneficiaryTitle}>
-            <p className="text-sm text-warm-300 mb-2 leading-relaxed">
-              {t.beneficiaryHint}
-            </p>
-            <p className="text-sm text-warm-400 mb-3">
-              {t.beneficiarySlots(beneficiarySlotsUsed, beneficiarySlotsTotal)}
-            </p>
-            {activeOracleId && (
-              <Link
-                href={`/preview/${activeOracleId}`}
-                className="inline-block text-xs text-warm-200 hover:text-warm-50 underline underline-offset-2 mb-5"
-              >
-                {t.beneficiaryPreview}
-              </Link>
-            )}
-
-            {beneficiarySlotsLeft > 0 ? (
-              <form
-                action={addBeneficiary}
-                className="flex flex-col sm:flex-row gap-2 mb-6"
-              >
-                <input
-                  type="email"
-                  name="email"
-                  required
-                  placeholder={t.beneficiaryEmailPlaceholder}
-                  className="flex-1 h-11 rounded-full bg-warm-700/30 border border-warm-400/30 px-4 text-warm-50 placeholder:text-warm-400 focus:outline-none focus:border-warm-200 transition-colors text-sm"
-                />
-                <input
-                  type="text"
-                  name="name"
-                  maxLength={80}
-                  placeholder={t.beneficiaryNamePlaceholder}
-                  className="sm:w-48 h-11 rounded-full bg-warm-700/30 border border-warm-400/30 px-4 text-warm-50 placeholder:text-warm-400 focus:outline-none focus:border-warm-200 transition-colors text-sm"
-                />
-                <button
-                  type="submit"
-                  className="h-11 px-5 rounded-full bg-warm-50 text-ink font-medium hover:bg-warm-100 transition-colors text-sm whitespace-nowrap"
-                >
-                  {t.beneficiaryAdd}
-                </button>
-              </form>
-            ) : (
-              <form action={buyBeneficiarySlot} className="mb-6">
-                <button
-                  type="submit"
-                  className="h-11 px-5 rounded-full border border-warm-300/40 text-warm-100 hover:bg-warm-700/40 transition-colors text-sm"
-                >
-                  {t.beneficiaryBuyMore}
-                </button>
-              </form>
-            )}
-
-            {beneficiaries.length > 0 && (
-              <div className="space-y-2">
-                {beneficiaries.map((b) => (
+              {/* Beneficiaries (will inherit on death). */}
+              {beneficiaries.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs uppercase tracking-[0.2em] text-warm-400 mb-1">
+                    {t.beneficiariesHeading}
+                  </p>
+                  {beneficiaries.map((b) => (
                   <div
                     key={b.id}
                     className="flex items-center justify-between gap-3 px-4 py-2 rounded-lg border border-warm-700/60 bg-warm-700/15"
@@ -377,10 +387,11 @@ export default async function SharingPage({
                       </form>
                     )}
                   </div>
-                ))}
-              </div>
-            )}
-          </Section>
+                  ))}
+                </div>
+              )}
+            </Section>
+          )}
         </div>
       </main>
     </>
@@ -427,28 +438,31 @@ const COPY = {
     active: "active",
     revoked: "revoked",
     revoke: "Revoke",
-    inviteTitle: "Invite family to this archive",
-    inviteHint:
-      "Send a link that lets a family member talk to the SAME identity — same answers, same photo. Each person gets their own private conversation. Different from share codes (those copy the archive into someone else's account).",
-    inviteEmailPlaceholder: "Their email (optional, just a reminder)",
-    inviteCta: "Create invite link",
+    familyTitle: "Family who can access this archive",
+    familyIntro:
+      "Add the people you want to give access to your archive — now while you're alive, after you're gone, or both. Three free people; $5 per additional one.",
+    familyEmailPlaceholder: "Their email",
+    familyNamePlaceholder: "Name (optional)",
+    familyAccessNow: "Talk to it now",
+    familyAccessNowHint:
+      "Sends them an invite link. They sign up (or in) and can chat with this same identity. Each person gets their own private thread.",
+    familyAccessAfter: "Inherit when I'm gone",
+    familyAccessAfterHint:
+      "If something happens to me, they'll get an email with a claim link — answers, voice, photos, the whole archive. Memorial mode.",
+    familyAddCta: "Add to family",
+    familyAccessNowBadge: "Live access",
     inviteJustCreated: "Invite link created:",
-    invitesHeading: "Pending & past invites",
+    invitesHeading: "Live access (talk to me now)",
     grantsHeading: "Currently has access",
     invitePending: "pending",
     inviteAccepted: "accepted",
     noEmail: "(no email)",
     grantedOn: "Granted",
     revokeAccess: "Revoke access",
-    beneficiaryTitle: "Beneficiaries",
-    beneficiaryHint:
-      "Choose who inherits this archive. If something happens to you, they'll get an email with a link to access what you've left — your answers, your texture, your voice. Three free beneficiaries; $5 per additional one.",
+    beneficiariesHeading: "Inheritance (when I'm gone)",
     beneficiarySlots: (used: number, total: number) =>
       `${used} of ${total} slots used.`,
     beneficiaryPreview: "Preview what they'll see →",
-    beneficiaryEmailPlaceholder: "Email",
-    beneficiaryNamePlaceholder: "Name (optional)",
-    beneficiaryAdd: "Add beneficiary",
     beneficiaryBuyMore: "Add a slot — $5",
     beneficiaryDesignated: "designated",
     beneficiaryNotified: "designated · email sent",
@@ -481,28 +495,31 @@ const COPY = {
     active: "activo",
     revoked: "revocado",
     revoke: "Revocar",
-    inviteTitle: "Invitar a la familia a este archivo",
-    inviteHint:
-      "Envía un enlace que permite a un familiar hablar con la MISMA identidad — mismas respuestas, misma foto. Cada persona tiene su propia conversación privada. Diferente de los códigos para compartir (esos copian el archivo a la cuenta de otra persona).",
-    inviteEmailPlaceholder: "Su correo (opcional, solo un recordatorio)",
-    inviteCta: "Crear enlace de invitación",
+    familyTitle: "Familia con acceso a este archivo",
+    familyIntro:
+      "Agrega a las personas a quienes quieres dar acceso — ahora mientras vives, cuando ya no estés, o ambos. Tres personas gratis; $5 por cada una adicional.",
+    familyEmailPlaceholder: "Su correo",
+    familyNamePlaceholder: "Nombre (opcional)",
+    familyAccessNow: "Hablarme ahora",
+    familyAccessNowHint:
+      "Le enviamos un enlace de invitación. Se registra (o inicia sesión) y puede chatear con esta misma identidad. Cada persona tiene su propio hilo privado.",
+    familyAccessAfter: "Heredar cuando ya no esté",
+    familyAccessAfterHint:
+      "Si algo me sucede, recibe un correo con un enlace de reclamo — respuestas, voz, fotos, el archivo entero. Modo memorial.",
+    familyAddCta: "Agregar a la familia",
+    familyAccessNowBadge: "Acceso en vida",
     inviteJustCreated: "Enlace creado:",
-    invitesHeading: "Invitaciones pendientes y pasadas",
+    invitesHeading: "Acceso en vida (hablarme ahora)",
     grantsHeading: "Tiene acceso actualmente",
     invitePending: "pendiente",
     inviteAccepted: "aceptada",
     noEmail: "(sin correo)",
     grantedOn: "Otorgado",
     revokeAccess: "Revocar acceso",
-    beneficiaryTitle: "Beneficiarios",
-    beneficiaryHint:
-      "Elige quién hereda este archivo. Si algo te sucede, recibirán un correo con un enlace para acceder a lo que dejaste — tus respuestas, tu textura, tu voz. Tres beneficiarios gratis; $5 por cada uno adicional.",
+    beneficiariesHeading: "Herencia (cuando ya no esté)",
     beneficiarySlots: (used: number, total: number) =>
       `${used} de ${total} espacios usados.`,
     beneficiaryPreview: "Ver lo que verán →",
-    beneficiaryEmailPlaceholder: "Correo",
-    beneficiaryNamePlaceholder: "Nombre (opcional)",
-    beneficiaryAdd: "Agregar beneficiario",
     beneficiaryBuyMore: "Agregar un espacio — $5",
     beneficiaryDesignated: "designado",
     beneficiaryNotified: "designado · correo enviado",

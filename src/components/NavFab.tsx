@@ -86,39 +86,21 @@ export function NavFab({ language, isAdmin = false }: Props) {
 
   if (hidden) return null;
 
-  // Lift the FAB up on chat pages so it clears the send button.
-  // On other pages (settings, identities, etc.) it sits closer to
-  // the bottom corner like a normal floating action button.
-  const onChatPage =
-    pathname === "/dashboard" ||
-    pathname.startsWith("/shared/") ||
-    /^\/groups\/[^/]+$/.test(pathname) ||
-    /^\/beneficiary-groups\/[^/]+$/.test(pathname);
-  const positionClass = onChatPage ? "bottom-24" : "bottom-5";
-
+  // FAB lives top-right of every authenticated page. Plenty of
+  // whitespace up there (just the wordmark on most pages); doesn't
+  // sit on top of buttons, send forms, or the last row of a list.
   return (
     <div
       ref={ref}
-      className={`fixed ${positionClass} right-5 z-50 flex flex-col items-end gap-2`}
+      className="fixed top-5 right-5 z-50 flex flex-col items-end gap-2"
     >
-      {open && (
-        <div className="rounded-2xl border border-warm-300/60 bg-ink-soft shadow-2xl backdrop-blur-xl overflow-hidden w-56 mb-1">
-          <NavLink href="/dashboard" label={t.dashboard} />
-          <NavLink href="/identities" label={t.identities} />
-          <NavLink href="/groups" label={t.groups} />
-          <NavLink href="/sharing" label={t.sharing} />
-          <NavLink href="/account" label={t.account} />
-          <NavLink href="/settings" label={t.settings} />
-          {isAdmin && <NavLink href="/admin" label={t.admin} />}
-        </div>
-      )}
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={t.open}
-        className="w-14 h-14 rounded-full bg-warm-50 text-ink shadow-2xl flex items-center justify-center hover:bg-warm-100 active:scale-95 transition-all border border-warm-300/40"
+        className="w-12 h-12 rounded-full bg-warm-50 text-ink shadow-2xl flex items-center justify-center hover:bg-warm-100 active:scale-95 transition-all border border-warm-300/40"
       >
         <svg
           viewBox="0 0 24 24"
@@ -144,6 +126,18 @@ export function NavFab({ language, isAdmin = false }: Props) {
           )}
         </svg>
       </button>
+
+      {open && (
+        <div className="rounded-2xl border border-warm-300/60 bg-ink-soft shadow-2xl backdrop-blur-xl overflow-hidden w-56">
+          <NavLink href="/dashboard" label={t.dashboard} />
+          <NavLink href="/identities" label={t.identities} />
+          <NavLink href="/groups" label={t.groups} />
+          <NavLink href="/sharing" label={t.sharing} />
+          <NavLink href="/account" label={t.account} />
+          <NavLink href="/settings" label={t.settings} />
+          {isAdmin && <NavLink href="/admin" label={t.admin} />}
+        </div>
+      )}
     </div>
   );
 }

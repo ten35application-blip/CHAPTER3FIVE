@@ -807,6 +807,143 @@ export async function restoreOracle(formData: FormData) {
   redirect(data.url);
 }
 
+/**
+ * Unified "add family member" action used by /sharing's merged
+ * Family section. Branches on checkboxes:
+ *  - access_now=on  → creates an archive invite (live access)
+ *  - access_after=on → creates a beneficiary slot (inheritance)
+ * At least one must be set.
+ *
+ * Does the work inline rather than calling the legacy actions because
+ * those redirect on success/error. We need to do both before
+ * redirecting once.
+ */
+export async function addFamilyMember(formData: FormData) {
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const name = String(formData.get("name") ?? "").trim() || null;
+  const accessNow = formData.get("access_now") === "on";
+  const accessAfter = formData.get("access_after") === "on";
+
+  if (!email || !email.includes("@")) {
+    redirect("/sharing?error=Enter%20a%20valid%20email");
+  }
+  if (!accessNow && !accessAfter) {
+    redirect("/sharing?error=Choose%20at%20least%20one%20access%20type");
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/auth/signin");
+
+  const admin = createAdminClient();
+
+  // Branch 1: live access invite.
+  if (accessNow) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("active_oracle_id, oracle_name")
+      .eq("id", user.id)
+      .single();
+    if (!profile?.active_oracle_id) {
+      redirect("/sharing?error=No%20active%20identity");
+    }
+    let attempts = 0;
+    while (attempts < 5) {
+      const code = generateShareCode();
+      const { error: insertErr } = await admin.from("archive_invites").insert({
+        inviter_user_id: user.id,
+        oracle_id: profile.active_oracle_id,
+        invitee_email: email,
+        code,
+        status: "pending",
+      });
+      if (!insertErr) break;
+      const e = insertErr as { code?: string };
+      if (e.code === "23505") {
+        attempts++;
+        continue;
+      }
+      redirect(
+        `/sharing?error=${encodeURIComponent(e.code ?? "Could not create invite")}`,
+      );
+    }
+  }
+
+  // Branch 2: beneficiary slot.
+  if (accessAfter) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("paid_beneficiary_slots, oracle_name, deceased_at")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (!profile) redirect("/sharing?error=No%20profile");
+
+    if (email === user.email) {
+      redirect("/sharing?error=You%20can%27t%20designate%20yourself");
+    }
+
+    const FREE = 3;
+    const cap = FREE + (profile.paid_beneficiary_slots ?? 0);
+    const { count: usedCount } = await admin
+      .from("beneficiaries")
+      .select("id", { count: "exact", head: true })
+      .eq("owner_user_id", user.id)
+      .neq("status", "removed");
+    if ((usedCount ?? 0) >= cap) {
+      redirect(
+        "/sharing?error=At%20cap%20-%20add%20a%20slot%20to%20designate%20more",
+      );
+    }
+
+    const { data: existing } = await admin
+      .from("beneficiaries")
+      .select("id")
+      .eq("owner_user_id", user.id)
+      .eq("email", email)
+      .neq("status", "removed")
+      .maybeSingle();
+    if (existing) {
+      // Already designated — skip silently rather than erroring;
+      // user might be just adding the live-invite to an existing
+      // beneficiary.
+    } else {
+      const claimToken = generateClaimToken();
+      const { error: insertErr } = await admin.from("beneficiaries").insert({
+        owner_user_id: user.id,
+        email,
+        name,
+        status: "designated",
+        claim_token: claimToken,
+      });
+      if (insertErr) {
+        redirect(
+          `/sharing?error=${encodeURIComponent(insertErr.message ?? "Could not add beneficiary")}`,
+        );
+      }
+
+      sendBeneficiaryDesignationEmail({
+        to: email,
+        ownerName: profile.oracle_name ?? "your loved one",
+        ownerEmail: user.email ?? "(unknown)",
+      }).catch((e) => console.error("designation email failed:", e));
+
+      await recordAudit({
+        actorUserId: user.id,
+        actorEmail: user.email ?? null,
+        action: "beneficiary_added",
+        targetUserId: user.id,
+        targetId: null,
+        details: { email, via: "family_section" },
+      });
+    }
+  }
+
+  revalidatePath("/sharing");
+  redirect("/sharing?saved=family-added");
+}
+
 export async function buyBeneficiarySlot() {
   const supabase = await createClient();
   const {
