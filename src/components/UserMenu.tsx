@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { signOut } from "@/app/auth/actions";
-import { newOracle, switchOracle } from "@/app/oracles/actions";
+import { newOracle } from "@/app/oracles/actions";
 
 type OracleEntry = {
   id: string;
@@ -140,29 +140,23 @@ export function UserMenu({
                 {oracles.map((o) => {
                   const isActive = o.id === activeOracleId;
                   return (
-                    <form
-                      action={switchOracle}
+                    <Link
                       key={o.id}
-                      className="contents"
+                      href={`/chat/${o.id}`}
+                      onClick={() => setOpen(false)}
+                      className={`w-full block text-left px-4 py-2 text-sm transition-colors flex items-center justify-between ${
+                        isActive
+                          ? "text-warm-50 bg-warm-600/60"
+                          : "text-warm-100 hover:bg-warm-600/60"
+                      }`}
                     >
-                      <input type="hidden" name="oracle_id" value={o.id} />
-                      <button
-                        type="submit"
-                        disabled={isActive}
-                        className={`w-full text-left px-4 py-2 text-sm transition-colors flex items-center justify-between ${
-                          isActive
-                            ? "text-warm-50 bg-warm-600 cursor-default"
-                            : "text-warm-100 hover:bg-warm-600/60"
-                        }`}
-                      >
-                        <span className="font-serif truncate">
-                          {o.name?.trim() || t.untitled}
-                        </span>
-                        {isActive && (
-                          <span className="text-warm-200 text-xs">●</span>
-                        )}
-                      </button>
-                    </form>
+                      <span className="font-serif truncate">
+                        {o.name?.trim() || t.untitled}
+                      </span>
+                      {isActive && (
+                        <span className="text-warm-200 text-xs">●</span>
+                      )}
+                    </Link>
                   );
                 })}
               </div>
