@@ -89,7 +89,7 @@ export function NavFab({ language, isAdmin = false }: Props) {
   return (
     <div
       ref={ref}
-      className="fixed bottom-5 right-5 z-50 flex flex-col items-end gap-2"
+      className="fixed bottom-24 right-5 z-50 flex flex-col items-end gap-2"
     >
       {open && (
         <div className="rounded-2xl border border-warm-300/60 bg-ink-soft shadow-2xl backdrop-blur-xl overflow-hidden w-56 mb-1">
