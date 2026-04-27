@@ -10,6 +10,7 @@ import {
   addBeneficiary,
   removeBeneficiary,
   buyBeneficiarySlot,
+  updateTextingStyle,
 } from "../settings/actions";
 
 export const metadata = {
@@ -37,7 +38,9 @@ export default async function SharingPage({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("oracle_name, preferred_language, active_oracle_id, paid_beneficiary_slots")
+    .select(
+      "oracle_name, preferred_language, active_oracle_id, paid_beneficiary_slots, texting_style, mode",
+    )
     .eq("id", user.id)
     .single();
 
@@ -45,6 +48,7 @@ export default async function SharingPage({
   const t = COPY[language];
   const oracleName = profile?.oracle_name ?? null;
   const activeOracleId = profile?.active_oracle_id ?? null;
+  const isRealMode = (profile?.mode ?? "real") === "real";
 
   const { data: shareRows } = await supabase
     .from("shares")
@@ -114,6 +118,37 @@ export default async function SharingPage({
             <div className="rounded-lg bg-red-900/20 border border-red-300/30 px-4 py-3 mb-8 text-sm text-red-200">
               {error}
             </div>
+          )}
+
+          {oracleName && isRealMode && (
+            <Section title={t.styleTitle}>
+              <p className="text-sm text-warm-300 mb-3 leading-relaxed">
+                {t.styleHint}
+              </p>
+              <form action={updateTextingStyle} className="space-y-3">
+                <textarea
+                  name="texting_style"
+                  rows={3}
+                  defaultValue={profile?.texting_style ?? ""}
+                  placeholder={t.stylePlaceholder}
+                  className="w-full rounded-2xl bg-warm-700/30 border border-warm-400/30 px-4 py-3 text-warm-50 placeholder:text-warm-400 focus:outline-none focus:border-warm-200 transition-colors leading-relaxed"
+                />
+                <button
+                  type="submit"
+                  className="h-11 px-5 rounded-full bg-warm-50 text-ink font-medium hover:bg-warm-100 transition-colors text-sm"
+                >
+                  {t.save}
+                </button>
+              </form>
+            </Section>
+          )}
+
+          {oracleName && !isRealMode && (
+            <Section title={t.styleTitle}>
+              <p className="text-sm text-warm-300 leading-relaxed">
+                {t.styleRandomNote}
+              </p>
+            </Section>
           )}
 
           {oracleName && (
@@ -406,6 +441,14 @@ const COPY = {
       "Storing your answers and texting style for friends and family — and choosing who carries the archive forward when you can't.",
     back: "Settings",
     saved: "Saved.",
+    save: "Save",
+    styleTitle: "Texting style (optional)",
+    styleHint:
+      "Describe how you actually text — punctuation, emojis, length, tone. Your identity will match it. This is part of what gets passed forward.",
+    stylePlaceholder:
+      "lowercase, no periods, lol when funny, never emojis, short replies",
+    styleRandomNote:
+      "This identity was randomly generated and comes pre-installed with its own texting style. Nothing to edit here.",
     shareTitle: "Share this archive",
     shareHint:
       "Generate a code that lets someone else import a copy of your archive into their own account. Useful when you want family to carry your identity forward. Codes can be revoked at any time.",
@@ -452,6 +495,14 @@ const COPY = {
       "Guardar tus respuestas y estilo para amigos y familia — y elegir quién carga el archivo adelante cuando ya no puedas.",
     back: "Ajustes",
     saved: "Guardado.",
+    save: "Guardar",
+    styleTitle: "Estilo al escribir (opcional)",
+    styleHint:
+      "Describe cómo escribes realmente — puntuación, emojis, largo, tono. Tu identidad lo igualará. Es parte de lo que se pasa adelante.",
+    stylePlaceholder:
+      "minúsculas, sin puntos, jaja cuando es chistoso, sin emojis, respuestas cortas",
+    styleRandomNote:
+      "Esta identidad se generó aleatoriamente y viene con su propio estilo al escribir. Nada que editar aquí.",
     shareTitle: "Compartir este archivo",
     shareHint:
       "Genera un código que permite que otra persona importe una copia de tu archivo en su propia cuenta. Útil cuando quieres que la familia cargue tu identidad adelante. Los códigos se pueden revocar cuando quieras.",
