@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
   const { data: candidates, error } = await supabase
     .from("profiles")
     .select(
-      "id, oracle_name, preferred_language, last_active_at, last_outreach_at",
+      "id, oracle_name, preferred_language, last_active_at, last_outreach_at, active_oracle_id, muted_conversations",
     )
     .lt("last_active_at", sevenAgo)
     .or(`last_outreach_at.is.null,last_outreach_at.lt.${fourteenAgo}`)
@@ -72,6 +72,21 @@ export async function GET(request: NextRequest) {
   let sent = 0;
   for (const profile of candidates) {
     try {
+      // Skip if user muted their active conversation — Hide Alerts
+      // suppresses outreach the same way it suppresses proactive.
+      type MuteEntry = { kind?: string; id?: string };
+      const muted = Array.isArray(profile.muted_conversations)
+        ? (profile.muted_conversations as MuteEntry[])
+        : [];
+      if (
+        profile.active_oracle_id &&
+        muted.some(
+          (m) => m.kind === "owned" && m.id === profile.active_oracle_id,
+        )
+      ) {
+        continue;
+      }
+
       const { data: u } = await supabase.auth.admin.getUserById(profile.id);
       const email = u?.user?.email;
       if (!email) continue;

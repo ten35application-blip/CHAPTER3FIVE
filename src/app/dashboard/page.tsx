@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { NewConversationMenu } from "@/components/NewConversationMenu";
 import { FavoriteTile } from "@/components/FavoriteTile";
 import { ConversationRow } from "@/components/ConversationRow";
+import { relativeTime } from "@/lib/relativeTime";
 
 export const metadata = {
   title: "Conversations — chapter3five",
@@ -30,23 +31,10 @@ type ConvRow = {
   lastMessageAt: number;
   /** New activity since the user last opened this conversation. */
   unread: boolean;
+  /** Hide Alerts / muted — proactive crons skip + UI shows bell-slash. */
+  muted: boolean;
 };
 
-function relativeTime(iso: string | null, lang: "en" | "es"): string {
-  if (!iso) return "";
-  const ms = Date.now() - new Date(iso).getTime();
-  const min = Math.floor(ms / 60_000);
-  const hour = Math.floor(ms / 3_600_000);
-  const day = Math.floor(ms / 86_400_000);
-  if (min < 1) return lang === "es" ? "ahora" : "now";
-  if (min < 60) return lang === "es" ? `${min}m` : `${min}m`;
-  if (hour < 24) return `${hour}h`;
-  if (day < 7) return `${day}d`;
-  return new Date(iso).toLocaleDateString(lang === "es" ? "es" : "en", {
-    month: "short",
-    day: "numeric",
-  });
-}
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -57,7 +45,9 @@ export default async function DashboardPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("preferred_language, onboarding_completed, favorites, last_read")
+    .select(
+      "preferred_language, onboarding_completed, favorites, last_read, muted_conversations",
+    )
     .eq("id", user.id)
     .single();
 
@@ -85,6 +75,14 @@ export default async function DashboardPage() {
     const v = lastReadMap[`${kind}:${id}`];
     return v ? new Date(v).getTime() : 0;
   };
+
+  // Muted conversations — same shape as favorites.
+  const mutedEntries = Array.isArray(profile.muted_conversations)
+    ? (profile.muted_conversations as FavEntry[])
+    : [];
+  const mutedKeys = new Set(mutedEntries.map((m) => `${m.kind}:${m.id}`));
+  const isMuted = (kind: FavoriteKind, id: string) =>
+    mutedKeys.has(`${kind}:${id}`);
 
   const admin = createAdminClient();
 
@@ -226,6 +224,7 @@ export default async function DashboardPage() {
       isFavorite: isFav("owned", o.id),
       lastMessageAt,
       unread: isAssistantLast && lastMessageAt > lastReadAt("owned", o.id),
+      muted: isMuted("owned", o.id),
     });
   }
 
@@ -246,6 +245,7 @@ export default async function DashboardPage() {
       isFavorite: isFav("shared", o.id),
       lastMessageAt,
       unread: isAssistantLast && lastMessageAt > lastReadAt("shared", o.id),
+      muted: isMuted("shared", o.id),
     });
   }
 
@@ -266,6 +266,7 @@ export default async function DashboardPage() {
       lastMessageAt,
       unread:
         r.last_message_at !== null && lastMessageAt > lastReadAt("group", r.id),
+      muted: isMuted("group", r.id),
     });
   }
 
@@ -300,6 +301,7 @@ export default async function DashboardPage() {
       unread:
         r.last_message_at !== null &&
         lastMessageAt > lastReadAt("together", r.id),
+      muted: isMuted("together", r.id),
     });
   }
 
@@ -353,6 +355,8 @@ export default async function DashboardPage() {
                   favoriteId={r.favoriteId}
                   favoriteKind={r.favoriteKind}
                   language={language}
+                  unread={r.unread}
+                  preview={r.subtitle}
                 >
                   <div className="w-16 h-20 rounded-[40%] overflow-hidden border border-warm-700/60 bg-warm-700/40 group-hover:border-warm-300/50 transition-colors mb-2">
                     {r.kind === "group" &&
@@ -413,6 +417,7 @@ export default async function DashboardPage() {
                     favoriteKind={r.favoriteKind}
                     favoriteId={r.favoriteId}
                     isFavorite={r.isFavorite}
+                    isMuted={r.muted}
                     language={language}
                     unread={r.unread}
                   >
@@ -466,10 +471,11 @@ export default async function DashboardPage() {
                             {r.title}
                           </span>
                           <span
-                            className={`text-xs flex-shrink-0 ${
+                            className={`text-xs flex-shrink-0 flex items-center gap-1 ${
                               r.unread ? "text-warm-100" : "text-warm-400"
                             }`}
                           >
+                            {r.muted && <BellSlash />}
                             {r.lastMessageAt > 0
                               ? relativeTime(
                                   new Date(r.lastMessageAt).toISOString(),
@@ -616,6 +622,27 @@ function FavoriteCollage({
         );
       })}
     </div>
+  );
+}
+
+/** Small bell-with-slash icon shown next to the timestamp on muted rows. */
+function BellSlash() {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      className="w-3 h-3"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M5 8a5 5 0 0 1 8.5-3.5" />
+      <path d="M15 9v3l1.5 2H10" />
+      <path d="M8.5 14a1.5 1.5 0 0 0 3 0" />
+      <line x1="3" y1="3" x2="17" y2="17" />
+    </svg>
   );
 }
 

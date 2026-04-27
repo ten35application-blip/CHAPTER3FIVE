@@ -72,6 +72,92 @@ export async function toggleFavorite(formData: FormData) {
 }
 
 /**
+ * Toggle "Hide Alerts" / mute on a conversation. Mirrors iMessage's
+ * Hide Alerts and Google Messages' Mute. The dashboard shows a
+ * bell-with-slash next to the timestamp; proactive/outreach/check-in
+ * crons skip muted conversations.
+ */
+export async function toggleMute(formData: FormData) {
+  const kind = String(formData.get("kind") ?? "").trim();
+  const id = String(formData.get("id") ?? "").trim();
+  if (!FAVORITE_KINDS.has(kind) || !id) {
+    redirect("/dashboard?error=Bad%20mute%20input");
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/auth/signin");
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("muted_conversations")
+    .eq("id", user.id)
+    .single();
+
+  type MuteEntry = { kind: string; id: string };
+  const current = Array.isArray(profile?.muted_conversations)
+    ? (profile!.muted_conversations as MuteEntry[])
+    : [];
+  const exists = current.some((m) => m.kind === kind && m.id === id);
+  const next = exists
+    ? current.filter((m) => !(m.kind === kind && m.id === id))
+    : [...current, { kind, id }];
+
+  await supabase
+    .from("profiles")
+    .update({ muted_conversations: next })
+    .eq("id", user.id);
+
+  revalidatePath("/dashboard");
+  redirect("/dashboard");
+}
+
+/**
+ * Mark a conversation as unread by clearing its read-cursor. The
+ * dashboard's unread check is "lastMessageAt > last_read[key]", so
+ * removing the key from the blob makes the conversation count as
+ * having unread activity again.
+ *
+ * Mirrors iMessage's swipe-right "Mark as Unread" + the same option
+ * in the long-press menu.
+ */
+export async function markConversationUnread(formData: FormData) {
+  const kind = String(formData.get("kind") ?? "").trim();
+  const id = String(formData.get("id") ?? "").trim();
+  if (!FAVORITE_KINDS.has(kind) || !id) {
+    redirect("/dashboard?error=Bad%20unread%20input");
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/auth/signin");
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("last_read")
+    .eq("id", user.id)
+    .single();
+
+  const current =
+    profile?.last_read && typeof profile.last_read === "object"
+      ? (profile.last_read as Record<string, string>)
+      : {};
+  delete current[`${kind}:${id}`];
+
+  await supabase
+    .from("profiles")
+    .update({ last_read: current })
+    .eq("id", user.id);
+
+  revalidatePath("/dashboard");
+  redirect("/dashboard");
+}
+
+/**
  * Stamp the read-cursor for one conversation. Called from each chat
  * page on load (server component) so opening a conversation marks
  * its messages read. Stored as a single jsonb blob on the profile.

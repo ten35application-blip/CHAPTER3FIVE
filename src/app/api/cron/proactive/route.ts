@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
   const { data: candidates, error } = await admin
     .from("profiles")
     .select(
-      "id, oracle_name, preferred_language, texting_style, personality_type, emotional_flavor, active_oracle_id, last_proactive_at, last_active_at",
+      "id, oracle_name, preferred_language, texting_style, personality_type, emotional_flavor, active_oracle_id, last_proactive_at, last_active_at, muted_conversations",
     )
     .eq("outreach_enabled", true)
     .eq("onboarding_completed", true)
@@ -66,6 +66,20 @@ export async function GET(request: NextRequest) {
   let sent = 0;
   for (const profile of candidates) {
     if (!profile.active_oracle_id) continue;
+
+    // Skip if the user muted this conversation. Mirrors iMessage's
+    // Hide Alerts behavior — proactive ping stays silent.
+    type MuteEntry = { kind?: string; id?: string };
+    const muted = Array.isArray(profile.muted_conversations)
+      ? (profile.muted_conversations as MuteEntry[])
+      : [];
+    if (
+      muted.some(
+        (m) => m.kind === "owned" && m.id === profile.active_oracle_id,
+      )
+    ) {
+      continue;
+    }
 
     try {
       const { data: answerRows } = await admin

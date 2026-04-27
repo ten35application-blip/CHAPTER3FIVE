@@ -12,6 +12,13 @@ type Props = {
   /** Bucket the favorites store uses. */
   favoriteKind: "owned" | "shared" | "group" | "together";
   language: "en" | "es";
+  /** New activity since the user last opened this conversation. */
+  unread?: boolean;
+  /** Last assistant-message snippet (max ~80 chars). When provided
+      and the row is unread, renders as a small bubble above the
+      avatar — same idea as iMessage's latest-message overlay on
+      pinned bubbles. */
+  preview?: string | null;
   children: React.ReactNode;
 };
 
@@ -35,6 +42,8 @@ export function FavoriteTile({
   favoriteId,
   favoriteKind,
   language,
+  unread = false,
+  preview = null,
   children,
 }: Props) {
   const t = COPY[language];
@@ -99,9 +108,16 @@ export function FavoriteTile({
         onPointerUp={cancelPress}
         onPointerLeave={cancelPress}
         onPointerCancel={cancelPress}
-        className="flex flex-col items-center w-20 flex-shrink-0 group select-none"
+        className="flex flex-col items-center w-20 flex-shrink-0 group select-none relative"
         title={title}
       >
+        {/* Amber unread dot on the top-right of the avatar. */}
+        {unread && (
+          <span
+            className="absolute top-0 right-1 w-3 h-3 rounded-full bg-amber border-2 border-ink-soft z-10"
+            aria-label="unread"
+          />
+        )}
         {children}
       </Link>
 
