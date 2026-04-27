@@ -46,9 +46,10 @@ const COPY = {
   },
 };
 
-export function GroupRoom({ roomId, language, members, initialMessages }: Props) {
+export function GroupRoom({ roomId, language, members: initialMembers, initialMessages }: Props) {
   const t = COPY[language];
   const [messages, setMessages] = useState<Message[]>(initialMessages);
+  const [members, setMembers] = useState<Member[]>(initialMembers);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -107,6 +108,40 @@ export function GroupRoom({ roomId, language, members, initialMessages }: Props)
       )
       .subscribe();
 
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [roomId]);
+
+  // Realtime: when a persona walks out, group_room_members.left_at
+  // flips. Mark them in the local state so the chip strikes through
+  // without a refresh.
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`group_members:${roomId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "group_room_members",
+          filter: `room_id=eq.${roomId}`,
+        },
+        (payload) => {
+          const row = payload.new as {
+            oracle_id: string;
+            left_at: string | null;
+          };
+          if (!row.left_at) return;
+          setMembers((prev) =>
+            prev.map((m) =>
+              m.oracleId === row.oracle_id ? { ...m, left: true } : m,
+            ),
+          );
+        },
+      )
+      .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };

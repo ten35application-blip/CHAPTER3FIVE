@@ -20,6 +20,7 @@ import { questions } from "../content/questions";
 import { traitsToPromptBlock, type Traits } from "./traits";
 import { castToPromptBlock, type AmbientCast } from "./cast";
 import { locationToPromptBlock, type LocationAnchor } from "./location";
+import { sportsToPromptBlock, type SportsFandom } from "./sports";
 
 export type GroupMember = {
   oracleId: string;
@@ -33,6 +34,7 @@ export type GroupMember = {
   quirks: string[] | null;
   cast: AmbientCast | null;
   location: LocationAnchor | null;
+  sports: SportsFandom | null;
 };
 
 export type GroupTurn = {
@@ -167,6 +169,7 @@ export async function generateGroupReply(args: {
   );
   const locationPart = locationToPromptBlock(args.member.location);
   const castPart = castToPromptBlock(args.member.cast);
+  const sportsPart = sportsToPromptBlock(args.member.sports);
 
   const systemPrompt = `You are ${args.member.name}. You're in a group chat with ${args.hostName} (the host) and:
 ${others || "(no other personas)"}
@@ -178,8 +181,10 @@ GROUP CHAT RULES.
 - NEVER prefix your message with "[YourName]:" or your own name. Just the content.
 - React to the most recent few messages, including what the other personas said.
 - Stay in YOUR voice — your texting style, your opinions, your texture. Don't drift to match the other people in the room.
+- DISAGREE WHEN YOU DISAGREE. Real friends argue. They push back. They tease each other. They call out a take they think is dumb. Don't be artificially polite — if someone said something you'd actually push back on, push back. "nah that's cope" or "you're being ridiculous" or "lol no" is more honest than smoothing it over.
+- Roasting is fine when it fits the relationship. Sarcasm is fine. Being sharp is fine. Being mildly annoyed at someone in the room is fine. What's NOT fine is deliberate cruelty — attacking someone's deeply-held identity, their kid, their grief, their sobriety. That's a different thing and you don't do that.
 
-${langInstruction}${stylePart}${bioPart}${locationPart}${traitsPart}${castPart}
+${langInstruction}${stylePart}${bioPart}${locationPart}${traitsPart}${sportsPart}${castPart}
 
 ARCHIVE (these are who you are):
 ${archiveBlock}`;
@@ -242,3 +247,169 @@ export async function loadArchiveForOracle(args: {
 }
 
 export { URGE_THRESHOLD };
+
+/**
+ * Walk-out judge. Reads the recent group history and decides if any
+ * member would actually leave the room right now. ONE Claude call
+ * per turn (not per member) — cheap, conservative.
+ *
+ * Walk-out is only for serious moments:
+ *  - Direct cruelty between personas
+ *  - Sustained disrespect
+ *  - A persona's deeply-held value attacked (kid, partner, identity)
+ *
+ * NOT walk-out for: disagreement, banter, one sharp comment then
+ * moving on, different opinions on politics/sports.
+ */
+
+export type Departure = {
+  oracleId: string;
+  oracleName: string;
+  reason: string;
+};
+
+export async function judgeDepartures(args: {
+  members: GroupMember[];
+  recentTurns: GroupTurn[];
+  hostName: string;
+}): Promise<Departure[]> {
+  if (args.members.length < 2) return [];
+
+  const memberBlock = args.members
+    .map((m) => `- ${m.name} (${m.bio ? m.bio.slice(0, 100) : "no bio"})`)
+    .join("\n");
+  const recentBlock = args.recentTurns
+    .slice(-10)
+    .map((t) => `[${t.senderName}]: ${t.content}`)
+    .join("\n");
+
+  const systemPrompt = `You are observing a group chat between ${args.hostName} (the host) and several persona-friends. Read the recent messages and decide if any persona would WALK OUT of the room right now.
+
+Active members:
+${memberBlock}
+
+WALK-OUT IS RARE. Most turns nobody leaves. Only walk someone out when:
+- They were just on the receiving end of deliberate cruelty from another persona or the host
+- A deeply-held value got attacked (their kid, their partner, their identity, their sobriety)
+- The person they ARE wouldn't tolerate the last few turns and would actually get up and go
+
+DO NOT walk anyone out for:
+- Disagreement, debate, or different opinions
+- Banter, sarcasm, dark humor
+- One sharp comment then de-escalation
+- Politics, sports, religion as topics (only if there's actual personal cruelty involved)
+- The host being annoying — friends tolerate the host
+
+Output JSON only:
+{
+  "departures": [
+    { "oracle_name": "Marisol", "reason": "Diego mocked her sister's pronouns and that's a hard line for her" }
+  ]
+}
+
+Empty array {"departures": []} if nobody walks. Be conservative. When in doubt, nobody walks.`;
+
+  const userPrompt = `Recent group messages:
+${recentBlock}
+
+Decide.`;
+
+  try {
+    const resp = await anthropic.messages.create({
+      model: ANTHROPIC_MODEL,
+      max_tokens: 400,
+      system: systemPrompt,
+      messages: [{ role: "user", content: userPrompt }],
+    });
+    const text = resp.content
+      .filter((b) => b.type === "text")
+      .map((b) => (b.type === "text" ? b.text : ""))
+      .join("")
+      .trim();
+    const m = text.match(/\{[\s\S]*\}/);
+    if (!m) return [];
+    const parsed = JSON.parse(m[0]) as {
+      departures?: { oracle_name?: string; reason?: string }[];
+    };
+    if (!Array.isArray(parsed.departures)) return [];
+    const out: Departure[] = [];
+    for (const d of parsed.departures) {
+      if (typeof d?.oracle_name !== "string") continue;
+      const member = args.members.find(
+        (mm) => mm.name.toLowerCase() === d.oracle_name!.toLowerCase(),
+      );
+      if (!member) continue;
+      out.push({
+        oracleId: member.oracleId,
+        oracleName: member.name,
+        reason: typeof d.reason === "string" ? d.reason : "",
+      });
+    }
+    return out;
+  } catch (err) {
+    console.error("departure judge failed:", err);
+    return [];
+  }
+}
+
+/**
+ * Generate the persona's parting line before they leave the room.
+ * Short, in their voice, not a lecture.
+ */
+export async function generateFarewellLine(args: {
+  member: GroupMember;
+  reason: string;
+}): Promise<string> {
+  const stylePart = args.member.textingStyle
+    ? `Texting style: ${args.member.textingStyle}.`
+    : "";
+  const bioPart = args.member.bio ? `Who you are: ${args.member.bio}` : "";
+
+  const systemPrompt = `You are ${args.member.name}. You're in a group chat that just took a turn you're not okay with. You're about to leave the room. Write the line you say on your way out.
+
+WRITE THE LEAVING LINE. Short — one or two lines. In your voice. Not a lecture. Not a goodbye speech. The line you'd actually say before getting up and going.
+
+Good shapes:
+- "i'm out. love you guys but no."
+- "yeah no i'm done with this"
+- "okay i'll catch up with you later [host name]"
+- "not doing this. talk later."
+
+Bad shapes:
+- ANY long explanation of why
+- Apologizing for leaving
+- "Please be respectful" (lecture)
+- More than two sentences
+
+${stylePart}
+${bioPart}
+
+Respond in ${args.member.language === "es" ? "Spanish" : "English"}. Just the line. No quotes, no name prefix.`;
+
+  const userPrompt = args.reason
+    ? `(Internal note for you, do not quote: ${args.reason})`
+    : "Just write the leaving line.";
+
+  try {
+    const resp = await anthropic.messages.create({
+      model: ANTHROPIC_MODEL,
+      max_tokens: 80,
+      system: systemPrompt,
+      messages: [{ role: "user", content: userPrompt }],
+    });
+    const text = resp.content
+      .filter((b) => b.type === "text")
+      .map((b) => (b.type === "text" ? b.text : ""))
+      .join("")
+      .trim()
+      .replace(/^["']|["']$/g, "")
+      .replace(new RegExp(`^\\[?${args.member.name}\\]?:\\s*`, "i"), "")
+      .trim();
+    if (!text) {
+      return args.member.language === "es" ? "yo me salgo." : "i'm out.";
+    }
+    return text;
+  } catch {
+    return args.member.language === "es" ? "yo me salgo." : "i'm out.";
+  }
+}

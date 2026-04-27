@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { isAdmin } from "@/lib/admin";
 
 const PROFILE_COLUMNS =
   "oracle_name, mode, preferred_language, texting_style, personality_type, emotional_flavor, timezone, onboarding_completed";
@@ -49,7 +50,8 @@ export async function newOracle() {
     .single();
 
   // First thirtyfive (the auto-created one on signup) is free. Every
-  // additional thirtyfive needs a credit ($5 via Stripe).
+  // additional thirtyfive needs a credit ($5 via Stripe). Admin
+  // emails get unlimited free creates for testing + dogfooding.
   const { count: oracleCount } = await supabase
     .from("oracles")
     .select("id", { count: "exact", head: true })
@@ -58,7 +60,7 @@ export async function newOracle() {
   const hasAtLeastOne = (oracleCount ?? 0) >= 1;
   const credits = profile?.extra_oracle_credits ?? 0;
 
-  if (hasAtLeastOne && credits <= 0) {
+  if (hasAtLeastOne && credits <= 0 && !isAdmin(user.email)) {
     redirect("/oracle/pay");
   }
 

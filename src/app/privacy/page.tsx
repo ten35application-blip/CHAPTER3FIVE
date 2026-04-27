@@ -70,6 +70,29 @@ export default function PrivacyPage() {
             across sessions. You can review and delete these from Settings.
           </li>
           <li>
+            <strong>Persona traits and realism state.</strong> Each
+            identity has a set of structured traits we extract from the
+            archive (or roll randomly for randomized identities) and use
+            to color the chat: orientation, romantic openness, identity
+            quirks, sports fandom, location anchor (a specific
+            neighborhood the persona lives in), an ambient cast of named
+            people in the persona&rsquo;s life, a rotating
+            &ldquo;this week&rdquo; context (mundane recent threads), and
+            a per-conversation mood + physical state seed (refreshed
+            after a couple hours of inactivity). Owners can edit
+            orientation, openness, and location from Settings. Stored
+            with the identity row.
+          </li>
+          <li>
+            <strong>Group chat content.</strong> If you create a group
+            chat with multiple identities you own, we store the room
+            metadata (name, language), member list (with departure
+            timestamps if a persona walks out of the conversation), and
+            every message exchanged in the room (yours and each
+            persona&rsquo;s). Group chats can only contain identities you
+            created — never inherited or shared archives.
+          </li>
+          <li>
             <strong>Beneficiary designations.</strong> Email addresses (and
             optionally names) of people you designate as beneficiaries.
           </li>
@@ -132,13 +155,20 @@ export default function PrivacyPage() {
         <p>
           <strong>Anthropic, PBC</strong> — for chat responses, identity
           backstory synthesis (randomized mode only), persona memory
-          extraction, weekly reflection, anniversary messages, and welcome
-          messages. We send: the recorded archive associated with your
+          extraction, weekly reflection, anniversary messages, welcome
+          messages, group chat orchestration (urge-to-respond judgments,
+          cross-replies, walk-out detection, farewell lines), tone-judging
+          for hostile/cruel messages, persona realism state generation
+          (mood, physical state, weekly context, ambient cast), and
+          extraction of structured traits (orientation, openness,
+          identity quirks, sports fandom, location anchor) from your
+          archive. We send: the recorded archive associated with your
           active identity (questions and answers), the persona memories
           currently held about you, the messages you send and recent prior
-          messages (last twelve), any photo you attach to a chat message
-          (as a signed URL for vision processing), and the synthesized bio
-          (for randomized identities).
+          messages (last twelve in 1:1, last thirty in group chat), any
+          photo you attach to a chat message (as a signed URL for vision
+          processing), and the synthesized bio + traits + cast +
+          location + sports anchors stored on the identity.
         </p>
         <p>
           <strong>OpenAI, Inc.</strong> — for three features:
@@ -182,7 +212,7 @@ export default function PrivacyPage() {
         </p>
         <ul>
           <li><strong>Supabase</strong> — database, authentication, file storage for avatars + chat photos + archive audio + archive photos (United States).</li>
-          <li><strong>Anthropic</strong> — AI processing of conversational messages, identity backstory synthesis, persona memory extraction + weekly reflection, anniversary messages, welcome messages, and attached photos via vision. See Section 4 for the data flow.</li>
+          <li><strong>Anthropic</strong> — AI processing of conversational messages, identity backstory synthesis, persona memory extraction + weekly reflection, anniversary messages, welcome messages, group chat orchestration, tone-judging for hostile messages, persona realism state generation, structured trait extraction, and attached photos via vision. See Section 4 for the data flow.</li>
           <li><strong>OpenAI</strong> — embeddings for memory retrieval, image moderation on chat photos, and Whisper transcription for voice answers. See Section 4.</li>
           <li><strong>Resend</strong> — transactional email delivery.</li>
           <li><strong>Vercel</strong> — application hosting and content delivery.</li>

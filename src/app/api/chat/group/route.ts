@@ -5,6 +5,8 @@ import {
   judgeUrge,
   generateGroupReply,
   loadArchiveForOracle,
+  judgeDepartures,
+  generateFarewellLine,
   URGE_THRESHOLD,
   type GroupMember,
   type GroupTurn,
@@ -73,7 +75,7 @@ export async function POST(request: NextRequest) {
   const { data: memberRows } = await admin
     .from("group_room_members")
     .select(
-      `oracle_id, oracles(id, name, avatar_url, bio, texting_style, preferred_language, orientation, relationship_openness, identity_quirks, ambient_cast, location_anchor)`,
+      `oracle_id, oracles(id, name, avatar_url, bio, texting_style, preferred_language, orientation, relationship_openness, identity_quirks, ambient_cast, location_anchor, sports_fandom)`,
     )
     .eq("room_id", roomId)
     .is("left_at", null);
@@ -90,6 +92,7 @@ export async function POST(request: NextRequest) {
     identity_quirks: string[] | null;
     ambient_cast: GroupMember["cast"];
     location_anchor: GroupMember["location"];
+    sports_fandom: GroupMember["sports"];
   };
   type RawMemberRow = {
     oracle_id: string;
@@ -114,6 +117,7 @@ export async function POST(request: NextRequest) {
         quirks: o.identity_quirks,
         cast: o.ambient_cast,
         location: o.location_anchor,
+        sports: o.sports_fandom,
       };
     })
     .filter((m): m is GroupMember => m !== null);
@@ -290,6 +294,46 @@ export async function POST(request: NextRequest) {
           });
         }
       }
+    }
+  }
+
+  // Walk-out pass. Reads everything that's been said this turn and
+  // decides if any persona would actually leave the room. Conservative
+  // — most turns nobody walks. When someone does, post their farewell
+  // line and mark left_at on group_room_members. Realtime carries
+  // both updates to open clients.
+  const fullTurns: GroupTurn[] = [...turnsForUrge, ...persistedReplies];
+  const departures = await judgeDepartures({
+    members,
+    recentTurns: fullTurns,
+    hostName,
+  });
+
+  for (const d of departures) {
+    const member = members.find((mm) => mm.oracleId === d.oracleId);
+    if (!member) continue;
+    try {
+      const farewell = await generateFarewellLine({
+        member,
+        reason: d.reason,
+      });
+      await new Promise((r) => setTimeout(r, 1000));
+      await admin.from("group_messages").insert({
+        room_id: roomId,
+        sender_oracle_id: member.oracleId,
+        role: "assistant",
+        content: farewell,
+      });
+      await admin
+        .from("group_room_members")
+        .update({
+          left_at: new Date().toISOString(),
+          left_reason: d.reason,
+        })
+        .eq("room_id", roomId)
+        .eq("oracle_id", member.oracleId);
+    } catch (err) {
+      console.error("departure persist failed:", err);
     }
   }
 

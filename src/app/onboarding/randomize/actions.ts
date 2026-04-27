@@ -18,6 +18,8 @@ import {
 import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { rollRandomTraits } from "@/lib/traits";
 import { rollRandomCast } from "@/lib/cast";
+import { rollRandomSports } from "@/lib/sports";
+import { isAdmin } from "@/lib/admin";
 
 export async function generateRandomizedArchive(formData: FormData) {
   const genderRaw = String(formData.get("gender") ?? "any");
@@ -46,7 +48,8 @@ export async function generateRandomizedArchive(formData: FormData) {
   }
 
   // Paywall: must have at least one credit. Send to checkout if not.
-  if ((profile.randomize_credits ?? 0) <= 0) {
+  // Admins skip the paywall entirely.
+  if ((profile.randomize_credits ?? 0) <= 0 && !isAdmin(user.email)) {
     redirect("/randomize/pay");
   }
 
@@ -112,6 +115,7 @@ export async function generateRandomizedArchive(formData: FormData) {
   // actual people.
   const traits = rollRandomTraits();
   const cast = rollRandomCast();
+  const sports = rollRandomSports();
   await supabase
     .from("oracles")
     .update({
@@ -121,6 +125,8 @@ export async function generateRandomizedArchive(formData: FormData) {
       traits_extracted_at: new Date().toISOString(),
       ambient_cast: cast,
       cast_extracted_at: new Date().toISOString(),
+      sports_fandom: sports,
+      sports_extracted_at: new Date().toISOString(),
     })
     .eq("id", oracleId);
 

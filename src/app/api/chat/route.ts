@@ -40,6 +40,11 @@ import {
   type AmbientCast,
 } from "@/lib/cast";
 import {
+  extractSportsFromArchive,
+  sportsToPromptBlock,
+  type SportsFandom,
+} from "@/lib/sports";
+import {
   generateConversationState,
   generateWeeklyContext,
   isStateStale,
@@ -181,11 +186,13 @@ export async function POST(request: NextRequest) {
   let castExtractedAt: string | null = null;
   let weeklyContext: WeeklyContext | null = null;
   let weeklyContextUntil: string | null = null;
+  let sportsFandom: SportsFandom | null = null;
+  let sportsExtractedAt: string | null = null;
   if (profile.active_oracle_id) {
     const { data: ownOracle } = await supabase
       .from("oracles")
       .select(
-        "bio, location_anchor, location_extracted_at, orientation, relationship_openness, identity_quirks, traits_extracted_at, mode, ambient_cast, cast_extracted_at, weekly_context, weekly_context_until",
+        "bio, location_anchor, location_extracted_at, orientation, relationship_openness, identity_quirks, traits_extracted_at, mode, ambient_cast, cast_extracted_at, weekly_context, weekly_context_until, sports_fandom, sports_extracted_at",
       )
       .eq("id", profile.active_oracle_id)
       .maybeSingle();
@@ -209,6 +216,8 @@ export async function POST(request: NextRequest) {
     castExtractedAt = ownOracle?.cast_extracted_at ?? null;
     weeklyContext = (ownOracle?.weekly_context ?? null) as WeeklyContext | null;
     weeklyContextUntil = ownOracle?.weekly_context_until ?? null;
+    sportsFandom = (ownOracle?.sports_fandom ?? null) as SportsFandom | null;
+    sportsExtractedAt = ownOracle?.sports_extracted_at ?? null;
   }
 
   // Memorial mode: if the caller is chatting with someone ELSE'S archive
@@ -397,6 +406,7 @@ export async function POST(request: NextRequest) {
 
   const locationPart = locationToPromptBlock(locationAnchor);
   const traitsPart = traitsToPromptBlock(oracleTraits, memorialMode);
+  const sportsPart = sportsToPromptBlock(sportsFandom);
 
   // Pull conversation state (mood + physical) — refresh if stale.
   // Skipped in memorial mode (deceased personas don't have a Tuesday).
@@ -503,7 +513,7 @@ If the user appears to be in genuine crisis — talking about ending their life,
   • or local emergency services
 Do NOT help with the harmful action. Do NOT pretend everything is fine. Do NOT roleplay through a crisis. Once you've said it, you can return to the conversation if they want to keep talking.
 
-${langInstruction}${stylePart}${personalityPart}${flavorPart}${bioPart}${locationPart}${traitsPart}${castPart}${statePart}${wokenPart}${memorialPart}${memoriesBlock}
+${langInstruction}${stylePart}${personalityPart}${flavorPart}${bioPart}${locationPart}${traitsPart}${sportsPart}${castPart}${statePart}${wokenPart}${memorialPart}${memoriesBlock}
 
 ARCHIVE — these are the actual answers ${characterName} gave. This is who you are. Stay close.
 
@@ -680,6 +690,37 @@ ${archiveBlock}`;
       }).catch((err) =>
         console.error("memory extraction (background) failed:", err),
       );
+    }
+
+    // Lazy sports extraction (real-mode only). Most archives have
+    // nothing — that's fine, we still mark extracted_at so we don't
+    // re-try.
+    if (
+      profile.active_oracle_id &&
+      !isRandomizedOracle &&
+      !sportsExtractedAt &&
+      archive.length >= 12
+    ) {
+      const oracleIdForSports = profile.active_oracle_id;
+      (async () => {
+        try {
+          const fandom = await extractSportsFromArchive({
+            oracleName: characterName,
+            language,
+            answers: archive.map((a) => ({ question: a.prompt, body: a.answer })),
+          });
+          const writeAdmin = createAdminClient();
+          await writeAdmin
+            .from("oracles")
+            .update({
+              sports_fandom: fandom ?? { teams: [] },
+              sports_extracted_at: new Date().toISOString(),
+            })
+            .eq("id", oracleIdForSports);
+        } catch (err) {
+          console.error("sports extraction (background) failed:", err);
+        }
+      })();
     }
 
     // Lazy ambient cast extraction (real-mode only — randomized ones

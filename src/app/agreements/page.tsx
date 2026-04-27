@@ -168,7 +168,7 @@ const COPY = {
       "What we collect (your archive content, voice recordings, photos, persona memories, payment metadata, device tokens, etc.), how we use it, who processes it on our behalf, and how to delete it.",
     aiTitle: "AI processing — Anthropic + OpenAI.",
     aiBody:
-      "Your archive, your messages, your attached photos, your voice recordings, and your persona memories are sent to Anthropic and OpenAI to power the chat, memory retrieval, image moderation, and voice transcription. Both have default-no-retention and default-no-training-on-customer-data policies. We never train any model — ours or theirs — on your data.",
+      "Your archive, your messages, your attached photos, your voice recordings, your persona memories, and a set of structured anchors we extract from your archive (orientation, openness, identity quirks, sports fandom, location, the people in your life, plus a rotating mood + week-context seed) are sent to Anthropic and OpenAI to power chat, group chats, memory retrieval, image moderation, voice transcription, tone-judging on hostile messages, and persona realism. Both have default-no-retention and default-no-training-on-customer-data policies. We never train any model — ours or theirs — on your data.",
     cookiesTitle: "Cookie Policy.",
     cookiesBody:
       "We use cookies (and on mobile, equivalent device storage) to keep you signed in, remember preferences, and run light aggregate analytics. No advertising cookies; no third-party tracking SDKs.",
@@ -195,7 +195,7 @@ const COPY = {
       "Qué recopilamos (el contenido de tu archivo, grabaciones de voz, fotos, memorias del persona, metadatos de pagos, tokens de dispositivo, etc.), cómo lo usamos, quién lo procesa por nosotros, y cómo eliminarlo.",
     aiTitle: "Procesamiento de IA — Anthropic + OpenAI.",
     aiBody:
-      "Tu archivo, tus mensajes, las fotos que adjuntas, tus grabaciones de voz, y las memorias del persona se envían a Anthropic y OpenAI para impulsar el chat, la recuperación de memoria, la moderación de imágenes, y la transcripción de voz. Ambos tienen políticas predeterminadas de no retención y no entrenamiento sobre datos del cliente. Nunca entrenamos a ningún modelo — nuestro ni de ellos — con tu información.",
+      "Tu archivo, tus mensajes, las fotos que adjuntas, tus grabaciones de voz, las memorias del persona, y un conjunto de anclas estructuradas que extraemos de tu archivo (orientación, apertura, peculiaridades, equipo deportivo, ubicación, las personas en tu vida, más una semilla rotativa de ánimo + contexto semanal) se envían a Anthropic y OpenAI para impulsar el chat, los chats grupales, la recuperación de memoria, la moderación de imágenes, la transcripción de voz, el juicio de tono ante mensajes hostiles, y el realismo del persona. Ambos tienen políticas predeterminadas de no retención y no entrenamiento sobre datos del cliente. Nunca entrenamos a ningún modelo — nuestro ni de ellos — con tu información.",
     cookiesTitle: "Política de Cookies.",
     cookiesBody:
       "Usamos cookies (y en móvil, almacenamiento equivalente del dispositivo) para mantenerte conectado, recordar preferencias, y ejecutar analítica agregada. Sin cookies publicitarias; sin SDKs de terceros.",

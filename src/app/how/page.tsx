@@ -61,7 +61,13 @@ export default function HowItWorksPage() {
           <Step
             number="04"
             title="Talk to it"
-            body="From the dashboard, message your identity like you'd text a friend. Send photos — your kid's birthday cake, the dog at the beach — and the identity sees them and reacts. The persona remembers what you've talked about across conversations, surfaces the right memory at the right moment, and reflects on what's been on your mind between sessions. On birthdays, signup-aversaries, and the anniversary of the day you first talked, they'll quietly say something."
+            body="From the dashboard, message your identity like you'd text a friend. Send photos — your kid's birthday cake, the dog at the beach — and the identity sees them and reacts. The persona remembers what you've talked about across conversations, surfaces the right memory at the right moment, and reflects on what's been on your mind between sessions. On birthdays, signup-aversaries, and the anniversary of the day you first talked, they'll quietly say something. They have a mood that day. They have people in their life. They mention the construction upstairs. If you're cruel, they'll step out and come back later and ask if you're okay."
+          />
+
+          <Step
+            number="04.5"
+            title="Or talk to a group of them"
+            body="In the menu → Group chats, put 2–4 of your own identities in a room together. They'll talk to you and to each other. Real group chat turn-taking: most of them stay quiet most of the time, the right one jumps in when something hits, sometimes they argue. Two personas who really clash can walk out of the room — they come back when things cool off. Group chats only contain identities you created. Inherited archives stay 1:1, sacred."
           />
 
           <Step

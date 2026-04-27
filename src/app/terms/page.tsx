@@ -96,11 +96,19 @@ export default function TermsPage() {
             <strong>Anthropic, PBC</strong> — for chat responses,
             randomized identity backstory synthesis, persona memory
             extraction, weekly reflection, anniversary messages, welcome
-            messages, and image-vision processing of attached photos.
-            We send the recorded archive associated with the active
-            identity, the persona memories currently held about you,
-            recent messages in the conversation (last twelve), any
-            attached photo, and the synthesized bio (randomize only).
+            messages, image-vision processing of attached photos, group
+            chat orchestration (urge-to-respond judging, cross-replies,
+            walk-out judging, farewell line generation), tone-judging on
+            hostile or cruel messages, persona realism state generation
+            (mood, physical, weekly context, ambient cast), and
+            extraction of structured traits (orientation, openness,
+            identity quirks, sports fandom, location anchor) from your
+            archive. We send the recorded archive associated with the
+            active identity, the persona memories currently held about
+            you, recent messages in the conversation (last twelve in
+            1:1, last thirty in group chat), any attached photo, and
+            the synthesized bio + traits + cast + location + sports
+            anchors stored on the identity.
           </li>
           <li>
             <strong>OpenAI, Inc.</strong> — for embedding-based memory
