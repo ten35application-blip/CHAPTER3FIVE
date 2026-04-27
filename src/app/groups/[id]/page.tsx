@@ -59,6 +59,22 @@ export default async function GroupRoomPage({
     })
     .filter((x): x is NonNullable<typeof x> => x !== null);
 
+  const memberOracleIds = new Set(members.map((m) => m.oracleId));
+  const { data: otherOracleRows } = await supabase
+    .from("oracles")
+    .select("id, name, avatar_url")
+    .eq("user_id", user.id)
+    .is("deleted_at", null);
+  const addable = (otherOracleRows ?? [])
+    .filter((o) => !memberOracleIds.has(o.id))
+    .map((o) => ({
+      id: o.id,
+      name: o.name ?? "—",
+      avatarUrl: o.avatar_url,
+    }));
+
+  const isOwner = room.owner_user_id === user.id;
+
   const { data: messageRows } = await supabase
     .from("group_messages")
     .select("id, role, content, sender_oracle_id, sender_user_id, created_at")
@@ -96,6 +112,8 @@ export default async function GroupRoomPage({
           language={language}
           members={members}
           initialMessages={initialMessages}
+          isOwner={isOwner}
+          addableOracles={addable}
         />
       </div>
     </main>

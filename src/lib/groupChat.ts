@@ -413,3 +413,82 @@ Respond in ${args.member.language === "es" ? "Spanish" : "English"}. Just the li
     return args.member.language === "es" ? "yo me salgo." : "i'm out.";
   }
 }
+
+/**
+ * Generate the persona's reaction line when the *owner* (the host of
+ * the chat) just kicked them out. Different from a personality-clash
+ * walk-out — they didn't choose to go. The host pulled them out of
+ * the room.
+ *
+ * Reactions vary by personality: hurt, confused, indignant, gracious,
+ * sassy, "lol whatever". Keep it short — one or two lines max. In
+ * voice. The recent group history gives context (was the chat going
+ * well? did they say something off?), so the line can land naturally.
+ */
+export async function generateKickReactionLine(args: {
+  member: GroupMember;
+  recentTurns: GroupTurn[];
+  hostName: string;
+}): Promise<string> {
+  const stylePart = args.member.textingStyle
+    ? `Texting style: ${args.member.textingStyle}.`
+    : "";
+  const bioPart = args.member.bio ? `Who you are: ${args.member.bio}` : "";
+  const recentBlock = args.recentTurns
+    .slice(-8)
+    .map((t) => `[${t.senderName}]: ${t.content}`)
+    .join("\n");
+
+  const systemPrompt = `You are ${args.member.name}. You're in a group chat with ${args.hostName} (the host). ${args.hostName} just removed you from the room. You didn't choose to leave — they kicked you out.
+
+WRITE THE LINE YOU SAY ON YOUR WAY OUT. Short — one or two lines. In your voice. React the way YOU would react to being booted from a group chat by ${args.hostName}.
+
+How you might react depends on who you are AND on the recent context. Pick what fits:
+- Hurt: "wait, what did i do" / "ouch ${args.hostName}"
+- Confused: "uhhh okay???"
+- Indignant / pushback: "rude" / "lol seriously?" / "are you kidding"
+- Gracious: "alright, take care y'all" / "love you guys, peace"
+- Sassy / dismissive: "lol bye" / "k whatever"
+- Quiet / no drama: "okay." / a single emoji
+- If the chat had just gone sideways and you sense why: a brief ack — "yeah fair" / "i was being a lot, my bad"
+
+Bad shapes:
+- ANY long explanation
+- Begging to come back
+- A speech about respect or fairness
+- More than two short lines
+- Apologizing on behalf of someone else
+
+${stylePart}
+${bioPart}
+
+Respond in ${args.member.language === "es" ? "Spanish" : "English"}. Just the line. No quotes, no name prefix.`;
+
+  const userPrompt = `Recent group messages (for context, do not quote):
+${recentBlock || "(none)"}
+
+You just got kicked out by ${args.hostName}. Write your reaction line.`;
+
+  try {
+    const resp = await anthropic.messages.create({
+      model: ANTHROPIC_MODEL,
+      max_tokens: 80,
+      system: systemPrompt,
+      messages: [{ role: "user", content: userPrompt }],
+    });
+    const text = resp.content
+      .filter((b) => b.type === "text")
+      .map((b) => (b.type === "text" ? b.text : ""))
+      .join("")
+      .trim()
+      .replace(/^["']|["']$/g, "")
+      .replace(new RegExp(`^\\[?${args.member.name}\\]?:\\s*`, "i"), "")
+      .trim();
+    if (!text) {
+      return args.member.language === "es" ? "okay, adiós." : "okay, bye.";
+    }
+    return text;
+  } catch {
+    return args.member.language === "es" ? "okay, adiós." : "okay, bye.";
+  }
+}

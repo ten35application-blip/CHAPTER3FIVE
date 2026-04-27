@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateShareCode } from "@/lib/share";
+import { isAdmin } from "@/lib/admin";
 import {
   sendBeneficiaryDesignationEmail,
   sendBeneficiaryRemovedEmail,
@@ -821,10 +822,25 @@ export async function restoreOracle(formData: FormData) {
     redirect("/identities?error=Not%20found%20or%20not%20deleted");
   }
   if (
+    !isAdmin(user.email) &&
     oracle.scheduled_purge_at &&
     new Date(oracle.scheduled_purge_at).getTime() < Date.now()
   ) {
     redirect("/identities?error=Grace%20period%20expired");
+  }
+
+  // Admin escape hatch: skip Stripe entirely. Restoring during a
+  // testing pass shouldn't cost $5 every time. Regular users still
+  // go through the paid checkout flow below.
+  if (isAdmin(user.email)) {
+    await supabase
+      .from("oracles")
+      .update({ deleted_at: null, scheduled_purge_at: null })
+      .eq("id", oracleId)
+      .eq("user_id", user.id);
+    revalidatePath("/identities");
+    revalidatePath("/dashboard");
+    redirect("/identities?saved=restored");
   }
 
   const headerList = await headers();
