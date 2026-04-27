@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Chat } from "@/components/Chat";
+import { markConversationRead } from "@/app/settings/actions";
 
 export const metadata = {
   title: "Chat — chapter3five",
@@ -48,6 +49,9 @@ export default async function ChatPage({
     .from("profiles")
     .update({ active_oracle_id: oracle.id })
     .eq("id", user.id);
+
+  // Stamp the read cursor so the dashboard clears the unread mark.
+  await markConversationRead("owned", oracle.id);
 
   const language = (oracle.preferred_language ?? "en") as "en" | "es";
   const oracleName = oracle.name ?? "your identity";

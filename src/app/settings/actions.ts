@@ -71,6 +71,120 @@ export async function toggleFavorite(formData: FormData) {
   redirect("/dashboard");
 }
 
+/**
+ * Stamp the read-cursor for one conversation. Called from each chat
+ * page on load (server component) so opening a conversation marks
+ * its messages read. Stored as a single jsonb blob on the profile.
+ */
+const READ_KINDS = new Set(["owned", "shared", "group", "together"]);
+export async function markConversationRead(kind: string, id: string) {
+  if (!READ_KINDS.has(kind) || !id) return;
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("last_read")
+    .eq("id", user.id)
+    .single();
+
+  const current =
+    profile?.last_read && typeof profile.last_read === "object"
+      ? (profile.last_read as Record<string, string>)
+      : {};
+  const key = `${kind}:${id}`;
+  current[key] = new Date().toISOString();
+
+  await supabase
+    .from("profiles")
+    .update({ last_read: current })
+    .eq("id", user.id);
+}
+
+/**
+ * Remove a conversation from the dashboard. Behavior varies by kind:
+ *  - owned / together (randomized): soft-delete the oracle (30d grace)
+ *  - group: delete the group room
+ *  - shared: revoke the caller's archive_grant on that oracle
+ *
+ * Used by the swipe-left "Delete" gesture on dashboard rows.
+ */
+export async function removeConversation(formData: FormData) {
+  const kind = String(formData.get("kind") ?? "").trim();
+  const id = String(formData.get("id") ?? "").trim();
+  if (!id) redirect("/dashboard?error=Missing%20id");
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/auth/signin");
+
+  if (kind === "owned" || kind === "together") {
+    // Soft-delete with 30-day grace, same as the existing delete flow
+    // but skipping the typed-confirmation gate (the swipe + button tap
+    // already counted as confirmation). Restorable from /identities.
+    const { data: oracle } = await supabase
+      .from("oracles")
+      .select("id, user_id")
+      .eq("id", id)
+      .maybeSingle();
+    if (!oracle || oracle.user_id !== user.id) {
+      redirect("/dashboard?error=Identity%20not%20found");
+    }
+
+    const now = new Date();
+    const purgeAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    await supabase
+      .from("oracles")
+      .update({
+        deleted_at: now.toISOString(),
+        scheduled_purge_at: purgeAt.toISOString(),
+      })
+      .eq("id", id)
+      .eq("user_id", user.id);
+
+    // If we just removed the active identity, detach.
+    const { data: prof } = await supabase
+      .from("profiles")
+      .select("active_oracle_id")
+      .eq("id", user.id)
+      .single();
+    if (prof?.active_oracle_id === id) {
+      await supabase
+        .from("profiles")
+        .update({ active_oracle_id: null, oracle_name: null })
+        .eq("id", user.id);
+    }
+  } else if (kind === "group") {
+    const { data: room } = await supabase
+      .from("group_rooms")
+      .select("id, owner_user_id")
+      .eq("id", id)
+      .maybeSingle();
+    if (!room || room.owner_user_id !== user.id) {
+      redirect("/dashboard?error=Room%20not%20found");
+    }
+    await supabase.from("group_rooms").delete().eq("id", id);
+  } else if (kind === "shared") {
+    // Revoke the caller's grant. Owner of the archive isn't notified —
+    // this is the recipient choosing to drop a shared archive.
+    await supabase
+      .from("archive_grants")
+      .delete()
+      .eq("oracle_id", id)
+      .eq("user_id", user.id);
+  } else {
+    redirect("/dashboard?error=Invalid%20kind");
+  }
+
+  revalidatePath("/dashboard");
+  redirect("/dashboard");
+}
+
 export async function updateTheme(formData: FormData) {
   const raw = String(formData.get("theme") ?? "").trim();
   const theme = raw === "daylight" ? "daylight" : "dusk";

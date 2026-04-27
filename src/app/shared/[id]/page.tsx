@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Chat } from "@/components/Chat";
+import { markConversationRead } from "@/app/settings/actions";
 
 export const metadata = {
   title: "Shared archive — chapter3five",
@@ -35,6 +36,8 @@ export default async function SharedOraclePage({
     // Either no grant (RLS blocked) or the oracle no longer exists.
     redirect("/dashboard?error=No%20access%20to%20that%20archive");
   }
+
+  await markConversationRead("shared", oracle.id);
 
   // Pull the invitee's own message history with this oracle.
   const { data: messageRows } = await supabase

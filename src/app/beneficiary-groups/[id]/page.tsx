@@ -3,6 +3,7 @@ import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { BeneficiaryRoom } from "@/components/BeneficiaryRoom";
+import { markConversationRead } from "@/app/settings/actions";
 
 export const metadata = {
   title: "Group room — chapter3five",
@@ -51,6 +52,8 @@ export default async function BeneficiaryRoomPage({
     .eq("id", room.oracle_id)
     .maybeSingle();
   if (!oracle) redirect("/beneficiary-groups?error=Archive%20not%20found");
+
+  await markConversationRead("together", id);
 
   // Active members.
   const { data: memberRows } = await admin

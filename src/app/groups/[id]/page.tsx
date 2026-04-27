@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { GroupRoom } from "@/components/GroupRoom";
+import { markConversationRead } from "@/app/settings/actions";
 
 export const metadata = {
   title: "Group chat — chapter3five",
@@ -74,6 +75,8 @@ export default async function GroupRoomPage({
     }));
 
   const isOwner = room.owner_user_id === user.id;
+
+  await markConversationRead("group", id);
 
   const { data: messageRows } = await supabase
     .from("group_messages")

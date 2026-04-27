@@ -1,10 +1,9 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { NewConversationMenu } from "@/components/NewConversationMenu";
 import { FavoriteTile } from "@/components/FavoriteTile";
-import { toggleFavorite } from "../settings/actions";
+import { ConversationRow } from "@/components/ConversationRow";
 
 export const metadata = {
   title: "Conversations — chapter3five",
@@ -29,6 +28,8 @@ type ConvRow = {
   favoriteKind: FavoriteKind;
   isFavorite: boolean;
   lastMessageAt: number;
+  /** New activity since the user last opened this conversation. */
+  unread: boolean;
 };
 
 function relativeTime(iso: string | null, lang: "en" | "es"): string {
@@ -56,7 +57,7 @@ export default async function DashboardPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("preferred_language, onboarding_completed, favorites")
+    .select("preferred_language, onboarding_completed, favorites, last_read")
     .eq("id", user.id)
     .single();
 
@@ -73,6 +74,17 @@ export default async function DashboardPage() {
   const favoriteKeys = new Set(favorites.map((f) => `${f.kind}:${f.id}`));
   const isFav = (kind: FavoriteKind, id: string) =>
     favoriteKeys.has(`${kind}:${id}`);
+
+  // Map of "kind:id" → ISO timestamp the user last opened that
+  // conversation. Used to decide which rows are unread.
+  const lastReadMap =
+    profile.last_read && typeof profile.last_read === "object"
+      ? (profile.last_read as Record<string, string>)
+      : {};
+  const lastReadAt = (kind: FavoriteKind, id: string): number => {
+    const v = lastReadMap[`${kind}:${id}`];
+    return v ? new Date(v).getTime() : 0;
+  };
 
   const admin = createAdminClient();
 
@@ -194,6 +206,13 @@ export default async function DashboardPage() {
 
   for (const o of oracles ?? []) {
     const last = lastByOwnedOracle.get(o.id);
+    const lastMessageAt = last
+      ? new Date(last.created_at).getTime()
+      : new Date(o.created_at).getTime();
+    // Unread iff the latest message is from the assistant (the persona
+    // reaching out) AND it's newer than the last time the user opened
+    // this conversation.
+    const isAssistantLast = last?.role === "assistant";
     rows.push({
       href: `/chat/${o.id}`,
       title: o.name?.trim() || t.unnamed,
@@ -205,14 +224,15 @@ export default async function DashboardPage() {
       favoriteId: o.id,
       favoriteKind: "owned",
       isFavorite: isFav("owned", o.id),
-      lastMessageAt: last
-        ? new Date(last.created_at).getTime()
-        : new Date(o.created_at).getTime(),
+      lastMessageAt,
+      unread: isAssistantLast && lastMessageAt > lastReadAt("owned", o.id),
     });
   }
 
   for (const o of sharedOracles ?? []) {
     const last = lastBySharedOracle.get(o.id);
+    const lastMessageAt = last ? new Date(last.created_at).getTime() : 0;
+    const isAssistantLast = last?.role === "assistant";
     rows.push({
       href: `/shared/${o.id}`,
       title: o.name?.trim() || t.unnamed,
@@ -224,13 +244,15 @@ export default async function DashboardPage() {
       favoriteId: o.id,
       favoriteKind: "shared",
       isFavorite: isFav("shared", o.id),
-      lastMessageAt: last
-        ? new Date(last.created_at).getTime()
-        : 0,
+      lastMessageAt,
+      unread: isAssistantLast && lastMessageAt > lastReadAt("shared", o.id),
     });
   }
 
   for (const r of groupRoomsRaw ?? []) {
+    const lastMessageAt = r.last_message_at
+      ? new Date(r.last_message_at).getTime()
+      : new Date(r.created_at).getTime();
     rows.push({
       href: `/groups/${r.id}`,
       title: r.name,
@@ -241,9 +263,9 @@ export default async function DashboardPage() {
       favoriteId: r.id,
       favoriteKind: "group",
       isFavorite: isFav("group", r.id),
-      lastMessageAt: r.last_message_at
-        ? new Date(r.last_message_at).getTime()
-        : new Date(r.created_at).getTime(),
+      lastMessageAt,
+      unread:
+        r.last_message_at !== null && lastMessageAt > lastReadAt("group", r.id),
     });
   }
 
@@ -262,6 +284,9 @@ export default async function DashboardPage() {
   );
   for (const r of benefRooms ?? []) {
     const o = benefOracleMap.get(r.oracle_id);
+    const lastMessageAt = r.last_message_at
+      ? new Date(r.last_message_at).getTime()
+      : new Date(r.created_at).getTime();
     rows.push({
       href: `/beneficiary-groups/${r.id}`,
       title: r.name,
@@ -271,9 +296,10 @@ export default async function DashboardPage() {
       favoriteId: r.id,
       favoriteKind: "together",
       isFavorite: isFav("together", r.id),
-      lastMessageAt: r.last_message_at
-        ? new Date(r.last_message_at).getTime()
-        : new Date(r.created_at).getTime(),
+      lastMessageAt,
+      unread:
+        r.last_message_at !== null &&
+        lastMessageAt > lastReadAt("together", r.id),
     });
   }
 
@@ -295,20 +321,11 @@ export default async function DashboardPage() {
 
   return (
     <main className="flex-1">
-      <header className="border-b border-warm-700/40">
-        <div className="max-w-2xl mx-auto px-6 py-6">
-          <Link
-            href="/"
-            className="font-serif text-xl tracking-tight text-warm-100 hover:text-warm-50 transition-colors"
-          >
-            chapter3five
-          </Link>
-        </div>
-      </header>
-
-      <div className="max-w-2xl mx-auto px-4 py-6 pb-32">
-        <div className="flex items-center justify-between mb-6 px-2 gap-3">
-          <h1 className="font-serif text-3xl text-warm-50">{t.title}</h1>
+      <div className="max-w-2xl mx-auto px-4 pt-6 pb-32">
+        <div className="flex items-end justify-between mb-5 px-2 gap-3">
+          <h1 className="font-serif text-3xl text-warm-50 leading-none">
+            {t.title}
+          </h1>
           <NewConversationMenu
             language={language}
             ownedOracles={(oracles ?? []).map((o) => ({
@@ -372,74 +389,114 @@ export default async function DashboardPage() {
             {t.empty}
           </p>
         ) : (
-          <div className="space-y-1">
-            {listRows.map((r, i) => (
-              <div
-                key={r.href + i}
-                className="flex items-center gap-3 px-3 py-3 rounded-2xl hover:bg-warm-700/20 active:bg-warm-700/40 transition-colors group/row"
-              >
-                <Link href={r.href} className="flex items-center gap-3 flex-1 min-w-0">
-                <div className="relative flex-shrink-0">
-                  {r.kind === "group" &&
-                  r.collageAvatars &&
-                  r.collageAvatars.length > 0 ? (
-                    <GroupCollage avatars={r.collageAvatars} title={r.title} />
-                  ) : r.avatarUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={r.avatarUrl}
-                      alt=""
-                      className="w-12 h-12 rounded-full object-cover border border-warm-700/60"
-                    />
-                  ) : (
-                    <span className="w-12 h-12 rounded-full bg-warm-700/40 border border-warm-700/60 inline-flex items-center justify-center font-serif text-warm-200 text-lg">
-                      {r.title.slice(0, 1).toUpperCase()}
-                    </span>
-                  )}
-                  {r.kind !== "owned" && r.kind !== "group" && (
-                    <span
-                      className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-ink-soft border border-warm-700/80 flex items-center justify-center"
-                      title={KIND_LABELS[language][r.kind]}
-                      aria-label={KIND_LABELS[language][r.kind]}
-                    >
-                      <KindIcon kind={r.kind} />
-                    </span>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-baseline justify-between gap-2 mb-0.5">
-                    <span className="font-serif text-warm-50 text-base truncate">
-                      {r.title}
-                    </span>
-                    <span className="text-xs text-warm-400 flex-shrink-0">
-                      {r.lastMessageAt > 0
-                        ? relativeTime(
-                            new Date(r.lastMessageAt).toISOString(),
-                            language,
-                          )
-                        : ""}
-                    </span>
-                  </div>
-                  <p className="text-sm text-warm-300 truncate">
-                    {r.subtitle}
-                  </p>
-                </div>
-                </Link>
-
-                <form action={toggleFavorite} className="flex-shrink-0">
-                  <input type="hidden" name="kind" value={r.favoriteKind} />
-                  <input type="hidden" name="id" value={r.favoriteId} />
-                  <button
-                    type="submit"
-                    aria-label={t.favorite}
-                    title={t.favorite}
-                    className="p-2 rounded-full text-warm-500 hover:text-warm-200 transition-colors"
+          <div className="rounded-2xl overflow-hidden bg-ink-soft">
+            {listRows.map((r, i) => {
+              // Beneficiary rooms ('together') aren't user-removable — they're
+              // shared inheritance state. Block swipe-delete on those.
+              const removable = r.kind !== "together";
+              const removeKind: "owned" | "shared" | "group" | "together" =
+                r.kind === "randomized" ? "owned" : (r.kind as never);
+              return (
+                <div
+                  key={r.href + i}
+                  className={
+                    i === listRows.length - 1
+                      ? ""
+                      : "border-b border-warm-700/30"
+                  }
+                >
+                  <ConversationRow
+                    href={r.href}
+                    removeKind={removeKind}
+                    removeId={r.favoriteId}
+                    removable={removable}
+                    favoriteKind={r.favoriteKind}
+                    favoriteId={r.favoriteId}
+                    isFavorite={r.isFavorite}
+                    language={language}
+                    unread={r.unread}
                   >
-                    <FavStar filled={false} />
-                  </button>
-                </form>
-              </div>
-            ))}
+                    <div className="flex items-center gap-3 px-3 py-3">
+                      {/* Unread dot — leftmost, iMessage style. */}
+                      <span
+                        className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
+                          r.unread ? "bg-amber" : "bg-transparent"
+                        }`}
+                        aria-hidden
+                      />
+                      <div className="relative flex-shrink-0">
+                        {r.kind === "group" &&
+                        r.collageAvatars &&
+                        r.collageAvatars.length > 0 ? (
+                          <GroupCollage
+                            avatars={r.collageAvatars}
+                            title={r.title}
+                          />
+                        ) : r.avatarUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={r.avatarUrl}
+                            alt=""
+                            className="w-12 h-12 rounded-full object-cover border border-warm-700/60"
+                          />
+                        ) : (
+                          <span className="w-12 h-12 rounded-full bg-warm-700/40 border border-warm-700/60 inline-flex items-center justify-center font-serif text-warm-200 text-lg">
+                            {r.title.slice(0, 1).toUpperCase()}
+                          </span>
+                        )}
+                        {r.kind !== "owned" && r.kind !== "group" && (
+                          <span
+                            className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-ink-soft border border-warm-700/80 flex items-center justify-center"
+                            title={KIND_LABELS[language][r.kind]}
+                            aria-label={KIND_LABELS[language][r.kind]}
+                          >
+                            <KindIcon kind={r.kind} />
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-baseline justify-between gap-2 mb-0.5">
+                          <span
+                            className={`font-serif text-base truncate ${
+                              r.unread
+                                ? "text-warm-50 font-semibold"
+                                : "text-warm-50"
+                            }`}
+                          >
+                            {r.title}
+                          </span>
+                          <span
+                            className={`text-xs flex-shrink-0 ${
+                              r.unread ? "text-warm-100" : "text-warm-400"
+                            }`}
+                          >
+                            {r.lastMessageAt > 0
+                              ? relativeTime(
+                                  new Date(r.lastMessageAt).toISOString(),
+                                  language,
+                                )
+                              : ""}
+                          </span>
+                        </div>
+                        <p
+                          className={`text-sm truncate ${
+                            r.unread ? "text-warm-100" : "text-warm-300"
+                          }`}
+                        >
+                          {r.subtitle}
+                        </p>
+                      </div>
+                      <span
+                        className="text-warm-500 text-lg flex-shrink-0"
+                        aria-hidden
+                      >
+                        ›
+                      </span>
+                    </div>
+                  </ConversationRow>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
