@@ -120,10 +120,10 @@ export default async function SharingPage({
 
           {oracleName && (
             <Section title={t.familyTitle}>
-              <p className="text-sm text-warm-300 mb-2 leading-relaxed">
-                {t.familyIntro}
+              <p className="text-warm-200 mb-3 leading-relaxed">
+                {t.familyIntroSimple}
               </p>
-              <p className="text-sm text-warm-400 mb-5">
+              <p className="text-sm text-warm-400 mb-6">
                 {t.beneficiarySlots(beneficiarySlotsUsed, beneficiarySlotsTotal)}{" "}
                 {activeOracleId && (
                   <Link
@@ -162,7 +162,10 @@ export default async function SharingPage({
                       className="sm:w-48 h-11 rounded-full bg-warm-700/30 border border-warm-400/30 px-4 text-warm-50 placeholder:text-warm-400 focus:outline-none focus:border-warm-200 transition-colors text-sm"
                     />
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-2 rounded-2xl bg-warm-700/15 border border-warm-700/40 p-4">
+                    <p className="text-xs uppercase tracking-[0.2em] text-warm-400 mb-1">
+                      {t.whatTheyGet}
+                    </p>
                     <label className="flex items-start gap-3 cursor-pointer text-sm text-warm-100 leading-relaxed">
                       <input
                         type="checkbox"
@@ -171,21 +174,22 @@ export default async function SharingPage({
                         className="mt-1 h-4 w-4 accent-warm-300 flex-shrink-0"
                       />
                       <span>
-                        <strong className="text-warm-50">{t.familyAccessNow}</strong>{" "}
-                        — {t.familyAccessNowHint}
+                        <strong className="text-warm-50">{t.familyAccessNowSimple}</strong>{" "}
+                        — {t.familyAccessNowHintSimple}
                       </span>
                     </label>
                     <label className="flex items-start gap-3 cursor-pointer text-sm text-warm-100 leading-relaxed">
                       <input
                         type="checkbox"
                         name="access_after"
+                        defaultChecked
                         className="mt-1 h-4 w-4 accent-warm-300 flex-shrink-0"
                       />
                       <span>
                         <strong className="text-warm-50">
-                          {t.familyAccessAfter}
+                          {t.familyAccessAfterSimple}
                         </strong>{" "}
-                        — {t.familyAccessAfterHint}
+                        — {t.familyAccessAfterHintSimple}
                       </span>
                     </label>
                   </div>
@@ -357,86 +361,28 @@ export default async function SharingPage({
                 </div>
               )}
 
-              {/* Honest explainer of the death-notification path so
-                  users know the inheritance email isn't magic. */}
-              <details className="mt-8 rounded-xl border border-warm-700/60 bg-warm-700/15 px-4 py-3">
-                <summary className="text-sm text-warm-200 cursor-pointer hover:text-warm-50 transition-colors">
-                  {t.familyTriggerTitle}
-                </summary>
-                <p className="mt-3 text-sm text-warm-300 leading-relaxed">
-                  {t.familyTriggerBody}
-                </p>
-              </details>
-
-              {/* Bulk import codes — secondary path. Most people just
-                  want live access or inheritance (above); this is for
-                  the case where you want each person to carry their
-                  own private copy of the archive forward. */}
-              <details className="mt-4 rounded-xl border border-warm-700/60 bg-warm-700/15 px-4 py-3">
-                <summary className="text-sm text-warm-200 cursor-pointer hover:text-warm-50 transition-colors">
-                  {t.importTitle}
-                </summary>
-                <p className="mt-3 text-sm text-warm-300 leading-relaxed mb-4">
-                  {t.importHint}
-                </p>
-
-                {justCreatedCode && (
-                  <div className="rounded-lg border border-warm-300/40 bg-warm-700/40 px-4 py-3 mb-4 text-sm">
-                    <p className="text-warm-200 mb-2">{t.justCreated}</p>
-                    <code className="font-mono text-warm-50 text-base tracking-wide">
-                      {justCreatedCode}
-                    </code>
-                  </div>
-                )}
-
-                <form action={createShareCode} className="flex gap-2 mb-4">
-                  <input
-                    type="text"
-                    name="label"
-                    maxLength={80}
-                    placeholder={t.labelPlaceholder}
-                    className="flex-1 h-11 rounded-full bg-warm-700/30 border border-warm-400/30 px-4 text-warm-50 placeholder:text-warm-400 focus:outline-none focus:border-warm-200 transition-colors text-sm"
-                  />
-                  <button
-                    type="submit"
-                    className="h-11 px-5 rounded-full bg-warm-50 text-ink font-medium hover:bg-warm-100 transition-colors text-sm whitespace-nowrap"
+              {/* Tiny inline note explaining the inheritance flow.
+                  Used to be hidden behind a "How does this work?"
+                  collapsible — people shouldn't have to click to
+                  understand the most important promise. */}
+              <p className="mt-8 text-sm text-warm-400 leading-relaxed">
+                {t.familyTriggerInline}{" "}
+                {(shareRows?.length ?? 0) > 0 ? (
+                  <Link
+                    href="/sharing/import-codes"
+                    className="text-warm-200 underline underline-offset-2 hover:text-warm-50"
                   >
-                    {t.shareCta}
-                  </button>
-                </form>
-
-                {shareRows && shareRows.length > 0 && (
-                  <div className="space-y-2">
-                    {shareRows.map((s) => (
-                      <div
-                        key={s.code}
-                        className="flex items-center justify-between gap-3 px-4 py-2 rounded-lg border border-warm-700/60 bg-warm-700/15"
-                      >
-                        <div className="flex flex-col min-w-0">
-                          <code className="font-mono text-sm text-warm-100 truncate">
-                            {s.code}
-                          </code>
-                          <span className="text-xs text-warm-400 truncate">
-                            {s.label ?? t.unlabeled} ·{" "}
-                            {s.revoked_at ? t.revoked : t.active}
-                          </span>
-                        </div>
-                        {!s.revoked_at && (
-                          <form action={revokeShareCode}>
-                            <input type="hidden" name="code" value={s.code} />
-                            <button
-                              type="submit"
-                              className="text-xs text-warm-400 hover:text-warm-200 transition-colors whitespace-nowrap"
-                            >
-                              {t.revoke}
-                            </button>
-                          </form>
-                        )}
-                      </div>
-                    ))}
-                  </div>
+                    {t.manageImportCodes}
+                  </Link>
+                ) : (
+                  <Link
+                    href="/sharing/import-codes"
+                    className="text-warm-200 underline underline-offset-2 hover:text-warm-50"
+                  >
+                    {t.advancedImportLink}
+                  </Link>
                 )}
-              </details>
+              </p>
             </Section>
           )}
         </div>
@@ -491,19 +437,32 @@ const COPY = {
     familyTitle: "Family who can access this archive",
     familyIntro:
       "The people who can talk to your identity now — or step into it after you're gone. Three included; $5 for each beyond that.",
+    familyIntroSimple:
+      "Add the people who should be able to talk to your identity. Three free, then $5 each.",
     familyEmailPlaceholder: "Their email",
     familyNamePlaceholder: "Name (optional)",
+    whatTheyGet: "What they get",
     familyAccessNow: "Talk to it now",
     familyAccessNowHint:
       "We send an invite link. They sign up (or in), open this same identity in their own private thread. They don't see your conversations; you don't see theirs.",
+    familyAccessNowSimple: "Talk to me while I'm here",
+    familyAccessNowHintSimple:
+      "We email them an invite. They sign in, get their own private thread with this identity. Your conversations stay yours.",
     familyAccessAfter: "Inherit when I'm gone",
     familyAccessAfterHint:
       "When something happens to you, they get an email with a claim link to the whole archive — every answer, voice clip, photo. The identity stays in your voice but no longer pretends to still be alive.",
+    familyAccessAfterSimple: "Inherit when I'm gone",
+    familyAccessAfterHintSimple:
+      "They get the whole archive — every answer, voice clip, photo. The identity stays in your voice but stops pretending to be alive.",
     familyAddCta: "Add",
     familyAccessNowBadge: "Live access",
     familyTriggerTitle: "How does the inheritance email get sent?",
     familyTriggerBody:
       "It triggers the moment your account is marked deceased. The honest current path: a family member or friend writes to care@chapter3five.app with your account email, we verify, and flip it. Every designated beneficiary then gets their claim link automatically — no logging in, no password, just the link. (We're building a periodic \"still here?\" check-in so the archive isn't dependent on someone remembering chapter3five exists. Coming soon.)",
+    familyTriggerInline:
+      "When someone reports your passing through their claim link, you get 72 hours to cancel via email before the archive opens to your beneficiaries. Each beneficiary gets their own private claim link automatically.",
+    advancedImportLink: "Need each person to have their own private copy? →",
+    manageImportCodes: "Manage import codes →",
     inviteJustCreated: "Invite link created:",
     invitesHeading: "Live access (talk to me now)",
     grantsHeading: "Currently has access",
@@ -559,19 +518,32 @@ const COPY = {
     familyTitle: "Familia con acceso a este archivo",
     familyIntro:
       "Las personas que pueden hablar con tu identidad ahora — o entrar en ella cuando ya no estés. Tres incluidas; $5 por cada una adicional.",
+    familyIntroSimple:
+      "Agrega a las personas que podrán hablar con tu identidad. Tres gratis, luego $5 cada una.",
     familyEmailPlaceholder: "Su correo",
     familyNamePlaceholder: "Nombre (opcional)",
+    whatTheyGet: "Qué reciben",
     familyAccessNow: "Hablarme ahora",
     familyAccessNowHint:
       "Le enviamos un enlace de invitación. Se registra (o inicia sesión), abre esta misma identidad en su propio hilo privado. No ven tus conversaciones; tú no ves las suyas.",
+    familyAccessNowSimple: "Hablarme mientras estoy aquí",
+    familyAccessNowHintSimple:
+      "Les enviamos una invitación. Inician sesión y obtienen su propio hilo privado con esta identidad. Tus conversaciones siguen siendo tuyas.",
     familyAccessAfter: "Heredar cuando ya no esté",
     familyAccessAfterHint:
       "Cuando algo te suceda, reciben un correo con un enlace de reclamo al archivo completo — cada respuesta, audio, foto. La identidad mantiene tu voz pero ya no finge seguir viva.",
+    familyAccessAfterSimple: "Heredar cuando ya no esté",
+    familyAccessAfterHintSimple:
+      "Reciben el archivo completo — cada respuesta, audio, foto. La identidad mantiene tu voz pero deja de fingir seguir viva.",
     familyAddCta: "Agregar",
     familyAccessNowBadge: "Acceso en vida",
     familyTriggerTitle: "¿Cómo se envía el correo de herencia?",
     familyTriggerBody:
       "Se dispara en el momento que tu cuenta se marca como fallecida. El camino honesto actual: un familiar o amigo escribe a care@chapter3five.app con el correo de tu cuenta, verificamos, y lo activamos. Cada beneficiario designado recibe su enlace de reclamo automáticamente — sin iniciar sesión, sin contraseña, solo el enlace. (Estamos construyendo un check-in periódico de \"¿sigues aquí?\" para que el archivo no dependa de que alguien recuerde que chapter3five existe. Pronto.)",
+    familyTriggerInline:
+      "Cuando alguien reporta tu fallecimiento desde su enlace de reclamo, tienes 72 horas para cancelarlo por correo antes de que el archivo se abra a tus beneficiarios. Cada beneficiario recibe su propio enlace privado automáticamente.",
+    advancedImportLink: "¿Quieres que cada persona tenga su propia copia privada? →",
+    manageImportCodes: "Administrar códigos de importación →",
     inviteJustCreated: "Enlace creado:",
     invitesHeading: "Acceso en vida (hablarme ahora)",
     grantsHeading: "Tiene acceso actualmente",
