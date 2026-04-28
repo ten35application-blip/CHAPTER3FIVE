@@ -288,6 +288,37 @@ export default async function AdminPage({
             </div>
           )}
 
+          {/* Sticky jump-nav so all sections are one click away.
+              Sections themselves are unchanged; this just gives a
+              top-of-page index. */}
+          <nav className="sticky top-0 z-20 -mx-6 px-6 py-3 bg-ink-soft/95 backdrop-blur border-b border-warm-700/40 flex flex-wrap gap-x-4 gap-y-2 text-xs">
+            <a href="#people" className="text-warm-200 hover:text-warm-50 transition-colors">
+              People
+            </a>
+            <span className="text-warm-700">·</span>
+            <a href="#money" className="text-warm-200 hover:text-warm-50 transition-colors">
+              Money
+            </a>
+            <span className="text-warm-700">·</span>
+            <a href="#activity" className="text-warm-200 hover:text-warm-50 transition-colors">
+              Activity
+            </a>
+            <span className="text-warm-700">·</span>
+            <a href="#safety" className="text-warm-200 hover:text-warm-50 transition-colors">
+              Safety
+            </a>
+            <span className="text-warm-700">·</span>
+            <a href="#legacy" className="text-warm-200 hover:text-warm-50 transition-colors">
+              Legacy
+            </a>
+            <span className="text-warm-700">·</span>
+            <a href="#operations" className="text-warm-200 hover:text-warm-50 transition-colors">
+              Operations
+            </a>
+          </nav>
+
+          <ChapterHeading id="people">People</ChapterHeading>
+
           <section>
             <h2 className="text-xs uppercase tracking-[0.25em] text-warm-300 mb-4">
               Look up a user
@@ -353,6 +384,8 @@ export default async function AdminPage({
             )}
           </section>
 
+          <ChapterHeading id="money">Money</ChapterHeading>
+
           <section>
             <h2 className="text-xs uppercase tracking-[0.25em] text-warm-300 mb-4">
               Revenue
@@ -367,6 +400,8 @@ export default async function AdminPage({
               {paidCount} paid randomize{paidCount === 1 ? "" : "s"} all-time.
             </p>
           </section>
+
+          <ChapterHeading id="activity">Activity</ChapterHeading>
 
           <section>
             <h2 className="text-xs uppercase tracking-[0.25em] text-warm-300 mb-4">
@@ -390,6 +425,8 @@ export default async function AdminPage({
               <Stat label="Revoked share codes" value={stat(sharesRevokedCount).toLocaleString()} />
             </div>
           </section>
+
+          <ChapterHeading id="safety">Safety</ChapterHeading>
 
           <section>
             <div className="flex items-end justify-between mb-4">
@@ -589,6 +626,8 @@ export default async function AdminPage({
             )}
           </section>
 
+          <ChapterHeading id="legacy">Legacy</ChapterHeading>
+
           <section>
             <h2 className="text-xs uppercase tracking-[0.25em] text-warm-300 mb-4">
               Legacy &amp; sharing
@@ -651,6 +690,8 @@ export default async function AdminPage({
               </>
             )}
           </section>
+
+          <ChapterHeading id="operations">Operations</ChapterHeading>
 
           <section>
             <h2 className="text-xs uppercase tracking-[0.25em] text-warm-300 mb-4">
@@ -805,6 +846,29 @@ export default async function AdminPage({
         </div>
       </main>
     </>
+  );
+}
+
+/**
+ * Big chapter divider for the admin page. Anchored so the sticky
+ * jump-nav at the top can scroll to each chapter.
+ */
+function ChapterHeading({
+  id,
+  children,
+}: {
+  id: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      id={id}
+      className="pt-6 -mt-2 scroll-mt-24"
+      aria-label={`Section: ${typeof children === "string" ? children : id}`}
+    >
+      <h2 className="font-serif text-3xl text-warm-50">{children}</h2>
+      <div className="h-px bg-warm-700/60 mt-3" />
+    </div>
   );
 }
 

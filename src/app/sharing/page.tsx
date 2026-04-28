@@ -119,71 +119,6 @@ export default async function SharingPage({
               actually say it. */}
 
           {oracleName && (
-            <Section title={t.shareTitle}>
-              <p className="text-sm text-warm-300 mb-4 leading-relaxed">
-                {t.shareHint}
-              </p>
-
-              {justCreatedCode && (
-                <div className="rounded-lg border border-warm-300/40 bg-warm-700/40 px-4 py-3 mb-4 text-sm">
-                  <p className="text-warm-200 mb-2">{t.justCreated}</p>
-                  <code className="font-mono text-warm-50 text-base tracking-wide">
-                    {justCreatedCode}
-                  </code>
-                </div>
-              )}
-
-              <form action={createShareCode} className="flex gap-2 mb-6">
-                <input
-                  type="text"
-                  name="label"
-                  maxLength={80}
-                  placeholder={t.labelPlaceholder}
-                  className="flex-1 h-11 rounded-full bg-warm-700/30 border border-warm-400/30 px-4 text-warm-50 placeholder:text-warm-400 focus:outline-none focus:border-warm-200 transition-colors text-sm"
-                />
-                <button
-                  type="submit"
-                  className="h-11 px-5 rounded-full bg-warm-50 text-ink font-medium hover:bg-warm-100 transition-colors text-sm whitespace-nowrap"
-                >
-                  {t.shareCta}
-                </button>
-              </form>
-
-              {shareRows && shareRows.length > 0 && (
-                <div className="space-y-2">
-                  {shareRows.map((s) => (
-                    <div
-                      key={s.code}
-                      className="flex items-center justify-between gap-3 px-4 py-2 rounded-lg border border-warm-700/60 bg-warm-700/15"
-                    >
-                      <div className="flex flex-col min-w-0">
-                        <code className="font-mono text-sm text-warm-100 truncate">
-                          {s.code}
-                        </code>
-                        <span className="text-xs text-warm-400 truncate">
-                          {s.label ?? t.unlabeled} ·{" "}
-                          {s.revoked_at ? t.revoked : t.active}
-                        </span>
-                      </div>
-                      {!s.revoked_at && (
-                        <form action={revokeShareCode}>
-                          <input type="hidden" name="code" value={s.code} />
-                          <button
-                            type="submit"
-                            className="text-xs text-warm-400 hover:text-warm-200 transition-colors whitespace-nowrap"
-                          >
-                            {t.revoke}
-                          </button>
-                        </form>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Section>
-          )}
-
-          {oracleName && (
             <Section title={t.familyTitle}>
               <p className="text-sm text-warm-300 mb-2 leading-relaxed">
                 {t.familyIntro}
@@ -432,6 +367,76 @@ export default async function SharingPage({
                   {t.familyTriggerBody}
                 </p>
               </details>
+
+              {/* Bulk import codes — secondary path. Most people just
+                  want live access or inheritance (above); this is for
+                  the case where you want each person to carry their
+                  own private copy of the archive forward. */}
+              <details className="mt-4 rounded-xl border border-warm-700/60 bg-warm-700/15 px-4 py-3">
+                <summary className="text-sm text-warm-200 cursor-pointer hover:text-warm-50 transition-colors">
+                  {t.importTitle}
+                </summary>
+                <p className="mt-3 text-sm text-warm-300 leading-relaxed mb-4">
+                  {t.importHint}
+                </p>
+
+                {justCreatedCode && (
+                  <div className="rounded-lg border border-warm-300/40 bg-warm-700/40 px-4 py-3 mb-4 text-sm">
+                    <p className="text-warm-200 mb-2">{t.justCreated}</p>
+                    <code className="font-mono text-warm-50 text-base tracking-wide">
+                      {justCreatedCode}
+                    </code>
+                  </div>
+                )}
+
+                <form action={createShareCode} className="flex gap-2 mb-4">
+                  <input
+                    type="text"
+                    name="label"
+                    maxLength={80}
+                    placeholder={t.labelPlaceholder}
+                    className="flex-1 h-11 rounded-full bg-warm-700/30 border border-warm-400/30 px-4 text-warm-50 placeholder:text-warm-400 focus:outline-none focus:border-warm-200 transition-colors text-sm"
+                  />
+                  <button
+                    type="submit"
+                    className="h-11 px-5 rounded-full bg-warm-50 text-ink font-medium hover:bg-warm-100 transition-colors text-sm whitespace-nowrap"
+                  >
+                    {t.shareCta}
+                  </button>
+                </form>
+
+                {shareRows && shareRows.length > 0 && (
+                  <div className="space-y-2">
+                    {shareRows.map((s) => (
+                      <div
+                        key={s.code}
+                        className="flex items-center justify-between gap-3 px-4 py-2 rounded-lg border border-warm-700/60 bg-warm-700/15"
+                      >
+                        <div className="flex flex-col min-w-0">
+                          <code className="font-mono text-sm text-warm-100 truncate">
+                            {s.code}
+                          </code>
+                          <span className="text-xs text-warm-400 truncate">
+                            {s.label ?? t.unlabeled} ·{" "}
+                            {s.revoked_at ? t.revoked : t.active}
+                          </span>
+                        </div>
+                        {!s.revoked_at && (
+                          <form action={revokeShareCode}>
+                            <input type="hidden" name="code" value={s.code} />
+                            <button
+                              type="submit"
+                              className="text-xs text-warm-400 hover:text-warm-200 transition-colors whitespace-nowrap"
+                            >
+                              {t.revoke}
+                            </button>
+                          </form>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </details>
             </Section>
           )}
         </div>
@@ -473,6 +478,9 @@ const COPY = {
     shareTitle: "Share this archive",
     shareHint:
       "Generate a code that lets someone else import a copy of your archive into their own account. Useful when you want family to carry your identity forward. Codes can be revoked at any time.",
+    importTitle: "Want them to have their own private copy instead?",
+    importHint:
+      "Generate an import code so they can start a fresh account with a copy of your archive. Different from the access above — they get their own version, separate from yours, that they can edit and pass on. Revocable any time.",
     labelPlaceholder: 'Label (e.g. "for my daughter")',
     shareCta: "Generate code",
     justCreated: "Code generated:",
@@ -538,6 +546,9 @@ const COPY = {
     shareTitle: "Compartir este archivo",
     shareHint:
       "Genera un código que permite que otra persona importe una copia de tu archivo en su propia cuenta. Útil cuando quieres que la familia cargue tu identidad adelante. Los códigos se pueden revocar cuando quieras.",
+    importTitle: "¿Prefieres que tengan su propia copia privada?",
+    importHint:
+      "Genera un código de importación para que abran una cuenta nueva con una copia de tu archivo. Diferente del acceso de arriba — se llevan su propia versión, separada de la tuya, que pueden editar y pasar adelante. Revocable cuando quieras.",
     labelPlaceholder: 'Etiqueta (p. ej. "para mi hija")',
     shareCta: "Generar código",
     justCreated: "Código generado:",
