@@ -147,6 +147,50 @@ export function GroupRoom({
     });
   }, [messages, sending]);
 
+  // Refetch the latest messages on tab focus / visibility change.
+  // Realtime sometimes drops or never connects on flaky networks;
+  // a refetch when the user comes back to the tab catches anything
+  // we missed.
+  useEffect(() => {
+    const supabase = createClient();
+    async function refetch() {
+      const { data: rows } = await supabase
+        .from("group_messages")
+        .select(
+          "id, role, content, sender_oracle_id, sender_user_id, created_at",
+        )
+        .eq("room_id", roomId)
+        .order("created_at", { ascending: false })
+        .limit(80);
+      const fresh = (rows ?? []).reverse().map((m) => ({
+        id: m.id,
+        role: m.role as "user" | "assistant",
+        content: m.content,
+        senderOracleId: m.sender_oracle_id ?? null,
+        createdAt: m.created_at,
+      }));
+      setMessages((prev) => {
+        // Merge: keep any local-temp ids that aren't in fresh yet.
+        const freshIds = new Set(fresh.map((m) => m.id));
+        const localOnly = prev.filter(
+          (m) => m.id.startsWith("local-") && !freshIds.has(m.id),
+        );
+        return [...fresh, ...localOnly];
+      });
+    }
+    function onVisible() {
+      if (document.visibilityState === "visible") {
+        void refetch();
+      }
+    }
+    window.addEventListener("focus", refetch);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("focus", refetch);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [roomId]);
+
   // Realtime subscription so persona replies stream in as the
   // orchestration API posts them.
   useEffect(() => {

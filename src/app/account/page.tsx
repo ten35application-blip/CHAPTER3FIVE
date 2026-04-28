@@ -188,7 +188,11 @@ export default async function AccountPage({
                         ? t.purposeOracle
                         : p.purpose === "beneficiary_slot"
                           ? t.purposeBeneficiarySlot
-                          : p.purpose;
+                          : p.purpose === "restore_oracle"
+                            ? t.purposeRestoreOracle
+                            : p.purpose === "account_restore"
+                              ? t.purposeAccountRestore
+                              : p.purpose;
                   return (
                     <div
                       key={i}
@@ -285,7 +289,7 @@ export default async function AccountPage({
               />
               <button
                 type="submit"
-                className="h-11 px-5 rounded-full border border-red-300/40 bg-red-900/20 text-red-200 hover:bg-red-900/30 transition-colors text-sm"
+                className="h-11 px-5 rounded-full bg-red-700 text-white font-medium hover:bg-red-600 transition-colors text-sm"
               >
                 {t.deleteAccountCta}
               </button>
@@ -295,8 +299,8 @@ export default async function AccountPage({
               <summary className="text-xs text-warm-400 cursor-pointer hover:text-warm-200 transition-colors">
                 {t.permanentDeleteToggle}
               </summary>
-              <div className="mt-4 rounded-2xl border border-red-300/40 bg-red-900/10 px-5 py-4">
-                <p className="text-sm text-red-200 mb-3 leading-relaxed">
+              <div className="mt-4 rounded-2xl border-2 border-red-700/60 bg-red-700/10 px-5 py-4">
+                <p className="text-sm text-warm-50 mb-3 leading-relaxed">
                   {t.permanentDeleteHint}
                 </p>
                 <form action={deleteAccountPermanently} className="space-y-3">
@@ -320,7 +324,7 @@ export default async function AccountPage({
                   />
                   <button
                     type="submit"
-                    className="h-11 px-5 rounded-full border border-red-300/60 bg-red-900/40 text-red-100 hover:bg-red-900/60 transition-colors text-sm"
+                    className="h-11 px-5 rounded-full bg-red-800 text-white font-medium hover:bg-red-700 transition-colors text-sm"
                   >
                     {t.permanentDeleteCta}
                   </button>
@@ -442,6 +446,8 @@ const COPY = {
     purposeRandomize: "Randomized identity",
     purposeOracle: "Additional identity",
     purposeBeneficiarySlot: "Beneficiary slot",
+    purposeRestoreOracle: "Brought an identity back",
+    purposeAccountRestore: "Brought your account back",
     exportTitle: "Your data",
     exportHint:
       "Get a complete JSON copy of everything chapter3five stores about you — your profile, archives, answers, conversations, payments, beneficiaries, memories.",
@@ -502,6 +508,8 @@ const COPY = {
     purposeRandomize: "Identidad aleatoria",
     purposeOracle: "Identidad adicional",
     purposeBeneficiarySlot: "Espacio de beneficiario",
+    purposeRestoreOracle: "Identidad recuperada",
+    purposeAccountRestore: "Cuenta recuperada",
     exportTitle: "Tus datos",
     exportHint:
       "Descarga una copia completa de todo lo que chapter3five guarda de ti — tu perfil, archivos, respuestas, conversaciones, pagos, beneficiarios, memorias.",

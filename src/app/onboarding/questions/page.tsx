@@ -18,9 +18,9 @@ const DEPTH_LABEL: Record<string, { en: string; es: string }> = {
 export default async function QuestionsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; qid?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error, qid } = await searchParams;
 
   const supabase = await createClient();
   const {
@@ -45,7 +45,7 @@ export default async function QuestionsPage({
 
   let existingQuery = supabase
     .from("answers")
-    .select("question_id")
+    .select("question_id, body")
     .eq("variant", 1);
   if (oracleId) {
     existingQuery = existingQuery.eq("oracle_id", oracleId);
@@ -55,11 +55,31 @@ export default async function QuestionsPage({
   const { data: existing } = await existingQuery;
 
   const answered = new Set((existing ?? []).map((a) => a.question_id));
-  const next = questions.find((q) => !answered.has(q.id));
+  const answersByQid = new Map(
+    (existing ?? []).map((a) => [a.question_id, a.body ?? ""]),
+  );
+
+  // If the user navigated here with ?qid=X (typically via the
+  // ← Previous link), honor that and show the requested question
+  // — even if it's already been answered (so they can edit it).
+  // Otherwise auto-find the next unanswered question.
+  const explicitQid = qid ? Number(qid) : null;
+  const explicit =
+    explicitQid && Number.isFinite(explicitQid)
+      ? questions.find((q) => q.id === explicitQid)
+      : null;
+  const next = explicit ?? questions.find((q) => !answered.has(q.id));
 
   if (!next) {
     redirect("/agreements");
   }
+
+  // Find the previous question in the canonical order — used to
+  // wire a "← Previous question" link.
+  const currentIndex = questions.findIndex((q) => q.id === next.id);
+  const prevQuestion =
+    currentIndex > 0 ? questions[currentIndex - 1] : null;
+  const existingBody = answersByQid.get(next.id) ?? "";
 
   const total = questions.length;
   const answeredCount = answered.size;
@@ -120,6 +140,7 @@ export default async function QuestionsPage({
             name="body"
             required
             rows={8}
+            defaultValue={existingBody}
             placeholder={placeholder}
             className="w-full rounded-2xl bg-warm-700/30 border border-warm-400/30 px-5 py-4 text-warm-50 placeholder:text-warm-400 focus:outline-none focus:border-warm-200 transition-colors resize-y leading-relaxed font-sans text-base"
           />
@@ -143,14 +164,27 @@ export default async function QuestionsPage({
           </div>
         </form>
 
-        <form action={skipForNow} className="mt-12 text-center">
-          <button
-            type="submit"
-            className="text-sm text-warm-400 hover:text-warm-200 transition-colors"
-          >
-            {laterLabel} →
-          </button>
-        </form>
+        <div className="mt-12 flex items-center justify-between gap-4">
+          {prevQuestion ? (
+            <Link
+              href={`/onboarding/questions?qid=${prevQuestion.id}`}
+              className="text-sm text-warm-400 hover:text-warm-200 transition-colors"
+            >
+              ← {language === "es" ? "Pregunta anterior" : "Previous question"}
+            </Link>
+          ) : (
+            <span />
+          )}
+
+          <form action={skipForNow}>
+            <button
+              type="submit"
+              className="text-sm text-warm-400 hover:text-warm-200 transition-colors"
+            >
+              {laterLabel} →
+            </button>
+          </form>
+        </div>
       </div>
     </main>
   );
