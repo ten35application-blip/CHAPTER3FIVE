@@ -30,8 +30,8 @@ export default function SupportPage() {
             <span className="italic font-light">How can we help?</span>
           </h1>
           <p className="text-warm-300 text-lg leading-relaxed max-w-lg mx-auto">
-            Questions worth asking, before you ask us. If you don&rsquo;t see
-            yours, write to{" "}
+            chapter3five is a way to stay close to the people you love.
+            Common questions below. If you don&rsquo;t see yours, write to{" "}
             <a
               href="mailto:care@chapter3five.app"
               className="text-warm-100 underline underline-offset-2 hover:text-warm-50"
@@ -46,15 +46,15 @@ export default function SupportPage() {
           <FaqGroup title="The basics">
             <Faq
               q="What is chapter3five?"
-              a="A quiet place where someone records who they are — their answers, their voice, the texture of how they speak — while they're alive. The people they love can sit with the archive later."
+              a="A quiet place where someone records who they are — their answers, their voice, how they actually speak — while they're here. A shared archive the people they love can sit with too. Built for staying close: across distance, across schedules, across the years."
             />
             <Faq
               q="How is this different from a chatbot?"
-              a="The identity isn't pretending to be the person. It's a way to talk to what they actually wrote — every word in the archive came from them. We don't scrape, scan, or guess. The AI just helps you have a conversation with what they consciously left behind."
+              a="The identity isn't pretending to be the person. It's a way to talk to what they actually wrote — every word in the archive came from them. We don't scrape, scan, or guess. The AI just helps you have a conversation with what they consciously chose to share."
             />
             <Faq
               q="Who is this for?"
-              a="Adults (18+) who want to leave something for the people they love, and adults who want to stay close to someone who's still here or who's gone. We're not a grief therapy app — we'll point you to the right number if you need one."
+              a="Adults (18+) who want to feel close to people they love — a parent across the country, a grandkid who lives three states away, a partner who's away on tour — by sharing an archive of who they are. Not therapy, not crisis support; we'll point you to the right number if that's what you need."
             />
           </FaqGroup>
 

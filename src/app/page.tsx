@@ -34,15 +34,15 @@ export default function Home() {
           </div>
 
           <h1 className="font-serif text-5xl sm:text-6xl md:text-7xl leading-[1.05] tracking-tight text-warm-50 max-w-3xl">
-            <span className="italic font-light">Speak to someone</span>
+            <span className="italic font-light">Stay close</span>
             <br />
-            you&rsquo;ve loved.
+            to the people you love.
           </h1>
 
           <p className="mt-8 text-lg sm:text-xl text-warm-200 max-w-xl leading-relaxed font-light">
-            Someone real. Someone gone. An identity you build for yourself.
+            Record who you are while you&rsquo;re here. Sit with someone you love. Build a shared archive that stays close — across distance, across time.
             <br />
-            <span className="text-warm-300">355 questions. Recorded together. Kept forever.</span>
+            <span className="text-warm-300">355 questions. Answered together. Yours to keep.</span>
           </p>
 
           <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md w-full">
@@ -95,8 +95,8 @@ export default function Home() {
             />
             <Step
               number="03"
-              title="They&rsquo;re always there."
-              body="Open chapter3five anytime. To laugh at an old story. To ask for advice in their voice. To feel them close. A farewell that isn&rsquo;t goodbye."
+              title="They&rsquo;re always close."
+              body="Open chapter3five whenever you want them with you. Hear an old story again. Ask the question you forgot to ask last weekend. Stay in touch the way real people do — even when miles or years are in the way."
             />
           </div>
         </section>
@@ -291,10 +291,10 @@ export default function Home() {
               don&rsquo;t guess.
             </Statement>
             <Statement kind="is">
-              A way to keep them close after they&rsquo;re gone.
+              A way to stay close — across distance, across time.
             </Statement>
             <Statement kind="isnt">
-              A replacement for them while they&rsquo;re here.
+              A replacement for being with someone in real life.
             </Statement>
             <Statement kind="is">For adults — 18 and older.</Statement>
             <Statement kind="isnt">
@@ -313,8 +313,8 @@ export default function Home() {
         {/* CLOSING */}
         <section className="px-6 py-24 text-center">
           <p className="font-serif italic text-2xl sm:text-3xl text-warm-100 max-w-2xl mx-auto leading-snug">
-            Some people deserve to be remembered. <br />
-            <span className="text-warm-200">Properly.</span>
+            The people you love. <br />
+            <span className="text-warm-200">Kept close.</span>
           </p>
           <Link
             href="/auth/signup"

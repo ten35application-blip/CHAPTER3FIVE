@@ -19,25 +19,25 @@ const cormorant = Cormorant_Garamond({
 
 export const metadata: Metadata = {
   title: {
-    default: "chapter3five — some people deserve to be remembered. Properly.",
+    default: "chapter3five — stay close to the people you love.",
     template: "%s · chapter3five",
   },
   description:
-    "An archive built from their own answers — recorded while they're alive, kept close after. Not a simulation. Yours to delete.",
+    "A shared archive built from your own answers — somewhere you and the people you love can stay close, across distance and across time. Not a simulation. Yours to keep, yours to delete.",
   metadataBase: new URL("https://chapter3five.app"),
   applicationName: "chapter3five",
   authors: [{ name: "chapter3five" }],
   keywords: [
-    "digital legacy",
-    "memorial",
-    "archive",
-    "remembrance",
+    "shared archive",
+    "family connection",
+    "stay in touch",
+    "personal archive",
     "chapter3five",
   ],
   openGraph: {
     title: "chapter3five",
     description:
-      "Some people deserve to be remembered. Properly. 355 questions, recorded together, kept forever.",
+      "Stay close to the people you love. 355 questions, answered together, yours to keep.",
     url: "https://chapter3five.app",
     siteName: "chapter3five",
     type: "website",
@@ -46,8 +46,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "chapter3five",
-    description:
-      "Some people deserve to be remembered. Properly.",
+    description: "Stay close to the people you love.",
   },
   robots: {
     index: true,

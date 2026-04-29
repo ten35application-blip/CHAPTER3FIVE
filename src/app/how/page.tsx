@@ -34,8 +34,8 @@ export default function HowItWorksPage() {
             <span className="italic font-light">How it works.</span>
           </h1>
           <p className="text-warm-300 text-lg leading-relaxed max-w-xl mx-auto">
-            Five small steps from a blank page to an archive your family can
-            sit with for the rest of their lives.
+            Five small steps from a blank page to a shared archive — somewhere
+            you and the people you love can stay close, no matter the distance.
           </p>
         </section>
 
@@ -72,8 +72,8 @@ export default function HowItWorksPage() {
 
           <Step
             number="05"
-            title="Pass it on"
-            body="In Sharing, designate up to 3 people who inherit access if something happens to you. They get an email letting them know — and you can also share their personal claim link with them now (text it, drop it in your will, whatever) so they have a path even if your email account is unreachable later. If a beneficiary reports your passing, we don't activate immediately: you get a one-click email to cancel the report within 72 hours. Only if you don't cancel does the archive open to them. Conversations stay private from each other. Once an account is marked deceased, the persona shifts gently into memorial mode — still themselves, no pretending to still be alive."
+            title="Keep them close"
+            body="In Sharing, invite the people you love. Two checkboxes per person: Talk to me while I'm here (they read + chat in their own private thread) and Inherit when I'm gone (they keep the archive long-term). Most people pick both. You can pre-share each person's personal access link so they always have a path. If something ever changes, they get 72 hours to confirm — you get the same window to say you're still here. Conversations stay private between each person and the archive."
           />
         </section>
 
@@ -129,7 +129,8 @@ export default function HowItWorksPage() {
         {/* CLOSING */}
         <section className="px-6 py-24 text-center">
           <p className="font-serif italic text-2xl sm:text-3xl text-warm-100 max-w-xl mx-auto leading-snug mb-10">
-            Now go answer one question. Just one.
+            One question is enough to start.<br />
+            <span className="text-warm-200">The people you love can sit with the rest later.</span>
           </p>
           <div className="flex flex-col sm:flex-row gap-3 items-center justify-center">
             <Link
