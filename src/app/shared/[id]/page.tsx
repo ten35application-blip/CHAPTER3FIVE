@@ -105,6 +105,11 @@ export default async function SharedOraclePage({
           </a>
         </div>
       </header>
+      <p className="max-w-2xl w-full mx-auto text-[11px] uppercase tracking-[0.18em] text-warm-400 mb-6 flex-shrink-0 -mt-8">
+        {language === "es"
+          ? `Representación con IA del archivo de ${oracle.name ?? "esta identidad"}. No es la persona, no es una grabación.`
+          : `AI representation of ${oracle.name ?? "this identity"}'s archive. Not the person, not a recording.`}
+      </p>
 
       <div className="flex-1 flex justify-center">
         <Chat

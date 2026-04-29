@@ -110,7 +110,7 @@ export default async function BeneficiaryRoomPage({
 
   return (
     <main className="flex-1 flex flex-col px-6 py-6">
-      <header className="max-w-3xl w-full mx-auto flex items-center justify-between mb-6">
+      <header className="max-w-3xl w-full mx-auto flex items-center justify-between mb-2">
         <Link
           href="/beneficiary-groups"
           className="font-serif text-xl tracking-tight text-warm-100 hover:text-warm-50 transition-colors"
@@ -121,6 +121,11 @@ export default async function BeneficiaryRoomPage({
           {language === "es" ? "Cuarto" : "Room"}
         </span>
       </header>
+      <p className="max-w-3xl w-full mx-auto text-[11px] uppercase tracking-[0.18em] text-warm-400 mb-5 flex-shrink-0">
+        {language === "es"
+          ? `Representación con IA del archivo de ${oracle.name ?? "esta persona"}. No es la persona, no es una grabación.`
+          : `AI representation of ${oracle.name ?? "this person"}'s archive. Not the person, not a recording.`}
+      </p>
 
       <div className="flex-1 flex justify-center">
         <BeneficiaryRoom

@@ -97,7 +97,7 @@ export default async function GroupRoomPage({
 
   return (
     <main className="flex-1 flex flex-col px-6 py-6">
-      <header className="max-w-3xl w-full mx-auto flex items-center justify-between mb-8">
+      <header className="max-w-3xl w-full mx-auto flex items-center justify-between mb-2">
         <Link
           href="/groups"
           className="font-serif text-xl tracking-tight text-warm-100 hover:text-warm-50 transition-colors"
@@ -108,6 +108,11 @@ export default async function GroupRoomPage({
           {language === "es" ? "Grupo" : "Group"}
         </span>
       </header>
+      <p className="max-w-3xl w-full mx-auto text-[11px] uppercase tracking-[0.18em] text-warm-400 mb-6 flex-shrink-0">
+        {language === "es"
+          ? "Representaciones con IA de tus identidades. No son personas reales."
+          : "AI representations of your identities. Not real people."}
+      </p>
 
       <div className="flex-1 flex justify-center">
         <GroupRoom
