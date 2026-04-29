@@ -30,13 +30,24 @@ export default function SamplePage() {
         </div>
       </header>
 
-      <div className="max-w-2xl w-full mx-auto text-center mb-6">
+      <div className="max-w-2xl w-full mx-auto text-center mb-3">
         <p className="text-warm-300 text-sm leading-relaxed">
           This is a sample identity — a real-feeling person built from the
           kind of answers you&rsquo;d give yourself. Try a conversation. No
           sign-up needed.
         </p>
       </div>
+      <p className="max-w-2xl w-full mx-auto text-[11px] uppercase tracking-[0.18em] text-warm-400 mb-6 text-center">
+        AI representation. Not a real person. 18+ only. Inappropriate
+        responses?{" "}
+        <a
+          href="mailto:care@chapter3five.app?subject=Sample%20chat%20report"
+          className="underline underline-offset-2 hover:text-warm-200"
+        >
+          report
+        </a>
+        .
+      </p>
 
       <div className="flex-1 flex justify-center">
         <SampleChat />
