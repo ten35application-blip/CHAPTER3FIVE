@@ -176,10 +176,24 @@ export function NewConversationMenu({
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="h-10 px-4 rounded-full border border-warm-300/40 text-warm-100 hover:bg-warm-700/40 hover:text-warm-50 transition-colors text-sm flex items-center gap-1.5"
+        aria-label={t.open}
+        title={t.open}
+        className="w-10 h-10 rounded-full text-warm-100 hover:bg-warm-700/40 hover:text-warm-50 transition-colors flex items-center justify-center"
       >
-        <span className="text-base leading-none">+</span>
-        <span>{t.open}</span>
+        {/* Compose / pencil-square icon — iMessage's top-right corner. */}
+        <svg
+          viewBox="0 0 24 24"
+          className="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          <path d="M4 21v-3.5L15 6.5l3.5 3.5L7.5 21z" />
+          <path d="M14 7.5L17 4.5l3.5 3.5-3 3" />
+        </svg>
       </button>
 
       {open && (

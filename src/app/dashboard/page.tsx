@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { NewConversationMenu } from "@/components/NewConversationMenu";
 import { FavoriteTile } from "@/components/FavoriteTile";
 import { ConversationRow } from "@/components/ConversationRow";
+import { ConversationSearch } from "@/components/ConversationSearch";
 import { relativeTime } from "@/lib/relativeTime";
 
 export const metadata = {
@@ -338,6 +339,11 @@ export default async function DashboardPage() {
           />
         </div>
 
+        {/* Search — filters by name or last-message preview. Hidden
+            when the user only has a couple of conversations (would
+            be noise). */}
+        {rows.length >= 4 && <ConversationSearch language={language} />}
+
         {/* Favorites row — pinned conversations as oval tiles
             (intentionally not circles, to be visually distinct from
             iMessage's pattern). Horizontal scroll if it overflows. */}
@@ -403,6 +409,7 @@ export default async function DashboardPage() {
               return (
                 <div
                   key={r.href + i}
+                  data-conv-search={`${r.title} ${r.subtitle}`}
                   className={
                     i === listRows.length - 1
                       ? ""
@@ -511,9 +518,11 @@ export default async function DashboardPage() {
 }
 
 /**
- * iMessage-style collage for group rooms — up to 4 avatars
- * arranged so each is visible. Falls back to monogram squares
- * for members without a photo.
+ * iMessage-style overlapping cluster for group rooms — one bigger
+ * avatar with smaller ones nested behind/beside it. Asymmetric on
+ * purpose: matches the clustered-avatar look of Apple's Messages
+ * group rows. Falls back to a monogram bubble for members without
+ * a photo.
  */
 function GroupCollage({
   avatars,
@@ -525,55 +534,110 @@ function GroupCollage({
   const visible = avatars.slice(0, 4);
   const fallbackChar = title.slice(0, 1).toUpperCase();
 
-  // 1 avatar: full-size circle.
-  if (visible.length <= 1) {
-    const a = visible[0] ?? null;
-    return a ? (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={a}
-        alt=""
-        className="w-12 h-12 rounded-full object-cover border border-warm-700/60"
-      />
-    ) : (
-      <span className="w-12 h-12 rounded-full bg-warm-700/40 border border-warm-700/60 inline-flex items-center justify-center font-serif text-warm-200 text-lg">
+  function Bubble({
+    src,
+    size,
+    className,
+  }: {
+    src: string | null | undefined;
+    size: number;
+    className: string;
+  }) {
+    const fontSize = size <= 18 ? "text-[9px]" : "text-[11px]";
+    if (src) {
+      return (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={src}
+          alt=""
+          style={{ width: size, height: size }}
+          className={`rounded-full object-cover border border-ink-soft ${className}`}
+        />
+      );
+    }
+    return (
+      <span
+        style={{ width: size, height: size }}
+        className={`rounded-full bg-warm-700/60 border border-ink-soft inline-flex items-center justify-center font-serif text-warm-200 ${fontSize} ${className}`}
+      >
         {fallbackChar}
       </span>
     );
   }
 
-  // 2-4 avatars: a 2x2 collage clipped to a circle.
+  // 1 member → full-size single circle.
+  if (visible.length <= 1) {
+    return (
+      <div className="w-12 h-12 inline-flex items-center justify-center">
+        <Bubble src={visible[0]} size={48} className="border-warm-700/60" />
+      </div>
+    );
+  }
+
+  // 2 members → two bubbles overlapping diagonally.
+  if (visible.length === 2) {
+    return (
+      <div className="relative w-12 h-12">
+        <Bubble
+          src={visible[0]}
+          size={32}
+          className="absolute top-0 left-0"
+        />
+        <Bubble
+          src={visible[1]}
+          size={32}
+          className="absolute bottom-0 right-0"
+        />
+      </div>
+    );
+  }
+
+  // 3 members → one big top-left, two smaller stacked bottom-right.
+  if (visible.length === 3) {
+    return (
+      <div className="relative w-12 h-12">
+        <Bubble
+          src={visible[0]}
+          size={30}
+          className="absolute top-0 left-0"
+        />
+        <Bubble
+          src={visible[1]}
+          size={22}
+          className="absolute bottom-0 right-3"
+        />
+        <Bubble
+          src={visible[2]}
+          size={22}
+          className="absolute bottom-0 right-0"
+        />
+      </div>
+    );
+  }
+
+  // 4 members → big primary + three smaller clustered bottom-right.
   return (
-    <div className="w-12 h-12 rounded-full overflow-hidden border border-warm-700/60 grid grid-cols-2 grid-rows-2 gap-0.5 bg-warm-700/40">
-      {[0, 1, 2, 3].map((i) => {
-        const a = visible[i];
-        if (a === undefined && visible.length === 2 && i >= 2) {
-          // Hide the bottom row for 2-avatar collages by extending
-          // the top row — we render two halves stacked instead. But
-          // with 2-cell layout, simplest is to just leave bottom
-          // empty.
-          return <span key={i} className="bg-warm-700/40" />;
-        }
-        if (a === undefined) {
-          return <span key={i} className="bg-warm-700/40" />;
-        }
-        return a ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            key={i}
-            src={a}
-            alt=""
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <span
-            key={i}
-            className="w-full h-full bg-warm-700/60 flex items-center justify-center text-warm-200 text-[10px] font-serif"
-          >
-            {fallbackChar}
-          </span>
-        );
-      })}
+    <div className="relative w-12 h-12">
+      <Bubble
+        src={visible[0]}
+        size={28}
+        className="absolute top-0 left-0"
+      />
+      <Bubble
+        src={visible[1]}
+        size={20}
+        className="absolute top-0 right-0"
+      />
+      <Bubble
+        src={visible[2]}
+        size={20}
+        className="absolute bottom-0 left-3"
+      />
+      <Bubble
+        src={visible[3]}
+        size={20}
+        className="absolute bottom-0 right-0"
+      />
     </div>
   );
 }
