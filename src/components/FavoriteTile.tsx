@@ -98,6 +98,14 @@ export function FavoriteTile({
     };
   }, [menuOpen]);
 
+  // Truncate the preview to ~50 chars for the floating bubble.
+  // Skip if there's no preview to show.
+  const previewText = preview
+    ? preview.length > 50
+      ? preview.slice(0, 50).trimEnd() + "…"
+      : preview
+    : null;
+
   return (
     <div ref={wrapRef} className="relative">
       <Link
@@ -111,6 +119,27 @@ export function FavoriteTile({
         className="flex flex-col items-center w-20 flex-shrink-0 group select-none relative"
         title={title}
       >
+        {/* Floating last-message bubble above the tile. Twist on
+            iMessage's iconic pinned-bubble: rounded with a subtle
+            tail pointing down toward the avatar, in our warm-50/ink
+            colors instead of Apple's gray. Only renders when there's
+            unread activity AND a preview to surface — read tiles
+            stay clean. */}
+        {unread && previewText && (
+          <div
+            className="absolute left-1/2 -translate-x-1/2 z-20 pointer-events-none"
+            style={{ bottom: "calc(100% + 4px)" }}
+          >
+            <div className="relative">
+              <div className="bg-warm-50 text-ink text-[11px] leading-snug px-3 py-1.5 rounded-2xl shadow-md max-w-[160px] whitespace-normal text-left">
+                {previewText}
+              </div>
+              {/* Tail — small triangle aligned to the avatar. */}
+              <div className="absolute left-1/2 -translate-x-1/2 top-full w-2 h-2 bg-warm-50 rotate-45 -mt-1" />
+            </div>
+          </div>
+        )}
+
         {/* Amber unread dot on the top-right of the avatar. */}
         {unread && (
           <span

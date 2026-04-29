@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { kickGroupMember, addGroupMember } from "@/app/groups/[id]/actions";
+import { useTypingBroadcaster } from "./TypingPresence";
 
 type Member = {
   oracleId: string;
@@ -86,6 +87,7 @@ export function GroupRoom({
 }: Props) {
   const t = COPY[language];
   const router = useRouter();
+  const typing = useTypingBroadcaster(`group:${roomId}`);
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [members, setMembers] = useState<Member[]>(initialMembers);
   const [input, setInput] = useState("");
@@ -277,6 +279,7 @@ export function GroupRoom({
 
     setSending(true);
     setError(null);
+    typing.start().catch(() => {});
 
     const tempId = `local-${Date.now()}`;
     setMessages((prev) => [
@@ -305,6 +308,7 @@ export function GroupRoom({
       setError(err instanceof Error ? err.message : t.error);
     } finally {
       setSending(false);
+      typing.stop().catch(() => {});
     }
   }
 

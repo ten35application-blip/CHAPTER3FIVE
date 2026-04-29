@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Orb } from "./Orb";
 import { createClient } from "@/lib/supabase/client";
+import { useTypingBroadcaster } from "./TypingPresence";
 
 type Message = {
   role: "user" | "assistant";
@@ -77,6 +78,7 @@ export function Chat({
   oracleId = null,
 }: Props) {
   const t = COPY[language];
+  const typing = useTypingBroadcaster(oracleId ? `owned:${oracleId}` : "");
   const [messages, setMessages] = useState<Message[]>(initialHistory);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -218,6 +220,10 @@ export function Chat({
     // text or image.
     if (!text && !pendingImage) return;
 
+    // Broadcast that this conversation is "typing" so the dashboard
+    // can render a live indicator on its row.
+    if (oracleId) typing.start().catch(() => {});
+
     setError(null);
     setSending(true);
 
@@ -311,6 +317,7 @@ export function Chat({
       setError(err instanceof Error ? err.message : t.error);
     } finally {
       setSending(false);
+      if (oracleId) typing.stop().catch(() => {});
     }
   }
 

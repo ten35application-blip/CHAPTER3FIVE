@@ -5,6 +5,13 @@ import { NewConversationMenu } from "@/components/NewConversationMenu";
 import { FavoriteTile } from "@/components/FavoriteTile";
 import { ConversationRow } from "@/components/ConversationRow";
 import { ConversationSearch } from "@/components/ConversationSearch";
+import { DashboardHeader } from "@/components/DashboardHeader";
+import { PullToRefresh } from "@/components/PullToRefresh";
+import {
+  TypingPresence,
+  TypingDots,
+} from "@/components/TypingPresence";
+import { EditModeProvider } from "@/components/EditMode";
 import { relativeTime } from "@/lib/relativeTime";
 
 export const metadata = {
@@ -324,20 +331,21 @@ export default async function DashboardPage() {
 
   return (
     <main className="flex-1">
+      <PullToRefresh>
       <div className="max-w-2xl mx-auto px-4 pt-6 pb-32">
-        <div className="flex items-end justify-between mb-5 px-2 gap-3">
-          <h1 className="font-serif text-3xl text-warm-50 leading-none">
-            {t.title}
-          </h1>
-          <NewConversationMenu
-            language={language}
-            ownedOracles={(oracles ?? []).map((o) => ({
-              id: o.id,
-              name: o.name?.trim() || t.unnamed,
-              avatarUrl: o.avatar_url,
-            }))}
-          />
-        </div>
+        <DashboardHeader
+          title={t.title}
+          rightSlot={
+            <NewConversationMenu
+              language={language}
+              ownedOracles={(oracles ?? []).map((o) => ({
+                id: o.id,
+                name: o.name?.trim() || t.unnamed,
+                avatarUrl: o.avatar_url,
+              }))}
+            />
+          }
+        />
 
         {/* Search — filters by name or last-message preview. Hidden
             when the user only has a couple of conversations (would
@@ -348,11 +356,16 @@ export default async function DashboardPage() {
             (intentionally not circles, to be visually distinct from
             iMessage's pattern). Horizontal scroll if it overflows. */}
         {favoriteRows.length > 0 && (
-          <div className="mb-6 -mx-4 px-4 pb-4 overflow-x-auto">
+          <div className="mb-6">
             <p className="text-xs uppercase tracking-[0.25em] text-warm-300 mb-3 px-2">
               {t.favoritesLabel}
             </p>
-            <div className="flex gap-3">
+            {/* Twist on the iMessage pinned strip: the inner scroller
+                has top padding so the floating last-message bubble
+                above each tile has room to render without getting
+                clipped by overflow-x-auto's implicit y-clip. */}
+            <div className="overflow-x-auto -mx-4 px-4 pt-14">
+              <div className="flex gap-3">
               {favoriteRows.map((r) => (
                 <FavoriteTile
                   key={`fav-${r.favoriteKind}-${r.favoriteId}`}
@@ -390,6 +403,7 @@ export default async function DashboardPage() {
                   </span>
                 </FavoriteTile>
               ))}
+              </div>
             </div>
           </div>
         )}
@@ -399,6 +413,7 @@ export default async function DashboardPage() {
             {t.empty}
           </p>
         ) : (
+          <EditModeProvider>
           <div className="rounded-2xl overflow-hidden bg-ink-soft">
             {listRows.map((r, i) => {
               // Beneficiary rooms ('together') aren't user-removable — they're
@@ -491,13 +506,25 @@ export default async function DashboardPage() {
                               : ""}
                           </span>
                         </div>
-                        <p
-                          className={`text-sm truncate ${
-                            r.unread ? "text-warm-100" : "text-warm-300"
-                          }`}
+                        <TypingPresence
+                          conversationKey={`${r.favoriteKind}:${r.favoriteId}`}
                         >
-                          {r.subtitle}
-                        </p>
+                          {(isTyping) =>
+                            isTyping ? (
+                              <p className="text-sm text-warm-200 italic flex items-center gap-2">
+                                <TypingDots />
+                              </p>
+                            ) : (
+                              <p
+                                className={`text-sm truncate ${
+                                  r.unread ? "text-warm-100" : "text-warm-300"
+                                }`}
+                              >
+                                {r.subtitle}
+                              </p>
+                            )
+                          }
+                        </TypingPresence>
                       </div>
                       <span
                         className="text-warm-500 text-lg flex-shrink-0"
@@ -511,8 +538,10 @@ export default async function DashboardPage() {
               );
             })}
           </div>
+          </EditModeProvider>
         )}
       </div>
+      </PullToRefresh>
     </main>
   );
 }

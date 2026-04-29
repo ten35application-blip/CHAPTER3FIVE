@@ -8,6 +8,11 @@ import {
   toggleMute,
   markConversationUnread,
 } from "@/app/settings/actions";
+import {
+  useEditMode,
+  EditModeCheckbox,
+  type SelectableKey,
+} from "./EditMode";
 
 type Props = {
   href: string;
@@ -104,6 +109,8 @@ export function ConversationRow({
   children,
 }: Props) {
   const t = COPY[language];
+  const editMode = useEditMode();
+  const selectKey = `${favoriteKind}:${favoriteId}` as SelectableKey;
   const [offset, setOffset] = useState(0);
   const [revealedSide, setRevealedSide] = useState<"left" | "right" | null>(
     null,
@@ -202,6 +209,12 @@ export function ConversationRow({
   }
 
   function onLinkClick(e: React.MouseEvent) {
+    // In edit mode, taps toggle selection instead of navigating.
+    if (editMode.active) {
+      e.preventDefault();
+      editMode.toggle(selectKey);
+      return;
+    }
     if (longPressed.current || revealedSide !== null) {
       e.preventDefault();
       longPressed.current = false;
@@ -321,9 +334,26 @@ export function ConversationRow({
         <Link
           href={href}
           onClick={onLinkClick}
-          className="block select-none"
+          className="block select-none relative"
         >
-          {children}
+          {/* In edit mode, the checkbox floats over the leftmost
+              part of the row. The row content shifts right so the
+              checkbox doesn't overlap the avatar. */}
+          {editMode.active && (
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 z-10">
+              <EditModeCheckbox selectableKey={selectKey} />
+            </div>
+          )}
+          <div
+            style={{
+              transform: editMode.active
+                ? "translateX(28px)"
+                : "translateX(0)",
+              transition: "transform 200ms ease-out",
+            }}
+          >
+            {children}
+          </div>
         </Link>
       </div>
 
