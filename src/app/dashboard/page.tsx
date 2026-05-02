@@ -410,219 +410,59 @@ async function renderDashboard() {
   // them out of the main list so they don't show up twice.
   const listRows = rows.filter((r) => !r.isFavorite);
 
+  // DIAGNOSTIC MODE — strip the JSX to bare HTML so we can see what
+  // breaks. If this renders, the bug is in one of the client
+  // components we wrap (PullToRefresh, DashboardHeader,
+  // ConversationRow, EditModeProvider, etc.).
+  // Reference imports we still need for compile (will go back when
+  // we restore the full render).
+  void NewConversationMenu;
+  void FavoriteTile;
+  void ConversationRow;
+  void ConversationSearch;
+  void DashboardHeader;
+  void PullToRefresh;
+  void TypingPresence;
+  void TypingDots;
+  void EditModeProvider;
+  void GroupCollage;
+  void FavoriteCollage;
+  void FavStar;
+  void KindIcon;
+  void KIND_LABELS;
+  void BellSlash;
+  void favoriteRows;
+  void listRows;
+  void oracles;
+
   return (
     <main className="flex-1">
-      <PullToRefresh>
       <div className="max-w-2xl mx-auto px-4 pt-6 pb-32">
-        <DashboardHeader
-          title={t.title}
-          rightSlot={
-            <NewConversationMenu
-              language={language}
-              ownedOracles={(oracles ?? []).map((o) => ({
-                id: o.id,
-                name: o.name?.trim() || t.unnamed,
-                avatarUrl: o.avatar_url,
-              }))}
-            />
-          }
-        />
-
-        {/* Search — filters by name or last-message preview. Hidden
-            when the user only has a couple of conversations (would
-            be noise). */}
-        {rows.length >= 4 && <ConversationSearch language={language} />}
-
-        {/* Favorites row — pinned conversations as oval tiles
-            (intentionally not circles, to be visually distinct from
-            iMessage's pattern). Horizontal scroll if it overflows. */}
-        {favoriteRows.length > 0 && (
-          <div className="mb-6">
-            <p className="text-xs uppercase tracking-[0.25em] text-warm-300 mb-3 px-2">
-              {t.favoritesLabel}
-            </p>
-            {/* Twist on the iMessage pinned strip: the inner scroller
-                has top padding so the floating last-message bubble
-                above each tile has room to render without getting
-                clipped by overflow-x-auto's implicit y-clip. */}
-            <div className="overflow-x-auto -mx-4 px-4 pt-14">
-              <div className="flex gap-3">
-              {favoriteRows.map((r) => (
-                <FavoriteTile
-                  key={`fav-${r.favoriteKind}-${r.favoriteId}`}
-                  href={r.href}
-                  title={r.title}
-                  favoriteId={r.favoriteId}
-                  favoriteKind={r.favoriteKind}
-                  language={language}
-                  unread={r.unread}
-                  preview={r.subtitle}
-                >
-                  <div className="w-16 h-20 rounded-[40%] overflow-hidden border border-warm-700/60 bg-warm-700/40 group-hover:border-warm-300/50 transition-colors mb-2">
-                    {r.kind === "group" &&
-                    r.collageAvatars &&
-                    r.collageAvatars.length > 0 ? (
-                      <FavoriteCollage
-                        avatars={r.collageAvatars}
-                        title={r.title}
-                      />
-                    ) : r.avatarUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={r.avatarUrl}
-                        alt=""
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <span className="w-full h-full flex items-center justify-center font-serif text-warm-200 text-2xl">
-                        {r.title.slice(0, 1).toUpperCase()}
-                      </span>
-                    )}
-                  </div>
-                  <span className="text-xs text-warm-200 text-center truncate w-full leading-tight">
-                    {r.title}
-                  </span>
-                </FavoriteTile>
-              ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {rows.length === 0 ? (
-          <p className="text-warm-300 italic text-center py-12">
-            {t.empty}
-          </p>
-        ) : (
-          <EditModeProvider>
-          <div className="rounded-2xl overflow-hidden bg-ink-soft">
-            {listRows.map((r, i) => {
-              // Beneficiary rooms ('together') aren't user-removable — they're
-              // shared inheritance state. Block swipe-delete on those.
-              const removable = r.kind !== "together";
-              const removeKind: "owned" | "shared" | "group" | "together" =
-                r.kind === "randomized" ? "owned" : (r.kind as never);
-              return (
-                <div
-                  key={r.href + i}
-                  data-conv-search={`${r.title} ${r.subtitle}`}
-                  className={
-                    i === listRows.length - 1
-                      ? ""
-                      : "border-b border-warm-700/30"
-                  }
-                >
-                  <ConversationRow
-                    href={r.href}
-                    removeKind={removeKind}
-                    removeId={r.favoriteId}
-                    removable={removable}
-                    favoriteKind={r.favoriteKind}
-                    favoriteId={r.favoriteId}
-                    isFavorite={r.isFavorite}
-                    isMuted={r.muted}
-                    language={language}
-                    unread={r.unread}
-                  >
-                    <div className="flex items-center gap-3 px-3 py-3">
-                      {/* Unread dot — leftmost, iMessage style. */}
-                      <span
-                        className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
-                          r.unread ? "bg-amber" : "bg-transparent"
-                        }`}
-                        aria-hidden
-                      />
-                      <div className="relative flex-shrink-0">
-                        {r.kind === "group" &&
-                        r.collageAvatars &&
-                        r.collageAvatars.length > 0 ? (
-                          <GroupCollage
-                            avatars={r.collageAvatars}
-                            title={r.title}
-                          />
-                        ) : r.avatarUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={r.avatarUrl}
-                            alt=""
-                            className="w-12 h-12 rounded-full object-cover border border-warm-700/60"
-                          />
-                        ) : (
-                          <span className="w-12 h-12 rounded-full bg-warm-700/40 border border-warm-700/60 inline-flex items-center justify-center font-serif text-warm-200 text-lg">
-                            {r.title.slice(0, 1).toUpperCase()}
-                          </span>
-                        )}
-                        {r.kind !== "owned" && r.kind !== "group" && (
-                          <span
-                            className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-ink-soft border border-warm-700/80 flex items-center justify-center"
-                            title={KIND_LABELS[language][r.kind]}
-                            aria-label={KIND_LABELS[language][r.kind]}
-                          >
-                            <KindIcon kind={r.kind} />
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-baseline justify-between gap-2 mb-0.5">
-                          <span
-                            className={`font-serif text-base truncate ${
-                              r.unread
-                                ? "text-warm-50 font-semibold"
-                                : "text-warm-50"
-                            }`}
-                          >
-                            {r.title}
-                          </span>
-                          <span
-                            className={`text-xs flex-shrink-0 flex items-center gap-1 ${
-                              r.unread ? "text-warm-100" : "text-warm-400"
-                            }`}
-                          >
-                            {r.muted && <BellSlash />}
-                            {r.lastMessageAt > 0
-                              ? relativeTime(
-                                  new Date(r.lastMessageAt).toISOString(),
-                                  language,
-                                )
-                              : ""}
-                          </span>
-                        </div>
-                        <TypingPresence
-                          conversationKey={`${r.favoriteKind}:${r.favoriteId}`}
-                        >
-                          {(isTyping) =>
-                            isTyping ? (
-                              <p className="text-sm text-warm-200 italic flex items-center gap-2">
-                                <TypingDots />
-                              </p>
-                            ) : (
-                              <p
-                                className={`text-sm truncate ${
-                                  r.unread ? "text-warm-100" : "text-warm-300"
-                                }`}
-                              >
-                                {r.subtitle}
-                              </p>
-                            )
-                          }
-                        </TypingPresence>
-                      </div>
-                      <span
-                        className="text-warm-500 text-lg flex-shrink-0"
-                        aria-hidden
-                      >
-                        ›
-                      </span>
-                    </div>
-                  </ConversationRow>
-                </div>
-              );
-            })}
-          </div>
-          </EditModeProvider>
-        )}
+        <h1 className="font-serif text-3xl text-warm-50 mb-4">
+          {t.title}{" "}
+          <span className="text-sm text-warm-400 font-sans">
+            (diagnostic)
+          </span>
+        </h1>
+        <p className="text-sm text-warm-300 mb-6">
+          Stripped render mode. {rows.length} conversations loaded
+          successfully. If you see this, the data layer is fine — the
+          original page render is the problem.
+        </p>
+        <ul className="space-y-2">
+          {rows.map((r, i) => (
+            <li
+              key={r.href + i}
+              className="px-3 py-2 rounded-lg border border-warm-700/40 bg-warm-700/20"
+            >
+              <p className="text-sm text-warm-50">{r.title}</p>
+              <p className="text-xs text-warm-400 truncate">
+                {r.subtitle}
+              </p>
+            </li>
+          ))}
+        </ul>
       </div>
-      </PullToRefresh>
     </main>
   );
 }
