@@ -121,11 +121,6 @@ export default async function BeneficiaryRoomPage({
           {language === "es" ? "Cuarto" : "Room"}
         </span>
       </header>
-      <p className="max-w-3xl w-full mx-auto text-[11px] uppercase tracking-[0.18em] text-warm-400 mb-5 flex-shrink-0">
-        {language === "es"
-          ? `Representación con IA del archivo de ${oracle.name ?? "esta persona"}. No es la persona, no es una grabación.`
-          : `AI representation of ${oracle.name ?? "this person"}'s archive. Not the person, not a recording.`}
-      </p>
 
       <div className="flex-1 flex justify-center">
         <BeneficiaryRoom

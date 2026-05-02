@@ -409,7 +409,7 @@ async function renderDashboard() {
   return (
     <main className="flex-1">
       <PullToRefresh>
-      <div className="max-w-2xl mx-auto px-4 pt-6 pb-32">
+      <div className="max-w-2xl lg:max-w-3xl mx-auto px-4 pt-6 pb-32">
         <DashboardHeader
           title={t.title}
           rightSlot={

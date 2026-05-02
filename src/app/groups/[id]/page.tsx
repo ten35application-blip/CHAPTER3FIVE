@@ -108,11 +108,6 @@ export default async function GroupRoomPage({
           {language === "es" ? "Grupo" : "Group"}
         </span>
       </header>
-      <p className="max-w-3xl w-full mx-auto text-[11px] uppercase tracking-[0.18em] text-warm-400 mb-6 flex-shrink-0">
-        {language === "es"
-          ? "Representaciones con IA de tus identidades. No son personas reales."
-          : "AI representations of your identities. Not real people."}
-      </p>
 
       <div className="flex-1 flex justify-center">
         <GroupRoom

@@ -87,15 +87,6 @@ export default async function ChatPage({
           {language === "es" ? "Conversaciones" : "Conversations"}
         </Link>
       </header>
-      {/* Persistent AI-disclosure badge under the header — required
-          context for users (and Apple guideline 4.7) so the chat is
-          never mistaken for talking to a real person, recording, or
-          medium. */}
-      <p className="max-w-2xl w-full mx-auto text-[11px] uppercase tracking-[0.18em] text-warm-400 mb-4 flex-shrink-0">
-        {language === "es"
-          ? `Representación con IA del archivo de ${oracleName}. No es la persona, no es una grabación.`
-          : `AI representation of ${oracleName}'s archive. Not the person, not a recording.`}
-      </p>
 
       <div className="flex-1 flex justify-center">
         <Chat

@@ -180,13 +180,14 @@ function EditModeBar({
     });
   }
 
+  // Don't render anything when edit mode is off. Previously this was
+  // a translateY(100%) hide, but on iPad the parent's overflow let
+  // the bar peek above the bottom safe area. Conditional render is
+  // simpler and bulletproof.
+  if (!active) return null;
+
   return (
-    <div
-      aria-hidden={!active}
-      className={`fixed bottom-0 inset-x-0 z-40 transition-transform duration-200 ${
-        active ? "translate-y-0" : "translate-y-full"
-      }`}
-    >
+    <div className="fixed bottom-0 inset-x-0 z-40">
       <div className="bg-ink-soft/95 backdrop-blur-md border-t border-warm-700/60 shadow-2xl">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
           <span className="text-sm text-warm-200 flex-shrink-0">
