@@ -178,41 +178,50 @@ export async function markConversationUnread(formData: FormData) {
 const READ_KINDS = new Set(["owned", "shared", "group", "together"]);
 export async function markConversationRead(kind: string, id: string) {
   if (!READ_KINDS.has(kind) || !id) return;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return;
+  // Wrap the entire body so a missing column or any other write
+  // failure can NEVER crash the chat page that called us. Marking-
+  // read is a side effect; it must degrade silently.
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("last_read")
-    .eq("id", user.id)
-    .single();
+    const { data: profile, error: readErr } = await supabase
+      .from("profiles")
+      .select("last_read")
+      .eq("id", user.id)
+      .single();
+    if (readErr) return;
 
-  const current =
-    profile?.last_read && typeof profile.last_read === "object"
-      ? (profile.last_read as Record<string, string>)
-      : {};
-  const key = `${kind}:${id}`;
-  const prev = current[key];
-  const now = new Date().toISOString();
+    const current =
+      profile?.last_read && typeof profile.last_read === "object"
+        ? (profile.last_read as Record<string, string>)
+        : {};
+    const key = `${kind}:${id}`;
+    const prev = current[key];
+    const now = new Date().toISOString();
 
-  // Skip the write + revalidate if we already stamped within the
-  // last few seconds — the chat page can re-render on navigation
-  // and we don't want to thrash the row.
-  if (prev) {
-    const prevMs = new Date(prev).getTime();
-    if (Date.now() - prevMs < 5_000) return;
+    // Skip the write + revalidate if we already stamped within the
+    // last few seconds — the chat page can re-render on navigation
+    // and we don't want to thrash the row.
+    if (prev) {
+      const prevMs = new Date(prev).getTime();
+      if (Date.now() - prevMs < 5_000) return;
+    }
+    current[key] = now;
+
+    const { error: writeErr } = await supabase
+      .from("profiles")
+      .update({ last_read: current })
+      .eq("id", user.id);
+    if (writeErr) return;
+
+    revalidatePath("/dashboard");
+  } catch (err) {
+    console.error("markConversationRead failed (silent):", err);
   }
-  current[key] = now;
-
-  await supabase
-    .from("profiles")
-    .update({ last_read: current })
-    .eq("id", user.id);
-
-  revalidatePath("/dashboard");
 }
 
 /**
