@@ -45,19 +45,38 @@ type ConvRow = {
 
 
 export default async function DashboardPage() {
+  try {
+    return await renderDashboard();
+  } catch (err) {
+    // Diagnostic logging — Vercel function logs will show this with
+    // the digest that surfaces in the user-facing error.tsx.
+    console.error("[dashboard] render failed:", err);
+    if (err instanceof Error) {
+      console.error("[dashboard] message:", err.message);
+      console.error("[dashboard] stack:", err.stack);
+    }
+    throw err;
+  }
+}
+
+async function renderDashboard() {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/auth/signin");
 
-  const { data: profile } = await supabase
+  const { data: profile, error: profileErr } = await supabase
     .from("profiles")
     .select(
       "preferred_language, onboarding_completed, favorites, last_read",
     )
     .eq("id", user.id)
     .single();
+  if (profileErr) {
+    console.error("[dashboard] profile select failed:", profileErr);
+    throw new Error(`profile select: ${profileErr.message}`);
+  }
 
   // muted_conversations may not exist yet in older deployments. Read
   // it separately and default to [] so the page never hard-crashes
