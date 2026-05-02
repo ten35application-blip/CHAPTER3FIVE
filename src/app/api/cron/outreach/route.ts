@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
   const { data: candidates, error } = await supabase
     .from("profiles")
     .select(
-      "id, oracle_name, preferred_language, last_active_at, last_outreach_at, active_oracle_id, muted_conversations",
+      "id, oracle_name, preferred_language, last_active_at, last_outreach_at, active_oracle_id",
     )
     .lt("last_active_at", sevenAgo)
     .or(`last_outreach_at.is.null,last_outreach_at.lt.${fourteenAgo}`)
@@ -72,12 +72,28 @@ export async function GET(request: NextRequest) {
   let sent = 0;
   for (const profile of candidates) {
     try {
-      // Skip if user muted their active conversation — Hide Alerts
-      // suppresses outreach the same way it suppresses proactive.
+      // Skip if user muted their active conversation. Read separately
+      // so a missing column doesn't break the cron on older deploys.
       type MuteEntry = { kind?: string; id?: string };
-      const muted = Array.isArray(profile.muted_conversations)
-        ? (profile.muted_conversations as MuteEntry[])
-        : [];
+      let muted: MuteEntry[] = [];
+      try {
+        const { data: row } = await supabase
+          .from("profiles")
+          .select("muted_conversations")
+          .eq("id", profile.id)
+          .maybeSingle();
+        if (
+          Array.isArray(
+            (row as { muted_conversations?: unknown } | null)
+              ?.muted_conversations,
+          )
+        ) {
+          muted = (row as { muted_conversations: MuteEntry[] })
+            .muted_conversations;
+        }
+      } catch {
+        muted = [];
+      }
       if (
         profile.active_oracle_id &&
         muted.some(

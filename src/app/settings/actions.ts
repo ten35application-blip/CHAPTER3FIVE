@@ -90,25 +90,35 @@ export async function toggleMute(formData: FormData) {
   } = await supabase.auth.getUser();
   if (!user) redirect("/auth/signin");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("muted_conversations")
-    .eq("id", user.id)
-    .single();
-
   type MuteEntry = { kind: string; id: string };
-  const current = Array.isArray(profile?.muted_conversations)
-    ? (profile!.muted_conversations as MuteEntry[])
-    : [];
+  let current: MuteEntry[] = [];
+  try {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("muted_conversations")
+      .eq("id", user.id)
+      .single();
+    if (Array.isArray(profile?.muted_conversations)) {
+      current = profile!.muted_conversations as MuteEntry[];
+    }
+  } catch {
+    // Column missing on this deploy — skip the toggle silently.
+    redirect("/dashboard");
+  }
+
   const exists = current.some((m) => m.kind === kind && m.id === id);
   const next = exists
     ? current.filter((m) => !(m.kind === kind && m.id === id))
     : [...current, { kind, id }];
 
-  await supabase
+  const { error: updateErr } = await supabase
     .from("profiles")
     .update({ muted_conversations: next })
     .eq("id", user.id);
+  if (updateErr) {
+    // Likely missing column — fail silent so the dashboard still loads.
+    redirect("/dashboard");
+  }
 
   revalidatePath("/dashboard");
   redirect("/dashboard");

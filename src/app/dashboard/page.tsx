@@ -54,10 +54,32 @@ export default async function DashboardPage() {
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "preferred_language, onboarding_completed, favorites, last_read, muted_conversations",
+      "preferred_language, onboarding_completed, favorites, last_read",
     )
     .eq("id", user.id)
     .single();
+
+  // muted_conversations may not exist yet in older deployments. Read
+  // it separately and default to [] so the page never hard-crashes
+  // on a missing column.
+  let mutedRaw: unknown = [];
+  try {
+    const { data: mutedRow } = await supabase
+      .from("profiles")
+      .select("muted_conversations")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (
+      mutedRow &&
+      typeof mutedRow === "object" &&
+      "muted_conversations" in mutedRow
+    ) {
+      mutedRaw = (mutedRow as { muted_conversations: unknown })
+        .muted_conversations;
+    }
+  } catch {
+    mutedRaw = [];
+  }
 
   if (!profile?.onboarding_completed) redirect("/onboarding");
 
@@ -85,8 +107,8 @@ export default async function DashboardPage() {
   };
 
   // Muted conversations — same shape as favorites.
-  const mutedEntries = Array.isArray(profile.muted_conversations)
-    ? (profile.muted_conversations as FavEntry[])
+  const mutedEntries = Array.isArray(mutedRaw)
+    ? (mutedRaw as FavEntry[])
     : [];
   const mutedKeys = new Set(mutedEntries.map((m) => `${m.kind}:${m.id}`));
   const isMuted = (kind: FavoriteKind, id: string) =>

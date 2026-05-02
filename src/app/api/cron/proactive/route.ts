@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
   const { data: candidates, error } = await admin
     .from("profiles")
     .select(
-      "id, oracle_name, preferred_language, texting_style, personality_type, emotional_flavor, active_oracle_id, last_proactive_at, last_active_at, muted_conversations",
+      "id, oracle_name, preferred_language, texting_style, personality_type, emotional_flavor, active_oracle_id, last_proactive_at, last_active_at",
     )
     .eq("outreach_enabled", true)
     .eq("onboarding_completed", true)
@@ -67,12 +67,22 @@ export async function GET(request: NextRequest) {
   for (const profile of candidates) {
     if (!profile.active_oracle_id) continue;
 
-    // Skip if the user muted this conversation. Mirrors iMessage's
-    // Hide Alerts behavior — proactive ping stays silent.
+    // Skip if the user muted this conversation. Read separately so a
+    // missing column (older deploy) doesn't crash the cron.
     type MuteEntry = { kind?: string; id?: string };
-    const muted = Array.isArray(profile.muted_conversations)
-      ? (profile.muted_conversations as MuteEntry[])
-      : [];
+    let muted: MuteEntry[] = [];
+    try {
+      const { data: row } = await admin
+        .from("profiles")
+        .select("muted_conversations")
+        .eq("id", profile.id)
+        .maybeSingle();
+      if (Array.isArray((row as { muted_conversations?: unknown } | null)?.muted_conversations)) {
+        muted = (row as { muted_conversations: MuteEntry[] }).muted_conversations;
+      }
+    } catch {
+      muted = [];
+    }
     if (
       muted.some(
         (m) => m.kind === "owned" && m.id === profile.active_oracle_id,
