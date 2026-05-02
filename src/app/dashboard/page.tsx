@@ -48,14 +48,54 @@ export default async function DashboardPage() {
   try {
     return await renderDashboard();
   } catch (err) {
-    // Diagnostic logging — Vercel function logs will show this with
-    // the digest that surfaces in the user-facing error.tsx.
-    console.error("[dashboard] render failed:", err);
-    if (err instanceof Error) {
-      console.error("[dashboard] message:", err.message);
-      console.error("[dashboard] stack:", err.stack);
+    // Re-throw Next.js redirect / notFound so they keep working.
+    if (
+      err &&
+      typeof err === "object" &&
+      "digest" in err &&
+      typeof (err as { digest?: string }).digest === "string" &&
+      ((err as { digest: string }).digest.startsWith("NEXT_REDIRECT") ||
+        (err as { digest: string }).digest.startsWith("NEXT_NOT_FOUND"))
+    ) {
+      throw err;
     }
-    throw err;
+
+    // Render the actual error inline. Next.js strips error messages
+    // in production builds when they're THROWN — but rendered JSX
+    // is fine. Diagnostic only.
+    const message =
+      err instanceof Error ? err.message : String(err);
+    const stack = err instanceof Error ? err.stack ?? "" : "";
+    console.error("[dashboard] render failed:", err);
+    return (
+      <main className="flex-1 px-6 py-12 max-w-2xl mx-auto">
+        <h1 className="font-serif text-3xl text-warm-50 mb-4">
+          Dashboard render error (diagnostic)
+        </h1>
+        <p className="text-sm text-warm-300 mb-4">
+          The actual exception text from the server, surfaced here so we
+          can stop guessing.
+        </p>
+        <div className="rounded-2xl bg-warm-700/30 border border-warm-700/60 p-5 mb-6 space-y-3">
+          <p className="text-xs uppercase tracking-[0.2em] text-warm-400">
+            Message
+          </p>
+          <pre className="font-mono text-sm text-warm-50 whitespace-pre-wrap break-all">
+            {message || "(no message)"}
+          </pre>
+          {stack && (
+            <>
+              <p className="text-xs uppercase tracking-[0.2em] text-warm-400 pt-2">
+                Stack
+              </p>
+              <pre className="font-mono text-[11px] text-warm-200 whitespace-pre-wrap break-all max-h-[400px] overflow-auto">
+                {stack}
+              </pre>
+            </>
+          )}
+        </div>
+      </main>
+    );
   }
 }
 
