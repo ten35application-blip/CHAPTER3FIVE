@@ -76,6 +76,7 @@ export default async function RootLayout({
   let language: "en" | "es" = "en";
   let userIsAdmin = false;
   let signedIn = false;
+  let accessibility = false;
   try {
     const supabase = await createClient();
     const {
@@ -91,6 +92,20 @@ export default async function RootLayout({
         .maybeSingle();
       if (profile?.theme === "daylight") theme = "daylight";
       if (profile?.preferred_language === "es") language = "es";
+      // accessibility_mode read separately because the column may
+      // not exist on older deploys; degrade silently if so.
+      try {
+        const { data: accRow } = await supabase
+          .from("profiles")
+          .select("accessibility_mode")
+          .eq("id", user.id)
+          .maybeSingle();
+        if ((accRow as { accessibility_mode?: boolean } | null)?.accessibility_mode) {
+          accessibility = true;
+        }
+      } catch {
+        accessibility = false;
+      }
     }
   } catch {
     /* fall back to defaults on any error */
@@ -100,6 +115,7 @@ export default async function RootLayout({
     <html
       lang={language}
       data-theme={theme}
+      data-accessibility={accessibility ? "on" : "off"}
       className={`${geistSans.variable} ${cormorant.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-ink text-warm-50">

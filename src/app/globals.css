@@ -52,3 +52,42 @@ body {
   background: var(--color-warm-300);
   color: var(--color-ink);
 }
+
+/* Accessibility mode — opt-in via /account → Accessibility.
+ *
+ * Bumps base font size by ~22%, enforces a 48x48 minimum on any
+ * tappable element, ramps secondary text up two warm shades for
+ * higher contrast, and disables motion. Designed so a 90-year-old
+ * can navigate the app without squinting or missing a touch.
+ *
+ * Only applies when html[data-accessibility="on"] is set, so
+ * default users see no change. */
+html[data-accessibility="on"] {
+  font-size: 19px; /* base 16 → 19 */
+}
+html[data-accessibility="on"] body {
+  line-height: 1.55;
+}
+html[data-accessibility="on"] button,
+html[data-accessibility="on"] a[role="button"],
+html[data-accessibility="on"] [type="submit"],
+html[data-accessibility="on"] [type="button"] {
+  min-height: 48px;
+  min-width: 48px;
+}
+/* Bump small / secondary text up one shade for contrast. */
+html[data-accessibility="on"] .text-warm-400 {
+  color: var(--color-warm-200);
+}
+html[data-accessibility="on"] .text-warm-500 {
+  color: var(--color-warm-300);
+}
+/* Reduce motion for users who toggled accessibility on. */
+html[data-accessibility="on"] *,
+html[data-accessibility="on"] *::before,
+html[data-accessibility="on"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}

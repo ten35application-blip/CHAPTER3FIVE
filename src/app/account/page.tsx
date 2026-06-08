@@ -5,6 +5,7 @@ import {
   updateLanguage,
   updateTheme,
   toggleOutreach,
+  toggleAccessibilityMode,
   deleteAccount,
   deleteAccountPermanently,
 } from "../settings/actions";
@@ -35,7 +36,7 @@ export default async function AccountPage({
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "oracle_name, mode, preferred_language, created_at, outreach_enabled, theme",
+      "oracle_name, mode, preferred_language, created_at, outreach_enabled, theme, accessibility_mode",
     )
     .eq("id", user.id)
     .single();
@@ -147,6 +148,47 @@ export default async function AccountPage({
                 swatchFg="#2a1d10"
                 swatchAccent="#785836"
               />
+            </form>
+          </Section>
+
+          <Section title={t.accessibilityTitle}>
+            <p className="text-sm text-warm-300 mb-4 leading-relaxed">
+              {t.accessibilityHint}
+            </p>
+            <form
+              action={toggleAccessibilityMode}
+              className="flex items-center gap-3"
+            >
+              <input
+                type="hidden"
+                name="enabled"
+                value={
+                  (profile as { accessibility_mode?: boolean } | null)
+                    ?.accessibility_mode
+                    ? "false"
+                    : "true"
+                }
+              />
+              <button
+                type="submit"
+                className={`h-11 px-5 rounded-full text-sm font-medium transition-colors ${
+                  (profile as { accessibility_mode?: boolean } | null)
+                    ?.accessibility_mode
+                    ? "bg-warm-50 text-ink hover:bg-warm-100"
+                    : "border border-warm-300/40 text-warm-100 hover:bg-warm-700/40"
+                }`}
+              >
+                {(profile as { accessibility_mode?: boolean } | null)
+                  ?.accessibility_mode
+                  ? t.accessibilityOn
+                  : t.accessibilityOff}
+              </button>
+              <span className="text-xs text-warm-400">
+                {(profile as { accessibility_mode?: boolean } | null)
+                  ?.accessibility_mode
+                  ? t.tapToDisable
+                  : t.tapToEnable}
+              </span>
             </form>
           </Section>
 
@@ -440,6 +482,11 @@ const COPY = {
       "When you haven't messaged your identity in about a week, we'll send a gentle email reminding you they're there. Off by default if you'd rather we stay out of your inbox.",
     outreachOn: "On",
     outreachOff: "Off",
+    accessibilityTitle: "Easier to use",
+    accessibilityHint:
+      "Bigger text, bigger tap targets, brighter secondary text, and reduced animation. Designed for older eyes and shaky hands. You can turn it back off any time.",
+    accessibilityOn: "On",
+    accessibilityOff: "Off",
     tapToEnable: "Tap to enable",
     tapToDisable: "Tap to disable",
     paymentsTitle: "Payments",
@@ -502,6 +549,11 @@ const COPY = {
       "Cuando no le hayas escrito a tu identidad por una semana más o menos, te mandamos un correo gentil para recordarte que está ahí. Apágalo si prefieres que no lleguemos a tu bandeja de entrada.",
     outreachOn: "Activado",
     outreachOff: "Apagado",
+    accessibilityTitle: "Más fácil de usar",
+    accessibilityHint:
+      "Texto más grande, botones más grandes, texto secundario más brillante, y menos animación. Pensado para ojos mayores y manos temblorosas. Puedes apagarlo cuando quieras.",
+    accessibilityOn: "Activado",
+    accessibilityOff: "Apagado",
     tapToEnable: "Toca para activar",
     tapToDisable: "Toca para apagar",
     paymentsTitle: "Pagos",

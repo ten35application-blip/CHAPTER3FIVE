@@ -487,6 +487,31 @@ function namesMatch(typed: string, actual: string | null | undefined): boolean {
   return typed.trim().toLowerCase() === actual.trim().toLowerCase();
 }
 
+export async function toggleAccessibilityMode(formData: FormData) {
+  const enabled = formData.get("enabled") === "true";
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/auth/signin");
+
+  // Best-effort — if the column doesn't exist yet (migration not run)
+  // we surface a friendly error rather than 500.
+  const { error } = await supabase
+    .from("profiles")
+    .update({ accessibility_mode: enabled })
+    .eq("id", user.id);
+  if (error) {
+    redirect(
+      `/account?error=${encodeURIComponent("Accessibility mode is being rolled out — try again in a moment.")}`,
+    );
+  }
+
+  revalidatePath("/", "layout");
+  redirect("/account?saved=accessibility");
+}
+
 export async function toggleOutreach(formData: FormData) {
   const enabled = formData.get("enabled") === "true";
 
