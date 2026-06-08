@@ -15,7 +15,12 @@ export async function startOnboarding(formData: FormData) {
   if (!oracleName) {
     redirect("/onboarding?error=Please%20name%20your%20identity");
   }
-  if (mode !== "real" && mode !== "randomize" && mode !== "import") {
+  if (
+    mode !== "real" &&
+    mode !== "randomize" &&
+    mode !== "import" &&
+    mode !== "memory"
+  ) {
     redirect("/onboarding?error=Please%20choose%20a%20mode");
   }
   if (language !== "en" && language !== "es") {
@@ -139,6 +144,9 @@ export async function startOnboarding(formData: FormData) {
   }
   if (mode === "import") {
     redirect("/onboarding/import");
+  }
+  if (mode === "memory") {
+    redirect("/onboarding/memory");
   }
   redirect("/onboarding/questions");
 }

@@ -120,12 +120,18 @@ export default async function OnboardingPage({
             label="What kind of identity?"
             hint="Pick once — this shapes the whole experience."
           >
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <ModeRadio
                 value="real"
                 defaultChecked={profile?.mode === "real" || profile?.mode == null}
                 title="Someone real"
-                body="An identity built from real answers — yours, or someone you love. One real answer per question, at your pace."
+                body="Built from real answers — yours, or someone you love. One answer per question, at your pace."
+              />
+              <ModeRadio
+                value="memory"
+                defaultChecked={profile?.mode === "memory"}
+                title="From memory"
+                body="Tell us what you remember about someone — we'll build a starter, then keep growing it as you talk to them."
               />
               <ModeRadio
                 value="randomize"
@@ -228,7 +234,7 @@ function ModeRadio({
   body,
   defaultChecked,
 }: {
-  value: "real" | "randomize" | "import";
+  value: "real" | "randomize" | "import" | "memory";
   title: string;
   body: string;
   defaultChecked?: boolean;

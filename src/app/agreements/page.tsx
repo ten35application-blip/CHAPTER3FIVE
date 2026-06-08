@@ -22,7 +22,7 @@ export default async function AgreementsPage({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("preferred_language, onboarding_completed")
+    .select("preferred_language, onboarding_completed, mode")
     .eq("id", user.id)
     .single();
 
@@ -90,6 +90,13 @@ export default async function AgreementsPage({
             title={t.notTherapyTitle}
             body={t.notTherapyBody}
           />
+          {profile?.mode === "memory" && (
+            <Disclosure
+              name="memory_mode"
+              title={t.memoryTitle}
+              body={t.memoryBody}
+            />
+          )}
 
           {error && (
             <p className="text-sm text-red-300/80 text-center pt-2">
@@ -197,6 +204,9 @@ const COPY = {
     notTherapyTitle: "This is not therapy or crisis support.",
     notTherapyBody:
       "chapter3five is not medical, psychological, or therapeutic care. The identity is built to step out of character if your messages suggest you need a real person — but if you're in crisis right now, please reach out: US 988 (call/text), UK Samaritans 116 123, Mexico SAPTEL +52 55 5259-8121, or your local emergency number.",
+    memoryTitle: "Memory-mode identities are a partial reconstruction.",
+    memoryBody:
+      "A memory-mode identity is bootstrapped from a free-text description you provide about someone. It's a starting point — not them. When your description doesn't directly support a detail, the AI may produce a plausible inferred answer; we mark which is which. Accuracy depends entirely on how much you share. You can keep adding any time. The persona is yours; the limitations are real.",
     readFull: "Read full",
     cta: "I agree — let me in.",
     recordNote:
@@ -224,6 +234,9 @@ const COPY = {
     notTherapyTitle: "Esto no es terapia ni soporte para crisis.",
     notTherapyBody:
       "chapter3five no es atención médica, psicológica, ni terapéutica. La identidad está diseñada para salir del personaje si tus mensajes sugieren que necesitas una persona real — pero si estás en crisis ahora, por favor comunícate: US 988, UK Samaritans 116 123, México SAPTEL +52 55 5259-8121, o tu número local de emergencias.",
+    memoryTitle: "Las identidades de memoria son una reconstrucción parcial.",
+    memoryBody:
+      "Una identidad de memoria se construye a partir de una descripción en texto libre que tú proporcionas sobre alguien. Es un punto de partida — no es esa persona. Cuando tu descripción no respalda directamente un detalle, la IA puede generar una respuesta inferida plausible; marcamos cuál es cuál. La precisión depende totalmente de cuánto compartes. Puedes seguir agregando cuando quieras. La persona es tuya; las limitaciones son reales.",
     readFull: "Leer completo",
     cta: "Acepto — déjame entrar.",
     recordNote:

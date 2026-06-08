@@ -38,11 +38,15 @@ export default function PrivacyPage() {
           <li>
             <strong>Your archive content.</strong> The text answers you
             record, the name and avatar you choose for your identity, the
-            mode (real, randomized, or imported) you select, and any
-            texting-style or persona settings you provide. For randomized
-            identities, an AI-synthesized short biography (anchored on the
-            random answers) we generate at creation and store with the
-            identity.
+            mode (real, randomized, imported, or memory) you select, and
+            any texting-style or persona settings you provide. For
+            randomized identities, an AI-synthesized short biography
+            (anchored on the random answers) we generate at creation and
+            store with the identity. For memory-mode identities, the
+            free-text description you provided about the person, plus any
+            additional text you later add to deepen the persona; we
+            preserve the raw text so you can review what the identity
+            was built from.
           </li>
           <li>
             <strong>Voice recordings.</strong> Audio files you record for

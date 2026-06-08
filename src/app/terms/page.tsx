@@ -58,6 +58,23 @@ export default function TermsPage() {
           emergency services.</strong> In the United States, call or text
           988 (Suicide &amp; Crisis Lifeline).
         </p>
+        <p>
+          <strong>Memory-mode identities.</strong> chapter3five offers a
+          mode in which an identity is bootstrapped from a free-text
+          description the User provides about another person. In this
+          mode, the AI will produce content (a synthesized biography,
+          texting style, and initial answers) derived from what the
+          User has written. Where the description does not directly
+          support a particular detail, the AI may produce a plausible
+          inferred answer; the inferred status is recorded with the
+          answer. The User acknowledges that a memory-mode identity is
+          a <strong>partial reconstruction</strong>, not an accurate
+          representation of the person described, and that accuracy
+          depends entirely on the breadth and specificity of the
+          information the User supplies. The User remains responsible
+          for whatever is shared and for adding subsequent corrections
+          or detail.
+        </p>
       </Section>
 
       <Section title="4. Your account">

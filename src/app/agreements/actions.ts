@@ -8,9 +8,9 @@ import { createClient } from "@/lib/supabase/server";
 // to and when. If we change the disclosures, bump this and re-prompt.
 const AGREEMENT_VERSION = "2026-04-27";
 
-// Six required acknowledgments. Each becomes a row in the agreements
-// table tagged with this version. Match the form field names in
-// /agreements/page.tsx.
+// Six required acknowledgments + one conditional (memory_mode, only
+// when the user picked that mode). Each becomes a row in the
+// agreements table tagged with this version.
 const REQUIRED_DOCS = [
   "terms",
   "privacy",
@@ -19,6 +19,7 @@ const REQUIRED_DOCS = [
   "age_18plus",
   "not_therapy",
 ] as const;
+const CONDITIONAL_DOCS = ["memory_mode"] as const;
 
 export async function acceptAgreements(formData: FormData) {
   const supabase = await createClient();
@@ -27,7 +28,20 @@ export async function acceptAgreements(formData: FormData) {
   } = await supabase.auth.getUser();
   if (!user) redirect("/auth");
 
-  for (const doc of REQUIRED_DOCS) {
+  // Read the user's profile to know which conditional acknowledgments
+  // apply (memory-mode users see + must accept the memory disclosure).
+  const { data: prof } = await supabase
+    .from("profiles")
+    .select("mode")
+    .eq("id", user.id)
+    .single();
+
+  const docs: string[] = [...REQUIRED_DOCS];
+  if (prof?.mode === "memory") {
+    docs.push(...CONDITIONAL_DOCS);
+  }
+
+  for (const doc of docs) {
     const accepted = formData.get(doc) === "on";
     if (!accepted) {
       redirect(
@@ -36,7 +50,7 @@ export async function acceptAgreements(formData: FormData) {
     }
   }
 
-  const rows = REQUIRED_DOCS.map((document) => ({
+  const rows = docs.map((document) => ({
     user_id: user.id,
     document,
     version: AGREEMENT_VERSION,

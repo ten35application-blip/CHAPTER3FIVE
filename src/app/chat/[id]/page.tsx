@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Chat } from "@/components/Chat";
+import { AddMoreSheet } from "@/components/AddMoreSheet";
 import { markConversationRead } from "@/app/settings/actions";
 
 export const metadata = {
@@ -34,7 +35,7 @@ export default async function ChatPage({
   // Owner-only. Inherited / shared archives go through /shared/[id].
   const { data: oracle } = await supabase
     .from("oracles")
-    .select("id, name, preferred_language, avatar_url, user_id")
+    .select("id, name, preferred_language, avatar_url, user_id, mode")
     .eq("id", id)
     .is("deleted_at", null)
     .maybeSingle();
@@ -80,12 +81,21 @@ export default async function ChatPage({
         >
           chapter3five
         </Link>
-        <Link
-          href="/dashboard"
-          className="text-xs uppercase tracking-[0.2em] text-warm-300 hover:text-warm-100 transition-colors"
-        >
-          {language === "es" ? "Conversaciones" : "Conversations"}
-        </Link>
+        <div className="flex items-center gap-4">
+          {oracle.mode === "memory" && (
+            <AddMoreSheet
+              oracleId={oracle.id}
+              oracleName={oracle.name ?? ""}
+              language={language}
+            />
+          )}
+          <Link
+            href="/dashboard"
+            className="text-xs uppercase tracking-[0.2em] text-warm-300 hover:text-warm-100 transition-colors"
+          >
+            {language === "es" ? "Conversaciones" : "Conversations"}
+          </Link>
+        </div>
       </header>
 
       <div className="flex-1 flex justify-center">

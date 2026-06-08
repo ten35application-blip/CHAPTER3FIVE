@@ -3,6 +3,7 @@ import { Geist, Cormorant_Garamond } from "next/font/google";
 import { createClient } from "@/lib/supabase/server";
 import { isAdmin } from "@/lib/admin";
 import { NavFab } from "@/components/NavFab";
+import { BottomNav } from "@/components/BottomNav";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -103,7 +104,16 @@ export default async function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-ink text-warm-50">
         {children}
-        {signedIn && <NavFab language={language} isAdmin={userIsAdmin} />}
+        {signedIn && (
+          <>
+            <BottomNav language={language} isAdmin={userIsAdmin} />
+            {/* NavFab stays for desktop (md and up). BottomNav handles
+                phone / tablet. Both are visibility-gated by CSS. */}
+            <div className="hidden md:block">
+              <NavFab language={language} isAdmin={userIsAdmin} />
+            </div>
+          </>
+        )}
       </body>
     </html>
   );
