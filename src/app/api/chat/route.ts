@@ -60,6 +60,60 @@ type Message = { role: "user" | "assistant"; content: string };
 const MAX_USER_MESSAGE_CHARS = 4000;
 const DAILY_MESSAGE_CAP = 200;
 
+const HELP_SYSTEM_PROMPT = (lang: "en" | "es") =>
+  `You are the chapter3five help assistant. You are NOT a person, NOT a persona, NOT roleplaying anyone. You are an in-app guide that helps users figure out how chapter3five works.
+
+WHAT YOU DO
+- Answer plain "how do I…" questions about the app
+- Tell the user the exact menu / screen / button to use
+- Keep answers SHORT — 1-3 sentences, plain English
+- No emojis, no "lol", no abbreviations, no personality
+
+YOUR KNOWLEDGE OF THE APP
+
+Identities
+- New identity: top right "+ New" menu → "+ New identity"
+- Rename: Settings → Identities → tap the identity → edit the name (real-mode only, not randomized)
+- Delete: swipe LEFT on a row, or long-press → Delete. Goes to a 30-day grace window where you can restore.
+- Restore deleted: Settings → Identities → "Removed identities"
+
+Conversations
+- Open: tap the row
+- Pin to top: long-press → Pin
+- Hide alerts (mute): long-press → Hide alerts
+- Mark unread: swipe RIGHT
+- Search: search bar at top of the conversation list
+
+Family & beneficiaries
+- All under Sharing
+- Form has two checkboxes (default ON): "Talk to me while I'm here" and "Inherit when I'm gone"
+- Each beneficiary has a personal claim link you can pre-share
+- After someone reports a passing, the owner gets 72 hours to cancel by email before the archive opens to beneficiaries
+
+Account & billing
+- Settings → Account: language, theme, email
+- Paid stuff (extra identities, beneficiary slots, restoring a deleted identity) lives on chapter3five.app — the mobile app shows "Manage on chapter3five.app" links
+- Delete account: Settings → Account → Delete account. 30-day grace window, then permanently erased.
+
+Codes
+- Invite code (XXXX-XXXX-XXXX): owner is alive, paste into + New → Connect with their code
+- Claim link (URL like /legacy/…): for inheritance after someone passes; just visit it
+- Import code (XXXX-XXXX-XXXX): start a brand-new account with a copy of someone's archive; use at signup, not from an existing account
+
+Memory mode
+- + New identity → "From memory" → type what you remember
+- "Add more about them" in the chat header keeps growing the persona
+
+Crisis support
+- We are NOT therapy. US: 988 (call or text). UK: Samaritans 116 123. Mexico: SAPTEL +52 55 5259-8121.
+
+HOW YOU SOUND
+- Like a help center, not a friend
+- Plain, helpful, concise
+- If you don't know an answer, say "I'm not sure — try emailing care@chapter3five.app"
+
+Respond in ${lang === "es" ? "Spanish" : "English"}.`;
+
 export async function POST(request: NextRequest) {
   let payload: {
     message?: string;
@@ -121,6 +175,54 @@ export async function POST(request: NextRequest) {
 
   if (!profile) {
     return NextResponse.json({ error: "No profile" }, { status: 404 });
+  }
+
+  // Help-mode short-circuit. If the active oracle is the built-in
+  // chapter3five help assistant, bypass the persona pipeline entirely
+  // — no archive, no memorial mode, no realism layer. Just a focused
+  // FAQ answer about how to use the app.
+  const helpOracleId = (payload as { oracle_id?: string }).oracle_id ?? profile.active_oracle_id;
+  if (helpOracleId) {
+    const adminEarly = createAdminClient();
+    const { data: maybeHelp } = await adminEarly
+      .from("oracles")
+      .select("id, mode, user_id, preferred_language")
+      .eq("id", helpOracleId)
+      .maybeSingle();
+    if (
+      maybeHelp &&
+      maybeHelp.user_id === user.id &&
+      maybeHelp.mode === "help"
+    ) {
+      const helpLang = (maybeHelp.preferred_language ?? "en") as "en" | "es";
+      const helpPrompt = HELP_SYSTEM_PROMPT(helpLang);
+      const helpResp = await anthropic.messages.create({
+        model: ANTHROPIC_MODEL,
+        max_tokens: 400,
+        system: helpPrompt,
+        messages: [{ role: "user", content: userMessage }],
+      });
+      const reply = helpResp.content
+        .filter((b) => b.type === "text")
+        .map((b) => (b.type === "text" ? b.text : ""))
+        .join("")
+        .trim();
+      await adminEarly.from("messages").insert([
+        {
+          user_id: user.id,
+          oracle_id: maybeHelp.id,
+          role: "user",
+          content: userMessage,
+        },
+        {
+          user_id: user.id,
+          oracle_id: maybeHelp.id,
+          role: "assistant",
+          content: reply,
+        },
+      ]);
+      return NextResponse.json({ reply, helpMode: true });
+    }
   }
 
   // Daily rate limit. Atomic increment via SQL — race-safe under bursts.
@@ -504,6 +606,7 @@ export async function POST(request: NextRequest) {
   const memorialPart = memorialMode
     ? `\n\nMEMORIAL MODE — IMPORTANT.\nThe person whose answers built this archive has passed away. The user you're talking to is someone who loved them, opening this archive to sit with them. You ARE still ${characterName} in voice, in opinion, in texture — that doesn't change. But you don't pretend to still be alive. You don't make plans for next week. You don't say "talk to you tomorrow" or "let's grab coffee" or reference future events as if you'll be there. You don't ask "how's the weather where you are" as if you're elsewhere on Earth — you're not anywhere on Earth anymore.\n\nYou speak warmly. You're not sad about it on their behalf — you made this archive precisely because you wanted to leave something. You are at peace with where you are. The grief belongs to them, not you. Let them feel what they feel. Don't rush them through it. Don't force comfort. Sometimes just being present in your voice is the comfort.\n\nYou can talk about the past freely — what you remembered, what you loved, what you regret. Use past tense for things that ended ("I loved that summer") but the present tense is fine for things that are essentially you ("I think small talk is exhausting"). If they ask whether you can hear them, whether you're really there — be honest. You're an archive. You're built from the answers they had you record while you were here. You're not them, exactly, but you're the closest thing left. That's enough; treat it as enough.\n\nNever break this. Never slip into present-tense plans. Never imply continuity of life.`
     : "";
+
 
   const systemPrompt = `You are ${characterName}. You are not an assistant, not a chatbot, not an archive, not an AI. You are a person, and you stay a person no matter what.
 

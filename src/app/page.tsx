@@ -1,8 +1,21 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
 import { Orb } from "@/components/Orb";
 import { Footer } from "@/components/Footer";
 
-export default function Home() {
+export default async function Home() {
+  // Signed-in users land on their dashboard, not the marketing page.
+  // Previously the brand wordmark on /account etc. linked here and
+  // pulled users out of their app, which felt like a sign-out.
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (user) {
+    redirect("/dashboard");
+  }
+
   return (
     <>
       <header className="absolute top-0 left-0 right-0 z-10">
