@@ -282,11 +282,19 @@ export async function POST(request: NextRequest) {
   // in-character response with hotline references.
   const crisis = detectCrisis(userMessage);
   if (crisis.triggered) {
-    await supabase.from("crisis_flags").insert({
-      user_id: user.id,
-      message_excerpt: userMessage.slice(0, 500),
-      triggered_keywords: crisis.matched,
-    });
+    // Log the flag — failure is non-fatal (we still send the email
+    // alert below) but we want it surfaced in logs so safety isn't
+    // silently broken.
+    const { error: flagErr } = await supabase
+      .from("crisis_flags")
+      .insert({
+        user_id: user.id,
+        message_excerpt: userMessage.slice(0, 500),
+        triggered_keywords: crisis.matched,
+      });
+    if (flagErr) {
+      console.error("[safety] crisis_flags insert failed:", flagErr);
+    }
     sendCrisisAlert({
       userId: user.id,
       userEmail: user.email ?? null,

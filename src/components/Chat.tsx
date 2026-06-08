@@ -83,6 +83,15 @@ export function Chat({
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Live "now" tied to client mount. Null during SSR so any time-
+  // dependent rendering (e.g. "blocked for N hours") doesn't cause
+  // a hydration mismatch between server and client.
+  const [nowMs, setNowMs] = useState<number | null>(null);
+  useEffect(() => {
+    setNowMs(Date.now());
+    const id = setInterval(() => setNowMs(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
   const [reportingIndex, setReportingIndex] = useState<number | null>(null);
   const [reportReason, setReportReason] = useState("");
   const [reportedIndexes, setReportedIndexes] = useState<Set<number>>(
@@ -491,11 +500,11 @@ export function Chat({
           </div>
         )}
 
-        {blockedUntil && (
+        {blockedUntil && nowMs !== null && (
           <div className="pt-3 border-t border-warm-700/60 flex items-center justify-center">
             <p className="text-sm text-warm-300 italic text-center py-3 px-4 leading-relaxed">
               {(() => {
-                const ms = new Date(blockedUntil).getTime() - Date.now();
+                const ms = new Date(blockedUntil).getTime() - nowMs;
                 const hours = Math.max(0, Math.ceil(ms / 3_600_000));
                 if (hours <= 1) return t.blockedSoon(oracleName);
                 if (hours < 36) return t.blockedHours(oracleName, hours);

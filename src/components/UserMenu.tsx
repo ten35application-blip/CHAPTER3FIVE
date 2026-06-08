@@ -203,7 +203,7 @@ export function UserMenu({
           </Link>
 
           <Link
-            href="/settings"
+            href="/account"
             onClick={() => setOpen(false)}
             className="block px-4 py-2.5 text-sm text-warm-100 hover:bg-warm-600/60 transition-colors border-t border-warm-600/80"
           >

@@ -111,14 +111,19 @@ export async function updateAnswer(formData: FormData) {
 
   if (!body) {
     // Empty body = delete the answer.
-    await supabase
+    const { error: delErr } = await supabase
       .from("answers")
       .delete()
       .eq("oracle_id", oracleId)
       .eq("question_id", questionId)
       .eq("variant", 1);
+    if (delErr) {
+      redirect(
+        `/answers?error=${encodeURIComponent("Couldn't delete answer: " + delErr.message)}`,
+      );
+    }
   } else {
-    await supabase.from("answers").upsert(
+    const { error: upsertErr } = await supabase.from("answers").upsert(
       {
         user_id: user.id,
         oracle_id: oracleId,
@@ -129,6 +134,11 @@ export async function updateAnswer(formData: FormData) {
       },
       { onConflict: "oracle_id,question_id,variant" },
     );
+    if (upsertErr) {
+      redirect(
+        `/answers?error=${encodeURIComponent("Couldn't save answer: " + upsertErr.message)}`,
+      );
+    }
   }
 
   revalidatePath("/answers");

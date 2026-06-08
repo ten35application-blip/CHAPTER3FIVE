@@ -112,7 +112,6 @@ export function NavFab({ language, isAdmin = false }: Props) {
           <NavLink href="/identities" label={t.identities} />
           <NavLink href="/sharing" label={t.sharing} />
           <NavLink href="/account" label={t.account} />
-          <NavLink href="/settings" label={t.settings} />
           {isAdmin && <NavLink href="/admin" label={t.admin} />}
         </div>
       )}
