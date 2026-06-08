@@ -988,35 +988,44 @@ export async function addBeneficiary(formData: FormData) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("paid_beneficiary_slots, oracle_name")
+    .select("oracle_name")
     .eq("id", user.id)
     .single();
-  const cap = FREE_BENEFICIARIES + (profile?.paid_beneficiary_slots ?? 0);
 
-  const { count: activeCount } = await supabase
-    .from("beneficiaries")
-    .select("id", { count: "exact", head: true })
-    .eq("owner_user_id", user.id)
-    .neq("status", "removed");
-
-  if ((activeCount ?? 0) >= cap) {
-    redirect("/sharing?error=At%20cap%20-%20add%20a%20slot%20to%20designate%20more");
-  }
-
+  // Atomic check-then-insert via RPC so two concurrent calls can't
+  // both pass the cap check and both insert (race fix).
   const claimToken = generateClaimToken();
-  const { error } = await supabase.from("beneficiaries").insert({
-    owner_user_id: user.id,
-    email,
-    name,
-    claim_token: claimToken,
-  });
-
+  const { data: rpcRows, error } = await supabase.rpc(
+    "add_beneficiary_atomic",
+    {
+      p_owner_user_id: user.id,
+      p_email: email,
+      p_name: name,
+      p_claim_token: claimToken,
+    },
+  );
   if (error) {
     const e = error as { code?: string; message?: string };
     if (e.code === "23505") {
       redirect("/sharing?error=That%20email%20is%20already%20a%20beneficiary");
     }
     redirect(`/sharing?error=${encodeURIComponent(e.message ?? "Could not add")}`);
+  }
+  type RpcRow = {
+    id: string | null;
+    status: string | null;
+    was_inserted: boolean;
+    over_cap: boolean;
+  };
+  const rpcRow = (rpcRows as RpcRow[] | null)?.[0];
+  if (rpcRow?.over_cap) {
+    redirect(
+      "/sharing?error=At%20cap%20-%20add%20a%20slot%20to%20designate%20more",
+    );
+  }
+  if (!rpcRow?.was_inserted) {
+    // Already designated; treat as no-op success.
+    redirect("/sharing?saved=already-designated");
   }
 
   // Send designation email — fire-and-forget, don't fail the action on email error.
@@ -1196,7 +1205,7 @@ export async function addFamilyMember(formData: FormData) {
   if (accessAfter) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("paid_beneficiary_slots, oracle_name, deceased_at")
+      .select("oracle_name, deceased_at")
       .eq("id", user.id)
       .maybeSingle();
     if (!profile) redirect("/sharing?error=No%20profile");
@@ -1205,45 +1214,36 @@ export async function addFamilyMember(formData: FormData) {
       redirect("/sharing?error=You%20can%27t%20designate%20yourself");
     }
 
-    const FREE = 3;
-    const cap = FREE + (profile.paid_beneficiary_slots ?? 0);
-    const { count: usedCount } = await admin
-      .from("beneficiaries")
-      .select("id", { count: "exact", head: true })
-      .eq("owner_user_id", user.id)
-      .neq("status", "removed");
-    if ((usedCount ?? 0) >= cap) {
+    // Atomic via RPC (race fix). Handles cap check, dedupe, and
+    // insert in one transaction.
+    const claimToken = generateClaimToken();
+    const { data: rpcRows, error: rpcErr } = await supabase.rpc(
+      "add_beneficiary_atomic",
+      {
+        p_owner_user_id: user.id,
+        p_email: email,
+        p_name: name,
+        p_claim_token: claimToken,
+      },
+    );
+    if (rpcErr) {
+      redirect(
+        `/sharing?error=${encodeURIComponent(rpcErr.message ?? "Could not add beneficiary")}`,
+      );
+    }
+    type RpcRow = {
+      id: string | null;
+      status: string | null;
+      was_inserted: boolean;
+      over_cap: boolean;
+    };
+    const rpcRow = (rpcRows as RpcRow[] | null)?.[0];
+    if (rpcRow?.over_cap) {
       redirect(
         "/sharing?error=At%20cap%20-%20add%20a%20slot%20to%20designate%20more",
       );
     }
-
-    const { data: existing } = await admin
-      .from("beneficiaries")
-      .select("id")
-      .eq("owner_user_id", user.id)
-      .eq("email", email)
-      .neq("status", "removed")
-      .maybeSingle();
-    if (existing) {
-      // Already designated — skip silently rather than erroring;
-      // user might be just adding the live-invite to an existing
-      // beneficiary.
-    } else {
-      const claimToken = generateClaimToken();
-      const { error: insertErr } = await admin.from("beneficiaries").insert({
-        owner_user_id: user.id,
-        email,
-        name,
-        status: "designated",
-        claim_token: claimToken,
-      });
-      if (insertErr) {
-        redirect(
-          `/sharing?error=${encodeURIComponent(insertErr.message ?? "Could not add beneficiary")}`,
-        );
-      }
-
+    if (rpcRow?.was_inserted) {
       sendBeneficiaryDesignationEmail({
         to: email,
         ownerName: profile.oracle_name ?? "your loved one",
@@ -1259,6 +1259,9 @@ export async function addFamilyMember(formData: FormData) {
         details: { email, via: "family_section" },
       });
     }
+    // If was_inserted is false the row already existed — skip
+    // silently (user might be just adding the live-invite to an
+    // existing beneficiary).
   }
 
   revalidatePath("/sharing");
