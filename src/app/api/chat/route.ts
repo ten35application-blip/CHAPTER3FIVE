@@ -14,6 +14,11 @@ import { detectCrisis } from "@/lib/crisis";
 import { sendCrisisAlert } from "@/lib/notifications";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
+  judgePhotoSend,
+  generatePersonaPhoto,
+  isAtPhotoCap,
+} from "@/lib/personaPhoto";
+import {
   loadMemoriesForPrompt,
   memoriesToPromptBlock,
   extractAndStoreMemories,
@@ -290,14 +295,35 @@ export async function POST(request: NextRequest) {
   let weeklyContextUntil: string | null = null;
   let sportsFandom: SportsFandom | null = null;
   let sportsExtractedAt: string | null = null;
+  type OracleRow = {
+    bio: string | null;
+    avatar_url: string | null;
+    location_anchor: LocationAnchor | null;
+    location_extracted_at: string | null;
+    orientation: string | null;
+    relationship_openness: string | null;
+    identity_quirks: string[] | null;
+    traits_extracted_at: string | null;
+    mode: string | null;
+    ambient_cast: AmbientCast | null;
+    cast_extracted_at: string | null;
+    weekly_context: WeeklyContext | null;
+    weekly_context_until: string | null;
+    sports_fandom: SportsFandom | null;
+    sports_extracted_at: string | null;
+  };
+  // Hoisted so the persona photo pipeline (later in the function)
+  // can read avatar_url + mode without a second query.
+  let ownOracle: OracleRow | null = null;
   if (profile.active_oracle_id) {
-    const { data: ownOracle } = await supabase
+    const { data } = await supabase
       .from("oracles")
       .select(
-        "bio, location_anchor, location_extracted_at, orientation, relationship_openness, identity_quirks, traits_extracted_at, mode, ambient_cast, cast_extracted_at, weekly_context, weekly_context_until, sports_fandom, sports_extracted_at",
+        "bio, avatar_url, location_anchor, location_extracted_at, orientation, relationship_openness, identity_quirks, traits_extracted_at, mode, ambient_cast, cast_extracted_at, weekly_context, weekly_context_until, sports_fandom, sports_extracted_at",
       )
       .eq("id", profile.active_oracle_id)
       .maybeSingle();
+    ownOracle = data as OracleRow | null;
     if (!oracleBio) oracleBio = ownOracle?.bio ?? null;
     locationAnchor = (ownOracle?.location_anchor ?? null) as LocationAnchor | null;
     locationExtractedAt = ownOracle?.location_extracted_at ?? null;
@@ -786,7 +812,48 @@ ${archiveBlock}`;
       .filter((s) => s.length > 0);
     const reply = replies[0] ?? rawReply;
 
-    // Persist user message + every assistant burst.
+    // Persona photo decision. Only fires for non-crisis turns and
+    // when there's an avatar to anchor face consistency. Capped at
+    // ~2 photos per persona per 7 days so it stays special.
+    let personaPhotoUrl: string | null = null;
+    if (
+      profile.active_oracle_id &&
+      ownOracle?.avatar_url &&
+      !crisis.triggered &&
+      ownOracle.mode !== "help"
+    ) {
+      try {
+        const atCap = await isAtPhotoCap({
+          oracleId: profile.active_oracle_id,
+          userId: user.id,
+        });
+        if (!atCap) {
+          const verdict = await judgePhotoSend({
+            characterName,
+            characterBio: oracleBio ?? "",
+            recentTurns: history.slice(-6).map((t) => ({
+              role: t.role,
+              content: t.content,
+            })),
+            userMessage,
+          });
+          if (verdict.send && verdict.subject) {
+            personaPhotoUrl = await generatePersonaPhoto({
+              oracleId: profile.active_oracle_id,
+              userId: user.id,
+              subject: verdict.subject,
+              avatarUrl: ownOracle.avatar_url,
+            });
+          }
+        }
+      } catch (err) {
+        console.error("[persona photo] pipeline failed:", err);
+      }
+    }
+
+    // Persist user message + every assistant burst. If a persona
+    // photo was generated, attach it to the LAST assistant message
+    // so the visual lands at the end of the reply rhythm.
     if (profile.active_oracle_id) {
       const rows: {
         user_id: string;
@@ -805,14 +872,16 @@ ${archiveBlock}`;
           image_storage_path: payload.image_storage_path ?? null,
         },
       ];
-      for (const r of replies) {
+      replies.forEach((r, i) => {
+        const isLast = i === replies.length - 1;
         rows.push({
           user_id: user.id,
-          oracle_id: profile.active_oracle_id,
+          oracle_id: profile.active_oracle_id!,
           role: "assistant",
           content: r,
+          image_url: isLast && personaPhotoUrl ? personaPhotoUrl : null,
         });
-      }
+      });
       await supabase.from("messages").insert(rows);
     }
 
