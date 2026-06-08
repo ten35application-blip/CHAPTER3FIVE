@@ -68,9 +68,11 @@ export function ConversationSearch({ language }: Props) {
           type="button"
           onClick={() => setQ("")}
           aria-label={t.clear}
-          className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-warm-700/60 text-warm-200 hover:text-warm-50 transition-colors flex items-center justify-center text-xs leading-none"
+          className="absolute right-1 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full text-warm-200 hover:text-warm-50 transition-colors flex items-center justify-center"
         >
-          ×
+          <span className="w-5 h-5 rounded-full bg-warm-700/60 flex items-center justify-center text-xs leading-none">
+            ×
+          </span>
         </button>
       )}
     </div>

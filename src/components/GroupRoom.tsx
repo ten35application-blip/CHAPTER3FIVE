@@ -409,7 +409,7 @@ export function GroupRoom({
                     <button
                       type="button"
                       onClick={() => setAddOpen(false)}
-                      className="text-warm-400 hover:text-warm-100 transition-colors text-xl leading-none p-1"
+                      className="w-11 h-11 -m-2 flex items-center justify-center text-warm-400 hover:text-warm-100 transition-colors text-xl leading-none"
                       aria-label={t.cancel}
                     >
                       ×

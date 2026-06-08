@@ -463,7 +463,7 @@ export function Chat({
                     <button
                       type="button"
                       onClick={() => setReportingIndex(i)}
-                      className="text-[11px] text-warm-500 hover:text-warm-300 transition-colors opacity-0 group-hover:opacity-100"
+                      className="text-[11px] text-warm-500 hover:text-warm-300 transition-colors md:opacity-0 md:group-hover:opacity-100"
                     >
                       {t.report}
                     </button>
