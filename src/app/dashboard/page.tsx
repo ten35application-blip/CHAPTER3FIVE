@@ -510,36 +510,16 @@ async function renderDashboard() {
         )}
 
         {rows.length === 0 ? (
-          <div className="relative py-16 text-center">
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-30">
+          <div className="relative py-24 text-center">
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-25">
               <Orb size={320} />
             </div>
-            <div className="relative max-w-md mx-auto px-6">
-              <h2 className="font-serif text-2xl text-warm-50 mb-3 italic">
+            <div className="relative max-w-xs mx-auto px-6">
+              <p className="font-serif text-2xl text-warm-100 mb-2">
                 {t.emptyTitle}
-              </h2>
-              <p className="text-warm-200 leading-relaxed mb-8">
-                {t.emptyBody}
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-                <EmptyModeCard
-                  emoji="✶"
-                  title={t.emptyModeReal}
-                  body={t.emptyModeRealBody}
-                />
-                <EmptyModeCard
-                  emoji="✸"
-                  title={t.emptyModeMemory}
-                  body={t.emptyModeMemoryBody}
-                />
-                <EmptyModeCard
-                  emoji="✷"
-                  title={t.emptyModeRandom}
-                  body={t.emptyModeRandomBody}
-                />
-              </div>
-              <p className="text-xs text-warm-400 italic">
-                {t.emptyHint}
+              <p className="text-sm text-warm-400 leading-relaxed">
+                {t.emptyBody}
               </p>
             </div>
           </div>
@@ -669,26 +649,6 @@ async function renderDashboard() {
  * Empty-state mode card — three of these stack to show new users
  * what kind of identity they could create first.
  */
-function EmptyModeCard({
-  emoji,
-  title,
-  body,
-}: {
-  emoji: string;
-  title: string;
-  body: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-warm-700/60 bg-warm-700/15 p-4 text-left">
-      <div className="text-amber text-xl mb-2 leading-none" aria-hidden>
-        {emoji}
-      </div>
-      <p className="text-sm font-medium text-warm-50 mb-1">{title}</p>
-      <p className="text-xs text-warm-300 leading-relaxed">{body}</p>
-    </div>
-  );
-}
-
 /**
  * iMessage-style overlapping cluster for group rooms — one bigger
  * avatar with smaller ones nested behind/beside it. Asymmetric on
@@ -964,16 +924,8 @@ const COPY = {
   en: {
     title: "Conversations.",
     empty: "No conversations yet. Tap + New identity to start.",
-    emptyTitle: "Time to meet someone.",
-    emptyBody:
-      "Start with + New in the top right. You can record yourself, mix a one-of-a-kind identity, or describe someone you love.",
-    emptyModeReal: "Real",
-    emptyModeRealBody: "Answer 355 questions. The identity becomes you.",
-    emptyModeMemory: "From memory",
-    emptyModeMemoryBody: "Tell us what you remember. We'll start the archive.",
-    emptyModeRandom: "Randomize",
-    emptyModeRandomBody: "We mix one for you — answers pulled from a curated pool.",
-    emptyHint: "You can always make more later. The first one is free.",
+    emptyTitle: "Nothing yet.",
+    emptyBody: "Tap + at the top to start a conversation.",
     unnamed: "(unnamed)",
     you: "you",
     groupChat: "Group chat",
@@ -986,16 +938,8 @@ const COPY = {
   es: {
     title: "Conversaciones.",
     empty: "Aún no hay conversaciones. Toca + Nueva identidad para empezar.",
-    emptyTitle: "Hora de conocer a alguien.",
-    emptyBody:
-      "Empieza con + Nuevo arriba a la derecha. Puedes grabarte a ti, mezclar una identidad única, o describir a alguien que amas.",
-    emptyModeReal: "Real",
-    emptyModeRealBody: "Responde 355 preguntas. La identidad se convierte en ti.",
-    emptyModeMemory: "De memoria",
-    emptyModeMemoryBody: "Cuéntanos lo que recuerdas. Empezamos el archivo.",
-    emptyModeRandom: "Aleatoria",
-    emptyModeRandomBody: "Mezclamos una para ti — respuestas de un pool curado.",
-    emptyHint: "Siempre puedes hacer más después. La primera es gratis.",
+    emptyTitle: "Nada todavía.",
+    emptyBody: "Toca + arriba para empezar una conversación.",
     unnamed: "(sin nombre)",
     you: "tú",
     groupChat: "Chat grupal",
