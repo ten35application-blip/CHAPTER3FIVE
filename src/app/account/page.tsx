@@ -100,10 +100,22 @@ export default async function AccountPage({
                 icon={<ChatsIcon />}
               />
               <ManageLink
+                href="/contacts"
+                label={t.manageContacts}
+                hint={t.manageContactsHint}
+                icon={<PeopleIcon />}
+              />
+              <ManageLink
+                href="/trash"
+                label={t.manageTrash}
+                hint={t.manageTrashHint}
+                icon={<TrashIcon />}
+              />
+              <ManageLink
                 href="/identities"
                 label={t.manageIdentities}
                 hint={t.manageIdentitiesHint}
-                icon={<PeopleIcon />}
+                icon={<WrenchIcon />}
               />
               <ManageLink
                 href="/sharing"
@@ -504,8 +516,12 @@ const COPY = {
     saved: "Saved.",
     save: "Save",
     manageTitle: "Manage",
-    manageIdentities: "Identities",
-    manageIdentitiesHint: "The people you've made and the ones you can bring back.",
+    manageContacts: "Contacts",
+    manageContactsHint: "The people in your archive — open a chat or rename.",
+    manageTrash: "Trash",
+    manageTrashHint: "People you removed. Held 30 days, then gone.",
+    manageIdentities: "Manage identities",
+    manageIdentitiesHint: "Rename, change avatar, or remove someone for good.",
     manageSharing: "Share & inherit",
     manageSharingHint: "Codes, beneficiaries, and the people you share with.",
     manageHome: "Back to chats",
@@ -578,8 +594,12 @@ const COPY = {
     saved: "Guardado.",
     save: "Guardar",
     manageTitle: "Gestionar",
-    manageIdentities: "Identidades",
-    manageIdentitiesHint: "Las personas que has creado y las que puedes recuperar.",
+    manageContacts: "Contactos",
+    manageContactsHint: "Las personas en tu archivo — abrir un chat o renombrar.",
+    manageTrash: "Papelera",
+    manageTrashHint: "Personas eliminadas. Se guardan 30 días, luego desaparecen.",
+    manageIdentities: "Gestionar identidades",
+    manageIdentitiesHint: "Renombrar, cambiar avatar o eliminar para siempre.",
     manageSharing: "Compartir y heredar",
     manageSharingHint: "Códigos, beneficiarios y con quién compartes.",
     manageHome: "Volver a los chats",
@@ -725,6 +745,25 @@ function AdminIcon() {
     <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <rect x="3" y="5" width="18" height="14" rx="2" />
       <path d="M3 10h18" />
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+      <path d="M10 11v6M14 11v6" />
+      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+    </svg>
+  );
+}
+
+function WrenchIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M14.7 6.3a4 4 0 0 0 5 5l-3 3 3 3-3 3-3-3-3 3-3-3 3-3-3-3-3 3a4 4 0 0 0-5-5l3-3-3-3 3-3 3 3 3-3 3 3-3 3 3 3z" />
     </svg>
   );
 }

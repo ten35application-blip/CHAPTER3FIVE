@@ -294,7 +294,7 @@ export function HomeChrome({ language, ownedOracles = [] }: Props) {
             </button>
 
             <Link
-              href="/identities"
+              href="/trash"
               onClick={() => setComposeOpen(false)}
               className="block px-5 py-3 hover:bg-warm-700/40 transition-colors active:bg-warm-700/60"
             >
