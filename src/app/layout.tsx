@@ -3,7 +3,7 @@ import { Geist, Cormorant_Garamond } from "next/font/google";
 import { createClient } from "@/lib/supabase/server";
 import { isAdmin } from "@/lib/admin";
 import { NavFab } from "@/components/NavFab";
-import { BottomNav } from "@/components/BottomNav";
+import { HomeChrome } from "@/components/HomeChrome";
 import { NotificationToast } from "@/components/NotificationToast";
 import "./globals.css";
 
@@ -128,9 +128,11 @@ export default async function RootLayout({
             {signedInUserId && (
               <NotificationToast userId={signedInUserId} />
             )}
-            <BottomNav language={language} isAdmin={userIsAdmin} />
-            {/* NavFab stays for desktop (md and up). BottomNav handles
-                phone / tablet. Both are visibility-gated by CSS. */}
+            {/* Mobile: a single Settings cog bottom-right. Everything
+                else (identities, sharing, trash, etc.) is reached from
+                inside Settings — iMessage-shape home screen.
+                Desktop (md+) keeps the NavFab popover. */}
+            <HomeChrome language={language} />
             <div className="hidden md:block">
               <NavFab language={language} isAdmin={userIsAdmin} />
             </div>

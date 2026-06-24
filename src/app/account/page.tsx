@@ -10,6 +10,7 @@ import {
   deleteAccountPermanently,
 } from "../settings/actions";
 import { Section, Row, HelpLink } from "@/components/SettingsBlocks";
+import { isAdmin } from "@/lib/admin";
 
 export const metadata = {
   title: "Your account — chapter3five",
@@ -83,6 +84,42 @@ export default async function AccountPage({
               {error}
             </div>
           )}
+
+          {/* Cross-nav to the other top-level surfaces. Lives at the top
+              of Settings so that with the four-tab BottomNav gone, mobile
+              users still have a clear path to Identities / Share. Will
+              expand as Trash and Contacts land in later steps. */}
+          <nav aria-label={t.manageTitle} className="mb-10">
+            <p className="text-[10px] uppercase tracking-[0.22em] text-warm-400 mb-3 px-1">
+              {t.manageTitle}
+            </p>
+            <ul className="grid gap-2">
+              <ManageLink
+                href="/dashboard"
+                label={t.manageHome}
+                icon={<ChatsIcon />}
+              />
+              <ManageLink
+                href="/identities"
+                label={t.manageIdentities}
+                hint={t.manageIdentitiesHint}
+                icon={<PeopleIcon />}
+              />
+              <ManageLink
+                href="/sharing"
+                label={t.manageSharing}
+                hint={t.manageSharingHint}
+                icon={<ShareIcon />}
+              />
+              {isAdmin(user.email) && (
+                <ManageLink
+                  href="/admin"
+                  label={t.manageAdmin}
+                  icon={<AdminIcon />}
+                />
+              )}
+            </ul>
+          </nav>
 
           <Section title={t.accountTitle}>
             <Row label={t.email} value={user.email ?? "—"} />
@@ -466,6 +503,13 @@ const COPY = {
     back: "Settings",
     saved: "Saved.",
     save: "Save",
+    manageTitle: "Manage",
+    manageIdentities: "Identities",
+    manageIdentitiesHint: "The people you've made and the ones you can bring back.",
+    manageSharing: "Share & inherit",
+    manageSharingHint: "Codes, beneficiaries, and the people you share with.",
+    manageHome: "Back to chats",
+    manageAdmin: "Admin",
     accountTitle: "Account",
     email: "Email",
     created: "Created",
@@ -533,6 +577,13 @@ const COPY = {
     back: "Ajustes",
     saved: "Guardado.",
     save: "Guardar",
+    manageTitle: "Gestionar",
+    manageIdentities: "Identidades",
+    manageIdentitiesHint: "Las personas que has creado y las que puedes recuperar.",
+    manageSharing: "Compartir y heredar",
+    manageSharingHint: "Códigos, beneficiarios y con quién compartes.",
+    manageHome: "Volver a los chats",
+    manageAdmin: "Admin",
     accountTitle: "Cuenta",
     email: "Correo",
     created: "Creada",
@@ -594,3 +645,86 @@ const COPY = {
     helpCookies: "Política de Cookies",
   },
 };
+
+function ManageLink({
+  href,
+  label,
+  hint,
+  icon,
+}: {
+  href: string;
+  label: string;
+  hint?: string;
+  icon: React.ReactNode;
+}) {
+  return (
+    <li>
+      <Link
+        href={href}
+        className="flex items-center gap-3 rounded-2xl border border-warm-700/50 bg-warm-700/10 px-4 py-3 hover:bg-warm-700/25 hover:border-warm-300/40 transition-colors"
+      >
+        <span className="w-9 h-9 rounded-xl bg-warm-700/40 text-warm-100 flex items-center justify-center flex-shrink-0">
+          {icon}
+        </span>
+        <span className="flex-1 min-w-0">
+          <span className="block text-sm font-medium text-warm-50">{label}</span>
+          {hint && (
+            <span className="block text-xs text-warm-400 mt-0.5 truncate">
+              {hint}
+            </span>
+          )}
+        </span>
+        <svg
+          aria-hidden
+          viewBox="0 0 24 24"
+          className="w-4 h-4 text-warm-400 flex-shrink-0"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <polyline points="9 6 15 12 9 18" />
+        </svg>
+      </Link>
+    </li>
+  );
+}
+
+function ChatsIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M21 12c0 4.5-4 8-9 8-1.4 0-2.7-.2-3.9-.7L3 21l1.6-4.4C3.6 15.2 3 13.7 3 12 3 7.5 7 4 12 4s9 3.5 9 8z" />
+    </svg>
+  );
+}
+
+function PeopleIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <circle cx="9" cy="9" r="3.2" />
+      <circle cx="17" cy="9.5" r="2.5" />
+      <path d="M3 19c0-2.8 2.7-5 6-5s6 2.2 6 5" />
+      <path d="M14 17c.5-1.8 2.3-3 4.5-3s3.5 1 3.5 3" />
+    </svg>
+  );
+}
+
+function ShareIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7" />
+      <path d="M16 6l-4-4-4 4" />
+      <path d="M12 2v14" />
+    </svg>
+  );
+}
+
+function AdminIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="M3 10h18" />
+    </svg>
+  );
+}
