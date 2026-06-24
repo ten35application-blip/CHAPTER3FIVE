@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateShareCode } from "@/lib/share";
 import { isAdmin } from "@/lib/admin";
+import { redirectWithError } from "@/lib/action-errors";
 import {
   sendBeneficiaryDesignationEmail,
   sendBeneficiaryRemovedEmail,
@@ -321,7 +322,7 @@ export async function updateTheme(formData: FormData) {
     .eq("id", user.id);
 
   if (error) {
-    redirect(`/account?error=${encodeURIComponent(error.message)}`);
+    redirectWithError("/account", "Couldn't save theme", error);
   }
 
   revalidatePath("/", "layout");
@@ -346,7 +347,7 @@ export async function updateLanguage(formData: FormData) {
     .eq("id", user.id);
 
   if (error) {
-    redirect(`/account?error=${encodeURIComponent(error.message)}`);
+    redirectWithError("/account", "Couldn't save language", error);
   }
 
   revalidatePath("/account");
@@ -368,7 +369,7 @@ export async function updateTextingStyle(formData: FormData) {
     .eq("id", user.id);
 
   if (error) {
-    redirect(`/sharing?error=${encodeURIComponent(error.message)}`);
+    redirectWithError("/sharing", "Couldn't save texting style", error);
   }
 
   revalidatePath("/sharing");
@@ -430,7 +431,7 @@ export async function updateTraits(formData: FormData) {
     .eq("id", profile.active_oracle_id);
 
   if (error) {
-    redirect(`/sharing?error=${encodeURIComponent(error.message)}`);
+    redirectWithError("/sharing", "Couldn't save traits", error);
   }
 
   revalidatePath("/sharing");
@@ -470,7 +471,7 @@ export async function updateLocation(formData: FormData) {
     .eq("id", profile.active_oracle_id);
 
   if (error) {
-    redirect(`/sharing?error=${encodeURIComponent(error.message)}`);
+    redirectWithError("/sharing", "Couldn't save location", error);
   }
 
   revalidatePath("/sharing");
@@ -527,7 +528,7 @@ export async function toggleOutreach(formData: FormData) {
     .eq("id", user.id);
 
   if (error) {
-    redirect(`/account?error=${encodeURIComponent(error.message)}`);
+    redirectWithError("/account", "Couldn't update outreach setting", error);
   }
 
   revalidatePath("/account");
@@ -602,7 +603,7 @@ export async function deleteOracle(formData: FormData) {
     .eq("id", oracleId)
     .eq("user_id", user.id);
   if (oracleErr) {
-    redirect(`/identities?error=${encodeURIComponent(oracleErr.message)}`);
+    redirectWithError("/identities", "Couldn't delete identity", oracleErr);
   }
 
   // If we just deleted the ACTIVE identity, detach + reset profile
@@ -662,7 +663,7 @@ export async function createShareCode(formData: FormData) {
     // 23505 = unique violation. Anything else, abort.
     const e = error as { code?: string; message?: string };
     if (e.code !== "23505") {
-      redirect(`/sharing?error=${encodeURIComponent(e.message ?? "Could not create share code")}`);
+      redirectWithError("/sharing", "Could not create share code", e);
     }
   }
   redirect("/sharing?error=Could%20not%20generate%20a%20unique%20share%20code");
@@ -701,7 +702,7 @@ export async function createArchiveInvite(formData: FormData) {
     }
     const e = error as { code?: string; message?: string };
     if (e.code !== "23505") {
-      redirect(`/sharing?error=${encodeURIComponent(e.message ?? "Could not create invite")}`);
+      redirectWithError("/sharing", "Could not create invite", e);
     }
   }
   redirect("/sharing?error=Could%20not%20generate%20a%20unique%20invite");
@@ -782,7 +783,7 @@ export async function revokeShareCode(formData: FormData) {
     .eq("source_user_id", user.id);
 
   if (error) {
-    redirect(`/sharing?error=${encodeURIComponent(error.message)}`);
+    redirectWithError("/sharing", "Couldn't revoke share", error);
   }
 
   revalidatePath("/sharing");
@@ -1009,7 +1010,7 @@ export async function addBeneficiary(formData: FormData) {
     if (e.code === "23505") {
       redirect("/sharing?error=That%20email%20is%20already%20a%20beneficiary");
     }
-    redirect(`/sharing?error=${encodeURIComponent(e.message ?? "Could not add")}`);
+    redirectWithError("/sharing", "Couldn't add beneficiary", e);
   }
   type RpcRow = {
     id: string | null;
@@ -1227,9 +1228,7 @@ export async function addFamilyMember(formData: FormData) {
       },
     );
     if (rpcErr) {
-      redirect(
-        `/sharing?error=${encodeURIComponent(rpcErr.message ?? "Could not add beneficiary")}`,
-      );
+      redirectWithError("/sharing", "Couldn't add beneficiary", rpcErr);
     }
     type RpcRow = {
       id: string | null;

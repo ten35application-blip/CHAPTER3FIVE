@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { redirectWithError } from "@/lib/action-errors";
 
 /**
  * Set just the text body of an answer without redirecting. Used by the
@@ -118,9 +119,7 @@ export async function updateAnswer(formData: FormData) {
       .eq("question_id", questionId)
       .eq("variant", 1);
     if (delErr) {
-      redirect(
-        `/answers?error=${encodeURIComponent("Couldn't delete answer: " + delErr.message)}`,
-      );
+      redirectWithError("/answers", "Couldn't delete answer", delErr);
     }
   } else {
     const { error: upsertErr } = await supabase.from("answers").upsert(
@@ -135,9 +134,7 @@ export async function updateAnswer(formData: FormData) {
       { onConflict: "oracle_id,question_id,variant" },
     );
     if (upsertErr) {
-      redirect(
-        `/answers?error=${encodeURIComponent("Couldn't save answer: " + upsertErr.message)}`,
-      );
+      redirectWithError("/answers", "Couldn't save answer", upsertErr);
     }
   }
 
