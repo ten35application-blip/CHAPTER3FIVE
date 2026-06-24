@@ -111,6 +111,14 @@ export function ConversationRow({
   const t = COPY[language];
   const editMode = useEditMode();
   const selectKey = `${favoriteKind}:${favoriteId}` as SelectableKey;
+  // Optimistic state for pin + mute toggles so the menu choice
+  // feels instant. The server action still fires; if it fails, the
+  // next dashboard render corrects us. Re-syncs whenever the prop
+  // changes (e.g. after the dashboard revalidates).
+  const [optimisticFavorite, setOptimisticFavorite] = useState(isFavorite);
+  const [optimisticMuted, setOptimisticMuted] = useState(isMuted);
+  useEffect(() => setOptimisticFavorite(isFavorite), [isFavorite]);
+  useEffect(() => setOptimisticMuted(isMuted), [isMuted]);
   const [offset, setOffset] = useState(0);
   const [revealedSide, setRevealedSide] = useState<"left" | "right" | null>(
     null,
@@ -362,7 +370,10 @@ export function ConversationRow({
         <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 z-30 rounded-xl border border-warm-300/60 bg-ink-soft shadow-2xl backdrop-blur-xl overflow-hidden min-w-[200px]">
           <form
             action={toggleFavorite}
-            onSubmit={() => setMenuOpen(false)}
+            onSubmit={() => {
+              setOptimisticFavorite((v) => !v);
+              setMenuOpen(false);
+            }}
           >
             <input type="hidden" name="kind" value={favoriteKind} />
             <input type="hidden" name="id" value={favoriteId} />
@@ -370,7 +381,7 @@ export function ConversationRow({
               type="submit"
               className="block w-full text-left px-4 py-2.5 text-sm text-warm-50 hover:bg-warm-700/40 transition-colors border-b border-warm-700/40"
             >
-              {isFavorite ? t.unpin : t.pin}
+              {optimisticFavorite ? t.unpin : t.pin}
             </button>
           </form>
           <button
@@ -390,14 +401,20 @@ export function ConversationRow({
           >
             {t.markUnread}
           </button>
-          <form action={toggleMute} onSubmit={() => setMenuOpen(false)}>
+          <form
+            action={toggleMute}
+            onSubmit={() => {
+              setOptimisticMuted((v) => !v);
+              setMenuOpen(false);
+            }}
+          >
             <input type="hidden" name="kind" value={favoriteKind} />
             <input type="hidden" name="id" value={favoriteId} />
             <button
               type="submit"
               className="block w-full text-left px-4 py-2.5 text-sm text-warm-50 hover:bg-warm-700/40 transition-colors border-b border-warm-700/40"
             >
-              {isMuted ? t.unmute : t.mute}
+              {optimisticMuted ? t.unmute : t.mute}
             </button>
           </form>
           {removable && (

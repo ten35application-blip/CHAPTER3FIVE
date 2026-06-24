@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { isAdmin } from "@/lib/admin";
 import { NavFab } from "@/components/NavFab";
 import { BottomNav } from "@/components/BottomNav";
+import { NotificationToast } from "@/components/NotificationToast";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -77,6 +78,7 @@ export default async function RootLayout({
   let userIsAdmin = false;
   let signedIn = false;
   let accessibility = false;
+  let signedInUserId: string | null = null;
   try {
     const supabase = await createClient();
     const {
@@ -84,6 +86,7 @@ export default async function RootLayout({
     } = await supabase.auth.getUser();
     if (user) {
       signedIn = true;
+      signedInUserId = user.id;
       userIsAdmin = isAdmin(user.email);
       const { data: profile } = await supabase
         .from("profiles")
@@ -122,6 +125,9 @@ export default async function RootLayout({
         {children}
         {signedIn && (
           <>
+            {signedInUserId && (
+              <NotificationToast userId={signedInUserId} />
+            )}
             <BottomNav language={language} isAdmin={userIsAdmin} />
             {/* NavFab stays for desktop (md and up). BottomNav handles
                 phone / tablet. Both are visibility-gated by CSS. */}

@@ -48,6 +48,11 @@ export function FavoriteTile({
 }: Props) {
   const t = COPY[language];
   const [menuOpen, setMenuOpen] = useState(false);
+  // Optimistic unpin — when the user taps Unfavorite, hide the
+  // tile in this client immediately. Dashboard revalidation in
+  // the server action will then re-render without this tile.
+  const [localHidden, setLocalHidden] = useState(false);
+  if (localHidden) return null;
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressed = useRef(false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -154,7 +159,13 @@ export function FavoriteTile({
         <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 z-30 rounded-xl border border-warm-300/60 bg-ink-soft shadow-2xl backdrop-blur-xl overflow-hidden min-w-[160px]">
           <form
             action={toggleFavorite}
-            onSubmit={() => setMenuOpen(false)}
+            onSubmit={() => {
+              // Optimistic — collapse the tile out of view immediately
+              // so the unpin feels instant. Server revalidation cleans
+              // up afterward.
+              setMenuOpen(false);
+              setLocalHidden(true);
+            }}
           >
             <input type="hidden" name="kind" value={favoriteKind} />
             <input type="hidden" name="id" value={favoriteId} />
