@@ -486,7 +486,7 @@ async function renderDashboard() {
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={r.avatarUrl}
-                        alt=""
+                        alt="" loading="lazy" decoding="async"
                         className="w-full h-full object-cover"
                       />
                     ) : (
@@ -590,7 +590,7 @@ async function renderDashboard() {
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
                             src={r.avatarUrl}
-                            alt=""
+                            alt="" loading="lazy" decoding="async"
                             className="w-12 h-12 rounded-full object-cover border border-warm-700/60"
                           />
                         ) : (
@@ -717,7 +717,7 @@ function GroupCollage({
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={src}
-          alt=""
+          alt="" loading="lazy" decoding="async"
           style={{ width: size, height: size }}
           className={`rounded-full object-cover border border-ink-soft ${className}`}
         />
@@ -824,7 +824,7 @@ function FavoriteCollage({
     const a = visible[0] ?? null;
     return a ? (
       // eslint-disable-next-line @next/next/no-img-element
-      <img src={a} alt="" className="w-full h-full object-cover" />
+      <img src={a} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
     ) : (
       <span className="w-full h-full flex items-center justify-center font-serif text-warm-200 text-2xl">
         {fallbackChar}
@@ -841,7 +841,7 @@ function FavoriteCollage({
           <img
             key={i}
             src={a}
-            alt=""
+            alt="" loading="lazy" decoding="async"
             className="w-full h-full object-cover"
           />
         ) : (

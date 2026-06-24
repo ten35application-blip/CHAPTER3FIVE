@@ -2,7 +2,20 @@ import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  images: {
+    // Supabase storage hosts our avatars + chat-photos + archive-photos.
+    // Allow it via remotePatterns so bare <img> tags can be swapped for
+    // <Image> and get free LCP / lazy-loading / format negotiation.
+    // The bucket access (public vs RLS) is still enforced server side;
+    // next/image just needs the host to be on its allow-list.
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "**.supabase.co",
+        pathname: "/storage/v1/object/public/**",
+      },
+    ],
+  },
 };
 
 export default withSentryConfig(nextConfig, {
