@@ -456,12 +456,11 @@ async function renderDashboard() {
 
         {/* Favorites row — pinned conversations as oval tiles
             (intentionally not circles, to be visually distinct from
-            iMessage's pattern). Horizontal scroll if it overflows. */}
+            iMessage's pattern). Horizontal scroll if it overflows.
+            No "FAVORITES" label — iMessage's pinned strip is unlabeled;
+            the visual treatment alone says what they are. */}
         {favoriteRows.length > 0 && (
           <div className="mb-6">
-            <p className="text-xs uppercase tracking-[0.25em] text-warm-300 mb-3 px-2">
-              {t.favoritesLabel}
-            </p>
             {/* Twist on the iMessage pinned strip: the inner scroller
                 has top padding so the floating last-message bubble
                 above each tile has room to render without getting
@@ -479,7 +478,7 @@ async function renderDashboard() {
                   unread={r.unread}
                   preview={r.subtitle}
                 >
-                  <div className="w-16 h-20 rounded-[40%] overflow-hidden border border-warm-700/60 bg-warm-700/40 group-hover:border-warm-300/50 transition-colors mb-2">
+                  <div className="w-16 h-20 rounded-[40%] overflow-hidden bg-warm-700/40 ring-1 ring-transparent group-hover:ring-warm-300/40 transition-colors mb-2">
                     {r.kind === "group" &&
                     r.collageAvatars &&
                     r.collageAvatars.length > 0 ? (
@@ -596,10 +595,10 @@ async function renderDashboard() {
                           <img
                             src={r.avatarUrl}
                             alt="" loading="lazy" decoding="async"
-                            className="w-12 h-12 rounded-full object-cover border border-warm-700/60"
+                            className="w-12 h-12 rounded-full object-cover"
                           />
                         ) : (
-                          <span className="w-12 h-12 rounded-full bg-warm-700/40 border border-warm-700/60 inline-flex items-center justify-center font-serif text-warm-200 text-lg">
+                          <span className="w-12 h-12 rounded-full bg-warm-700/40 inline-flex items-center justify-center font-serif text-warm-200 text-lg">
                             {r.title.slice(0, 1).toUpperCase()}
                           </span>
                         )}

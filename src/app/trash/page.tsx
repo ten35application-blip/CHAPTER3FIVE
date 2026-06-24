@@ -46,7 +46,7 @@ export default async function TrashPage({
   return (
     <>
       <header className="border-b border-warm-700/40">
-        <div className="max-w-2xl mx-auto px-6 py-6 flex items-center gap-3">
+        <div className="max-w-2xl mx-auto pl-6 pr-16 md:pr-6 py-6 flex items-center gap-3">
           <Link
             href="/account"
             aria-label={t.back}

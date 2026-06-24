@@ -56,10 +56,12 @@ export function DashboardHeader({ title, rightSlot }: Props) {
         </div>
       </div>
 
-      {/* Large title in the document flow. Same mobile right-padding so
-          the title doesn't run under the floating compose pill. */}
-      <div className="flex items-end justify-between mb-5 px-2 pr-14 md:pr-2 gap-3">
-        <h1 className="font-serif text-3xl text-warm-50 leading-none">
+      {/* Large title in the document flow. iMessage's large-title scale
+          (~34px) — bigger than our previous 3xl, gives the home screen
+          the iMessage feel. Same mobile right-padding so the title
+          doesn't run under the floating compose pill. */}
+      <div className="flex items-end justify-between mb-6 px-2 pr-14 md:pr-2 gap-3">
+        <h1 className="font-serif text-[34px] text-warm-50 leading-none tracking-tight">
           {title}
         </h1>
         {rightSlot}

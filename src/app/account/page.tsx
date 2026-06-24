@@ -59,7 +59,7 @@ export default async function AccountPage({
   return (
     <>
       <header className="border-b border-warm-700/40">
-        <div className="max-w-2xl mx-auto px-6 py-6">
+        <div className="max-w-2xl mx-auto pl-6 pr-16 md:pr-6 py-6">
           <Link
             href="/"
             className="font-serif text-xl tracking-tight text-warm-100 hover:text-warm-50 transition-colors"
