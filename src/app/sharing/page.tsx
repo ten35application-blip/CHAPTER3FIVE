@@ -10,6 +10,7 @@ import {
   buyBeneficiarySlot,
   addFamilyMember,
 } from "../settings/actions";
+import { InheritCodeForm } from "@/components/InheritCodeForm";
 
 export const metadata = {
   title: "Share & inherit — chapter3five",
@@ -87,20 +88,39 @@ export default async function SharingPage({
   return (
     <>
       <header className="border-b border-warm-700/40">
-        <div className="max-w-2xl mx-auto px-6 py-6">
+        <div className="max-w-2xl mx-auto px-6 py-6 flex items-center gap-3">
           <Link
-            href="/"
-            className="font-serif text-xl tracking-tight text-warm-100 hover:text-warm-50 transition-colors"
+            href="/account"
+            aria-label={t.back}
+            className="w-10 h-10 -ml-2 flex items-center justify-center rounded-full text-warm-200 hover:text-warm-50 hover:bg-warm-700/30 transition-colors"
           >
-            chapter3five
+            <svg
+              viewBox="0 0 24 24"
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <polyline points="15 6 9 12 15 18" />
+            </svg>
           </Link>
+          <h1 className="font-serif text-xl tracking-tight text-warm-50">
+            {t.title}
+          </h1>
         </div>
       </header>
 
       <main className="flex-1">
-        <div className="max-w-2xl mx-auto px-6 py-12 pb-32">
-          <h1 className="font-serif text-4xl text-warm-50 mb-2">{t.title}</h1>
-          <p className="text-warm-300 mb-12 leading-relaxed">{t.intro}</p>
+        <div className="max-w-2xl mx-auto px-6 py-8 pb-32">
+          <p className="text-warm-300 mb-10 leading-relaxed">{t.intro}</p>
+
+          {/* Inherit-a-code lives at the top of /sharing so the user
+              never has to leave Settings to use a code someone sent
+              them. Mirrors the inline form in HomeChrome's + sheet. */}
+          <InheritCodeForm language={language} />
 
           {saved && (
             <div className="rounded-lg bg-warm-700/30 border border-warm-300/30 px-4 py-3 mb-8 text-sm text-warm-100">
