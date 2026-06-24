@@ -171,43 +171,82 @@ async function renderDashboard() {
 
   const admin = createAdminClient();
 
-  // 1) Owned identities (1:1 chats).
-  const { data: oracles } = await supabase
-    .from("oracles")
-    .select("id, name, avatar_url, mode, created_at")
-    .eq("user_id", user.id)
-    .is("deleted_at", null)
-    .order("created_at", { ascending: true });
+  // Round 1 — fan-out the 4 independent reads in parallel. They have
+  // no inter-dependencies, so Promise.all collapses ~4 × 100-150ms
+  // serial round-trips into one wall-clock window.
+  const [
+    { data: oracles },
+    { data: grantRows },
+    { data: groupRoomsRaw },
+    { data: benefMembership },
+  ] = await Promise.all([
+    supabase
+      .from("oracles")
+      .select("id, name, avatar_url, mode, created_at")
+      .eq("user_id", user.id)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("archive_grants")
+      .select("oracle_id")
+      .eq("user_id", user.id),
+    supabase
+      .from("group_rooms")
+      .select("id, name, last_message_at, created_at")
+      .eq("owner_user_id", user.id)
+      .order("last_message_at", { ascending: false, nullsFirst: false }),
+    admin
+      .from("beneficiary_room_members")
+      .select("room_id")
+      .eq("user_id", user.id)
+      .is("left_at", null),
+  ]);
 
-  // 2) Shared archives (where user has archive_grant).
-  const { data: grantRows } = await supabase
-    .from("archive_grants")
-    .select("oracle_id")
-    .eq("user_id", user.id);
   const sharedIds = (grantRows ?? []).map((r) => r.oracle_id);
-  const { data: sharedOracles } = sharedIds.length
-    ? await supabase
-        .from("oracles")
-        .select("id, name, avatar_url, user_id")
-        .in("id", sharedIds)
-        .is("deleted_at", null)
-    : { data: [] };
-
-  // 3) Group rooms (owned by user) + their member avatars for the
-  // iMessage-style collage on each row.
-  const { data: groupRoomsRaw } = await supabase
-    .from("group_rooms")
-    .select("id, name, last_message_at, created_at")
-    .eq("owner_user_id", user.id)
-    .order("last_message_at", { ascending: false, nullsFirst: false });
   const groupRoomIds = (groupRoomsRaw ?? []).map((r) => r.id);
-  const { data: groupMemberRows } = groupRoomIds.length
-    ? await admin
-        .from("group_room_members")
-        .select("room_id, oracle_id, oracles(avatar_url)")
-        .in("room_id", groupRoomIds)
-        .is("left_at", null)
-    : { data: [] };
+  const benefRoomIds = (benefMembership ?? []).map((m) => m.room_id);
+  const ownedIds = (oracles ?? []).map((o) => o.id);
+
+  // Round 2 — fan-out the dependent IN(ids) reads in parallel.
+  // Each waits only for round 1 to know the ids.
+  const [
+    sharedOraclesRes,
+    groupMemberRowsRes,
+    benefRoomsRes,
+    ownedLastRes,
+  ] = await Promise.all([
+    sharedIds.length
+      ? supabase
+          .from("oracles")
+          .select("id, name, avatar_url, user_id")
+          .in("id", sharedIds)
+          .is("deleted_at", null)
+      : Promise.resolve({ data: [] as { id: string; name: string | null; avatar_url: string | null; user_id: string }[] }),
+    groupRoomIds.length
+      ? admin
+          .from("group_room_members")
+          .select("room_id, oracle_id, oracles(avatar_url)")
+          .in("room_id", groupRoomIds)
+          .is("left_at", null)
+      : Promise.resolve({ data: [] as unknown[] }),
+    benefRoomIds.length
+      ? admin
+          .from("beneficiary_rooms")
+          .select("id, name, oracle_id, last_message_at, created_at")
+          .in("id", benefRoomIds)
+      : Promise.resolve({ data: [] as { id: string; name: string; oracle_id: string; last_message_at: string | null; created_at: string }[] }),
+    ownedIds.length
+      ? admin
+          .from("messages")
+          .select("oracle_id, content, role, created_at")
+          .in("oracle_id", ownedIds)
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(200)
+      : Promise.resolve({ data: [] as { oracle_id: string; content: string; role: string; created_at: string }[] }),
+  ]);
+  const sharedOracles = sharedOraclesRes.data;
+  const groupMemberRows = groupMemberRowsRes.data;
   type GroupMemberRow = {
     room_id: string;
     oracle_id: string;
@@ -221,31 +260,10 @@ async function renderDashboard() {
     avatarsByRoom.set(m.room_id, list);
   }
 
-  // 4) Beneficiary group rooms (user is member).
-  const { data: benefMembership } = await admin
-    .from("beneficiary_room_members")
-    .select("room_id")
-    .eq("user_id", user.id)
-    .is("left_at", null);
-  const benefRoomIds = (benefMembership ?? []).map((m) => m.room_id);
-  const { data: benefRooms } = benefRoomIds.length
-    ? await admin
-        .from("beneficiary_rooms")
-        .select("id, name, oracle_id, last_message_at, created_at")
-        .in("id", benefRoomIds)
-    : { data: [] };
-
-  // Pull last messages for each conversation (one per source, batched).
-  const ownedIds = (oracles ?? []).map((o) => o.id);
-  const { data: ownedLast } = ownedIds.length
-    ? await admin
-        .from("messages")
-        .select("oracle_id, content, role, created_at")
-        .in("oracle_id", ownedIds)
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(200)
-    : { data: [] };
+  // Beneficiary rooms + owned last-messages already fetched above
+  // as part of the parallel Round 2.
+  const benefRooms = benefRoomsRes.data;
+  const ownedLast = ownedLastRes.data;
   const lastByOwnedOracle = new Map<
     string,
     { content: string; role: string; created_at: string }
@@ -269,7 +287,7 @@ async function renderDashboard() {
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(200)
-    : { data: [] };
+    : { data: [] as { oracle_id: string; content: string; role: string; created_at: string }[] };
   const lastBySharedOracle = new Map<
     string,
     { content: string; role: string; created_at: string }

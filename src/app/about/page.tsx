@@ -2,6 +2,9 @@ import Link from "next/link";
 import { Footer } from "@/components/Footer";
 import { Orb } from "@/components/Orb";
 
+// ISR cache — these pages rarely change; serve stale up to 1h.
+export const revalidate = 3600;
+
 export const metadata = {
   title: "About — chapter3five",
   description:

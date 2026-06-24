@@ -1,5 +1,8 @@
 import { LegalPage } from "@/components/LegalPage";
 
+// ISR cache — these pages rarely change; serve stale up to 1h.
+export const revalidate = 3600;
+
 export const metadata = {
   title: "Cookies — chapter3five",
 };
