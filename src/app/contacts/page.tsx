@@ -79,9 +79,7 @@ export default async function ContactsPage({
   return (
     <>
       <header className="border-b border-warm-700/40">
-        {/* pr-16 on mobile leaves room for HomeChrome's top-right compose
-            pill so the right-aligned "Manage" link doesn't sit under it. */}
-        <div className="max-w-2xl mx-auto pl-6 pr-16 md:pr-6 py-6 flex items-center gap-3">
+        <div className="max-w-2xl mx-auto px-6 py-6 flex items-center gap-3">
           <Link
             href="/account"
             aria-label={t.back}

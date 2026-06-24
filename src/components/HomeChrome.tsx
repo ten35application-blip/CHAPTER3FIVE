@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { newOracle } from "@/app/oracles/actions";
+import { signOut } from "@/app/auth/actions";
 import { normalizeShareCode } from "@/lib/share";
 
 type Oracle = { id: string; name: string; avatarUrl: string | null };
@@ -11,11 +12,14 @@ type Oracle = { id: string; name: string; avatarUrl: string | null };
 type Props = {
   language: "en" | "es";
   ownedOracles?: Oracle[];
+  userEmail?: string | null;
+  isAdmin?: boolean;
+  trashedCount?: number;
 };
 
 const COPY = {
   en: {
-    settings: "Settings",
+    menu: "Menu",
     compose: "New",
     sectionMake: "Make",
     sectionLovedOne: "A loved one",
@@ -42,9 +46,20 @@ const COPY = {
     creating: "Creating…",
     cancel: "Cancel",
     error: "Couldn't create the group. Try again?",
+    drawerPeople: "People",
+    drawerAccount: "Account",
+    drawerHelp: "Help",
+    drawerContacts: "Contacts",
+    drawerTrash: "Trash",
+    drawerShare: "Share & inherit",
+    drawerSettings: "Settings",
+    drawerAdmin: "Admin",
+    drawerHow: "How chapter3five works",
+    drawerSupport: "FAQ & support",
+    drawerSignOut: "Sign out",
   },
   es: {
-    settings: "Ajustes",
+    menu: "Menú",
     compose: "Nuevo",
     sectionMake: "Crear",
     sectionLovedOne: "Un ser querido",
@@ -71,23 +86,46 @@ const COPY = {
     creating: "Creando…",
     cancel: "Cancelar",
     error: "No se pudo crear el grupo. ¿Intentas de nuevo?",
+    drawerPeople: "Personas",
+    drawerAccount: "Cuenta",
+    drawerHelp: "Ayuda",
+    drawerContacts: "Contactos",
+    drawerTrash: "Papelera",
+    drawerShare: "Compartir y heredar",
+    drawerSettings: "Ajustes",
+    drawerAdmin: "Admin",
+    drawerHow: "Cómo funciona chapter3five",
+    drawerSupport: "FAQ y soporte",
+    drawerSignOut: "Cerrar sesión",
   },
 };
 
 /**
- * Mobile chrome — two floating glass pills, one top-right (compose)
- * and one bottom-right (Settings). iMessage-shape: home screen IS the
- * conversation list, with these two persistent corners.
+ * Mobile chrome — Google Messages model.
  *
- * Hidden inside chat threads (the composer owns the bottom area) and
- * on marketing / auth / onboarding routes. Desktop (md+) is handled
- * by NavFab.
+ * Top-left: a small circular avatar button. Tap → a left-side drawer
+ * opens with everything that isn't a conversation (Contacts, Trash,
+ * Share & inherit, Settings, How it works, Sign out). One door.
+ *
+ * Top-right: iMessage-style compose pencil. Tap → bottom sheet with
+ * all "make a new thing" paths.
+ *
+ * No bottom-right Settings cog anymore — the drawer covers it. Hidden
+ * inside chat threads and on marketing/auth/onboarding. Desktop (md+)
+ * uses NavFab instead.
  */
-export function HomeChrome({ language, ownedOracles = [] }: Props) {
+export function HomeChrome({
+  language,
+  ownedOracles = [],
+  userEmail = null,
+  isAdmin = false,
+  trashedCount = 0,
+}: Props) {
   const t = COPY[language];
   const pathname = usePathname();
   const router = useRouter();
 
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [composeOpen, setComposeOpen] = useState(false);
   const [groupModalOpen, setGroupModalOpen] = useState(false);
   const [codeInputOpen, setCodeInputOpen] = useState(false);
@@ -98,25 +136,14 @@ export function HomeChrome({ language, ownedOracles = [] }: Props) {
   const [creating, setCreating] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const sheetRef = useRef<HTMLDivElement | null>(null);
+  const drawerRef = useRef<HTMLDivElement | null>(null);
 
-  const hidden =
-    pathname === "/" ||
-    pathname.startsWith("/auth") ||
-    pathname.startsWith("/legacy") ||
-    pathname === "/about" ||
-    pathname === "/how" ||
-    pathname === "/support" ||
-    pathname === "/sample" ||
-    pathname === "/terms" ||
-    pathname === "/privacy" ||
-    pathname === "/cookies" ||
-    pathname === "/account-deleted" ||
-    pathname.startsWith("/onboarding") ||
-    pathname.startsWith("/agreements") ||
-    pathname.startsWith("/chat/") ||
-    pathname.startsWith("/shared/") ||
-    pathname.startsWith("/groups/") ||
-    pathname.startsWith("/beneficiary-groups/");
+  // Chrome only shows on the home (conversation list). Subpages all
+  // have their own back-arrow headers, so a global avatar/compose
+  // would collide with them. Same model iMessage uses: the compose
+  // pencil only lives on the Messages list, not inside subpages.
+  const onHome = pathname === "/dashboard";
+  const hidden = !onHome;
 
   // Dismiss compose sheet on outside-tap / Escape.
   useEffect(() => {
@@ -136,10 +163,27 @@ export function HomeChrome({ language, ownedOracles = [] }: Props) {
     };
   }, [composeOpen]);
 
+  // Dismiss drawer on outside-tap / Escape.
+  useEffect(() => {
+    if (!drawerOpen) return;
+    function onDocClick(e: MouseEvent) {
+      if (!drawerRef.current) return;
+      if (!drawerRef.current.contains(e.target as Node)) setDrawerOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setDrawerOpen(false);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [drawerOpen]);
+
   if (hidden) return null;
 
-  const onAccount =
-    pathname === "/account" || pathname.startsWith("/account/");
+  const initial = (userEmail ?? "·").trim().charAt(0).toUpperCase() || "·";
 
   function submitCode(e: React.FormEvent) {
     e.preventDefault();
@@ -194,9 +238,28 @@ export function HomeChrome({ language, ownedOracles = [] }: Props) {
 
   return (
     <>
-      {/* Top-right compose pill. iMessage's pencil corner, lifted into
-          global chrome so it appears on every list surface, not just
-          /dashboard. */}
+      {/* Top-left avatar button — drawer trigger. */}
+      <div
+        className="fixed z-30 md:hidden"
+        style={{
+          left: "max(0.75rem, env(safe-area-inset-left))",
+          top: "max(0.75rem, env(safe-area-inset-top))",
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => setDrawerOpen(true)}
+          aria-haspopup="menu"
+          aria-expanded={drawerOpen}
+          aria-label={t.menu}
+          title={t.menu}
+          className="w-12 h-12 rounded-full bg-ink-soft/70 border border-warm-700/50 backdrop-blur-2xl text-warm-100 hover:text-warm-50 hover:bg-ink-soft/85 flex items-center justify-center shadow-[0_8px_24px_-8px_rgba(0,0,0,0.6)] transition-colors font-serif text-base"
+        >
+          {initial}
+        </button>
+      </div>
+
+      {/* Top-right compose pill. */}
       <div
         className="fixed z-30 md:hidden"
         style={{
@@ -217,32 +280,98 @@ export function HomeChrome({ language, ownedOracles = [] }: Props) {
         </button>
       </div>
 
-      {/* Bottom-right Settings pill. */}
-      <div
-        className="fixed z-30 md:hidden"
-        style={{
-          right: "max(1rem, env(safe-area-inset-right))",
-          bottom: "max(1rem, env(safe-area-inset-bottom))",
-        }}
-      >
-        <Link
-          href="/account"
-          aria-label={t.settings}
-          title={t.settings}
-          aria-current={onAccount ? "page" : undefined}
-          className={`w-14 h-14 rounded-full backdrop-blur-2xl border flex items-center justify-center shadow-[0_8px_24px_-8px_rgba(0,0,0,0.6)] transition-colors ${
-            onAccount
-              ? "bg-warm-50 border-warm-50 text-ink"
-              : "bg-ink-soft/70 border-warm-700/50 text-warm-100 hover:text-warm-50 hover:bg-ink-soft/85"
-          }`}
+      {/* Left drawer — Google Messages style. Slides in from the left
+          edge; backdrop blurs the rest of the app. */}
+      {drawerOpen && (
+        <div
+          className="fixed inset-0 z-40 md:hidden bg-ink/60 backdrop-blur-sm"
+          aria-modal="true"
+          role="dialog"
         >
-          <SettingsIcon />
-        </Link>
-      </div>
+          <div
+            ref={drawerRef}
+            className="absolute inset-y-0 left-0 w-[82vw] max-w-[340px] bg-ink-soft border-r border-warm-700/40 shadow-2xl overflow-y-auto animate-drawer-in"
+            style={{
+              paddingTop: "max(1.25rem, env(safe-area-inset-top))",
+              paddingBottom: "max(1rem, env(safe-area-inset-bottom))",
+            }}
+          >
+            {/* Identity card */}
+            <div className="px-5 pb-5 border-b border-warm-700/40">
+              <div className="w-14 h-14 rounded-full bg-warm-700/40 border border-warm-700/60 flex items-center justify-center font-serif text-2xl text-warm-100 mb-3">
+                {initial}
+              </div>
+              {userEmail && (
+                <p className="text-sm text-warm-200 truncate">{userEmail}</p>
+              )}
+            </div>
 
-      {/* Compose sheet — bottom-anchored on mobile, dismisses on
-          outside tap / Escape. Same sections the old top-of-dashboard
-          menu had: make something new, connect with a loved one. */}
+            <SectionLabel>{t.drawerPeople}</SectionLabel>
+            <DrawerRow
+              href="/contacts"
+              icon={<PeopleIcon />}
+              label={t.drawerContacts}
+              onSelect={() => setDrawerOpen(false)}
+            />
+            <DrawerRow
+              href="/trash"
+              icon={<TrashIcon />}
+              label={t.drawerTrash}
+              badge={trashedCount > 0 ? String(trashedCount) : undefined}
+              onSelect={() => setDrawerOpen(false)}
+            />
+
+            <SectionLabel>{t.drawerAccount}</SectionLabel>
+            <DrawerRow
+              href="/sharing"
+              icon={<ShareIcon />}
+              label={t.drawerShare}
+              onSelect={() => setDrawerOpen(false)}
+            />
+            <DrawerRow
+              href="/account"
+              icon={<SettingsIcon />}
+              label={t.drawerSettings}
+              onSelect={() => setDrawerOpen(false)}
+            />
+            {isAdmin && (
+              <DrawerRow
+                href="/admin"
+                icon={<AdminIcon />}
+                label={t.drawerAdmin}
+                onSelect={() => setDrawerOpen(false)}
+              />
+            )}
+
+            <SectionLabel>{t.drawerHelp}</SectionLabel>
+            <DrawerRow
+              href="/how"
+              icon={<HowIcon />}
+              label={t.drawerHow}
+              onSelect={() => setDrawerOpen(false)}
+            />
+            <DrawerRow
+              href="/support"
+              icon={<HelpIcon />}
+              label={t.drawerSupport}
+              onSelect={() => setDrawerOpen(false)}
+            />
+
+            <div className="mt-6 border-t border-warm-700/40 pt-3">
+              <form action={signOut}>
+                <button
+                  type="submit"
+                  className="block w-full text-left px-5 py-3 text-sm text-warm-200 hover:bg-warm-700/30 transition-colors"
+                >
+                  {t.drawerSignOut}
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Compose sheet — unchanged from before. */}
       {composeOpen && (
         <div
           className="fixed inset-0 z-40 md:hidden flex items-end justify-center bg-ink/60 backdrop-blur-sm"
@@ -370,8 +499,7 @@ export function HomeChrome({ language, ownedOracles = [] }: Props) {
         </div>
       )}
 
-      {/* Group-create modal — lifted from NewConversationMenu so the
-          sheet's "+ new group chat" path keeps working from chrome. */}
+      {/* Group-create modal — unchanged. */}
       {groupModalOpen && (
         <div
           className="fixed inset-0 z-[100] bg-ink/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-4 md:hidden"
@@ -483,38 +611,119 @@ export function HomeChrome({ language, ownedOracles = [] }: Props) {
   );
 }
 
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-[10px] uppercase tracking-[0.22em] text-warm-400 px-5 pt-5 pb-2">
+      {children}
+    </p>
+  );
+}
+
+function DrawerRow({
+  href,
+  icon,
+  label,
+  badge,
+  onSelect,
+}: {
+  href: string;
+  icon: React.ReactNode;
+  label: string;
+  badge?: string;
+  onSelect: () => void;
+}) {
+  return (
+    <Link
+      href={href}
+      onClick={onSelect}
+      className="flex items-center gap-3 px-5 py-3 text-warm-50 hover:bg-warm-700/30 active:bg-warm-700/50 transition-colors"
+    >
+      <span className="w-9 h-9 rounded-xl bg-warm-700/40 text-warm-100 flex items-center justify-center flex-shrink-0">
+        {icon}
+      </span>
+      <span className="flex-1 text-base">{label}</span>
+      {badge && (
+        <span className="text-xs text-warm-300 bg-warm-700/40 rounded-full px-2 py-0.5">
+          {badge}
+        </span>
+      )}
+    </Link>
+  );
+}
+
 function ComposeIcon() {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      className="w-5 h-5"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
+    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <path d="M4 21v-3.5L15 6.5l3.5 3.5L7.5 21z" />
       <path d="M14 7.5L17 4.5l3.5 3.5-3 3" />
     </svg>
   );
 }
 
+function PeopleIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <circle cx="9" cy="9" r="3.2" />
+      <circle cx="17" cy="9.5" r="2.5" />
+      <path d="M3 19c0-2.8 2.7-5 6-5s6 2.2 6 5" />
+      <path d="M14 17c.5-1.8 2.3-3 4.5-3s3.5 1 3.5 3" />
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+      <path d="M10 11v6M14 11v6" />
+      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+    </svg>
+  );
+}
+
+function ShareIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7" />
+      <path d="M16 6l-4-4-4 4" />
+      <path d="M12 2v14" />
+    </svg>
+  );
+}
+
 function SettingsIcon() {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      className="w-6 h-6"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.7"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
+    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <circle cx="12" cy="12" r="3" />
       <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
+    </svg>
+  );
+}
+
+function AdminIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="M3 10h18" />
+    </svg>
+  );
+}
+
+function HowIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-1 .4-1 1.2-1 2.2" />
+      <circle cx="12" cy="17" r="0.6" fill="currentColor" />
+    </svg>
+  );
+}
+
+function HelpIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M21 11.5a8.4 8.4 0 0 1-9 8.5 8.4 8.4 0 0 1-3.9-.7L3 21l1.6-4.4A8.4 8.4 0 0 1 3 11.5 8.4 8.4 0 0 1 12 3a8.4 8.4 0 0 1 9 8.5z" />
     </svg>
   );
 }

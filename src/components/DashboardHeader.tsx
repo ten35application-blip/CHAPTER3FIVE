@@ -43,10 +43,10 @@ export function DashboardHeader({ title, rightSlot }: Props) {
         }`}
       >
         <div className="bg-ink/80 backdrop-blur-md border-b border-warm-700/60">
-          {/* pr-16 on mobile leaves room for the HomeChrome compose pill
-              (fixed top-right). md+ drops the reservation since the inline
-              rightSlot returns. */}
-          <div className="max-w-2xl mx-auto pl-6 pr-16 md:pr-6 h-12 flex items-center justify-between gap-3">
+          {/* pl-16 pr-16 on mobile leaves room for both HomeChrome pills
+              (avatar top-left, compose top-right). md+ drops them since
+              the inline rightSlot returns and no global chrome. */}
+          <div className="max-w-2xl mx-auto pl-16 pr-16 md:pl-6 md:pr-6 h-12 flex items-center justify-between gap-3">
             <span className="font-serif italic text-warm-50 text-base">
               {title}
             </span>
@@ -57,10 +57,9 @@ export function DashboardHeader({ title, rightSlot }: Props) {
       </div>
 
       {/* Large title in the document flow. iMessage's large-title scale
-          (~34px) — bigger than our previous 3xl, gives the home screen
-          the iMessage feel. Same mobile right-padding so the title
-          doesn't run under the floating compose pill. */}
-      <div className="flex items-end justify-between mb-6 px-2 pr-14 md:pr-2 gap-3">
+          (~34px). Mobile: pad both sides to clear the avatar (left)
+          and compose pill (right). md+: no global chrome, normal pad. */}
+      <div className="flex items-end justify-between mb-6 mt-14 md:mt-0 px-2 gap-3">
         <h1 className="font-serif text-[34px] text-warm-50 leading-none tracking-tight">
           {title}
         </h1>

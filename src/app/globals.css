@@ -122,3 +122,13 @@ html[data-accessibility="on"] *::after {
 .animate-sheet-up {
   animation: sheetUp 260ms cubic-bezier(0.32, 0.72, 0, 1) both;
 }
+
+/* Left drawer entrance (HomeChrome). Slides from offscreen-left in,
+ * same soft cubic as the sheet for consistency. */
+@keyframes drawerIn {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(0); }
+}
+.animate-drawer-in {
+  animation: drawerIn 260ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}

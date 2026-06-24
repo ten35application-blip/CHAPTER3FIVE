@@ -79,6 +79,8 @@ export default async function RootLayout({
   let signedIn = false;
   let accessibility = false;
   let signedInUserId: string | null = null;
+  let userEmail: string | null = null;
+  let trashedCount = 0;
   let ownedOracles: { id: string; name: string; avatarUrl: string | null }[] =
     [];
   try {
@@ -89,6 +91,7 @@ export default async function RootLayout({
     if (user) {
       signedIn = true;
       signedInUserId = user.id;
+      userEmail = user.email ?? null;
       userIsAdmin = isAdmin(user.email);
       const { data: profile } = await supabase
         .from("profiles")
@@ -129,6 +132,14 @@ export default async function RootLayout({
           avatarUrl: (o.avatar_url as string | null) ?? null,
         }));
       }
+
+      // Trashed count for the drawer's "Trash · N" badge.
+      const { count: tc } = await supabase
+        .from("oracles")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .not("deleted_at", "is", null);
+      trashedCount = tc ?? 0;
     }
   } catch {
     /* fall back to defaults on any error */
@@ -148,11 +159,17 @@ export default async function RootLayout({
             {signedInUserId && (
               <NotificationToast userId={signedInUserId} />
             )}
-            {/* Mobile: a single Settings cog bottom-right. Everything
-                else (identities, sharing, trash, etc.) is reached from
-                inside Settings — iMessage-shape home screen.
-                Desktop (md+) keeps the NavFab popover. */}
-            <HomeChrome language={language} ownedOracles={ownedOracles} />
+            {/* Mobile: top-left avatar opens a left-side drawer (Google
+                Messages model); top-right pill composes (iMessage).
+                Drawer holds Contacts / Trash / Share & inherit / Settings
+                / How it works / Sign out. Desktop (md+) keeps NavFab. */}
+            <HomeChrome
+              language={language}
+              ownedOracles={ownedOracles}
+              userEmail={userEmail}
+              isAdmin={userIsAdmin}
+              trashedCount={trashedCount}
+            />
             <div className="hidden md:block">
               <NavFab language={language} isAdmin={userIsAdmin} />
             </div>
