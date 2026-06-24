@@ -106,7 +106,11 @@ async function handleCheckoutCompleted(
   const paymentIntentId =
     typeof session.payment_intent === "string" ? session.payment_intent : null;
 
-  await admin
+  // Claim the pending row. If 0 rows come back, another webhook delivery
+  // already processed this — short-circuit before re-granting credit.
+  // (Belt and suspenders on top of the stripe_events dedup, which can race
+  // if a re-fire arrives before the previous run finished recordEvent().)
+  const { data: claimed } = await admin
     .from("payments")
     .update({
       status: "paid",
@@ -115,7 +119,13 @@ async function handleCheckoutCompleted(
       paid_at: new Date().toISOString(),
     })
     .eq("stripe_session_id", session.id)
-    .eq("status", "pending");
+    .eq("status", "pending")
+    .select("id");
+
+  if (!claimed || claimed.length === 0) {
+    await recordEvent(event, admin, userId);
+    return;
+  }
 
   // Restore flows don't grant credits — they reverse a soft-delete.
   if (purpose === "restore_account") {
@@ -209,13 +219,22 @@ async function handleChargeRefunded(event: Stripe.Event, admin: AdminClient) {
     return;
   }
 
-  await admin
+  // Claim the refund: only proceed if this row hadn't already been refunded
+  // by a racing webhook delivery. Mirrors the pending→paid claim above.
+  const { data: refundClaimed } = await admin
     .from("payments")
     .update({
       status: "refunded",
       refunded_at: new Date().toISOString(),
     })
-    .eq("id", payment.id);
+    .eq("id", payment.id)
+    .is("refunded_at", null)
+    .select("id");
+
+  if (!refundClaimed || refundClaimed.length === 0) {
+    await recordEvent(event, admin, payment.user_id);
+    return;
+  }
 
   // Revert the credit. greatest(0, ...) in the SQL function prevents going
   // negative if the user already spent it.
