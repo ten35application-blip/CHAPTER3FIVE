@@ -433,14 +433,19 @@ async function renderDashboard() {
         <DashboardHeader
           title={t.title}
           rightSlot={
-            <NewConversationMenu
-              language={language}
-              ownedOracles={(oracles ?? []).map((o) => ({
-                id: o.id,
-                name: o.name?.trim() || t.unnamed,
-                avatarUrl: o.avatar_url,
-              }))}
-            />
+            // Mobile uses the global HomeChrome compose pill (top-right).
+            // Desktop has no global compose, so keep the inline menu here
+            // for md+.
+            <div className="hidden md:block">
+              <NewConversationMenu
+                language={language}
+                ownedOracles={(oracles ?? []).map((o) => ({
+                  id: o.id,
+                  name: o.name?.trim() || t.unnamed,
+                  avatarUrl: o.avatar_url,
+                }))}
+              />
+            </div>
           }
         />
 

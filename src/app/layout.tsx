@@ -79,6 +79,8 @@ export default async function RootLayout({
   let signedIn = false;
   let accessibility = false;
   let signedInUserId: string | null = null;
+  let ownedOracles: { id: string; name: string; avatarUrl: string | null }[] =
+    [];
   try {
     const supabase = await createClient();
     const {
@@ -109,6 +111,24 @@ export default async function RootLayout({
       } catch {
         accessibility = false;
       }
+
+      // Owned identities — used by HomeChrome's + sheet for the
+      // group-create picker. Single light query; the rest of the
+      // sheet is no-data.
+      const { data: oracleRows } = await supabase
+        .from("oracles")
+        .select("id, name, avatar_url")
+        .eq("user_id", user.id)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: true })
+        .limit(12);
+      if (oracleRows) {
+        ownedOracles = oracleRows.map((o) => ({
+          id: o.id as string,
+          name: (o.name as string) ?? "untitled",
+          avatarUrl: (o.avatar_url as string | null) ?? null,
+        }));
+      }
     }
   } catch {
     /* fall back to defaults on any error */
@@ -132,7 +152,7 @@ export default async function RootLayout({
                 else (identities, sharing, trash, etc.) is reached from
                 inside Settings — iMessage-shape home screen.
                 Desktop (md+) keeps the NavFab popover. */}
-            <HomeChrome language={language} />
+            <HomeChrome language={language} ownedOracles={ownedOracles} />
             <div className="hidden md:block">
               <NavFab language={language} isAdmin={userIsAdmin} />
             </div>

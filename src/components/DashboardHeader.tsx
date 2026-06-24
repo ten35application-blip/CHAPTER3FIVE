@@ -43,20 +43,22 @@ export function DashboardHeader({ title, rightSlot }: Props) {
         }`}
       >
         <div className="bg-ink/80 backdrop-blur-md border-b border-warm-700/60">
-          <div className="max-w-2xl mx-auto px-6 h-12 flex items-center justify-between gap-3">
+          {/* pr-16 on mobile leaves room for the HomeChrome compose pill
+              (fixed top-right). md+ drops the reservation since the inline
+              rightSlot returns. */}
+          <div className="max-w-2xl mx-auto pl-6 pr-16 md:pr-6 h-12 flex items-center justify-between gap-3">
             <span className="font-serif italic text-warm-50 text-base">
               {title}
             </span>
-            {/* Smaller version of the right slot — same content, just
-                let the consumer style for both states. */}
             <div className="scale-90 origin-right">{rightSlot}</div>
           </div>
           <div className="h-px bg-amber/40" />
         </div>
       </div>
 
-      {/* Large title in the document flow. */}
-      <div className="flex items-end justify-between mb-5 px-2 gap-3">
+      {/* Large title in the document flow. Same mobile right-padding so
+          the title doesn't run under the floating compose pill. */}
+      <div className="flex items-end justify-between mb-5 px-2 pr-14 md:pr-2 gap-3">
         <h1 className="font-serif text-3xl text-warm-50 leading-none">
           {title}
         </h1>
