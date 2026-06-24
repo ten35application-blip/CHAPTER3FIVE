@@ -399,8 +399,18 @@ export function Chat({
             </p>
           )}
 
-          {messages.map((m, i) => (
-            <div key={i} className="group">
+          {messages.map((m, i) => {
+            // iMessage-like bubble entrance — newest message "pops"
+            // when it lands, older messages animate-in fade-only on
+            // mount. Last index gets the scale-pop; others fade.
+            const isNewest = i === messages.length - 1;
+            const enterClass = isNewest
+              ? m.role === "user"
+                ? "animate-message-pop-right"
+                : "animate-message-pop-left"
+              : "";
+            return (
+            <div key={i} className={`group ${enterClass}`}>
               <div
                 className={
                   m.role === "user" ? "flex justify-end" : "flex justify-start"
@@ -417,6 +427,8 @@ export function Chat({
                     <img
                       src={m.imageUrl}
                       alt=""
+                      loading="lazy"
+                      decoding="async"
                       className="rounded-xl max-w-full max-h-80 object-cover mb-2"
                     />
                   )}
@@ -471,7 +483,8 @@ export function Chat({
                 </div>
               )}
             </div>
-          ))}
+            );
+          })}
         </div>
 
         {error && (

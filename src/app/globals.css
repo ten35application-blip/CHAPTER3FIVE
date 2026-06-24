@@ -91,3 +91,23 @@ html[data-accessibility="on"] *::after {
   transition-duration: 0.01ms !important;
   scroll-behavior: auto !important;
 }
+
+/* iMessage-style entrance pop for the newest chat bubble.
+ * User bubbles enter from the right side, persona bubbles from
+ * the left, both with a tiny scale bounce. 220ms total — slow
+ * enough to register, fast enough not to be annoying.
+ * Also disabled by accessibility-mode's blanket animation cut. */
+@keyframes messagePopRight {
+  0%   { opacity: 0; transform: translate(8px, 4px) scale(0.96); }
+  100% { opacity: 1; transform: translate(0, 0) scale(1); }
+}
+@keyframes messagePopLeft {
+  0%   { opacity: 0; transform: translate(-8px, 4px) scale(0.96); }
+  100% { opacity: 1; transform: translate(0, 0) scale(1); }
+}
+.animate-message-pop-right {
+  animation: messagePopRight 220ms cubic-bezier(0.34, 1.32, 0.64, 1) both;
+}
+.animate-message-pop-left {
+  animation: messagePopLeft 220ms cubic-bezier(0.34, 1.32, 0.64, 1) both;
+}

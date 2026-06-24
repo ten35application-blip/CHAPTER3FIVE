@@ -149,13 +149,16 @@ export function GroupRoom({
     });
   }, [messages, sending]);
 
-  // Refetch the latest messages on tab focus / visibility change.
-  // Realtime sometimes drops or never connects on flaky networks;
-  // a refetch when the user comes back to the tab catches anything
-  // we missed.
+  // Single realtime channel handling BOTH new messages AND member
+  // updates (kicks, walk-outs, re-adds). Previously we had two
+  // channels and a tab-focus refetch all doing overlapping work;
+  // this consolidation cuts WebSocket overhead in half. On a
+  // subscribe re-connect (channel dropped + came back), do one
+  // catch-up refetch so anything missed during the gap shows up.
   useEffect(() => {
     const supabase = createClient();
-    async function refetch() {
+
+    async function catchUpMessages() {
       const { data: rows } = await supabase
         .from("group_messages")
         .select(
@@ -172,7 +175,6 @@ export function GroupRoom({
         createdAt: m.created_at,
       }));
       setMessages((prev) => {
-        // Merge: keep any local-temp ids that aren't in fresh yet.
         const freshIds = new Set(fresh.map((m) => m.id));
         const localOnly = prev.filter(
           (m) => m.id.startsWith("local-") && !freshIds.has(m.id),
@@ -180,25 +182,9 @@ export function GroupRoom({
         return [...fresh, ...localOnly];
       });
     }
-    function onVisible() {
-      if (document.visibilityState === "visible") {
-        void refetch();
-      }
-    }
-    window.addEventListener("focus", refetch);
-    document.addEventListener("visibilitychange", onVisible);
-    return () => {
-      window.removeEventListener("focus", refetch);
-      document.removeEventListener("visibilitychange", onVisible);
-    };
-  }, [roomId]);
 
-  // Realtime subscription so persona replies stream in as the
-  // orchestration API posts them.
-  useEffect(() => {
-    const supabase = createClient();
     const channel = supabase
-      .channel(`group_messages:${roomId}`)
+      .channel(`group_room:${roomId}`)
       .on(
         "postgres_changes",
         {
@@ -231,19 +217,6 @@ export function GroupRoom({
           });
         },
       )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [roomId]);
-
-  // Realtime: track group_room_members so the chip strip stays in
-  // sync when someone walks out, gets kicked, or gets re-added.
-  useEffect(() => {
-    const supabase = createClient();
-    const channel = supabase
-      .channel(`group_members:${roomId}`)
       .on(
         "postgres_changes",
         {
@@ -266,7 +239,15 @@ export function GroupRoom({
           );
         },
       )
-      .subscribe();
+      .subscribe((status) => {
+        // On subscribe (initial + reconnect) catch up any messages
+        // that landed while we were disconnected. Cheaper than
+        // pinging on every tab focus.
+        if (status === "SUBSCRIBED") {
+          void catchUpMessages();
+        }
+      });
+
     return () => {
       supabase.removeChannel(channel);
     };
