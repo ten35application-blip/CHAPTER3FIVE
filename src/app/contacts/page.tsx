@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { switchOracle } from "../oracles/actions";
+import { relativeTime } from "@/lib/relativeTime";
 
 export const metadata = {
   title: "Contacts — chapter3five",
@@ -36,6 +38,36 @@ export default async function ContactsPage({
     .is("deleted_at", null)
     .order("name", { ascending: true });
   const oracles = oracleRows ?? [];
+
+  // Last message per oracle for the preview line. Same pattern as
+  // /dashboard: pull the recent message page once, group in JS by
+  // oracle_id taking the first hit (most recent). Admin client used
+  // for the read since messages have an RLS policy that only the
+  // dashboard query path bypasses cleanly.
+  const oracleIds = oracles.map((o) => o.id as string);
+  const lastByOracle = new Map<
+    string,
+    { content: string; role: string; created_at: string }
+  >();
+  if (oracleIds.length > 0) {
+    const admin = createAdminClient();
+    const { data: msgs } = await admin
+      .from("messages")
+      .select("oracle_id, content, role, created_at")
+      .in("oracle_id", oracleIds)
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(200);
+    for (const m of msgs ?? []) {
+      if (!lastByOracle.has(m.oracle_id as string)) {
+        lastByOracle.set(m.oracle_id as string, {
+          content: m.content as string,
+          role: m.role as string,
+          created_at: m.created_at as string,
+        });
+      }
+    }
+  }
 
   // Trashed count for the footer link.
   const { count: trashedCount } = await supabase
@@ -109,11 +141,18 @@ export default async function ContactsPage({
               {oracles.map((o) => {
                 const name = (o.name as string)?.trim() || t.unnamed;
                 const isActive = o.id === activeId;
+                const last = lastByOracle.get(o.id as string);
+                const subtitle = last
+                  ? `${last.role === "user" ? `${t.you}: ` : ""}${last.content}`
+                  : modeLabel(o.mode as string, t);
+                const stamp = last
+                  ? relativeTime(last.created_at, language)
+                  : "";
                 return (
                   <li key={o.id}>
                     <form
                       action={switchOracle}
-                      className="flex items-center gap-3 rounded-2xl border border-warm-700/50 bg-warm-700/15 hover:bg-warm-700/30 hover:border-warm-300/40 transition-colors"
+                      className="flex items-center gap-3 rounded-2xl hover:bg-warm-700/20 transition-colors"
                     >
                       <input
                         type="hidden"
@@ -122,7 +161,7 @@ export default async function ContactsPage({
                       />
                       <button
                         type="submit"
-                        className="flex items-center gap-3 flex-1 min-w-0 text-left px-4 py-3"
+                        className="flex items-center gap-3 flex-1 min-w-0 text-left px-2 py-3"
                       >
                         <div className="w-12 h-12 rounded-full overflow-hidden bg-warm-700/40 flex-shrink-0">
                           {o.avatar_url ? (
@@ -137,30 +176,23 @@ export default async function ContactsPage({
                           ) : null}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-base text-warm-50 truncate flex items-center gap-2">
-                            {name}
-                            {isActive && (
-                              <span className="text-[10px] uppercase tracking-[0.18em] text-amber">
-                                {t.activeBadge}
-                              </span>
-                            )}
-                          </p>
-                          <p className="text-xs text-warm-400 mt-0.5">
-                            {modeLabel(o.mode as string, t)}
+                          <div className="flex items-baseline justify-between gap-2 mb-0.5">
+                            <span className="font-serif text-base text-warm-50 truncate flex items-center gap-2">
+                              {name}
+                              {isActive && (
+                                <span className="text-[10px] uppercase tracking-[0.18em] text-amber">
+                                  {t.activeBadge}
+                                </span>
+                              )}
+                            </span>
+                            <span className="text-xs text-warm-400 flex-shrink-0">
+                              {stamp}
+                            </span>
+                          </div>
+                          <p className="text-sm text-warm-300 truncate">
+                            {subtitle}
                           </p>
                         </div>
-                        <svg
-                          aria-hidden
-                          viewBox="0 0 24 24"
-                          className="w-4 h-4 text-warm-400 flex-shrink-0 mr-2"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <polyline points="9 6 15 12 9 18" />
-                        </svg>
                       </button>
                     </form>
                   </li>
@@ -221,6 +253,7 @@ const COPY = {
     saved: "Done.",
     unnamed: "(no name)",
     activeBadge: "Open",
+    you: "You",
     modeReal: "From real answers",
     modeMemory: "From memory",
     modeRandomize: "Randomized",
@@ -239,6 +272,7 @@ const COPY = {
     saved: "Hecho.",
     unnamed: "(sin nombre)",
     activeBadge: "Abierto",
+    you: "Tú",
     modeReal: "Respuestas reales",
     modeMemory: "Desde memoria",
     modeRandomize: "Aleatorio",
