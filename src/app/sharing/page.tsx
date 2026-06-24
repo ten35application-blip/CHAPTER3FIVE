@@ -118,6 +118,20 @@ export default async function SharingPage({
               answer UI prompts users to write the way they'd
               actually say it. */}
 
+          {!oracleName && (
+            <Section title={t.familyTitle}>
+              <p className="text-warm-200 leading-relaxed mb-4">
+                {t.noIdentityYet}
+              </p>
+              <Link
+                href="/onboarding"
+                className="inline-flex h-11 items-center justify-center rounded-full bg-warm-50 px-5 text-sm font-medium text-ink hover:bg-warm-100 transition-colors"
+              >
+                {t.noIdentityCta}
+              </Link>
+            </Section>
+          )}
+
           {oracleName && (
             <Section title={t.familyTitle}>
               <p className="text-warm-200 mb-3 leading-relaxed">
@@ -435,6 +449,9 @@ const COPY = {
     revoked: "revoked",
     revoke: "Revoke",
     familyTitle: "Family who can access this archive",
+    noIdentityYet:
+      "Once you name an identity, you can invite family to read it now and inherit it later. Finish onboarding first — it takes about a minute.",
+    noIdentityCta: "Finish onboarding →",
     familyIntro:
       "The people who can talk to your identity now — or step into it after you're gone. Three included; $5 for each beyond that.",
     familyIntroSimple:
@@ -516,6 +533,9 @@ const COPY = {
     revoked: "revocado",
     revoke: "Revocar",
     familyTitle: "Familia con acceso a este archivo",
+    noIdentityYet:
+      "Una vez que nombres una identidad, puedes invitar a la familia a leerla ahora y heredarla después. Termina el onboarding primero — toma un minuto.",
+    noIdentityCta: "Terminar onboarding →",
     familyIntro:
       "Las personas que pueden hablar con tu identidad ahora — o entrar en ella cuando ya no estés. Tres incluidas; $5 por cada una adicional.",
     familyIntroSimple:
