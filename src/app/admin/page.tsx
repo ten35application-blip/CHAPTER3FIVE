@@ -276,7 +276,7 @@ export default async function AdminPage({
       </header>
 
       <main className="flex-1">
-        <div className="max-w-5xl mx-auto px-6 py-12 space-y-12">
+        <div className="max-w-5xl mx-auto px-6 py-8 space-y-8">
           {saved && (
             <div className="rounded-lg bg-warm-700/30 border border-warm-300/30 px-4 py-3 text-sm text-warm-100">
               Saved.
@@ -320,7 +320,7 @@ export default async function AdminPage({
           <ChapterHeading id="people">People</ChapterHeading>
 
           <section>
-            <h2 className="text-xs uppercase tracking-[0.25em] text-warm-300 mb-4">
+            <h2 className="text-[10px] uppercase tracking-[0.22em] text-warm-300 mb-3">
               Look up a user
             </h2>
             <form action={lookupUser} className="flex gap-2">
@@ -341,7 +341,7 @@ export default async function AdminPage({
           </section>
 
           <section>
-            <h2 className="text-xs uppercase tracking-[0.25em] text-warm-300 mb-4">
+            <h2 className="text-[10px] uppercase tracking-[0.22em] text-warm-300 mb-3">
               Users
             </h2>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
@@ -350,7 +350,7 @@ export default async function AdminPage({
               <Stat label="Active in 7 days" value={stat(activeLastSevenCount).toLocaleString()} />
               <Stat label="Outreach sent (30d)" value={stat(outreachSentLast30).toLocaleString()} />
             </div>
-            <h3 className="text-xs uppercase tracking-[0.25em] text-warm-400 mb-3">
+            <h3 className="text-[10px] uppercase tracking-[0.22em] text-warm-400 mb-2">
               Recent signups
             </h3>
             {recentSignups.data && recentSignups.data.length > 0 ? (
@@ -387,7 +387,7 @@ export default async function AdminPage({
           <ChapterHeading id="money">Money</ChapterHeading>
 
           <section>
-            <h2 className="text-xs uppercase tracking-[0.25em] text-warm-300 mb-4">
+            <h2 className="text-[10px] uppercase tracking-[0.22em] text-warm-300 mb-3">
               Revenue
             </h2>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -404,7 +404,7 @@ export default async function AdminPage({
           <ChapterHeading id="activity">Activity</ChapterHeading>
 
           <section>
-            <h2 className="text-xs uppercase tracking-[0.25em] text-warm-300 mb-4">
+            <h2 className="text-[10px] uppercase tracking-[0.22em] text-warm-300 mb-3">
               Mode distribution
             </h2>
             <div className="grid grid-cols-3 gap-3">
@@ -415,7 +415,7 @@ export default async function AdminPage({
           </section>
 
           <section>
-            <h2 className="text-xs uppercase tracking-[0.25em] text-warm-300 mb-4">
+            <h2 className="text-[10px] uppercase tracking-[0.22em] text-warm-300 mb-3">
               Content
             </h2>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -430,7 +430,7 @@ export default async function AdminPage({
 
           <section>
             <div className="flex items-end justify-between mb-4">
-              <h2 className="text-xs uppercase tracking-[0.25em] text-warm-300">
+              <h2 className="text-[10px] uppercase tracking-[0.22em] text-warm-300">
                 Crisis flags
               </h2>
               <p className="text-sm text-warm-200">
@@ -508,7 +508,7 @@ export default async function AdminPage({
 
           <section>
             <div className="flex items-end justify-between mb-4">
-              <h2 className="text-xs uppercase tracking-[0.25em] text-warm-300">
+              <h2 className="text-[10px] uppercase tracking-[0.22em] text-warm-300">
                 Reported messages
               </h2>
               <p className="text-sm text-warm-200">
@@ -584,7 +584,7 @@ export default async function AdminPage({
           </section>
 
           <section>
-            <h2 className="text-xs uppercase tracking-[0.25em] text-warm-300 mb-4">
+            <h2 className="text-[10px] uppercase tracking-[0.22em] text-warm-300 mb-3">
               Chat usage
             </h2>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
@@ -629,7 +629,7 @@ export default async function AdminPage({
           <ChapterHeading id="legacy">Legacy</ChapterHeading>
 
           <section>
-            <h2 className="text-xs uppercase tracking-[0.25em] text-warm-300 mb-4">
+            <h2 className="text-[10px] uppercase tracking-[0.22em] text-warm-300 mb-3">
               Legacy &amp; sharing
             </h2>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
@@ -694,7 +694,7 @@ export default async function AdminPage({
           <ChapterHeading id="operations">Operations</ChapterHeading>
 
           <section>
-            <h2 className="text-xs uppercase tracking-[0.25em] text-warm-300 mb-4">
+            <h2 className="text-[10px] uppercase tracking-[0.22em] text-warm-300 mb-3">
               Cron health
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -712,7 +712,7 @@ export default async function AdminPage({
           </section>
 
           <section>
-            <h2 className="text-xs uppercase tracking-[0.25em] text-warm-300 mb-4">
+            <h2 className="text-[10px] uppercase tracking-[0.22em] text-warm-300 mb-3">
               Stripe events (recent)
             </h2>
             {recentStripeEvents.data && recentStripeEvents.data.length > 0 ? (
@@ -749,7 +749,7 @@ export default async function AdminPage({
 
           <section>
             <div className="flex items-end justify-between mb-4">
-              <h2 className="text-xs uppercase tracking-[0.25em] text-warm-300">
+              <h2 className="text-[10px] uppercase tracking-[0.22em] text-warm-300">
                 Email log
               </h2>
               <p className="text-sm text-warm-200">
@@ -804,7 +804,7 @@ export default async function AdminPage({
           </section>
 
           <section>
-            <h2 className="text-xs uppercase tracking-[0.25em] text-warm-300 mb-4">
+            <h2 className="text-[10px] uppercase tracking-[0.22em] text-warm-300 mb-3">
               Audit log
             </h2>
             {auditRecent.data && auditRecent.data.length > 0 ? (
@@ -863,22 +863,26 @@ function ChapterHeading({
   return (
     <div
       id={id}
-      className="pt-6 -mt-2 scroll-mt-24"
+      className="pt-3 scroll-mt-20"
       aria-label={`Section: ${typeof children === "string" ? children : id}`}
     >
-      <h2 className="font-serif text-3xl text-warm-50">{children}</h2>
-      <div className="h-px bg-warm-700/60 mt-3" />
+      <h2 className="font-serif text-2xl text-warm-50 leading-none">
+        {children}
+      </h2>
+      <div className="h-px bg-warm-700/50 mt-2" />
     </div>
   );
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-warm-700/60 bg-warm-700/15 px-5 py-4">
-      <p className="text-xs uppercase tracking-[0.2em] text-warm-400 mb-2">
+    <div className="rounded-xl border border-warm-700/50 bg-warm-700/10 px-4 py-3">
+      <p className="text-[10px] uppercase tracking-[0.18em] text-warm-400 mb-1">
         {label}
       </p>
-      <p className="font-serif text-3xl text-warm-50 tabular-nums">{value}</p>
+      <p className="font-serif text-2xl text-warm-50 tabular-nums leading-tight">
+        {value}
+      </p>
     </div>
   );
 }
