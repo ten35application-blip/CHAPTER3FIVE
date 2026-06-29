@@ -4,42 +4,51 @@
    `.bg-warm-50 { background: var(--color-warm-50); }`, so runtime
    theme overrides via `[data-theme="X"]` actually take effect.
    With `inline`, values are baked at compile time and runtime
-   overrides do nothing (the bug we just fixed). */
-@theme {
-  --font-sans: var(--font-geist-sans);
-  --font-serif: var(--font-cormorant);
+   overrides do nothing (the bug we just fixed).
 
-  /* DUSK — default. Warm-dark. Intimate, somber, paperback-at-night. */
-  --color-ink: #1a140f;
-  --color-ink-soft: #3a2c20;
-  --color-warm-50: #fff8ec;
-  --color-warm-100: #fae9c8;
-  --color-warm-200: #efd5a8;
-  --color-warm-300: #d8b27a;
-  --color-warm-400: #b88a5e;
-  --color-warm-500: #806239;
-  --color-warm-600: #4d3a25;
-  --color-warm-700: #30231a;
-  --color-amber: #ffd8a0;
-  --color-amber-soft: #ffc585;
+   The token names (warm-50, ink, amber) are kept for compatibility
+   with the hundreds of utility uses already in the codebase. Their
+   VALUES are now iOS Messages palette — neutral cool grays, system
+   blue accent. A future rename pass can swap the names later. */
+@theme {
+  /* System font stack — SF Pro on Apple, Segoe on Windows, Roboto on
+     Android. The native-texting-app feel comes from matching the OS
+     font, not loading our own. Both sans and "serif" tokens resolve
+     to system: nothing in this app reads better as serif. */
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, system-ui, sans-serif;
+  --font-serif: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, system-ui, sans-serif;
+
+  /* DEFAULT — iOS Messages dark. True black page, near-black elevated
+     surfaces, iOS system blue accent. */
+  --color-ink: #000000;          /* page background */
+  --color-ink-soft: #1c1c1e;     /* elevated surfaces (cards, sheets) */
+  --color-warm-50: #ffffff;      /* primary text */
+  --color-warm-100: #f2f2f7;     /* near-white */
+  --color-warm-200: #d1d1d6;     /* light gray */
+  --color-warm-300: #8e8e93;     /* iOS secondary label */
+  --color-warm-400: #636366;     /* iOS tertiary label */
+  --color-warm-500: #48484a;     /* deeper gray */
+  --color-warm-600: #3a3a3c;     /* elevated bg variant */
+  --color-warm-700: #2c2c2e;     /* hairline-divider / chip bg */
+  --color-amber: #0a84ff;        /* iOS system blue (was amber yellow) */
+  --color-amber-soft: #5ac8fa;   /* iOS light blue */
 }
 
-/* DAYLIGHT — warm parchment background, deep sepia text. Aggressive
-   contrast: very dark headings, mid-dark body, clearly-visible
-   borders against the cream. */
+/* DAYLIGHT — iOS Messages light. Pure white, near-black text, same
+   system blue accent. */
 :root[data-theme="daylight"] {
-  --color-ink: #fdf7e6;
-  --color-ink-soft: #f1e3c4;
-  --color-warm-50: #0d0805;
-  --color-warm-100: #1a140f;
-  --color-warm-200: #2e2418;
-  --color-warm-300: #4a3826;
-  --color-warm-400: #6b5238;
-  --color-warm-500: #8a6f50;
-  --color-warm-600: #a88c70;
-  --color-warm-700: #b89a78;
-  --color-amber: #a25c0c;
-  --color-amber-soft: #b87420;
+  --color-ink: #ffffff;
+  --color-ink-soft: #f2f2f7;
+  --color-warm-50: #000000;
+  --color-warm-100: #1c1c1e;
+  --color-warm-200: #3a3a3c;
+  --color-warm-300: #6e6e73;
+  --color-warm-400: #8e8e93;
+  --color-warm-500: #aeaeb2;
+  --color-warm-600: #c7c7cc;
+  --color-warm-700: #d1d1d6;
+  --color-amber: #007aff;
+  --color-amber-soft: #5ac8fa;
 }
 
 html,

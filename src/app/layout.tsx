@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Geist, Cormorant_Garamond } from "next/font/google";
 import { createClient } from "@/lib/supabase/server";
 import { isAdmin } from "@/lib/admin";
 import { NavFab } from "@/components/NavFab";
@@ -7,17 +6,9 @@ import { HomeChrome } from "@/components/HomeChrome";
 import { NotificationToast } from "@/components/NotificationToast";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const cormorant = Cormorant_Garamond({
-  variable: "--font-cormorant",
-  weight: ["300", "400", "500", "600"],
-  style: ["normal", "italic"],
-  subsets: ["latin"],
-});
+// Native-texting-app feel comes from using the OS font, not loading
+// our own. SF Pro on iOS/macOS, Segoe on Windows, Roboto on Android —
+// declared in globals.css's @theme --font-sans / --font-serif.
 
 export const metadata: Metadata = {
   title: {
@@ -150,7 +141,7 @@ export default async function RootLayout({
       lang={language}
       data-theme={theme}
       data-accessibility={accessibility ? "on" : "off"}
-      className={`${geistSans.variable} ${cormorant.variable} h-full antialiased`}
+      className="h-full antialiased"
     >
       <body className="min-h-full flex flex-col bg-ink text-warm-50">
         {children}
