@@ -12,26 +12,29 @@
    blue accent. A future rename pass can swap the names later. */
 @theme {
   /* System font stack — SF Pro on Apple, Segoe on Windows, Roboto on
-     Android. The native-texting-app feel comes from matching the OS
-     font, not loading our own. Both sans and "serif" tokens resolve
-     to system: nothing in this app reads better as serif. */
+     Android. */
   --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, system-ui, sans-serif;
   --font-serif: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, system-ui, sans-serif;
 
-  /* DEFAULT — iOS Messages dark. True black page, near-black elevated
-     surfaces, iOS system blue accent. */
-  --color-ink: #000000;          /* page background */
-  --color-ink-soft: #1c1c1e;     /* elevated surfaces (cards, sheets) */
-  --color-warm-50: #ffffff;      /* primary text */
-  --color-warm-100: #f2f2f7;     /* near-white */
-  --color-warm-200: #d1d1d6;     /* light gray */
-  --color-warm-300: #8e8e93;     /* iOS secondary label */
-  --color-warm-400: #636366;     /* iOS tertiary label */
-  --color-warm-500: #48484a;     /* deeper gray */
-  --color-warm-600: #3a3a3c;     /* elevated bg variant */
-  --color-warm-700: #2c2c2e;     /* hairline-divider / chip bg */
-  --color-amber: #0a84ff;        /* iOS system blue (was amber yellow) */
-  --color-amber-soft: #5ac8fa;   /* iOS light blue */
+  /* DEFAULT — warm welcoming light. Off-white page, pure-white
+     elevated surfaces, deep charcoal text, dusty blue accent. Reads
+     like a quiet morning, not a hospital and not a dark library.
+
+     Token names (warm-*, ink, amber) are kept for compatibility with
+     existing utility uses across the codebase; values flipped to a
+     light palette. amber → dusty blue is the biggest semantic shift. */
+  --color-ink: #fafaf7;          /* page background — soft warm off-white */
+  --color-ink-soft: #ffffff;     /* elevated surfaces (cards, sheets, drawer) */
+  --color-warm-50: #1c1c1a;      /* primary text — deep warm charcoal */
+  --color-warm-100: #2a2a28;     /* near-primary */
+  --color-warm-200: #4a4a48;     /* strong secondary */
+  --color-warm-300: #6e6e6c;     /* iOS-style secondary label */
+  --color-warm-400: #8e8e8c;     /* tertiary label */
+  --color-warm-500: #adadab;     /* mid */
+  --color-warm-600: #cfcdc9;     /* subtle bg variant */
+  --color-warm-700: #e8e6e1;     /* hairline divider / chip bg */
+  --color-amber: #6b8caf;        /* dusty blue accent (was iOS blue / amber yellow) */
+  --color-amber-soft: #94afc7;   /* lighter dusty blue */
 }
 
 /* DAYLIGHT — iOS Messages light. Pure white, near-black text, same
