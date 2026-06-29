@@ -71,7 +71,6 @@ export default async function RootLayout({
   let accessibility = false;
   let signedInUserId: string | null = null;
   let userEmail: string | null = null;
-  let trashedCount = 0;
   let ownedOracles: { id: string; name: string; avatarUrl: string | null }[] =
     [];
   try {
@@ -124,13 +123,6 @@ export default async function RootLayout({
         }));
       }
 
-      // Trashed count for the drawer's "Trash · N" badge.
-      const { count: tc } = await supabase
-        .from("oracles")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id)
-        .not("deleted_at", "is", null);
-      trashedCount = tc ?? 0;
     }
   } catch {
     /* fall back to defaults on any error */
@@ -159,7 +151,6 @@ export default async function RootLayout({
               ownedOracles={ownedOracles}
               userEmail={userEmail}
               isAdmin={userIsAdmin}
-              trashedCount={trashedCount}
             />
             <div className="hidden md:block">
               <NavFab language={language} isAdmin={userIsAdmin} />
