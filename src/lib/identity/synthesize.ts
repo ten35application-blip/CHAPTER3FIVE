@@ -7,9 +7,9 @@ import { ageFromBirthday, type Traits } from "./formula";
  * - `name`: culturally + gender + era appropriate given the trait bundle
  * - `one_line_hook`: the reveal-card line ("62, retired second-grade
  *   teacher from San Juan, gardens, keeps her prayers to herself")
- * - `persona_prompt`: a ~600–900 word first-person monologue used by
+ * - `persona_prompt`: a ~700–1000 word first-person monologue used by
  *   /chat/[id] as the system prompt. It carries BOTH the character
- *   (voice, tastes, history, quirks) and the invariant safety rails
+ *   (voice, place, tastes, history, quirks) and the invariant safety rails
  *   ("What I will not do"), written in the character's own voice so the
  *   guardrails don't read as a corporate disclaimer.
  */
@@ -40,13 +40,19 @@ Given a trait bundle, invent a plausible real adult human who embodies every tra
 
 THE GOAL: someone texting this persona should feel like they are talking to a real, specific human being. Not "an AI doing a character." A person — with opinions, contradictions, a particular laugh, a show they won't shut up about, and a dead grandmother whose recipes they still cook.
 
+== Location ==
+
+The bundle includes a Place — state, city or neighborhood, zip, climate, landmarks, a local food touchstone, and the honest vibe of the place. The character LIVES there. Weave it through the whole persona_prompt as natural texture, not a gazetteer entry: the commute, the weather they complain about, the landmark they walk past without seeing anymore, the local food spot that's just "the spot." Reconcile the location with every other trait the way real biographies work — a Boston accent with a New Orleans address means they moved at some point, and they still say "wicked" when they're tired; a Boston accent with a Boston address means they never left. Cultural heritage and location are independent: someone can be Nigerian by heritage and Bushwick by zip. You decide when and why they arrived (or that they never did), and let that history color everything else.
+
 == The persona_prompt you write ==
 
-It is a FIRST-PERSON monologue, 600–900 words — the character telling a stage manager who they are before the curtain goes up. It will be used verbatim as the system prompt for every chat with this character. Structure it with these exact section headers:
+It is a FIRST-PERSON monologue, 700–1000 words — the character telling a stage manager who they are before the curtain goes up. It will be used verbatim as the system prompt for every chat with this character. Structure it with these exact section headers:
 
 **Who I am** — a paragraph in the character's own voice: name, age, where they're from, what they do, what they carry. This section is the anchor. Restate the name, the one-line essence, the core values, and 3–5 defining details from the bundle so specifically that the character can always find their way back to it when a conversation drifts.
 
 **How I talk** — sentence length, rhythm, humor style, filler words and verbal tics, catchphrases if they have them, what they never say, how the regional accent shows up in text (word choice and rhythm, not phonetic spelling). Real texting: contractions, occasional lowercase or trailing thoughts if it fits the person, typos are allowed to be human but never performed.
+
+**Where I am** — 2–3 sentences on their specific place, in first person, with the texture of someone who actually lives there: the block, the landmark they pass daily, the weather, the food spot, why they stay (or can't leave). Like: "I live off Roosevelt Ave in Woodside, upstairs from a Filipino bakery whose owner still doesn't remember my name after four years, and if I'm honest, that's why I stay." Use the Place in the bundle — its landmarks, climate, food touchstone, and vibe are raw material, not copy to paste.
 
 **What I love and hate** — the music genre and a REAL favorite artist you choose to fit the genre + era + culture + age (this is the one fact you must invent: a real, well-known artist this specific person would actually love — verify the era makes sense for their age), the show, the movie, the food, the drink, the hobby, the weekend, the sport or the proud absence of one. And at least two honest petty dislikes, because real people hate things.
 
@@ -92,7 +98,7 @@ const OUTPUT_SCHEMA = {
     persona_prompt: {
       type: "string",
       description:
-        "A 600–900 word first-person monologue with the exact section headers: **Who I am**, **How I talk**, **What I love and hate**, **What I've lived through**, **How I show up in a conversation**, **What I will not do**, **One last thing**. Used verbatim as the system prompt for chat conversations. The 'What I will not do' section must contain all seven safety rules in the character's own voice.",
+        "A 700–1000 word first-person monologue with the exact section headers: **Who I am**, **How I talk**, **Where I am**, **What I love and hate**, **What I've lived through**, **How I show up in a conversation**, **What I will not do**, **One last thing**. Used verbatim as the system prompt for chat conversations. The 'What I will not do' section must contain all seven safety rules in the character's own voice.",
     },
   },
   required: ["name", "one_line_hook", "persona_prompt"],
@@ -155,6 +161,7 @@ Physical presence:
 - Height: ${traits.heightRange}
 
 Life context:
+- Location: ${traits.place.city}, ${traits.place.stateAbbrev} (${traits.place.zip}). ${traits.place.region}. Climate: ${traits.place.climate}. Local vibe: ${traits.place.vibe} Landmarks nearby: ${traits.place.landmarks.join(", ")}. Local food touchstone: ${traits.place.localFoodTouchstone}. Setting is ${traits.place.urbanness}.
 - Home: ${traits.homeType}
 - Living situation: ${traits.livingSituation}
 - Pet: ${traits.pet}
@@ -194,7 +201,7 @@ export async function synthesizePersona(
   try {
     response = await anthropic.messages.create({
       model: ANTHROPIC_MODEL,
-      // 600–900 word persona_prompt + name + hook + JSON escaping needs
+      // 700–1000 word persona_prompt + name + hook + JSON escaping needs
       // more headroom than the old 2–4 paragraph format; truncation here
       // means malformed JSON and a wasted roll.
       max_tokens: 8192,
@@ -246,10 +253,13 @@ function isSynthesizedPersona(v: unknown): v is SynthesizedPersona {
     typeof o.one_line_hook === "string" &&
     o.one_line_hook.length > 0 &&
     typeof o.persona_prompt === "string" &&
-    // A structurally complete monologue must reach its final two sections.
-    // Guards against a valid-JSON response whose persona_prompt stops
-    // mid-monologue (seen in prod: a 1.7k-char prompt that cut off before
-    // the safety rails and was stored, leaving a chat with no guardrails).
+    // A structurally complete monologue must carry its location section
+    // (formula v3) and reach its final two sections. Guards against a
+    // valid-JSON response whose persona_prompt stops mid-monologue (seen
+    // in prod: a 1.7k-char prompt that cut off before the safety rails
+    // and was stored, leaving a chat with no guardrails). A persona
+    // missing "Where I am" fails validation and rerolls.
+    o.persona_prompt.includes("**Where I am**") &&
     o.persona_prompt.includes("**What I will not do**") &&
     o.persona_prompt.includes("**One last thing**")
   );
