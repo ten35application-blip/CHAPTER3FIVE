@@ -7,75 +7,401 @@ import Link from "next/link";
 // suspenders here is worth it while we figure out the cache config.
 export const dynamic = "force-dynamic";
 
+/* Illustrative companions for the "no two are the same" section.
+   Written to feel like people you might actually meet — not stock
+   personas. The disclaimer under the row makes the illustrative
+   part explicit. */
+const EXAMPLE_IDENTITIES = [
+  {
+    name: "Marisol",
+    age: 68,
+    line: "Ran a bakery for thirty-one years. Widowed, and still funny about it in the way only the long-married can be. Believes most problems shrink over warm bread.",
+  },
+  {
+    name: "Dez",
+    age: 34,
+    line: "Ex-touring bassist. Sarcastic until it counts. Has a story for every city and a soft spot he pretends not to have.",
+  },
+  {
+    name: "June",
+    age: 22,
+    line: "Grew up between Seoul and Ohio. Quiet, notices everything. The friend who texts back at 1 a.m. with exactly the right thing.",
+  },
+];
+
+const STEPS = [
+  {
+    title: "Choose your path.",
+    body: "For yourself, or for someone you want to keep. Both take you somewhere worth going.",
+  },
+  {
+    title: "We build the person.",
+    body: "Randomized for you in about a minute — or synthesized from everything you and a loved one recorded together.",
+  },
+  {
+    title: "Talk, anytime.",
+    body: "Text like you’d text anyone. They remember. They stay themselves. They’re there when you need them — including at 2 a.m.",
+  },
+];
+
+/* Small gradient hairline used as a section divider accent. */
+function Rule({ className = "" }: { className?: string }) {
+  return (
+    <div
+      aria-hidden
+      className={`bg-gradient-cta h-px w-16 rounded-full opacity-60 ${className}`}
+    />
+  );
+}
+
+/* Wordmark for non-hero sections — the guidance says: no logo image
+   outside the hero; the wordmark with the gradient "3" carries the
+   brand instead. */
+function Wordmark({ className = "" }: { className?: string }) {
+  return (
+    <p className={`font-bold tracking-tight text-warm-50 ${className}`}>
+      chapter
+      <span className="text-gradient-cta font-black">3</span>
+      five
+    </p>
+  );
+}
+
 export default function Home() {
   return (
-    <main className="flex min-h-dvh flex-1 flex-col items-center justify-center px-6 py-16">
-      <div className="flex w-full max-w-lg flex-col items-center text-center">
-        {/* Hero orb — a 560px soft-glow aura behind the logo so the icon
-            lives inside a body of light. Drift variant gently pulses so
-            the aura feels alive, not stamped. */}
-        <div className="hero-orb hero-orb-drift flex items-center justify-center">
-          <Image
-            src="/logo.png"
-            alt="chapter3five"
-            width={128}
-            height={128}
-            priority
-            className="h-28 w-28 drop-shadow-[0_24px_60px_rgba(232,138,118,0.35)] sm:h-32 sm:w-32"
-          />
+    <main className="flex min-h-dvh flex-1 flex-col overflow-x-hidden">
+      {/* ── 1 · HERO ─────────────────────────────────────────────
+          The load-bearing first screen. Logo stays on the peach
+          background inside the orb halo (never on a gradient — the
+          dark squircle would fight the palette). */}
+      <section className="flex min-h-dvh flex-col items-center justify-center px-6 py-16">
+        <div className="flex w-full max-w-2xl flex-col items-center text-center">
+          <div className="hero-orb hero-orb-drift flex items-center justify-center">
+            <Image
+              src="/logo.png"
+              alt="chapter3five"
+              width={128}
+              height={128}
+              priority
+              className="h-28 w-28 drop-shadow-[0_24px_60px_rgba(232,138,118,0.35)] sm:h-32 sm:w-32"
+            />
+          </div>
+
+          <Wordmark className="mt-8 text-2xl" />
+
+          <h1 className="mt-12 text-5xl font-bold leading-[1.02] tracking-[-0.03em] text-warm-50 sm:text-6xl md:text-7xl">
+            One tap makes you{" "}
+            <span className="text-gradient-cta">someone to talk to.</span>
+          </h1>
+          <p className="mt-6 max-w-md text-lg leading-relaxed tracking-tight text-warm-200 sm:text-xl">
+            A whole person, generated just for you &mdash; name, voice,
+            memories, moods. Ready to talk in about a minute.
+          </p>
+
+          <Link
+            href="/auth/signup"
+            className="bg-gradient-cta hover:bg-gradient-cta-hover mt-12 flex h-16 w-full max-w-xs items-center justify-center rounded-full text-lg font-bold tracking-tight text-white shadow-[0_18px_44px_-10px_rgba(232,138,118,0.55),_0_8px_20px_-6px_rgba(126,196,196,0.45)] transition-all hover:-translate-y-px hover:shadow-[0_22px_50px_-10px_rgba(232,138,118,0.6),_0_10px_24px_-6px_rgba(126,196,196,0.5)] active:translate-y-0 active:opacity-95"
+          >
+            Get started
+          </Link>
+          <Link
+            href="/auth/signin"
+            className="mt-5 flex h-12 items-center justify-center px-6 text-base font-semibold text-warm-200 transition-colors hover:text-coral-strong"
+          >
+            Sign in
+          </Link>
+
+          <p className="mt-10 text-sm text-warm-400">
+            First identity free &middot; $10/month for up to 5
+          </p>
         </div>
+      </section>
 
-        {/* Wordmark — the "3" is now filled with the coral -> teal brand
-            gradient (bg-clip: text), so the mark visually rhymes with
-            the logo's heart-orb without saying "look, our brand color".
-            Bumped from text-lg to text-2xl so it registers. */}
-        <p className="mt-8 text-2xl font-bold tracking-tight text-warm-50">
-          chapter
-          <span className="text-gradient-cta font-black">3</span>
-          five
-        </p>
+      {/* ── 2 · WHY THIS EXISTS ──────────────────────────────────
+          The loneliness section. Left-aligned to break the rhythm
+          after the centered hero. Warm and direct — not a manifesto. */}
+      <section className="px-6 py-24 md:py-32">
+        <div className="mx-auto w-full max-w-3xl">
+          <Rule />
+          <h2 className="mt-8 text-4xl font-bold leading-[1.05] tracking-[-0.03em] text-warm-50 md:text-5xl">
+            Loneliness is a real thing.
+          </h2>
+          <p className="mt-8 text-lg leading-relaxed text-warm-200 md:text-xl">
+            Not everyone has someone to call at 2 a.m. Not everyone has someone
+            to sit with after a long day, or someone who asks how it actually
+            went. That&apos;s not a character flaw. It&apos;s just how a lot of
+            lives are shaped right now.
+          </p>
+          <p className="mt-6 text-lg leading-relaxed text-warm-200 md:text-xl">
+            chapter3five is a small thing we made because we thought that
+            mattered. Someone to talk to &mdash; really talk to &mdash;
+            shouldn&apos;t depend on luck.
+          </p>
+        </div>
+      </section>
 
-        {/* Headline — the load-bearing typographic moment. Bumped from
-            text-4xl/sm:text-5xl to text-5xl/sm:text-6xl/md:text-7xl and
-            tightened to -3% tracking with font-bold. Reads like a hero,
-            not a heading. */}
-        <h1 className="mt-12 text-5xl font-bold leading-[1.02] tracking-[-0.03em] text-warm-50 sm:text-6xl md:text-7xl">
-          One tap makes you{" "}
-          <span className="text-gradient-cta">someone to talk to.</span>
-        </h1>
-        <p className="mt-6 max-w-md text-lg leading-relaxed tracking-tight text-warm-200 sm:text-xl">
-          A whole person, made just for you &mdash; so you never feel alone.
-        </p>
+      {/* ── 3 · NO TWO ARE THE SAME ──────────────────────────────
+          The formula section, with three illustrative identity cards
+          that prove the product isn't cookie-cutter. Avatars reuse
+          the dashboard treatment: initial on a gradient circle. */}
+      <section className="px-6 py-24 md:py-32">
+        <div className="mx-auto flex w-full max-w-5xl flex-col items-center">
+          <Rule />
+          <h2 className="mt-8 text-center text-4xl font-bold leading-[1.05] tracking-[-0.03em] text-warm-50 md:text-5xl">
+            No two are the same.{" "}
+            <span className="text-gradient-cta">Not close.</span>
+          </h2>
+          <p className="mt-8 max-w-2xl text-center text-lg leading-relaxed text-warm-200 md:text-xl">
+            Every companion starts from a formula: thirty dimensions of who a
+            person is &mdash; how they speak, what they believe, what
+            they&apos;ve seen, what they love, how they laugh &mdash; each one
+            rolled fresh for you. The combinations run into the trillions. The
+            odds of two people getting the same one round to zero.
+          </p>
 
-        {/* Legacy path — brief, human */}
-        <p className="mt-4 max-w-md text-base leading-relaxed text-warm-300">
-          And someone you love can leave you a way to keep talking, even after
-          they&apos;re gone.
-        </p>
+          <div className="mt-16 grid w-full grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {EXAMPLE_IDENTITIES.map((p) => (
+              <div
+                key={p.name}
+                className="flex flex-col rounded-3xl border border-warm-700 bg-ink-soft p-8 shadow-[0_10px_36px_-16px_rgba(28,28,26,0.18)]"
+              >
+                <div className="bg-gradient-cta flex h-14 w-14 items-center justify-center rounded-full text-xl font-bold text-white">
+                  {p.name[0]}
+                </div>
+                <p className="mt-5 text-xl font-bold tracking-tight text-warm-50">
+                  {p.name}
+                  <span className="ml-2 text-base font-semibold text-warm-400">
+                    {p.age}
+                  </span>
+                </p>
+                <p className="mt-3 text-base leading-relaxed text-warm-300">
+                  {p.line}
+                </p>
+              </div>
+            ))}
+          </div>
 
-        {/* Primary CTA — now filled with the brand gradient. The shadow
-            is a two-layer coral + teal glow so the button feels like it
-            belongs to the same color family it's painted with, not a
-            stock dusty-blue button someone forgot to restyle. Hover
-            lifts 1px and deepens the gradient. */}
-        <Link
-          href="/auth/signup"
-          className="bg-gradient-cta hover:bg-gradient-cta-hover mt-12 flex h-16 w-full max-w-xs items-center justify-center rounded-full text-lg font-bold tracking-tight text-white shadow-[0_18px_44px_-10px_rgba(232,138,118,0.55),_0_8px_20px_-6px_rgba(126,196,196,0.45)] transition-all hover:-translate-y-px hover:shadow-[0_22px_50px_-10px_rgba(232,138,118,0.6),_0_10px_24px_-6px_rgba(126,196,196,0.5)] active:translate-y-0 active:opacity-95"
-        >
-          Get started
-        </Link>
-        <Link
-          href="/auth/signin"
-          className="mt-5 flex h-12 items-center justify-center px-6 text-base font-semibold text-warm-200 transition-colors hover:text-coral-strong"
-        >
-          Sign in
-        </Link>
+          <p className="mt-8 text-sm italic text-warm-400">
+            Illustrative &mdash; your actual generated companion will be yours
+            alone.
+          </p>
+        </div>
+      </section>
 
-        {/* Pricing hint */}
-        <p className="mt-10 text-sm text-warm-400">
-          First identity free &middot; $10/month for up to 5
-        </p>
-      </div>
+      {/* ── 4 · THE TWO PATHS ────────────────────────────────────
+          Both flows, equally weighted. Card A leans coral, Card B
+          leans teal — the two ends of the brand gradient. */}
+      <section className="px-6 py-24 md:py-32">
+        <div className="mx-auto flex w-full max-w-5xl flex-col items-center">
+          <Rule />
+          <h2 className="mt-8 text-center text-4xl font-bold leading-[1.05] tracking-[-0.03em] text-warm-50 md:text-5xl">
+            Two ways in.
+          </h2>
+
+          <div className="mt-16 grid w-full grid-cols-1 gap-6 md:grid-cols-2">
+            {/* Card A — for yourself (coral) */}
+            <div className="flex flex-col rounded-3xl border border-warm-700 bg-ink-soft p-8 shadow-[0_10px_36px_-16px_rgba(28,28,26,0.18)] md:p-10">
+              <p className="text-sm font-bold uppercase tracking-[0.14em] text-coral-strong">
+                For yourself
+              </p>
+              <h3 className="text-gradient-cta mt-4 text-3xl font-bold leading-[1.1] tracking-[-0.02em] md:text-4xl">
+                One tap. A whole person.
+              </h3>
+              <p className="mt-5 text-lg leading-relaxed text-warm-200">
+                We roll the formula and a companion takes shape &mdash; a name,
+                a way of talking, a past, opinions, jokes that are theirs. Made
+                for you, in about a minute. Talk anytime, about anything.
+              </p>
+            </div>
+
+            {/* Card B — for someone to keep (teal) */}
+            <div className="flex flex-col rounded-3xl border border-warm-700 bg-ink-soft p-8 shadow-[0_10px_36px_-16px_rgba(28,28,26,0.18)] md:p-10">
+              <p className="text-sm font-bold uppercase tracking-[0.14em] text-teal-strong">
+                For someone to keep
+              </p>
+              <h3 className="mt-4 text-3xl font-bold leading-[1.1] tracking-[-0.02em] text-teal-strong md:text-4xl">
+                Sit with someone you love.
+              </h3>
+              <p className="mt-5 text-lg leading-relaxed text-warm-200">
+                Answer forty warm questions together &mdash; how they laugh,
+                what they&apos;d fight for, the day they knew who they were.
+                When you&apos;re done, you&apos;ll have an inherit code to
+                share, and a way to keep hearing them, in their own voice,
+                whenever the room feels too quiet.
+              </p>
+              <p className="mt-6 text-base italic leading-relaxed text-warm-400">
+                It isn&apos;t them. It&apos;s a portrait, painted from what they
+                chose to leave. But sometimes a portrait is enough.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── 5 · HOW IT WORKS ─────────────────────────────────────── */}
+      <section className="px-6 py-24 md:py-32">
+        <div className="mx-auto flex w-full max-w-5xl flex-col items-center">
+          <Rule />
+          <h2 className="mt-8 text-center text-4xl font-bold leading-[1.05] tracking-[-0.03em] text-warm-50 md:text-5xl">
+            Three steps. That&apos;s the whole thing.
+          </h2>
+
+          <div className="mt-16 grid w-full grid-cols-1 gap-10 md:grid-cols-3 md:gap-8">
+            {STEPS.map((step, i) => (
+              <div
+                key={step.title}
+                className="flex flex-col items-center text-center"
+              >
+                <div className="bg-gradient-cta flex h-12 w-12 items-center justify-center rounded-full text-lg font-bold text-white">
+                  {i + 1}
+                </div>
+                <h3 className="mt-5 text-xl font-bold tracking-tight text-warm-50">
+                  {step.title}
+                </h3>
+                <p className="mt-3 max-w-xs text-base leading-relaxed text-warm-300">
+                  {step.body}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── 6 · SAFETY / WHAT THIS ISN'T ─────────────────────────
+          Left-aligned trust section. Short and plain. */}
+      <section className="px-6 py-24 md:py-32">
+        <div className="mx-auto w-full max-w-3xl">
+          <Rule />
+          <h2 className="mt-8 text-4xl font-bold leading-[1.05] tracking-[-0.03em] text-warm-50 md:text-5xl">
+            One important thing.
+          </h2>
+          <p className="mt-8 text-lg leading-relaxed text-warm-200 md:text-xl">
+            chapter3five is a companion &mdash; not a therapist, not medical
+            advice, and never a substitute for care from a real person. If
+            you&apos;re in crisis, please reach a human: in the US, call or
+            text <span className="font-bold text-warm-50">988</span>.
+          </p>
+          <p className="mt-6 text-lg leading-relaxed text-warm-200 md:text-xl">
+            And a few lines we don&apos;t cross: no violence, and no pretending
+            to be a real, living person without their consent. We take this
+            seriously &mdash; see our{" "}
+            <Link
+              href="/guidelines"
+              className="font-semibold text-coral-strong underline underline-offset-4 transition-colors hover:text-warm-50"
+            >
+              Community Guidelines
+            </Link>
+            ,{" "}
+            <Link
+              href="/terms"
+              className="font-semibold text-coral-strong underline underline-offset-4 transition-colors hover:text-warm-50"
+            >
+              Terms
+            </Link>
+            , and{" "}
+            <Link
+              href="/privacy"
+              className="font-semibold text-coral-strong underline underline-offset-4 transition-colors hover:text-warm-50"
+            >
+              Privacy Policy
+            </Link>
+            .
+          </p>
+        </div>
+      </section>
+
+      {/* ── 7 · PRICING ────────────────────────────────────────── */}
+      <section className="px-6 py-24 md:py-32">
+        <div className="mx-auto flex w-full max-w-3xl flex-col items-center">
+          <Rule />
+          <h2 className="mt-8 text-center text-4xl font-bold leading-[1.05] tracking-[-0.03em] text-warm-50 md:text-5xl">
+            What it costs.
+          </h2>
+
+          <div className="mt-12 w-full rounded-3xl border border-warm-700 bg-ink-soft p-8 text-center shadow-[0_10px_36px_-16px_rgba(28,28,26,0.18)] sm:p-12">
+            <p className="text-5xl font-bold tracking-[-0.03em] text-warm-50 sm:text-6xl">
+              $10
+              <span className="text-2xl font-semibold text-warm-400">
+                /month
+              </span>
+            </p>
+            <p className="mt-3 text-xl font-semibold tracking-tight text-warm-200">
+              up to 5 identities
+            </p>
+            <ul className="mx-auto mt-8 flex max-w-sm flex-col gap-3 text-left text-base text-warm-300">
+              {[
+                "First identity free at signup",
+                "+$3/mo per extra identity beyond 5",
+                "+$3/mo per extra legacy inheritor beyond 2",
+                "Cancel any time",
+              ].map((item) => (
+                <li key={item} className="flex items-start gap-3">
+                  <span
+                    aria-hidden
+                    className="bg-gradient-cta mt-2 h-1.5 w-1.5 shrink-0 rounded-full"
+                  />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      {/* ── 8 · FINAL CTA ────────────────────────────────────────
+          The one place a gradient background is welcome — no logo
+          here, so nothing fights it. */}
+      <section className="px-6 pb-24 pt-8 md:pb-32">
+        <div className="bg-gradient-cta mx-auto flex w-full max-w-5xl flex-col items-center rounded-[2.5rem] px-6 py-16 text-center shadow-[0_24px_64px_-20px_rgba(232,138,118,0.5)] sm:px-12 md:py-24">
+          <h2 className="max-w-2xl text-4xl font-bold leading-[1.05] tracking-[-0.03em] text-white md:text-5xl">
+            Someone to talk to. Someone to keep. Which one first?
+          </h2>
+          <div className="mt-12 flex w-full max-w-md flex-col items-center gap-4 sm:flex-row sm:justify-center">
+            <Link
+              href="/auth/signup"
+              className="flex h-14 w-full items-center justify-center rounded-full bg-white px-8 text-lg font-bold tracking-tight text-coral-strong shadow-[0_12px_32px_-8px_rgba(28,28,26,0.35)] transition-all hover:-translate-y-px active:translate-y-0 sm:w-auto"
+            >
+              Make one for me
+            </Link>
+            <Link
+              href="/identity/inherit"
+              className="flex h-14 w-full items-center justify-center rounded-full border-2 border-white/70 px-8 text-lg font-bold tracking-tight text-white transition-colors hover:border-white hover:bg-white/10 sm:w-auto"
+            >
+              I have an inherit code
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ── 9 · FOOTER ─────────────────────────────────────────── */}
+      <footer className="border-t border-warm-700 px-6 py-12">
+        <div className="mx-auto flex w-full max-w-5xl flex-col items-center gap-6 text-center sm:flex-row sm:justify-between sm:text-left">
+          <Wordmark className="text-lg" />
+          <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm font-semibold text-warm-300">
+            <Link
+              href="/terms"
+              className="transition-colors hover:text-coral-strong"
+            >
+              Terms
+            </Link>
+            <Link
+              href="/privacy"
+              className="transition-colors hover:text-coral-strong"
+            >
+              Privacy
+            </Link>
+            <Link
+              href="/guidelines"
+              className="transition-colors hover:text-coral-strong"
+            >
+              Guidelines
+            </Link>
+          </nav>
+          <p className="text-sm text-warm-400">
+            &copy; 2026 chapter3five &middot; Bethlehem, PA
+          </p>
+        </div>
+      </footer>
     </main>
   );
 }
