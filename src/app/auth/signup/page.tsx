@@ -64,21 +64,28 @@ export default async function SignupPage({
   return (
     <main className="flex min-h-dvh flex-1 flex-col items-center justify-center px-6 py-12">
       <div className="flex w-full max-w-sm flex-col items-center">
-        <Link href="/" aria-label="chapter3five home">
+        {/* Small hero moment — logo inside a compact aura echoing the
+            landing, so the auth page feels like it belongs to the same
+            product rather than a stock signup form. */}
+        <Link
+          href="/"
+          aria-label="chapter3five home"
+          className="hero-orb flex items-center justify-center"
+        >
           <Image
             src="/logo.png"
             alt="chapter3five"
-            width={64}
-            height={64}
+            width={80}
+            height={80}
             priority
-            className="h-16 w-16 drop-shadow-[0_12px_32px_rgba(232,138,118,0.22)]"
+            className="h-20 w-20 drop-shadow-[0_16px_40px_rgba(232,138,118,0.3)]"
           />
         </Link>
 
-        <h1 className="mt-6 text-2xl font-semibold tracking-tight">
-          Make an account.
+        <h1 className="mt-8 text-4xl font-bold tracking-[-0.02em] text-warm-50">
+          Make an <span className="text-gradient-cta">account.</span>
         </h1>
-        <p className="mt-2 text-sm text-warm-300">
+        <p className="mt-3 text-base text-warm-300">
           It only takes a minute.
         </p>
 
@@ -91,7 +98,7 @@ export default async function SignupPage({
           </p>
         ) : null}
 
-        <form action={signUp} className="mt-6 flex w-full flex-col gap-3">
+        <form action={signUp} className="mt-8 flex w-full flex-col gap-3">
           <label className="flex flex-col gap-1.5">
             <span className="text-sm font-medium text-warm-200">Email</span>
             <input
@@ -99,7 +106,7 @@ export default async function SignupPage({
               name="email"
               autoComplete="email"
               required
-              className="h-12 rounded-2xl bg-ink-soft px-4 text-base text-warm-50 outline-none ring-1 ring-warm-700 placeholder:text-warm-400 focus:ring-2 focus:ring-amber"
+              className="h-12 rounded-2xl bg-ink-soft px-4 text-base text-warm-50 outline-none ring-1 ring-warm-700 placeholder:text-warm-400 focus:ring-2 focus:ring-coral"
               placeholder="you@example.com"
             />
           </label>
@@ -112,7 +119,7 @@ export default async function SignupPage({
               autoComplete="new-password"
               required
               minLength={8}
-              className="h-12 rounded-2xl bg-ink-soft px-4 text-base text-warm-50 outline-none ring-1 ring-warm-700 placeholder:text-warm-400 focus:ring-2 focus:ring-amber"
+              className="h-12 rounded-2xl bg-ink-soft px-4 text-base text-warm-50 outline-none ring-1 ring-warm-700 placeholder:text-warm-400 focus:ring-2 focus:ring-coral"
               placeholder="At least 8 characters"
             />
           </label>
@@ -122,14 +129,14 @@ export default async function SignupPage({
               type="checkbox"
               name="eighteen"
               required
-              className="mt-0.5 h-5 w-5 accent-amber"
+              className="mt-0.5 h-5 w-5 accent-coral"
             />
             <span>I&apos;m 18 or older.</span>
           </label>
 
           <button
             type="submit"
-            className="mt-4 flex h-14 w-full items-center justify-center rounded-full bg-amber text-lg font-semibold text-white shadow-[0_14px_36px_-10px_rgba(107,140,175,0.55),_0_4px_12px_rgba(232,138,118,0.12)] transition-all hover:-translate-y-px active:translate-y-0 active:opacity-90"
+            className="bg-gradient-cta hover:bg-gradient-cta-hover mt-4 flex h-14 w-full items-center justify-center rounded-full text-lg font-bold tracking-tight text-white shadow-[0_16px_40px_-10px_rgba(232,138,118,0.5),_0_6px_16px_-6px_rgba(126,196,196,0.4)] transition-all hover:-translate-y-px hover:shadow-[0_20px_46px_-10px_rgba(232,138,118,0.55),_0_8px_20px_-6px_rgba(126,196,196,0.45)] active:translate-y-0 active:opacity-95"
           >
             Create account
           </button>
@@ -137,7 +144,10 @@ export default async function SignupPage({
 
         <p className="mt-6 text-sm text-warm-300">
           Already have an account?{" "}
-          <Link href="/auth/signin" className="font-medium text-amber">
+          <Link
+            href="/auth/signin"
+            className="font-semibold text-coral-strong transition-colors hover:text-coral"
+          >
             Sign in
           </Link>
         </p>
