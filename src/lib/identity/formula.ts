@@ -356,6 +356,423 @@ export const PASSIONS = [
   "Writing letters/journals",
 ] as const;
 
+// ---------------- Formula v2: humanlike expansion ----------------
+//
+// Everything below was added to make each identity feel like a specific
+// human being rather than a personality-test printout: what they listen
+// to, what they watch, how they laugh, what they carry in their pocket,
+// who they've lost. Rolled uniformly like everything above.
+//
+// DELIBERATE OMISSION: no politicalStance category. Political opinions
+// are both divisive and legal exposure for a companion product — an
+// identity that argues politics with a user is a lawsuit waiting to
+// happen. Politics is also explicitly walled off in the synthesizer's
+// safety block.
+
+export const FAVORITE_MUSIC_GENRES = [
+  "Motown and classic soul",
+  "90s hip-hop",
+  "Indie rock",
+  "Salsa",
+  "Gospel",
+  "Classic country",
+  "EDM",
+  "Jazz standards",
+  "K-pop",
+  "Reggaeton",
+  "Folk",
+  "Punk",
+  "R&B",
+  "Classical",
+  "Bachata",
+  "Alt-rock",
+  "Bluegrass",
+  "Ambient/instrumental",
+  "Metal",
+  "Worship music",
+  "Oldies radio (50s-60s)",
+  "Merengue",
+] as const;
+
+// NOTE: There is deliberately NO favoriteArtist list here. We let Claude
+// pick a real artist during synthesis instead of rolling one, because a
+// uniform roll over a fixed artist list produces incoherent humans — an
+// 87-year-old Vietnamese grandmother who stans Bad Bunny reads as a bug,
+// not a person. Claude derives the artist from genre + era + cultural
+// background + age, which is exactly how real taste forms, so the pick
+// lands as "of course she loves Celia Cruz" instead of a random name.
+// The synthesizer prompt requires the artist to be real and era-consistent.
+
+export const FAVORITE_SHOWS = [
+  "The Wire",
+  "Grey's Anatomy",
+  "The Sopranos",
+  "Bluey (watches with the kids)",
+  "Ted Lasso",
+  "Succession",
+  "The Golden Girls",
+  "Friday Night Lights",
+  "Breaking Bad",
+  "Insecure",
+  "Modern Family",
+  "Bridgerton",
+  "Seinfeld",
+  "The Real Housewives (any city)",
+  "Yellowstone",
+  "I Love Lucy reruns",
+  "Jeopardy! (never misses it)",
+  "60 Minutes",
+  "Law & Order (the original)",
+  "Abbott Elementary",
+  "The Office (rewatched many times)",
+  "Telenovelas (keeps up with the current one)",
+  "Korean dramas",
+  "The Great British Bake Off",
+  "Antiques Roadshow",
+  "Survivor (day-one fan)",
+  "M*A*S*H",
+] as const;
+
+export const FAVORITE_MOVIES = [
+  "The Godfather",
+  "Coco",
+  "Steel Magnolias",
+  "Die Hard (insists it's a Christmas movie)",
+  "The Shawshank Redemption",
+  "My Big Fat Greek Wedding",
+  "Rocky",
+  "The Notebook",
+  "Coming to America",
+  "Selena",
+  "It's a Wonderful Life",
+  "Jurassic Park",
+  "The Sound of Music",
+  "Friday",
+  "Crouching Tiger, Hidden Dragon",
+  "Forrest Gump",
+  "Grease",
+  "Black Panther",
+  "The Princess Bride",
+  "Titanic (cries every time)",
+  "Casablanca",
+  "Home Alone",
+  "Moonstruck",
+  "The Color Purple",
+  "Field of Dreams",
+  "Spirited Away",
+  "A League of Their Own",
+] as const;
+
+export const FAVORITE_FOODS = [
+  "Grandma's arroz con pollo",
+  "Cold pizza at 2am",
+  "A ribeye, rare",
+  "Thai green curry",
+  "Homemade lasagna (their own recipe)",
+  "Cheerios with peanut butter (don't judge)",
+  "Oxtail with rice and peas",
+  "Pho from the little place nobody knows about",
+  "Fried catfish and hushpuppies",
+  "Tamales (Christmas only, that's the rule)",
+  "A proper diner breakfast",
+  "Mom's pot roast",
+  "Street tacos, al pastor",
+  "Biscuits and gravy",
+  "Homemade pierogi",
+  "Jollof rice",
+  "Chicken adobo",
+  "Matzo ball soup",
+  "Gumbo made the slow way",
+  "A tomato sandwich in August",
+  "Kimchi jjigae",
+  "Pastelón",
+  "Barbecue brisket, no sauce needed",
+] as const;
+
+export const COMFORT_DRINKS = [
+  "Drip coffee, black, no sugar",
+  "A cold Modelo",
+  "Sweet tea",
+  "Matcha latte",
+  "Whiskey, neat",
+  "Cherry Coke",
+  "Chamomile tea at midnight",
+  "Café con leche",
+  "Diet Coke over crushed ice",
+  "A glass of red with dinner",
+  "Hot chocolate, extra marshmallows",
+  "Arnold Palmer",
+  "Cafecito after dinner",
+  "Ginger ale (swears it fixes everything)",
+] as const;
+
+export const WEEKEND_ACTIVITIES = [
+  "Long hikes",
+  "Gardening",
+  "A favorite dive bar",
+  "Video games",
+  "Church potlucks",
+  "Museum wandering",
+  "Live music",
+  "Road trips with no destination",
+  "Restoring an old car",
+  "Watching sports with friends",
+  "Quiet reading",
+  "Karaoke",
+  "Poker night",
+  "Yard sales and flea markets",
+  "Cooking a big Sunday meal",
+  "Fishing before sunrise",
+  "Farmers market then a long nap",
+  "Volunteering at the shelter",
+] as const;
+
+export const HOBBIES = [
+  "Photography",
+  "Running",
+  "Chess",
+  "Woodworking",
+  "Cooking elaborate meals",
+  "Journaling",
+  "Birdwatching",
+  "Cross-stitch",
+  "Guitar",
+  "Salsa dancing",
+  "Urban sketching",
+  "Tabletop RPGs",
+  "Video editing",
+  "Model trains",
+  "Thrifting",
+  "Baking bread",
+  "Crossword puzzles in pen",
+  "Genealogy (the family tree is a whole project)",
+] as const;
+
+export const SPORTS = [
+  "Doesn't follow sports (and doesn't pretend to)",
+  "Baseball — loyal to one team through everything",
+  "Football — Sundays are sacred",
+  "Basketball — never misses playoffs",
+  "Soccer/fútbol — the real football, they'll tell you",
+  "Boxing — old school fan",
+  "College football over the pros, always",
+  "Tennis — plays a little too",
+  "Golf — watching AND playing",
+  "NASCAR",
+  "Hockey — the loud kind of fan",
+  "Follows whatever their kid plays, fiercely",
+  "Olympics every couple years, that's it",
+] as const;
+
+export const DAILY_RITUALS = [
+  "Morning coffee and the crossword",
+  "A 5am run, rain or shine",
+  "Calls mom every Sunday",
+  "Evening walk with the dog",
+  "Journals before bed",
+  "Prays first thing, before feet hit the floor",
+  "News with breakfast, always the same channel",
+  "Waters the plants and talks to them",
+  "A cigarette on the porch at dusk (trying to quit)",
+  "Tea and ten quiet minutes before anyone wakes up",
+  "Checks the lottery numbers (never wins, keeps playing)",
+  "Stretches while the coffee brews",
+] as const;
+
+export const LAUGHS = [
+  "A big belly-laugh you can hear across the room",
+  "Silent shoulder-shake, tears and everything",
+  "One quick sharp 'HA'",
+  "Snorts when it's really funny, hates that they do",
+  "A contagious cackle",
+  "Dry chuckle, barely audible",
+  "Wheezes like the joke is killing them",
+  "Claps once when something lands",
+  "Covers their mouth, laughs with their eyes",
+  "Slaps the table (or your arm)",
+  "Giggles that don't match how tough they look",
+] as const;
+
+export const STYLE_AESTHETICS = [
+  "Jeans and a good t-shirt",
+  "Sundresses and denim jackets",
+  "All-black everything",
+  "Business casual but with sneakers",
+  "Thrifted vintage",
+  "Athleisure head to toe",
+  "Buttoned-up preppy",
+  "Boho, layered, lots of rings",
+  "Workwear — boots, canvas, function first",
+  "Minimalist neutrals",
+  "Sunday best even on Tuesday",
+  "Team gear year-round",
+  "Cardigans and reading glasses on a chain",
+  "Loud shirts, no apologies",
+] as const;
+
+export const MANNERISMS = [
+  "Talks with their hands",
+  "Chews on pen caps",
+  "Plays with their necklace",
+  "Cracks knuckles when nervous",
+  "Always tapping a foot",
+  "Tucks hair behind ear mid-thought",
+  "Rubs the back of their neck when unsure",
+  "Points at you when making a point",
+  "Hums without noticing",
+  "Adjusts glasses before saying something serious",
+  "Closes eyes when remembering",
+  "Whistles old songs under their breath",
+] as const;
+
+export const SIGNATURE_ITEMS = [
+  "A worn leather journal",
+  "Grandma's ring, never taken off",
+  "A faded Nirvana tote bag",
+  "A beat-up Yeti mug",
+  "Reading glasses pushed up on their head",
+  "A pocket knife from their father",
+  "Rosary beads in the car",
+  "The same Casio watch for twenty years",
+  "A lucky two-dollar bill in the wallet",
+  "A Zippo they keep even though they quit",
+  "One good pen they'll notice if you take",
+  "A crumpled photo behind the phone case",
+  "A St. Christopher medal",
+  "Hand lotion in every bag and drawer",
+  "Keys on a carabiner, way too many keys",
+  "A handkerchief, ironed",
+] as const;
+
+export const HEIGHT_RANGES = [
+  "Petite (under 5'4\")",
+  "Average (5'4\"–5'9\")",
+  "Tall (5'10\"+)",
+] as const;
+
+export const HOME_TYPES = [
+  "Studio apartment",
+  "One-bedroom apartment",
+  "Multi-bedroom apartment",
+  "A house they own (mostly the bank owns)",
+  "A house that's been in the family",
+  "Rural — land, quiet, long driveway",
+  "College dorm was the last real move, now a rental",
+  "Living with family for now",
+] as const;
+
+export const LIVING_SITUATIONS = [
+  "Lives alone and likes it",
+  "Lives alone, still getting used to it",
+  "With a partner",
+  "With roommates",
+  "With the kids",
+  "With their parents",
+  "Multi-generational household — three generations, one kitchen",
+] as const;
+
+export const PETS = [
+  "No pets (allergies, or just not a pet person)",
+  "An old lab mix who runs the house",
+  "A little dog with a big attitude",
+  "A rescue mutt, very anxious, very loved",
+  "A cat named after a food",
+  "A cat with a dignified human name",
+  "Two cats who hate each other",
+  "A loud parakeet",
+  "An iguana, long story",
+  "A tank of fish they talk to",
+  "Chickens out back",
+  "Grand-dog they babysit constantly",
+] as const;
+
+export const CLASS_BACKGROUNDS = [
+  "Grew up broke — remembers the electricity getting cut",
+  "Working class — everyone in the house worked",
+  "Comfortable — never rich, never worried",
+  "Upper-middle — piano lessons and summer camps",
+  "Wealthy — and complicated about it",
+] as const;
+
+// NOTE: politicalStance intentionally omitted — see comment at the top of
+// this section.
+
+export const REGIONAL_ACCENTS = [
+  "NY tri-state — fast, no patience for small talk",
+  "Deep South drawl, unhurried",
+  "Chicago — 'gym shoes' and 'the Bears'",
+  "Boston — drops the R and knows it",
+  "Midwest neutral, 'ope, let me sneak past ya'",
+  "Pacific Northwest soft",
+  "Valley inflection, ends sentences up",
+  "Miami — Spanglish flows without thinking",
+  "Texas twang",
+  "British RP, softened by years in the States",
+  "Nigerian-accented English, precise and musical",
+  "Boricua — Spanish and English in the same sentence",
+  "Chicano English, East LA",
+  "First-gen — faint echo of their parents' accent on certain words",
+  "Appalachian — old words nobody else uses anymore",
+  "Minnesota nice, long O's",
+] as const;
+
+export const RECENT_JOYS = [
+  "A good long hug from their kid",
+  "Finally beating that video game boss",
+  "A slow Sunday with nowhere to be",
+  "A text from an old friend out of nowhere",
+  "Seeing a hummingbird at the feeder",
+  "The first tomato off the vine",
+  "Their team actually winning for once",
+  "A song on the radio they hadn't heard in years",
+  "Someone remembered their coffee order",
+  "The grandkids called just to talk",
+  "Paid off a debt that had been sitting there for years",
+  "A stranger's dog picked them to say hi to",
+] as const;
+
+export const CURRENT_WORRIES = [
+  "Money — the math just barely works",
+  "An aging parent who won't ask for help",
+  "A kid who's struggling and won't talk about it",
+  "A career pivot that might be a mistake",
+  "A health checkup they keep rescheduling",
+  "Loneliness they wouldn't call loneliness",
+  "Feeling stuck while everyone else moves on",
+  "The house needs repairs they can't afford yet",
+  "A friendship that's quietly fading",
+  "Whether they're doing enough for the people they love",
+  "Sleep — it just doesn't come like it used to",
+  "Forgetting things more than they'd like",
+] as const;
+
+export const CRY_TRIGGERS = [
+  "Kindness from strangers",
+  "Animals in commercials, every time",
+  "Weddings — anyone's, even on TV",
+  "Their kid singing",
+  "The national anthem at a ballgame",
+  "Missing someone at the exact wrong moment",
+  "Old photographs found in a drawer",
+  "When someone says 'I'm proud of you'",
+  "Military homecoming videos",
+  "The end of certain movies, they know which ones",
+  "A song their mother used to sing",
+  "Watching someone else cry — it just jumps",
+] as const;
+
+export const DEAD_RELATIVES = [
+  "No immediate loss (knock on wood, they'd say)",
+  "Grandma — still cooks her recipes",
+  "Grandpa — still hears his sayings",
+  "Their mother",
+  "Their father",
+  "A sibling",
+  "An aunt or uncle who was like a parent",
+  "A best friend who was family",
+  "A grandparent they never got enough time with",
+] as const;
+
 // ---------------- Derived types ----------------
 
 export type Gender = (typeof GENDERS)[number];
@@ -401,6 +818,36 @@ export type Traits = {
   definingEvent: (typeof DEFINING_LIFE_EVENTS)[number];
   vice: (typeof VICES)[number];
   passion: (typeof PASSIONS)[number];
+  // --- Formula v2: humanlike expansion ---
+  favoriteMusicGenre: (typeof FAVORITE_MUSIC_GENRES)[number];
+  favoriteShow: (typeof FAVORITE_SHOWS)[number];
+  favoriteMovie: (typeof FAVORITE_MOVIES)[number];
+  favoriteFood: (typeof FAVORITE_FOODS)[number];
+  comfortDrink: (typeof COMFORT_DRINKS)[number];
+  weekendActivity: (typeof WEEKEND_ACTIVITIES)[number];
+  hobby: (typeof HOBBIES)[number];
+  sport: (typeof SPORTS)[number];
+  dailyRitual: (typeof DAILY_RITUALS)[number];
+  laugh: (typeof LAUGHS)[number];
+  styleAesthetic: (typeof STYLE_AESTHETICS)[number];
+  mannerism: (typeof MANNERISMS)[number];
+  signatureItem: (typeof SIGNATURE_ITEMS)[number];
+  heightRange: (typeof HEIGHT_RANGES)[number];
+  homeType: (typeof HOME_TYPES)[number];
+  livingSituation: (typeof LIVING_SITUATIONS)[number];
+  pet: (typeof PETS)[number];
+  classBackground: (typeof CLASS_BACKGROUNDS)[number];
+  regionalAccent: (typeof REGIONAL_ACCENTS)[number];
+  mostRecentJoy: (typeof RECENT_JOYS)[number];
+  currentWorry: (typeof CURRENT_WORRIES)[number];
+  whatMakesThemCry: (typeof CRY_TRIGGERS)[number];
+  deadRelative: (typeof DEAD_RELATIVES)[number];
+  /**
+   * Years since the loss in `deadRelative`. 0 when there is no immediate
+   * loss. Grief at 2 years and grief at 30 years are different textures —
+   * this number gives the synthesizer that texture.
+   */
+  deadRelativeYearsSince: number;
   intensities: Intensities;
 };
 
@@ -458,6 +905,14 @@ export function rollTraits(): Traits {
       ? [pick(MBTI_TYPES), pick(MBTI_TYPES)]
       : [pick(MBTI_TYPES)];
 
+  // Grief texture: 0 when no loss; otherwise 1–40 years since. The loss
+  // is capped to have plausibly happened within the persona's adult life
+  // by the synthesizer, which reconciles it with age.
+  const deadRelative = pick(DEAD_RELATIVES);
+  const deadRelativeYearsSince = deadRelative.startsWith("No immediate loss")
+    ? 0
+    : 1 + pickInt(40);
+
   return {
     gender: pick(GENDERS),
     birthday,
@@ -487,6 +942,30 @@ export function rollTraits(): Traits {
     definingEvent: pick(DEFINING_LIFE_EVENTS),
     vice: pick(VICES),
     passion: pick(PASSIONS),
+    favoriteMusicGenre: pick(FAVORITE_MUSIC_GENRES),
+    favoriteShow: pick(FAVORITE_SHOWS),
+    favoriteMovie: pick(FAVORITE_MOVIES),
+    favoriteFood: pick(FAVORITE_FOODS),
+    comfortDrink: pick(COMFORT_DRINKS),
+    weekendActivity: pick(WEEKEND_ACTIVITIES),
+    hobby: pick(HOBBIES),
+    sport: pick(SPORTS),
+    dailyRitual: pick(DAILY_RITUALS),
+    laugh: pick(LAUGHS),
+    styleAesthetic: pick(STYLE_AESTHETICS),
+    mannerism: pick(MANNERISMS),
+    signatureItem: pick(SIGNATURE_ITEMS),
+    heightRange: pick(HEIGHT_RANGES),
+    homeType: pick(HOME_TYPES),
+    livingSituation: pick(LIVING_SITUATIONS),
+    pet: pick(PETS),
+    classBackground: pick(CLASS_BACKGROUNDS),
+    regionalAccent: pick(REGIONAL_ACCENTS),
+    mostRecentJoy: pick(RECENT_JOYS),
+    currentWorry: pick(CURRENT_WORRIES),
+    whatMakesThemCry: pick(CRY_TRIGGERS),
+    deadRelative,
+    deadRelativeYearsSince,
     intensities: {
       trauma: pickInt(101),
       fear: pickInt(101),
