@@ -51,7 +51,9 @@ async function signUp(formData: FormData) {
     );
   }
 
-  redirect("/dashboard");
+  // Straight to the acceptance gate — the (gated) layout would bounce
+  // them there from /dashboard anyway, but going direct skips a hop.
+  redirect("/onboarding");
 }
 
 export default async function SignupPage({
@@ -140,6 +142,26 @@ export default async function SignupPage({
           >
             Create account
           </button>
+
+          {/* Standard cover — the real, recorded acceptance happens at
+              /onboarding after signup. */}
+          <p className="mt-3 text-center text-xs leading-relaxed text-warm-400">
+            By continuing, you agree to our{" "}
+            <Link
+              href="/terms"
+              className="font-semibold text-warm-300 underline-offset-2 transition-colors hover:text-coral-strong hover:underline"
+            >
+              Terms
+            </Link>{" "}
+            and{" "}
+            <Link
+              href="/privacy"
+              className="font-semibold text-warm-300 underline-offset-2 transition-colors hover:text-coral-strong hover:underline"
+            >
+              Privacy Policy
+            </Link>
+            .
+          </p>
         </form>
 
         <p className="mt-6 text-sm text-warm-300">

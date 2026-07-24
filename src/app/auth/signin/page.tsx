@@ -133,6 +133,26 @@ export default async function SigninPage({
           >
             Sign in
           </button>
+
+          {/* Standard cover — the recorded acceptance lives at
+              /onboarding; the (gated) layout enforces it. */}
+          <p className="mt-3 text-center text-xs leading-relaxed text-warm-400">
+            By continuing, you agree to our{" "}
+            <Link
+              href="/terms"
+              className="font-semibold text-warm-300 underline-offset-2 transition-colors hover:text-coral-strong hover:underline"
+            >
+              Terms
+            </Link>{" "}
+            and{" "}
+            <Link
+              href="/privacy"
+              className="font-semibold text-warm-300 underline-offset-2 transition-colors hover:text-coral-strong hover:underline"
+            >
+              Privacy Policy
+            </Link>
+            .
+          </p>
         </form>
 
         <p className="mt-6 text-sm text-warm-300">
