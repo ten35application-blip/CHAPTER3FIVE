@@ -1,6 +1,12 @@
 import Image from "next/image";
 import Link from "next/link";
 
+// Force dynamic to bypass the CDN cache issue that stuck this page
+// on pre-visual-v2 HTML even after a successful deploy. Landing has
+// no per-request data — static would be fine — but the belt-and-
+// suspenders here is worth it while we figure out the cache config.
+export const dynamic = "force-dynamic";
+
 export default function Home() {
   return (
     <main className="flex min-h-dvh flex-1 flex-col items-center justify-center px-6 py-16">
