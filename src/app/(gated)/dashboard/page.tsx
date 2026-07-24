@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isAdmin } from "@/lib/admin/allowlist";
@@ -64,43 +63,18 @@ export default async function DashboardPage() {
 
   return (
     <main className="relative min-h-dvh flex-1">
-      {/* Top bar — spans the full width, three slots: trash on the
-          left, wordmark centered, starred bubbles + user avatar on
-          the right. */}
+      {/* Top bar — wordmark centered, starred bubbles + user avatar on
+          the right. (Trash moved into the user menu per Wilson: opening
+          the avatar reveals "Recently deleted" above Settings.) */}
       <div className="fixed inset-x-0 top-0 z-20 flex items-center justify-between gap-3 px-4 pb-3 pt-4 backdrop-blur">
-        {/* Left slot — trash */}
-        <div className="flex flex-1 items-center">
-          <Link
-            href="/trash"
-            aria-label="Recently deleted"
-            className="flex h-11 w-11 items-center justify-center rounded-full bg-ink-soft/90 text-warm-200 shadow-[0_4px_12px_-2px_rgba(232,138,118,0.15)] ring-1 ring-warm-700/70 transition-all hover:-translate-y-px hover:text-coral-strong hover:ring-coral/40"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              width="20"
-              height="20"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden
-            >
-              <path d="M3 6h18" />
-              <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-              <path d="M10 11v6" />
-              <path d="M14 11v6" />
-            </svg>
-          </Link>
-        </div>
+        {/* Left slot — intentionally empty; keeps the wordmark centered
+            without shifting when starred bubbles appear on the right. */}
+        <div className="flex flex-1" />
 
-        {/* Center — wordmark */}
         <p className="text-base font-bold tracking-tight text-warm-50">
           chapter<span className="text-gradient-cta font-black">3</span>five
         </p>
 
-        {/* Right slot — starred bubbles + user avatar */}
         <div className="flex flex-1 items-center justify-end gap-3">
           <StarredBubbles items={starred} />
           <UserMenu email={email} isAdmin={admin} signOutAction={signOut} />
