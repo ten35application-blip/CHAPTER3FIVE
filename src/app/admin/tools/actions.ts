@@ -31,9 +31,14 @@ export async function deleteAllIdentities(): Promise<{
     .from("oracles")
     .select("id", { count: "exact", head: true });
 
-  // Deleting by a tautological predicate — Supabase REST refuses
-  // unqualified DELETEs, so pass a filter that matches every row.
-  const { error } = await admin.from("oracles").delete().neq("id", "");
+  // Supabase REST refuses unqualified DELETEs, so we need a predicate
+  // that matches every row. `.neq("id", "")` tries to cast "" to UUID
+  // and errors (22P02). `.gt("created_at", "1970-01-01")` works because
+  // every row's created_at is after epoch and no cast is needed.
+  const { error } = await admin
+    .from("oracles")
+    .delete()
+    .gt("created_at", "1970-01-01");
 
   if (error) {
     return { ok: false, error: `${error.code ?? ""} ${error.message}` };
