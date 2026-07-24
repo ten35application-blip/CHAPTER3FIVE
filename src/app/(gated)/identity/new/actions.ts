@@ -1,7 +1,9 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { redirectWithError } from "@/lib/action-errors";
+import { generateAndSaveFace } from "@/lib/faces/generate";
 import { fingerprintTraits } from "@/lib/identity/fingerprint";
 import { rollTraits, type Traits } from "@/lib/identity/formula";
 import {
@@ -108,6 +110,18 @@ export async function createIdentity(): Promise<void> {
       insertError,
     );
   }
+
+  // Fire-and-forget face generation. `after()` runs once the redirect
+  // response is sent — Flux Pro takes 15–40s and must never block the
+  // reveal. generateAndSaveFace never throws; failures land in
+  // oracles.face_generation_status for later retry via
+  // POST /api/faces/generate (force) or /api/faces/backfill.
+  // (const captures: `after`'s closure can't rely on `let` narrowing.)
+  const oracleId = inserted.id;
+  const rolledTraits = traits;
+  after(async () => {
+    await generateAndSaveFace(oracleId, rolledTraits);
+  });
 
   redirect(`/identity/new?id=${inserted.id}`);
 }
