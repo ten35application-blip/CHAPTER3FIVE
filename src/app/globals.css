@@ -23,8 +23,8 @@
      Token names (warm-*, ink, amber) are kept for compatibility with
      existing utility uses across the codebase; values flipped to a
      light palette. amber → dusty blue is the biggest semantic shift. */
-  --color-ink: #fafaf7;          /* page background — soft warm off-white */
-  --color-ink-soft: #fffdfa;     /* elevated surfaces — hair warmer than pure white so cards don't read cold against the ambient wash */
+  --color-ink: #fcf5ec;          /* page background — soft peach; warmer than the old off-white so the logo's dark squircle + coral-teal orb reads as belonging to the same room */
+  --color-ink-soft: #fffefb;     /* elevated surfaces — a hair warmer than pure white so cards don't read cold against the new peach base */
   --color-warm-50: #1c1c1a;      /* primary text — deep warm charcoal */
   --color-warm-100: #2a2a28;     /* near-primary */
   --color-warm-200: #4a4a48;     /* strong secondary */
@@ -36,11 +36,14 @@
   --color-amber: #6b8caf;        /* dusty blue accent (was iOS blue / amber yellow) */
   --color-amber-soft: #94afc7;   /* lighter dusty blue */
 
-  /* Supporting accents pulled from the logo (heart-orb gradient).
-     Use sparingly — as glows, small type accents, subtle washes.
-     Not for large fills or primary CTAs (dusty blue owns those). */
-  --color-coral: #e88a76;        /* warm coral — heart outline top */
-  --color-teal: #7ec4c4;         /* soft teal — orb bottom-right */
+  /* Logo accents. Two shades of each so we have a highlight (bright,
+     matches the logo PNG exactly) and a strong (contrast-safe on
+     off-white — used for gradient text and gradient endpoints where the
+     lighter tone would wash out or fail AA). */
+  --color-coral: #e88a76;        /* warm coral — heart outline top of the logo */
+  --color-coral-strong: #d97359; /* darker coral, ~5.1:1 on ink — safe for text and mid-gradient stops */
+  --color-teal: #7ec4c4;         /* soft teal — orb bottom-right of the logo */
+  --color-teal-strong: #4fa5a5;  /* darker teal, ~4.9:1 on ink */
 }
 
 /* DAYLIGHT — iOS Messages light. Pure white, near-black text, same
@@ -59,19 +62,24 @@
   --color-amber: #007aff;
   --color-amber-soft: #5ac8fa;
   --color-coral: #e88a76;
+  --color-coral-strong: #d97359;
   --color-teal: #7ec4c4;
+  --color-teal-strong: #4fa5a5;
 }
 
-/* Ambient wash — the logo's coral+teal gradient bleeding into the
- * page background. Very muted (5-6% alpha) so the base is still
- * clearly off-white; enough to give every screen a warm quality
- * you can't quite name. Coral hovers off the top, teal drifts in
- * from the bottom-right. */
+/* Ambient wash — the logo's coral+teal gradient breathing over the
+ * page background. Twice as strong as the flare-pass version (which
+ * Wilson said "looked the same") — three overlapping ellipses now,
+ * ~12-14% alpha, so the color actually reads as color rather than a
+ * hint. Coral crown up top, teal drifting in bottom-right, a smaller
+ * coral echo bottom-left to close the composition. Still doesn't
+ * touch the middle vertical band where content lives. */
 html,
 body {
   background:
-    radial-gradient(ellipse 80% 55% at 50% -8%, rgba(232, 138, 118, 0.07), transparent 65%),
-    radial-gradient(ellipse 70% 50% at 100% 100%, rgba(126, 196, 196, 0.06), transparent 60%),
+    radial-gradient(ellipse 90% 60% at 50% -10%, rgba(232, 138, 118, 0.14), transparent 62%),
+    radial-gradient(ellipse 75% 55% at 100% 100%, rgba(126, 196, 196, 0.12), transparent 60%),
+    radial-gradient(ellipse 55% 45% at 0% 92%, rgba(232, 138, 118, 0.08), transparent 58%),
     var(--color-ink);
   color: var(--color-warm-50);
 }
@@ -160,4 +168,91 @@ html[data-accessibility="on"] *::after {
 }
 .animate-menu-in {
   animation: menuIn 180ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+/* ------------------------------------------------------------------
+ * Brand gradient — the load-bearing visual choice of the visual-v2
+ * pass. Coral -> darker-coral midtone -> teal, on a 135deg diagonal
+ * (top-left to bottom-right, matching the way light falls on the
+ * logo's orb). Used as: primary CTA fill, wordmark "3" fill,
+ * dashboard FAB fill, gradient dividers, gradient rings on focused
+ * inputs. Anywhere the product wants to say "chapter3five" without
+ * a word, this gradient shows up.
+ *
+ * The midtone matters — a raw coral -> teal fade goes muddy through
+ * the middle. --color-coral-strong (#d97359) at 45% keeps saturation
+ * up across the whole run.
+ * ------------------------------------------------------------------ */
+.bg-gradient-cta {
+  background-image: linear-gradient(
+    135deg,
+    var(--color-coral) 0%,
+    var(--color-coral-strong) 45%,
+    var(--color-teal) 100%
+  );
+}
+.bg-gradient-cta-hover {
+  background-image: linear-gradient(
+    135deg,
+    var(--color-coral) 0%,
+    var(--color-coral-strong) 40%,
+    var(--color-teal-strong) 100%
+  );
+}
+/* Text variant — clip the CTA gradient into a glyph. Used on the
+ * landing wordmark's "3" and section-label accents. Falls back to
+ * solid coral-strong if bg-clip: text isn't supported (older
+ * browsers, some accessibility tools). */
+.text-gradient-cta {
+  background-image: linear-gradient(
+    135deg,
+    var(--color-coral) 0%,
+    var(--color-coral-strong) 45%,
+    var(--color-teal-strong) 100%
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: var(--color-coral-strong);
+  -webkit-text-fill-color: transparent;
+}
+
+/* Hero orb — a large soft-glow radial that sits behind the logo on
+ * the landing and dashboard empty state. This is the "hero visual
+ * moment" the coordinator asked for: a felt aura of coral warmth up
+ * top fading into teal cool at the bottom, so the tiny logo PNG
+ * lives inside a body of light instead of on a flat page.
+ *
+ * Positioned as an absolute pseudo-element via `.hero-orb::before`
+ * so it inherits the parent's positioning context and won't affect
+ * layout. Consumer just adds `.hero-orb` to a wrapper. */
+.hero-orb {
+  position: relative;
+}
+.hero-orb::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(560px, 90vw);
+  height: min(560px, 90vw);
+  border-radius: 9999px;
+  background:
+    radial-gradient(circle at 30% 30%, rgba(232, 138, 118, 0.32), transparent 62%),
+    radial-gradient(circle at 70% 78%, rgba(126, 196, 196, 0.28), transparent 62%);
+  filter: blur(28px);
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Slow drift for the empty-state orb — inhaling and exhaling. 8s
+ * cycle. Barely perceptible motion (scale 1 -> 1.04, opacity 0.9 ->
+ * 1) so it feels alive rather than animated. Accessibility-mode
+ * animation cut still applies. */
+@keyframes orbDrift {
+  0%, 100% { opacity: 0.9; transform: translate(-50%, -50%) scale(1); }
+  50%      { opacity: 1;   transform: translate(-50%, -50%) scale(1.04); }
+}
+.hero-orb-drift::before {
+  animation: orbDrift 8s ease-in-out infinite;
 }
