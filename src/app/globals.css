@@ -35,6 +35,12 @@
   --color-warm-700: #e8e6e1;     /* hairline divider / chip bg */
   --color-amber: #6b8caf;        /* dusty blue accent (was iOS blue / amber yellow) */
   --color-amber-soft: #94afc7;   /* lighter dusty blue */
+
+  /* Supporting accents pulled from the logo (heart-orb gradient).
+     Use sparingly — as glows, small type accents, subtle washes.
+     Not for large fills or primary CTAs (dusty blue owns those). */
+  --color-coral: #e88a76;        /* warm coral — heart outline top */
+  --color-teal: #7ec4c4;         /* soft teal — orb bottom-right */
 }
 
 /* DAYLIGHT — iOS Messages light. Pure white, near-black text, same
@@ -52,11 +58,21 @@
   --color-warm-700: #d1d1d6;
   --color-amber: #007aff;
   --color-amber-soft: #5ac8fa;
+  --color-coral: #e88a76;
+  --color-teal: #7ec4c4;
 }
 
+/* Ambient wash — the logo's coral+teal gradient bleeding into the
+ * page background. Very muted (5-6% alpha) so the base is still
+ * clearly off-white; enough to give every screen a warm quality
+ * you can't quite name. Coral hovers off the top, teal drifts in
+ * from the bottom-right. */
 html,
 body {
-  background: var(--color-ink);
+  background:
+    radial-gradient(ellipse 80% 55% at 50% -8%, rgba(232, 138, 118, 0.07), transparent 65%),
+    radial-gradient(ellipse 70% 50% at 100% 100%, rgba(126, 196, 196, 0.06), transparent 60%),
+    var(--color-ink);
   color: var(--color-warm-50);
 }
 

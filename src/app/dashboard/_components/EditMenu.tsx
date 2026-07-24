@@ -46,7 +46,7 @@ export function EditMenu({ email, signOutAction }: Props) {
       {open ? (
         <div
           role="menu"
-          className="animate-menu-in absolute left-0 top-11 z-20 w-72 overflow-hidden rounded-2xl bg-ink-soft shadow-xl ring-1 ring-warm-700"
+          className="animate-menu-in absolute left-0 top-11 z-20 w-72 overflow-hidden rounded-2xl bg-ink-soft shadow-[0_24px_48px_-16px_rgba(28,28,26,0.16),_0_8px_20px_rgba(232,138,118,0.06)] ring-1 ring-warm-700"
         >
           {/* Profile card */}
           <Link

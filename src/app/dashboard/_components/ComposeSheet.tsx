@@ -35,7 +35,7 @@ export function ComposeSheet({ identities }: Props) {
         type="button"
         onClick={() => setOpen(true)}
         aria-label="New message"
-        className="fixed bottom-6 right-6 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-amber text-white shadow-lg transition-transform active:scale-95"
+        className="fixed bottom-6 right-6 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-amber text-white shadow-[0_16px_40px_-10px_rgba(107,140,175,0.6),_0_6px_16px_rgba(232,138,118,0.18)] transition-all hover:-translate-y-px active:scale-95"
       >
         <svg
           viewBox="0 0 24 24"
@@ -68,7 +68,7 @@ export function ComposeSheet({ identities }: Props) {
           />
 
           {/* Sheet */}
-          <div className="animate-sheet-up relative z-10 w-full max-w-md rounded-t-3xl bg-ink-soft pb-8 shadow-2xl">
+          <div className="animate-sheet-up relative z-10 w-full max-w-md rounded-t-3xl bg-ink-soft pb-8 shadow-[0_-24px_60px_-20px_rgba(28,28,26,0.18),_0_-4px_16px_rgba(232,138,118,0.05)]">
             <div className="flex justify-center pt-3">
               <span className="h-1.5 w-10 rounded-full bg-warm-700" />
             </div>

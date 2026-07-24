@@ -100,13 +100,16 @@ function EmptyState() {
       <Image
         src="/logo.png"
         alt=""
-        width={64}
-        height={64}
-        className="h-16 w-16 opacity-90"
+        width={96}
+        height={96}
+        className="h-24 w-24 drop-shadow-[0_18px_50px_rgba(232,138,118,0.28)]"
       />
-      <p className="mt-6 text-lg font-medium text-warm-50">No one here yet.</p>
+      <p className="mt-8 text-xl font-medium text-warm-50">
+        It&apos;s quiet in here.
+      </p>
       <p className="mt-2 max-w-xs text-sm text-warm-300">
-        Tap Edit above to create someone to talk to.
+        Tap <span className="font-medium text-warm-100">Edit</span> above to
+        bring someone in.
       </p>
     </div>
   );

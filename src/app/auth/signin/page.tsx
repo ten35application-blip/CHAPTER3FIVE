@@ -67,7 +67,7 @@ export default async function SigninPage({
             width={64}
             height={64}
             priority
-            className="h-16 w-16"
+            className="h-16 w-16 drop-shadow-[0_12px_32px_rgba(232,138,118,0.22)]"
           />
         </Link>
 
@@ -123,7 +123,7 @@ export default async function SigninPage({
 
           <button
             type="submit"
-            className="mt-4 flex h-14 w-full items-center justify-center rounded-full bg-amber text-lg font-semibold text-white transition-opacity hover:opacity-90 active:opacity-80"
+            className="mt-4 flex h-14 w-full items-center justify-center rounded-full bg-amber text-lg font-semibold text-white shadow-[0_14px_36px_-10px_rgba(107,140,175,0.55),_0_4px_12px_rgba(232,138,118,0.12)] transition-all hover:-translate-y-px active:translate-y-0 active:opacity-90"
           >
             Sign in
           </button>

@@ -5,19 +5,22 @@ export default function Home() {
   return (
     <main className="flex min-h-dvh flex-1 flex-col items-center justify-center px-6 py-12">
       <div className="flex w-full max-w-md flex-col items-center text-center">
-        {/* Logo — squircle shape baked into the PNG, no CSS radius needed */}
+        {/* Logo with a soft coral aura — echoes the heart-orb gradient
+            baked into the PNG. Drop-shadow is coral-tinted so the icon
+            feels like it's glowing rather than floating on a flat page. */}
         <Image
           src="/logo.png"
           alt="chapter3five"
           width={96}
           height={96}
           priority
-          className="h-24 w-24"
+          className="h-24 w-24 drop-shadow-[0_18px_50px_rgba(232,138,118,0.28)]"
         />
 
-        {/* Wordmark */}
+        {/* Wordmark — the "3" in coral picks up the logo's heart color,
+            so eye connects mark to icon without saying it out loud. */}
         <p className="mt-6 text-lg font-semibold tracking-tight">
-          chapter<span className="text-amber">3</span>five
+          chapter<span className="text-coral">3</span>five
         </p>
 
         {/* Headline — leads with the randomize path */}
@@ -34,10 +37,11 @@ export default function Home() {
           they&apos;re gone.
         </p>
 
-        {/* CTAs */}
+        {/* CTAs — primary button gets a dusty-blue shadow with a whisper
+            of coral, so it feels warm rather than clinical. */}
         <Link
           href="/auth/signup"
-          className="mt-10 flex h-14 w-full max-w-xs items-center justify-center rounded-full bg-amber text-lg font-semibold text-white transition-opacity hover:opacity-90 active:opacity-80"
+          className="mt-10 flex h-14 w-full max-w-xs items-center justify-center rounded-full bg-amber text-lg font-semibold text-white shadow-[0_14px_36px_-10px_rgba(107,140,175,0.55),_0_4px_12px_rgba(232,138,118,0.12)] transition-all hover:-translate-y-px hover:shadow-[0_18px_44px_-10px_rgba(107,140,175,0.6),_0_6px_14px_rgba(232,138,118,0.15)] active:translate-y-0 active:opacity-90"
         >
           Get started
         </Link>
