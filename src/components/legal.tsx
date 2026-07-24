@@ -83,7 +83,7 @@ export function LegalShell({
           {tagline}
         </p>
         <p className="mt-7 rounded-full border border-warm-700 bg-ink-soft px-5 py-2 text-sm font-semibold text-warm-300">
-          Effective [[EFFECTIVE_DATE]] &middot; Last updated [[EFFECTIVE_DATE]]
+          Effective July 24, 2026 &middot; Last updated July 24, 2026
         </p>
       </header>
 

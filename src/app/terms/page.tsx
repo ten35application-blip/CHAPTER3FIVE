@@ -446,11 +446,12 @@ export default function TermsPage() {
 
       <LegalSection id="governing-law" number={15} title="Governing law">
         <p>
-          These Terms are governed by the laws of{" "}
-          <strong>[[JURISDICTION]]</strong>, without regard to conflict of
-          laws principles. For any matter not subject to arbitration, you and
-          chapter3five consent to the exclusive jurisdiction of the state and
-          federal courts located in [[JURISDICTION]].
+          These Terms are governed by the laws of the{" "}
+          <strong>Commonwealth of Pennsylvania</strong>, without regard to
+          conflict of laws principles. For any matter not subject to
+          arbitration, you and chapter3five consent to the exclusive
+          jurisdiction of the state and federal courts located in Northampton
+          County, Pennsylvania.
         </p>
       </LegalSection>
 

@@ -266,9 +266,8 @@ export default function PrivacyPage() {
         <p>
           We use only the <strong>strictly necessary cookies</strong> that
           keep you signed in. No third-party advertising cookies, no
-          cross-site tracking pixels, no analytics cookies. [[CONFIRM:
-          Wilson — confirm no product analytics (e.g. Vercel Analytics) are
-          enabled; if any are, they must be listed here honestly.]]
+          cross-site tracking pixels, no product analytics, no marketing
+          tags.
         </p>
         <p>
           Because these cookies are essential rather than optional,
