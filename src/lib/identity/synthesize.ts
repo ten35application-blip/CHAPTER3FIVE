@@ -246,6 +246,11 @@ function isSynthesizedPersona(v: unknown): v is SynthesizedPersona {
     typeof o.one_line_hook === "string" &&
     o.one_line_hook.length > 0 &&
     typeof o.persona_prompt === "string" &&
-    o.persona_prompt.length > 0
+    // A structurally complete monologue must reach its final two sections.
+    // Guards against a valid-JSON response whose persona_prompt stops
+    // mid-monologue (seen in prod: a 1.7k-char prompt that cut off before
+    // the safety rails and was stored, leaving a chat with no guardrails).
+    o.persona_prompt.includes("**What I will not do**") &&
+    o.persona_prompt.includes("**One last thing**")
   );
 }
