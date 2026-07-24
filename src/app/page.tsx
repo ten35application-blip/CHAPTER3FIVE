@@ -17,10 +17,11 @@ export default function Home() {
           className="h-24 w-24 drop-shadow-[0_18px_50px_rgba(232,138,118,0.28)]"
         />
 
-        {/* Wordmark — the "3" in coral picks up the logo's heart color,
-            so eye connects mark to icon without saying it out loud. */}
+        {/* Wordmark — the "3" in coral picks up the logo's heart color.
+            font-bold (700) on the "3" clears the AA-large text threshold
+            so the coral contrast (~4.3:1 vs off-white) reads safely. */}
         <p className="mt-6 text-lg font-semibold tracking-tight">
-          chapter<span className="text-coral">3</span>five
+          chapter<span className="font-bold text-coral">3</span>five
         </p>
 
         {/* Headline — leads with the randomize path */}
@@ -47,7 +48,7 @@ export default function Home() {
         </Link>
         <Link
           href="/auth/signin"
-          className="mt-4 flex h-12 items-center justify-center px-6 text-base font-medium text-amber"
+          className="mt-4 flex h-12 items-center justify-center px-6 text-base font-medium text-amber transition-colors hover:text-warm-100"
         >
           Sign in
         </Link>

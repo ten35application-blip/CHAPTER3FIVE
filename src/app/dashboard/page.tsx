@@ -107,7 +107,7 @@ function EmptyState() {
       <p className="mt-8 text-xl font-medium text-warm-50">
         It&apos;s quiet in here.
       </p>
-      <p className="mt-2 max-w-xs text-sm text-warm-300">
+      <p className="mt-2 max-w-xs text-base text-warm-300">
         Tap <span className="font-medium text-warm-100">Edit</span> above to
         bring someone in.
       </p>

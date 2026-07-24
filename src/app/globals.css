@@ -24,7 +24,7 @@
      existing utility uses across the codebase; values flipped to a
      light palette. amber → dusty blue is the biggest semantic shift. */
   --color-ink: #fafaf7;          /* page background — soft warm off-white */
-  --color-ink-soft: #ffffff;     /* elevated surfaces (cards, sheets, drawer) */
+  --color-ink-soft: #fffdfa;     /* elevated surfaces — hair warmer than pure white so cards don't read cold against the ambient wash */
   --color-warm-50: #1c1c1a;      /* primary text — deep warm charcoal */
   --color-warm-100: #2a2a28;     /* near-primary */
   --color-warm-200: #4a4a48;     /* strong secondary */
