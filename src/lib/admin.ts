@@ -1,15 +1,6 @@
 /**
- * Admin gate. Only these emails can access /admin and admin-only server
- * actions. Hard-coded by design — admin status is sensitive enough that a
- * DB column is more attack surface than benefit at this size.
+ * Back-compat shim — the canonical allowlist now lives in
+ * src/lib/admin/allowlist.ts. The edge proxy (src/proxy.ts) imports from
+ * here; keep both entry points pointing at the same list.
  */
-export const ADMIN_EMAILS = [
-  "danisel.feliz95@gmail.com",
-  "wfeliz2290@gmail.com",
-  "p.infante.jr@gmail.com",
-];
-
-export function isAdmin(email: string | null | undefined): boolean {
-  if (!email) return false;
-  return ADMIN_EMAILS.includes(email.trim().toLowerCase());
-}
+export { ADMIN_EMAILS, isAdmin } from "@/lib/admin/allowlist";
