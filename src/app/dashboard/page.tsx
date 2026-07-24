@@ -50,12 +50,14 @@ export default async function DashboardPage() {
         <EditMenu email={email} signOutAction={signOut} />
       </div>
 
-      {/* Top-right: Trash icon */}
+      {/* Top-right: Trash icon — warm-tinted frosted button with a
+          subtle coral ring so it participates in the brand color
+          story instead of reading as neutral gray. */}
       <div className="fixed right-4 top-4 z-20">
         <Link
           href="/trash"
           aria-label="Recently deleted"
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-warm-700/70 text-warm-100 backdrop-blur transition-colors hover:bg-warm-700"
+          className="flex h-11 w-11 items-center justify-center rounded-full bg-ink-soft/90 text-warm-200 shadow-[0_4px_12px_-2px_rgba(232,138,118,0.15)] ring-1 ring-warm-700/70 backdrop-blur transition-all hover:-translate-y-px hover:bg-ink-soft hover:text-coral-strong hover:ring-coral/40"
         >
           <svg
             viewBox="0 0 24 24"
@@ -96,20 +98,21 @@ export default async function DashboardPage() {
 
 function EmptyState() {
   return (
-    <div className="flex flex-col items-center pt-24 text-center">
+    <div className="hero-orb hero-orb-drift flex flex-col items-center pt-16 text-center sm:pt-24">
       <Image
         src="/logo.png"
         alt=""
-        width={96}
-        height={96}
-        className="h-24 w-24 drop-shadow-[0_18px_50px_rgba(232,138,118,0.28)]"
+        width={128}
+        height={128}
+        className="h-32 w-32 drop-shadow-[0_24px_60px_rgba(232,138,118,0.35)]"
       />
-      <p className="mt-8 text-xl font-medium text-warm-50">
-        It&apos;s quiet in here.
+      <p className="mt-10 text-3xl font-bold tracking-tight text-warm-50">
+        It&apos;s <span className="text-gradient-cta">quiet</span> in here.
       </p>
-      <p className="mt-2 max-w-xs text-base text-warm-300">
-        Tap <span className="font-medium text-warm-100">Edit</span> above to
-        bring someone in.
+      <p className="mt-4 max-w-xs text-base leading-relaxed text-warm-300">
+        Tap{" "}
+        <span className="font-semibold text-warm-100">Edit</span>{" "}
+        above to bring someone in.
       </p>
     </div>
   );
@@ -117,16 +120,22 @@ function EmptyState() {
 
 function List({ items }: { items: Identity[] }) {
   return (
-    <ul className="divide-y divide-warm-700/60 rounded-2xl bg-ink-soft ring-1 ring-warm-700/60">
-      {items.map((p) => (
+    <ul className="overflow-hidden rounded-3xl bg-ink-soft shadow-[0_8px_28px_-16px_rgba(28,28,26,0.12),_0_2px_8px_-2px_rgba(232,138,118,0.08)] ring-1 ring-warm-700/60">
+      {items.map((p, index) => (
         <li key={p.id}>
+          {index > 0 ? (
+            // Gradient hairline divider — the coral -> teal brand
+            // gradient at 20% alpha, so rows are separated by a whisper
+            // of color instead of a neutral gray line.
+            <div className="mx-4 h-px bg-gradient-to-r from-transparent via-coral/20 to-transparent" />
+          ) : null}
           <Link
             href={`/chat/${p.id}`}
-            className="flex items-center gap-3 px-4 py-3 first:rounded-t-2xl last:rounded-b-2xl hover:bg-warm-700/20"
+            className="group flex items-center gap-4 px-5 py-4 transition-colors hover:bg-coral/5"
           >
             <Avatar name={p.name} url={p.avatar_url} />
             <span className="flex min-w-0 flex-1 flex-col">
-              <span className="truncate text-base font-medium text-warm-50">
+              <span className="truncate text-base font-semibold text-warm-50">
                 {p.name}
               </span>
               <span className="truncate text-sm text-warm-300">
@@ -143,7 +152,7 @@ function List({ items }: { items: Identity[] }) {
               strokeLinecap="round"
               strokeLinejoin="round"
               aria-hidden
-              className="text-warm-400"
+              className="text-warm-400 transition-colors group-hover:text-coral-strong"
             >
               <path d="M9 6l6 6-6 6" />
             </svg>
@@ -162,12 +171,12 @@ function Avatar({ name, url }: { name: string; url: string | null }) {
       <img
         src={url}
         alt=""
-        className="h-11 w-11 rounded-full object-cover"
+        className="h-12 w-12 rounded-full object-cover shadow-[0_4px_12px_-2px_rgba(232,138,118,0.25)] ring-2 ring-coral/20"
       />
     );
   }
   return (
-    <span className="flex h-11 w-11 items-center justify-center rounded-full bg-warm-700/60 text-base font-semibold text-warm-100">
+    <span className="bg-gradient-cta flex h-12 w-12 items-center justify-center rounded-full text-lg font-bold text-white shadow-[0_4px_12px_-2px_rgba(232,138,118,0.3)]">
       {initial}
     </span>
   );
