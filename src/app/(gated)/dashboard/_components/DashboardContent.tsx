@@ -191,6 +191,9 @@ function ConversationList({ items }: { items: Identity[] }) {
               label: p.manually_unread ? "Read" : "Unread",
               bgClassName: "bg-gradient-to-r from-teal-strong to-teal-strong/90",
               onCommit: () => markUnread(p.id, !p.manually_unread),
+              // Mark-unread keeps the row in the list — snap it back
+              // into view after the action succeeds.
+              restoreOnSuccess: true,
             }}
           >
             <div className="flex items-center gap-4 px-5 py-4">

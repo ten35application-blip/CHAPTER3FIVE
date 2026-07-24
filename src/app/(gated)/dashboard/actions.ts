@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { redirectWithError } from "@/lib/action-errors";
 import { isAdmin } from "@/lib/admin/allowlist";
 
 /**
@@ -26,7 +25,7 @@ async function requireUser() {
 
 /** Toggle the pinned/starred flag. Called from the star icon on each row. */
 export async function toggleStar(oracleId: string, nextStarred: boolean) {
-  const { supabase } = await requireUser();
+  const { supabase, user } = await requireUser();
 
   const { error } = await supabase
     .from("oracles")
@@ -35,7 +34,7 @@ export async function toggleStar(oracleId: string, nextStarred: boolean) {
     .is("deleted_at", null);
 
   if (error) {
-    return diagnose(error, "toggling favorite");
+    return diagnose(error, "toggling favorite", isAdmin(user.email));
   }
 
   revalidatePath("/dashboard");
@@ -44,7 +43,7 @@ export async function toggleStar(oracleId: string, nextStarred: boolean) {
 
 /** Swipe-right on a row. Persists the "unread" flag the AI reads later. */
 export async function markUnread(oracleId: string, nextUnread: boolean) {
-  const { supabase } = await requireUser();
+  const { supabase, user } = await requireUser();
 
   const { error } = await supabase
     .from("oracles")
@@ -53,7 +52,7 @@ export async function markUnread(oracleId: string, nextUnread: boolean) {
     .is("deleted_at", null);
 
   if (error) {
-    return diagnose(error, "marking unread");
+    return diagnose(error, "marking unread", isAdmin(user.email));
   }
 
   revalidatePath("/dashboard");
@@ -65,7 +64,7 @@ export async function markUnread(oracleId: string, nextUnread: boolean) {
  * the dashboard but stays reversible from /trash for 30 days.
  */
 export async function softDeleteIdentity(oracleId: string) {
-  const { supabase } = await requireUser();
+  const { supabase, user } = await requireUser();
 
   const { error } = await supabase
     .from("oracles")
@@ -74,7 +73,7 @@ export async function softDeleteIdentity(oracleId: string) {
     .is("deleted_at", null);
 
   if (error) {
-    return diagnose(error, "deleting");
+    return diagnose(error, "deleting", isAdmin(user.email));
   }
 
   revalidatePath("/dashboard");
@@ -84,7 +83,7 @@ export async function softDeleteIdentity(oracleId: string) {
 
 /** Swipe-right in /trash — clears deleted_at so the identity comes back. */
 export async function restoreIdentity(oracleId: string) {
-  const { supabase } = await requireUser();
+  const { supabase, user } = await requireUser();
 
   const { error } = await supabase
     .from("oracles")
@@ -93,7 +92,7 @@ export async function restoreIdentity(oracleId: string) {
     .not("deleted_at", "is", null);
 
   if (error) {
-    return diagnose(error, "restoring");
+    return diagnose(error, "restoring", isAdmin(user.email));
   }
 
   revalidatePath("/dashboard");
@@ -106,7 +105,7 @@ export async function restoreIdentity(oracleId: string) {
  * that cascades from it (messages, memories, shares) is gone.
  */
 export async function permanentDeleteIdentity(oracleId: string) {
-  const { supabase } = await requireUser();
+  const { supabase, user } = await requireUser();
 
   const { error } = await supabase
     .from("oracles")
@@ -115,7 +114,7 @@ export async function permanentDeleteIdentity(oracleId: string) {
     .not("deleted_at", "is", null);
 
   if (error) {
-    return diagnose(error, "permanently deleting");
+    return diagnose(error, "permanently deleting", isAdmin(user.email));
   }
 
   revalidatePath("/trash");
@@ -137,29 +136,18 @@ export async function signOut() {
 function diagnose(
   error: { message?: string; code?: string; hint?: string },
   verb: string,
+  admin: boolean,
 ) {
-  // If we're on the server we can safely inspect the caller's email
-  // for admin status — no client trust boundary here.
-  // (We don't await requireUser again — the actions above already did.)
-  // For simplicity we just return the error message; the UI decides
-  // whether to reveal or hide it.
-  const msg = error.message ?? "unknown error";
+  if (admin) {
+    const code = error.code ? ` [${error.code}]` : "";
+    const hint = error.hint ? ` Hint: ${error.hint}.` : "";
+    return {
+      ok: false as const,
+      error: `Admin: ${verb} failed${code} — ${error.message ?? "unknown error"}.${hint}`,
+    };
+  }
   return {
     ok: false as const,
-    error: `Sorry — we couldn't finish ${verb} that. ${msg}`,
-    raw: error,
+    error: `Sorry — we couldn't finish ${verb} that. Please try again.`,
   };
-}
-
-/**
- * Server-side admin flag lookup — client components can't call
- * isAdmin() directly (they don't have the session). Called by the
- * dashboard page to decide whether to render the Admin link.
- */
-export async function fetchIsAdmin(): Promise<boolean> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  return isAdmin(user?.email);
 }

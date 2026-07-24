@@ -11,6 +11,12 @@ type SwipeAction = {
   bgClassName: string;
   /** Called when the swipe commits or the reveal panel is tapped. */
   onCommit: () => Promise<{ ok: boolean; error?: string }>;
+  /**
+   * Set when a successful commit does NOT remove the row from the list
+   * (e.g. mark-unread). The row snaps back into view after the action
+   * succeeds instead of staying translated off-screen forever.
+   */
+  restoreOnSuccess?: boolean;
 };
 
 type Props = {
@@ -59,6 +65,7 @@ export function SwipeRow({
 
   const startX = useRef(0);
   const startY = useRef(0);
+  const dragging = useRef(false);
   const captured = useRef(false);
   const cancelled = useRef(false);
 
@@ -66,12 +73,15 @@ export function SwipeRow({
     if (committed) return;
     startX.current = e.clientX;
     startY.current = e.clientY;
+    dragging.current = true;
     captured.current = false;
     cancelled.current = false;
   }
 
   function onPointerMove(e: React.PointerEvent<HTMLDivElement>) {
-    if (committed || cancelled.current) return;
+    // pointermove fires on plain mouse hover too — only track motion
+    // while a press that started on this row is in progress.
+    if (!dragging.current || committed || cancelled.current) return;
     const dxRaw = e.clientX - startX.current;
     const dyRaw = e.clientY - startY.current;
 
@@ -98,6 +108,8 @@ export function SwipeRow({
   }
 
   function onPointerUp(e: React.PointerEvent<HTMLDivElement>) {
+    if (!dragging.current) return;
+    dragging.current = false;
     wrapRef.current?.releasePointerCapture(e.pointerId);
     if (!captured.current || cancelled.current || committed) {
       setDx(0);
@@ -123,6 +135,7 @@ export function SwipeRow({
       setDx(0);
       return;
     }
+    setErrorMsg(null);
     setCommitted(dir);
     setDx(dir === "left" ? -9999 : 9999);
     startTransition(async () => {
@@ -132,8 +145,14 @@ export function SwipeRow({
         // Rollback the row so the user can see it again.
         setCommitted(null);
         setDx(0);
+        return;
       }
-      // On success we DON'T restore — the row is gone from the list
+      if (action.restoreOnSuccess) {
+        // The row stays in the list (e.g. mark-unread) — bring it back.
+        setCommitted(null);
+        setDx(0);
+      }
+      // Otherwise we DON'T restore — the row is gone from the list
       // (parent re-renders after revalidatePath).
     });
   }
