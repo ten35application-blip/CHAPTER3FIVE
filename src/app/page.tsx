@@ -1,11 +1,22 @@
+import Image from "next/image";
 import Link from "next/link";
 
 export default function Home() {
   return (
     <main className="flex min-h-dvh flex-1 flex-col items-center justify-center px-6 py-12">
       <div className="flex w-full max-w-md flex-col items-center text-center">
+        {/* Logo — squircle shape baked into the PNG, no CSS radius needed */}
+        <Image
+          src="/logo.png"
+          alt="chapter3five"
+          width={96}
+          height={96}
+          priority
+          className="h-24 w-24"
+        />
+
         {/* Wordmark */}
-        <p className="text-lg font-semibold tracking-tight">
+        <p className="mt-6 text-lg font-semibold tracking-tight">
           chapter<span className="text-amber">3</span>five
         </p>
 
