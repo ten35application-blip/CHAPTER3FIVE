@@ -114,8 +114,9 @@ export function buildFacePrompt(traits: Traits, oracleId: string): FacePrompt {
   ];
 
   if (place) {
+    const article = place.urbanness === "urban" ? "an" : "a";
     parts.push(
-      `Softly blurred background suggesting ${place.city}, ${place.stateAbbrev} — a ${place.urbanness} setting.`,
+      `Softly blurred background suggesting ${place.city}, ${place.stateAbbrev} — ${article} ${place.urbanness} setting.`,
     );
   }
 
