@@ -79,7 +79,7 @@ export function EditMenu({ email, signOutAction }: Props) {
           {/* The two identity actions get gradient-clipped glyphs on
               coral wells so the primary create actions read as brand-
               colored moments rather than plain menu rows. */}
-          <MenuItem href="/identity/new" onClose={() => setOpen(false)}>
+          <MenuItem href="/identity/create" onClose={() => setOpen(false)}>
             <span
               aria-hidden
               className="flex h-7 w-7 items-center justify-center rounded-lg bg-coral/12 text-lg font-bold leading-none"
