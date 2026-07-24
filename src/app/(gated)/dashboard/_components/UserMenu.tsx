@@ -5,10 +5,22 @@ import { useEffect, useRef, useState } from "react";
 
 type Props = {
   email: string;
+  isAdmin: boolean;
   signOutAction: () => void;
 };
 
-export function EditMenu({ email, signOutAction }: Props) {
+/**
+ * User avatar in the top-right of the dashboard. Tap → dropdown menu.
+ * Replaces the old "Edit" text pill. The avatar is currently a
+ * gradient-filled circle with the email's first initial; when we
+ * add a photo upload flow in Settings, swap `initial` for the
+ * uploaded avatar_url on the profile.
+ *
+ * Admin link (Admin dashboard) only renders for allowlisted emails.
+ * The isAdmin flag is computed server-side in the page component and
+ * passed in — the client never trusts a client-side allowlist check.
+ */
+export function UserMenu({ email, isAdmin, signOutAction }: Props) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -33,31 +45,25 @@ export function EditMenu({ email, signOutAction }: Props) {
 
   return (
     <div ref={rootRef} className="relative">
-      {/* Edit pill — was plain frosted gray; now sits on the warm ink-soft
-          surface with a coral-tinted shadow and a small coral dot that
-          signals "there's identity here" at a glance. Height bumped
-          h-9 -> h-10 for weight. */}
+      {/* Avatar button — filled with the brand gradient, ring for
+          weight against the peach page. Bigger than the old Edit pill
+          because it's now the primary chrome anchor. */}
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="flex h-10 items-center gap-2 rounded-full bg-ink-soft/90 pl-3 pr-4 text-sm font-semibold text-warm-100 shadow-[0_4px_12px_-2px_rgba(232,138,118,0.15)] ring-1 ring-warm-700/70 backdrop-blur transition-all hover:-translate-y-px hover:bg-ink-soft hover:ring-coral/40"
+        aria-label="Your account"
+        className="bg-gradient-cta flex h-11 w-11 items-center justify-center rounded-full text-base font-bold text-white shadow-[0_6px_18px_-4px_rgba(232,138,118,0.4),_0_2px_8px_-2px_rgba(126,196,196,0.3)] ring-2 ring-white/50 transition-transform hover:-translate-y-px active:scale-95"
       >
-        <span
-          aria-hidden
-          className="bg-gradient-cta h-2 w-2 rounded-full"
-        />
-        Edit
+        {initial}
       </button>
 
       {open ? (
         <div
           role="menu"
-          className="animate-menu-in absolute left-0 top-12 z-20 w-72 overflow-hidden rounded-2xl bg-ink-soft shadow-[0_24px_48px_-16px_rgba(28,28,26,0.18),_0_10px_28px_rgba(232,138,118,0.12)] ring-1 ring-warm-700"
+          className="animate-menu-in absolute right-0 top-12 z-30 w-72 overflow-hidden rounded-2xl bg-ink-soft shadow-[0_24px_48px_-16px_rgba(28,28,26,0.18),_0_10px_28px_rgba(232,138,118,0.12)] ring-1 ring-warm-700"
         >
-          {/* Profile card — avatar circle now filled with the brand
-              gradient so the menu opens with a splash of color. */}
           <Link
             href="/settings"
             onClick={() => setOpen(false)}
@@ -70,15 +76,12 @@ export function EditMenu({ email, signOutAction }: Props) {
               <span className="truncate text-sm font-semibold text-warm-50">
                 {email}
               </span>
-              <span className="text-xs text-warm-300">Name & Photo</span>
+              <span className="text-xs text-warm-300">Name &amp; Photo</span>
             </span>
           </Link>
 
           <div className="mx-4 h-px bg-gradient-to-r from-transparent via-coral/25 to-transparent" />
 
-          {/* The two identity actions get gradient-clipped glyphs on
-              coral wells so the primary create actions read as brand-
-              colored moments rather than plain menu rows. */}
           <MenuItem href="/identity/create" onClose={() => setOpen(false)}>
             <span
               aria-hidden
@@ -99,6 +102,21 @@ export function EditMenu({ email, signOutAction }: Props) {
           </MenuItem>
 
           <div className="mx-4 h-px bg-gradient-to-r from-transparent via-coral/25 to-transparent" />
+
+          {/* Admin link — sits ABOVE Settings, gradient-colored so it
+              signals "you have elevated access here." Only rendered
+              when the server-computed isAdmin flag is true. */}
+          {isAdmin ? (
+            <MenuItem href="/admin" onClose={() => setOpen(false)}>
+              <span
+                aria-hidden
+                className="flex h-7 w-7 items-center justify-center rounded-lg bg-coral/12 text-base leading-none"
+              >
+                <span className="text-gradient-cta">◆</span>
+              </span>
+              <span className="text-gradient-cta font-bold">Admin</span>
+            </MenuItem>
+          ) : null}
 
           <MenuItem href="/settings" onClose={() => setOpen(false)}>
             <span
