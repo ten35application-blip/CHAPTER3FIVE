@@ -215,9 +215,6 @@ export default function Home() {
             you across a kitchen table &mdash; can be kept. So they
             always feel like they&rsquo;re still here.
           </p>
-          <p className="mt-6 text-lg leading-relaxed italic text-warm-300 md:text-xl">
-            A place, for the moments you want to reach out.
-          </p>
         </div>
       </section>
 
