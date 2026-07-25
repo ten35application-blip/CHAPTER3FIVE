@@ -99,6 +99,7 @@ export async function createIdentity(): Promise<void> {
       name: persona.name,
       one_line_hook: persona.one_line_hook,
       persona_prompt: persona.persona_prompt,
+      significant_events: persona.significant_events,
     })
     .select("id")
     .single();

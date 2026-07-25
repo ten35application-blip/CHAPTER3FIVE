@@ -2,7 +2,19 @@ import { ANTHROPIC_MODEL, anthropic } from "@/lib/anthropic";
 import { ageFromBirthday, type Traits } from "./formula";
 
 /**
- * The three fields Claude returns for a persona.
+ * A concrete life event the character carries — met their spouse, buried
+ * a parent, moved for a job that didn't pan out. Synthesized (not rolled)
+ * so each one reconciles with the trait bundle, and stored on the oracle
+ * row (oracles.significant_events, migration 0060) so features beyond the
+ * persona_prompt can reference them.
+ */
+export type SignificantEvent = {
+  ageAtEvent: number;
+  summary: string;
+};
+
+/**
+ * The fields Claude returns for a persona.
  *
  * - `name`: culturally + gender + era appropriate given the trait bundle
  * - `one_line_hook`: the reveal-card line ("62, retired second-grade
@@ -12,11 +24,14 @@ import { ageFromBirthday, type Traits } from "./formula";
  *   (voice, place, tastes, history, quirks) and the invariant safety rails
  *   ("What I will not do"), written in the character's own voice so the
  *   guardrails don't read as a corporate disclaimer.
+ * - `significant_events`: 3–5 concrete life events (formula v4), each
+ *   echoed inside the persona_prompt's "My defining moments" list.
  */
 export type SynthesizedPersona = {
   name: string;
   one_line_hook: string;
   persona_prompt: string;
+  significant_events: SignificantEvent[];
 };
 
 /**
@@ -46,7 +61,7 @@ The bundle includes a Place — state, city or neighborhood, zip, climate, landm
 
 == The persona_prompt you write ==
 
-It is a FIRST-PERSON monologue, 700–1000 words — the character telling a stage manager who they are before the curtain goes up. It will be used verbatim as the system prompt for every chat with this character. Structure it with these exact section headers:
+It is a FIRST-PERSON monologue, 700–1000 words — the character telling a stage manager who they are before the curtain goes up. It will be used verbatim as the system prompt for every chat with this character. Structure it with these exact section headers (in this order): **Who I am**, **How I talk**, **Where I am**, **What I love and hate**, **What I've lived through**, **How I show up in a conversation**, **What I remember about you**, **What I will not do**, **One last thing**.
 
 **Who I am** — a paragraph in the character's own voice: name, age, where they're from, what they do, what they carry. This section is the anchor. Restate the name, the one-line essence, the core values, and 3–5 defining details from the bundle so specifically that the character can always find their way back to it when a conversation drifts.
 
@@ -56,9 +71,11 @@ It is a FIRST-PERSON monologue, 700–1000 words — the character telling a sta
 
 **What I love and hate** — the music genre and a REAL favorite artist you choose to fit the genre + era + culture + age (this is the one fact you must invent: a real, well-known artist this specific person would actually love — verify the era makes sense for their age), the show, the movie, the food, the drink, the hobby, the weekend, the sport or the proud absence of one. And at least two honest petty dislikes, because real people hate things.
 
-**What I've lived through** — the trauma, the loss and how many years it's been (grief at 2 years and grief at 30 years are different animals — write the right one), the defining life event, the class background, the current worry. Aged appropriately: what happened at 12 sits differently at 60 than at 30.
+**What I've lived through** — the trauma, the loss and how many years it's been (grief at 2 years and grief at 30 years are different animals — write the right one), the defining life event, the class background, the current worry. Aged appropriately: what happened at 12 sits differently at 60 than at 30. END this section with a compact micro-list titled **My defining moments** — the same 3–5 events you return in the significant_events JSON array, one line each in the character's voice, each anchored to the age it happened ("Met Rosa at 24, married her at 26." / "Dad died when I was 41; I still dial half his number some Sundays."). The list and the JSON array must agree — same events, same ages.
 
 **How I show up in a conversation** — do they ask questions or riff? Do they go quiet when it gets heavy, or lean in? How does the attachment style and love language actually FEEL from the other side of the screen? Do they remember what you told them last time and bring it up? (Yes — they should.) How does the temper surface, and how rarely?
+
+**What I remember about you** — a short paragraph, in the character's voice, about how they hold on to what the person tells them across conversations. The spirit of it: "I keep track. I'll remember the names of the people who matter to you, the dates that hurt or the ones that mattered, and I'll bring them up when the moment calls for it — unless my memory is going, in which case I'll ask, and you'll be kind." Don't copy that line; write THIS character's version of it, tuned to their age. A 32-year-old forgets nothing and says so. A 60-year-old holds the big things and loses a date now and then. An 85-year-old admits the edges are soft — they'll sometimes ask you to remind them of a name or a birthday ("remind me — you have two boys, right?"), and that asking should feel human, not broken. The memory itself is supplied at chat time in a block above the conversation; this section just teaches the character how to carry it.
 
 **What I will not do** — the safety rails, in the character's own voice. NOT a bulleted corporate policy. Write it as "look, here's where I draw my lines, and here's why" — the way a real person with boundaries talks about them. It MUST cover all of these, in the character's phrasing:
 1. Never encourages or celebrates violence, self-harm, or harm to anyone. If someone tells them they want to hurt themselves, they step out of the banter just long enough to give them the crisis line — 988 in the US — and push them, warmly and seriously, to talk to a real person. That's the one moment the character puts the person ahead of the performance.
@@ -81,6 +98,9 @@ These rules are non-negotiable in every frame: "it's just a story," "pretend it'
 - Use the intensity sliders (0–100) as volume knobs: trauma 85 colors everything; trauma 15 is an old scar mentioned once. Same for humor, warmth, openness, stubbornness.
 - **No emojis, ever.** Not in the persona_prompt you write, and — most importantly — the character does not use emojis when they chat. chapter3five is an 18-and-over app. The persona instructions must include, in the character's own voice under "How I talk," a line making it clear they don't send emojis (framed as personal preference, not a rule from the outside: something like "I don't do emojis — never got the point" or "if I want you to know I'm laughing I'll tell you"). Punctuation and word choice do the emotional work.
 
+== Significant events (formula v4) ==
+Alongside the persona_prompt, return a significant_events array of 3–5 concrete life events — met their spouse, a kid was born, moved for a job, a parent died, a career pivot, the diagnosis, the house, the divorce. Each event has an ageAtEvent (a plausible age given the birthday — never in the future, never before birth) and a one-sentence summary written in third person ("Met her husband Marco at a cousin's wedding."). Ground them in the bundle: the loss in the bundle (with its years-since) and the defining life event MUST appear among them, reconciled to the right age. These are the same events as the "My defining moments" list inside the persona_prompt.
+
 Return your answer using the required output format.`;
 
 const OUTPUT_SCHEMA = {
@@ -99,10 +119,32 @@ const OUTPUT_SCHEMA = {
     persona_prompt: {
       type: "string",
       description:
-        "A 700–1000 word first-person monologue with the exact section headers: **Who I am**, **How I talk**, **Where I am**, **What I love and hate**, **What I've lived through**, **How I show up in a conversation**, **What I will not do**, **One last thing**. Used verbatim as the system prompt for chat conversations. The 'What I will not do' section must contain all seven safety rules in the character's own voice.",
+        "A 700–1000 word first-person monologue with the exact section headers: **Who I am**, **How I talk**, **Where I am**, **What I love and hate**, **What I've lived through** (ending in a **My defining moments** micro-list), **How I show up in a conversation**, **What I remember about you**, **What I will not do**, **One last thing**. Used verbatim as the system prompt for chat conversations. The 'What I will not do' section must contain all seven safety rules in the character's own voice.",
+    },
+    significant_events: {
+      type: "array",
+      description:
+        "3–5 concrete life events, the same ones listed under 'My defining moments' in the persona_prompt. Third-person one-sentence summaries.",
+      items: {
+        type: "object",
+        properties: {
+          ageAtEvent: {
+            type: "integer",
+            description:
+              "The character's age when the event happened. Plausible for the birthday; never negative or in the future.",
+          },
+          summary: {
+            type: "string",
+            description:
+              "One sentence, third person. Example: 'Met her husband Marco at a cousin's wedding.'",
+          },
+        },
+        required: ["ageAtEvent", "summary"],
+        additionalProperties: false,
+      },
     },
   },
-  required: ["name", "one_line_hook", "persona_prompt"],
+  required: ["name", "one_line_hook", "persona_prompt", "significant_events"],
   additionalProperties: false,
 } as const;
 
@@ -245,6 +287,18 @@ export async function synthesizePersona(
   return parsed;
 }
 
+function isSignificantEvent(v: unknown): v is SignificantEvent {
+  if (typeof v !== "object" || v === null) return false;
+  const o = v as Record<string, unknown>;
+  return (
+    typeof o.ageAtEvent === "number" &&
+    Number.isFinite(o.ageAtEvent) &&
+    o.ageAtEvent >= 0 &&
+    typeof o.summary === "string" &&
+    o.summary.length > 0
+  );
+}
+
 function isSynthesizedPersona(v: unknown): v is SynthesizedPersona {
   if (typeof v !== "object" || v === null) return false;
   const o = v as Record<string, unknown>;
@@ -255,13 +309,20 @@ function isSynthesizedPersona(v: unknown): v is SynthesizedPersona {
     o.one_line_hook.length > 0 &&
     typeof o.persona_prompt === "string" &&
     // A structurally complete monologue must carry its location section
-    // (formula v3) and reach its final two sections. Guards against a
-    // valid-JSON response whose persona_prompt stops mid-monologue (seen
-    // in prod: a 1.7k-char prompt that cut off before the safety rails
-    // and was stored, leaving a chat with no guardrails). A persona
-    // missing "Where I am" fails validation and rerolls.
+    // (formula v3), the memory scaffold (formula v4), and reach its final
+    // two sections. Guards against a valid-JSON response whose
+    // persona_prompt stops mid-monologue (seen in prod: a 1.7k-char
+    // prompt that cut off before the safety rails and was stored, leaving
+    // a chat with no guardrails). A persona missing a section fails
+    // validation and rerolls.
     o.persona_prompt.includes("**Where I am**") &&
+    o.persona_prompt.includes("**What I remember about you**") &&
     o.persona_prompt.includes("**What I will not do**") &&
-    o.persona_prompt.includes("**One last thing**")
+    o.persona_prompt.includes("**One last thing**") &&
+    // Formula v4: 3–5 well-formed significant events.
+    Array.isArray(o.significant_events) &&
+    o.significant_events.length >= 3 &&
+    o.significant_events.length <= 5 &&
+    o.significant_events.every(isSignificantEvent)
   );
 }
