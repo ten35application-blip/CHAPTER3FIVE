@@ -99,16 +99,27 @@ export function HubSheet({
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
-        aria-label="Open hub"
-        className="bg-gradient-cta hover:bg-gradient-cta-hover fixed bottom-6 right-6 z-30 flex h-16 w-16 items-center justify-center rounded-full text-white shadow-[0_20px_48px_-10px_rgba(232,138,118,0.55),_0_10px_28px_-6px_rgba(126,196,196,0.45)] ring-2 ring-white/40 transition-all hover:-translate-y-0.5 active:scale-95"
+        onClick={() => {
+          // Toggle: tap to open, tap again to close. On close, defer the
+          // panel reset so the exit animation doesn't visibly flicker back
+          // to the menu — same pattern closeAll() uses.
+          if (open) {
+            setOpen(false);
+            setTimeout(() => setPanel("menu"), 200);
+          } else {
+            setOpen(true);
+          }
+        }}
+        aria-label={open ? "Close hub" : "Open hub"}
+        aria-expanded={open}
+        className="bg-gradient-cta hover:bg-gradient-cta-hover fixed bottom-6 right-6 z-50 flex h-16 w-16 items-center justify-center rounded-full text-white shadow-[0_20px_48px_-10px_rgba(232,138,118,0.55),_0_10px_28px_-6px_rgba(126,196,196,0.45)] ring-2 ring-white/40 transition-all hover:-translate-y-0.5 active:scale-95"
       >
         <GridIcon />
       </button>
 
       {open ? (
         <div
-          className="fixed inset-0 z-40 flex items-end justify-center"
+          className="fixed inset-0 z-40 flex items-end justify-center sm:justify-end sm:pr-6"
           role="dialog"
           aria-modal="true"
           aria-label="Hub"
@@ -120,7 +131,11 @@ export function HubSheet({
             className="absolute inset-0 bg-warm-50/30 backdrop-blur-sm"
           />
 
-          <div className="animate-sheet-up relative z-10 flex max-h-[85dvh] w-full max-w-md flex-col overflow-hidden rounded-t-3xl bg-ink-soft pb-8 shadow-[0_-24px_60px_-20px_rgba(28,28,26,0.2),_0_-8px_24px_rgba(232,138,118,0.1)]">
+          {/* Sheet — springs up out of the FAB corner (bottom-right).
+              Edge-to-edge on mobile so it reads as a real bottom sheet
+              (not a floating card); right-anchored on sm+ so the scale
+              origin (bottom right) still matches where the FAB sits. */}
+          <div className="animate-hub-in relative z-10 flex max-h-[85dvh] w-full max-w-md flex-col overflow-hidden rounded-t-3xl bg-ink-soft pb-8 shadow-[0_-24px_60px_-20px_rgba(28,28,26,0.2),_0_-8px_24px_rgba(232,138,118,0.1)] sm:rounded-3xl">
             <div className="flex justify-center pt-3">
               <span className="bg-gradient-cta h-1.5 w-12 rounded-full opacity-60" />
             </div>
@@ -482,7 +497,7 @@ function CreateMenu({
       />
       <CreateMenuItem
         href="/identity/from-photo"
-        label="From a photo"
+        label="Identity from a photo"
         onClick={() => {
           onClose();
           onNavigate();
@@ -490,7 +505,7 @@ function CreateMenu({
       />
       <CreateMenuItem
         href="/identity/legacy/new"
-        label="Legacy identity"
+        label="Personal identity"
         pro
         onClick={() => {
           onClose();
@@ -499,7 +514,7 @@ function CreateMenu({
       />
       <CreateMenuItem
         href="/identity/inherit"
-        label="Inherit a code"
+        label="Inherit an identity code"
         onClick={() => {
           onClose();
           onNavigate();
@@ -540,7 +555,7 @@ function EmptyContacts() {
   return (
     <div className="px-6 py-10 text-center">
       <p className="text-sm text-warm-300">
-        No one yet. Tap the{" "}
+        No one yet. Tap{" "}
         <span className="font-semibold text-warm-100">+</span> above to bring
         someone in.
       </p>

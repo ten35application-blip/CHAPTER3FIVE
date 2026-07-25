@@ -159,6 +159,21 @@ html[data-accessibility="on"] *::after {
   animation: sheetUp 260ms cubic-bezier(0.32, 0.72, 0, 1) both;
 }
 
+/* Hub sheet entrance — must FEEL like it's springing up out of the
+ * bottom-right FAB. transform-origin: bottom right anchors the scale
+ * to the FAB corner, and the slight overshoot (>1.0 midpoint) gives
+ * it a spring bounce so the perception is "growing from the button"
+ * rather than "a card appeared in the middle." */
+@keyframes hubIn {
+  0%   { opacity: 0; transform: translateY(40px) scale(0.4); }
+  60%  { opacity: 1; transform: translateY(-4px) scale(1.02); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.animate-hub-in {
+  animation: hubIn 320ms cubic-bezier(0.32, 0.72, 0, 1) both;
+  transform-origin: bottom right;
+}
+
 /* Edit-menu dropdown entrance — small scale + opacity, anchored
  * to the top-left where the Edit pill sits. ~180ms; quick so the
  * menu feels snappy. */

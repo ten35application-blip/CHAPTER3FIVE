@@ -379,8 +379,10 @@ function EmptyState() {
         It&apos;s <span className="text-gradient-cta">quiet</span> in here.
       </p>
       <p className="mt-4 max-w-xs text-base leading-relaxed text-warm-300">
-        Tap the <span className="font-semibold text-warm-100">+</span> below to
-        bring someone in.
+        Tap the menu below, open{" "}
+        <span className="font-semibold text-warm-100">Contact list</span>, then
+        the <span className="font-semibold text-warm-100">+</span> to bring
+        someone in.
       </p>
     </div>
   );
