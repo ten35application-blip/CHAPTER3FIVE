@@ -127,12 +127,17 @@ export default function ChatSurface({
   oracleId,
   name,
   avatarUrl,
+  oneLineHook,
   initialMessages,
   initialBlocked,
 }: {
   oracleId: string;
   name: string;
   avatarUrl: string | null;
+  /** The persona's one-line bio (oracles.one_line_hook). Shown under
+   *  their photo in the tap-to-zoom modal so the user gets a reminder
+   *  of who they are when they pull the face up. */
+  oneLineHook: string | null;
   initialMessages: ChatMessage[];
   initialBlocked: boolean;
   /** Internal note on why the block was set — accepted but deliberately
@@ -592,14 +597,28 @@ export default function ChatSurface({
           type="button"
           onClick={() => setZoomUrl(null)}
           aria-label="Close photo"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-5 bg-black/85 p-4 backdrop-blur-sm"
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={zoomUrl}
             alt=""
-            className="max-h-[85dvh] max-w-full rounded-2xl object-contain shadow-2xl"
+            className="max-h-[70dvh] max-w-full rounded-2xl object-contain shadow-2xl"
           />
+          {/* Bio card — shown only when the user zoomed the persona's
+              avatar (not an in-chat attachment). Name + one-line hook,
+              in the same warm voice as elsewhere. Whole modal remains a
+              button that dismisses on click; the bio is decorative. */}
+          {zoomUrl === avatarUrl && (
+            <div className="pointer-events-none max-w-md text-center">
+              <p className="text-lg font-semibold text-white">{name}</p>
+              {oneLineHook ? (
+                <p className="mt-2 text-sm leading-relaxed text-white/80">
+                  {oneLineHook}
+                </p>
+              ) : null}
+            </div>
+          )}
         </button>
       )}
     </div>

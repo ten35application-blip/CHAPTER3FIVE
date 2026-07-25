@@ -32,7 +32,7 @@ export default async function ChatPage({
 
   const { data: oracle } = await supabase
     .from("oracles")
-    .select("id, name, avatar_url, blocked_at, block_reason")
+    .select("id, name, avatar_url, one_line_hook, blocked_at, block_reason")
     .eq("id", id)
     .is("deleted_at", null)
     .maybeSingle();
@@ -100,6 +100,7 @@ export default async function ChatPage({
       oracleId={oracle.id}
       name={oracle.name}
       avatarUrl={oracle.avatar_url}
+      oneLineHook={oracle.one_line_hook ?? null}
       initialMessages={initialMessages}
       initialBlocked={!!oracle.blocked_at}
       blockReason={oracle.block_reason ?? null}
