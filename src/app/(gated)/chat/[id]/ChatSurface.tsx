@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import ChatInput from "./ChatInput";
+import ChatInput, { type OutgoingImage } from "./ChatInput";
 
 export type ChatMessage = {
   id: string;
@@ -11,6 +11,9 @@ export type ChatMessage = {
   createdAt: string;
   readByOracleAt: string | null;
   pending: boolean;
+  /** Renderable image URL (signed server-side, or a local preview for
+   *  the optimistic bubble). Null for text-only messages. */
+  imageUrl: string | null;
 };
 
 type StreamEvent =
@@ -47,6 +50,32 @@ function needsSeparator(prev: ChatMessage | undefined, curr: ChatMessage) {
   const b = new Date(curr.createdAt);
   if (a.toDateString() !== b.toDateString()) return true;
   return b.getTime() - a.getTime() >= 15 * 60 * 1000;
+}
+
+/** Attached image, shown above (or as) the bubble. Tap → full-screen
+ *  zoom, same pattern as the avatar. Max 320px tall, rounded. */
+function MessageImage({
+  url,
+  onZoom,
+}: {
+  url: string;
+  onZoom: (url: string) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onZoom(url)}
+      aria-label="View photo full screen"
+      className="overflow-hidden rounded-2xl ring-1 ring-warm-700 focus:outline-none focus:ring-2 focus:ring-coral/60"
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={url}
+        alt="Attached photo"
+        className="max-h-[320px] max-w-full object-cover"
+      />
+    </button>
+  );
 }
 
 /** Persona bubble shell — shared by history, streaming, and error
@@ -99,28 +128,36 @@ export default function ChatSurface({
   name,
   avatarUrl,
   initialMessages,
+  initialBlocked,
 }: {
   oracleId: string;
   name: string;
   avatarUrl: string | null;
   initialMessages: ChatMessage[];
+  initialBlocked: boolean;
+  /** Internal note on why the block was set — accepted but deliberately
+   *  never rendered; the blocked copy is fixed and warm. */
+  blockReason: string | null;
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamText, setStreamText] = useState("");
   const [rateLimited, setRateLimited] = useState(false);
   const [streamFailed, setStreamFailed] = useState(false);
-  const [avatarZoomOpen, setAvatarZoomOpen] = useState(false);
+  const [blocked, setBlocked] = useState(initialBlocked);
+  // Full-screen zoom target — the avatar and attached photos share the
+  // same modal.
+  const [zoomUrl, setZoomUrl] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (!avatarZoomOpen) return;
+    if (!zoomUrl) return;
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setAvatarZoomOpen(false);
+      if (e.key === "Escape") setZoomUrl(null);
     }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [avatarZoomOpen]);
+  }, [zoomUrl]);
 
   const markRead = useCallback(() => {
     fetch(`/api/chat/${oracleId}/messages/read`, { method: "POST" }).catch(
@@ -142,7 +179,7 @@ export default function ChatSurface({
   /** Core send/stream loop. `text === null` means retry: regenerate
    *  the reply for the already-persisted last user message. */
   const runStream = useCallback(
-    async (text: string | null) => {
+    async (text: string | null, image: OutgoingImage | null = null) => {
       setRateLimited(false);
       setStreamFailed(false);
 
@@ -157,6 +194,7 @@ export default function ChatSurface({
             createdAt: new Date().toISOString(),
             readByOracleAt: null,
             pending: true,
+            imageUrl: image?.previewUrl ?? null,
           },
         ]);
       }
@@ -170,13 +208,34 @@ export default function ChatSurface({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(
-            text !== null ? { user_message: text } : { retry: true },
+            text !== null
+              ? {
+                  user_message: text,
+                  ...(image ? { image_storage_path: image.storagePath } : {}),
+                }
+              : { retry: true },
           ),
         });
 
         if (!res.ok || !res.body) {
           setIsStreaming(false);
-          if (res.status === 429) {
+          if (res.status === 403) {
+            // Blocked mid-session: swap the input row for the blocked
+            // state without a reload. The message never persisted —
+            // pull the optimistic bubble. No retry option.
+            const body = (await res.json().catch(() => null)) as {
+              error?: string;
+            } | null;
+            if (body?.error === "blocked") {
+              setBlocked(true);
+              setMessages((prev) => prev.filter((m) => m.id !== tempId));
+              return;
+            }
+            setStreamFailed(true);
+            setMessages((prev) =>
+              prev.map((m) => (m.id === tempId ? { ...m, pending: false } : m)),
+            );
+          } else if (res.status === 429) {
             setRateLimited(true);
             // The message never made it — pull the optimistic bubble.
             setMessages((prev) => prev.filter((m) => m.id !== tempId));
@@ -229,6 +288,7 @@ export default function ChatSurface({
                   createdAt: new Date().toISOString(),
                   readByOracleAt: null,
                   pending: false,
+                  imageUrl: null,
                 },
               ]);
             }
@@ -282,17 +342,17 @@ export default function ChatSurface({
   );
 
   const handleSend = useCallback(
-    (text: string) => {
-      if (isStreaming) return;
-      void runStream(text);
+    (text: string, image: OutgoingImage | null) => {
+      if (isStreaming || blocked) return;
+      void runStream(text, image);
     },
-    [isStreaming, runStream],
+    [blocked, isStreaming, runStream],
   );
 
   const handleRetry = useCallback(() => {
-    if (isStreaming) return;
+    if (isStreaming || blocked) return;
     void runStream(null);
-  }, [isStreaming, runStream]);
+  }, [blocked, isStreaming, runStream]);
 
   const lastUserIndex = (() => {
     for (let i = messages.length - 1; i >= 0; i--) {
@@ -330,7 +390,7 @@ export default function ChatSurface({
           {avatarUrl ? (
             <button
               type="button"
-              onClick={() => setAvatarZoomOpen(true)}
+              onClick={() => setZoomUrl(avatarUrl)}
               aria-label={`View a larger photo of ${name}`}
               className="h-10 w-10 overflow-hidden rounded-xl transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-coral/60"
             >
@@ -358,7 +418,9 @@ export default function ChatSurface({
           // middle stays deliberately empty to avoid the duplicate face.
           // Just a soft prompt line, low in the pane.
           <div className="flex h-full items-end justify-center pb-8">
-            <p className="text-sm text-warm-400">Say something to {name}.</p>
+            <p className="text-sm text-warm-400">
+              {blocked ? "" : `Say something to ${name}.`}
+            </p>
           </div>
         ) : (
           <div className="mx-auto flex w-full max-w-2xl flex-col gap-1.5">
@@ -376,9 +438,16 @@ export default function ChatSurface({
                   )}
                   {isUser ? (
                     <div className="flex flex-col items-end gap-0.5">
-                      <div className="max-w-[75%] self-end rounded-2xl rounded-br-md bg-gradient-cta px-3.5 py-2 text-[15px] leading-snug text-white whitespace-pre-wrap break-words animate-message-pop-right">
-                        {m.content}
-                      </div>
+                      {m.imageUrl && (
+                        <div className="max-w-[75%] self-end pb-0.5">
+                          <MessageImage url={m.imageUrl} onZoom={setZoomUrl} />
+                        </div>
+                      )}
+                      {m.content && (
+                        <div className="max-w-[75%] self-end rounded-2xl rounded-br-md bg-gradient-cta px-3.5 py-2 text-[15px] leading-snug text-white whitespace-pre-wrap break-words animate-message-pop-right">
+                          {m.content}
+                        </div>
+                      )}
                       {i === lastUserIndex && (
                         <span className="flex items-center gap-1 pr-1 text-[11px] text-warm-400">
                           {m.pending ? (
@@ -406,13 +475,20 @@ export default function ChatSurface({
                       )}
                     </div>
                   ) : (
-                    <PersonaBubble
-                      showAvatar={firstOfPersonaRun}
-                      avatarUrl={avatarUrl}
-                      name={name}
-                    >
-                      {m.content}
-                    </PersonaBubble>
+                    <>
+                      {m.imageUrl && (
+                        <div className="max-w-[75%] self-start pl-9">
+                          <MessageImage url={m.imageUrl} onZoom={setZoomUrl} />
+                        </div>
+                      )}
+                      <PersonaBubble
+                        showAvatar={firstOfPersonaRun}
+                        avatarUrl={avatarUrl}
+                        name={name}
+                      >
+                        {m.content}
+                      </PersonaBubble>
+                    </>
                   )}
                 </div>
               );
@@ -432,8 +508,9 @@ export default function ChatSurface({
               </PersonaBubble>
             )}
 
-            {/* Mid-stream failure — inline retry on a persona-styled bubble */}
-            {streamFailed && !isStreaming && (
+            {/* Mid-stream failure — inline retry on a persona-styled bubble.
+                Never offered once blocked. */}
+            {streamFailed && !isStreaming && !blocked && (
               <PersonaBubble showAvatar avatarUrl={avatarUrl} name={name}>
                 <span className="text-warm-300">
                   lost the thread for a second.
@@ -459,28 +536,43 @@ export default function ChatSurface({
         )}
       </main>
 
-      {/* Input row */}
+      {/* Input row — or the blocked state. Once blocked there is no
+          composer, no retry, no way back from this surface. */}
       <footer className="sticky bottom-0 border-t border-warm-700 bg-ink/85 px-3 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2 backdrop-blur">
         <div className="mx-auto w-full max-w-2xl">
-          <ChatInput
-            name={name}
-            disabled={isStreaming}
-            onSend={handleSend}
-          />
+          {blocked ? (
+            <div className="flex flex-col items-center gap-1.5 px-4 py-4 text-center">
+              <p className="text-[15px] leading-snug text-warm-200">
+                This conversation has ended. {name} has stepped away — you
+                can&apos;t message them anymore.
+              </p>
+              <p className="text-[11px] text-warm-400">
+                This is per our Community Guidelines. No refund is issued when
+                an identity blocks you.
+              </p>
+            </div>
+          ) : (
+            <ChatInput
+              name={name}
+              oracleId={oracleId}
+              disabled={isStreaming}
+              onSend={handleSend}
+            />
+          )}
         </div>
       </footer>
 
-      {avatarZoomOpen && avatarUrl && (
+      {zoomUrl && (
         <button
           type="button"
-          onClick={() => setAvatarZoomOpen(false)}
+          onClick={() => setZoomUrl(null)}
           aria-label="Close photo"
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm"
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={avatarUrl}
-            alt={name}
+            src={zoomUrl}
+            alt=""
             className="max-h-[85dvh] max-w-full rounded-2xl object-contain shadow-2xl"
           />
         </button>

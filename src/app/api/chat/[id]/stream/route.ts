@@ -36,7 +36,11 @@ export async function POST(
 ) {
   const { id: oracleId } = await params;
 
-  let payload: { user_message?: string; retry?: boolean };
+  let payload: {
+    user_message?: string;
+    image_storage_path?: string;
+    retry?: boolean;
+  };
   try {
     payload = await request.json();
   } catch {
@@ -47,7 +51,11 @@ export async function POST(
   // message (a previous stream died mid-flight). No new user row.
   const isRetry = payload.retry === true;
   const userMessage = String(payload.user_message ?? "").trim();
-  if (!userMessage && !isRetry) {
+  // Optional image attachment: a path in the private `chat-uploads`
+  // bucket (uploaded client-side). A message can be text, image, or
+  // both — never neither.
+  const imageStoragePath = String(payload.image_storage_path ?? "").trim();
+  if (!userMessage && !imageStoragePath && !isRetry) {
     return NextResponse.json({ error: "Empty message" }, { status: 400 });
   }
   if (userMessage.length > MAX_USER_MESSAGE_CHARS) {
@@ -70,13 +78,25 @@ export async function POST(
   // the authorization.
   const { data: oracle } = await supabase
     .from("oracles")
-    .select("id, name, persona_prompt, manually_unread")
+    .select("id, name, persona_prompt, manually_unread, blocked_at, block_reason")
     .eq("id", oracleId)
     .is("deleted_at", null)
     .maybeSingle();
   if (!oracle) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+
+  // Block enforcement — checked BEFORE the rate-limit bump so a blocked
+  // send never counts against the user's daily usage. The persona set
+  // this flag (for MVP it's toggled manually / via admin); once blocked,
+  // no new messages are accepted and no refund is issued.
+  if (oracle.blocked_at) {
+    return NextResponse.json(
+      { error: "blocked", reason: oracle.block_reason ?? null },
+      { status: 403 },
+    );
+  }
+
   if (!oracle.persona_prompt) {
     return NextResponse.json(
       { error: "This identity isn't ready to talk yet." },
@@ -143,8 +163,32 @@ export async function POST(
       .eq("id", oracleId);
   }
 
+  // Image attachment: mint a short-lived signed URL (15 min — enough for
+  // this turn's Anthropic call). The bucket is private and user-scoped;
+  // signing goes through the USER's client so storage RLS is the
+  // authorization (belt: reject paths outside the caller's own folder).
+  let signedImageUrl: string | null = null;
+  if (imageStoragePath && !isRetry) {
+    if (!imageStoragePath.startsWith(`${user.id}/`)) {
+      return NextResponse.json({ error: "Invalid image path" }, { status: 403 });
+    }
+    const { data: signed, error: signErr } = await supabase.storage
+      .from("chat-uploads")
+      .createSignedUrl(imageStoragePath, 15 * 60);
+    if (signErr || !signed?.signedUrl) {
+      console.error("[chat stream] image sign failed:", signErr);
+      return NextResponse.json(
+        { error: "Could not read the attached photo" },
+        { status: 400 },
+      );
+    }
+    signedImageUrl = signed.signedUrl;
+  }
+
   // Persist the user's message (RLS insert policy: own rows only).
-  // Skipped on retry — that message is already in the table.
+  // Skipped on retry — that message is already in the table. image_url
+  // stores the signed URL for this turn; the chat page re-signs from
+  // image_storage_path on load, so URL expiry never breaks history.
   let userMessageId: string | null = null;
   if (!isRetry) {
     const { data: userRow, error: insertErr } = await supabase
@@ -154,6 +198,9 @@ export async function POST(
         oracle_id: oracleId,
         role: "user",
         content: userMessage,
+        ...(signedImageUrl
+          ? { image_url: signedImageUrl, image_storage_path: imageStoragePath }
+          : {}),
       })
       .select("id")
       .single();
@@ -191,13 +238,31 @@ export async function POST(
     system.push({ type: "text", text: stateCue });
   }
 
+  // Current turn: URL image block (Anthropic fetches the signed URL) +
+  // text. An image-only send still needs SOME text for coherent history
+  // windows later, so its persisted content is "" and the placeholder
+  // below covers the Anthropic side.
+  const currentTurnContent: Anthropic.ContentBlockParam[] = [
+    ...(signedImageUrl
+      ? [
+          {
+            type: "image" as const,
+            source: { type: "url" as const, url: signedImageUrl },
+          },
+        ]
+      : []),
+    ...(userMessage ? [{ type: "text" as const, text: userMessage }] : []),
+  ];
+
   const claudeMessages: Anthropic.MessageParam[] = [
     ...history.map((m) => ({
       role: m.role as "user" | "assistant",
-      content: m.content,
+      // Image-only rows persist content: "" — empty text 400s at the
+      // API, so stand in a placeholder the persona can read naturally.
+      content: m.content || "[sent a photo]",
     })),
     // On retry the history already ends with the unanswered user turn.
-    ...(isRetry ? [] : [{ role: "user" as const, content: userMessage }]),
+    ...(isRetry ? [] : [{ role: "user" as const, content: currentTurnContent }]),
   ];
 
   const encoder = new TextEncoder();
@@ -255,6 +320,13 @@ export async function POST(
           }
           messageId = replyRow?.id ?? null;
         }
+
+        // TODO(block-detector): post-reply hook goes here. Inspect the
+        // last N user messages for a sustained disrespect pattern
+        // (cursing at the persona, harassment, etc.) and, if the persona
+        // decides to block, set oracles.blocked_at + block_reason via the
+        // admin client. Deferred to the next pass — for now blocks are
+        // set manually and only the enforcement path above is live.
 
         send({ type: "done", messageId });
       } catch (err) {
