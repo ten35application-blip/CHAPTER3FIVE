@@ -123,7 +123,7 @@ function RetryPanel({ message }: { message: string }) {
   return (
     <div className="flex flex-col items-center pt-16 text-center">
       <Image
-        src="/logo.png"
+        src="/logo-transparent.png"
         alt=""
         width={64}
         height={64}

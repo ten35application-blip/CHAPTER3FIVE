@@ -397,7 +397,7 @@ function WeavingScreen({ name }: { name: string }) {
     <main className="flex min-h-dvh flex-1 flex-col items-center justify-center px-6 py-12">
       <div className="hero-orb hero-orb-drift flex flex-col items-center pt-4 text-center">
         <Image
-          src="/logo.png"
+          src="/logo-transparent.png"
           alt=""
           width={96}
           height={96}

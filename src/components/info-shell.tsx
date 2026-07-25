@@ -42,7 +42,7 @@ export function InfoShell({
       <header className="mt-8 flex w-full max-w-2xl flex-col items-center text-center">
         <div className="hero-orb flex items-center justify-center">
           <Image
-            src="/logo.png"
+            src="/logo-transparent.png"
             alt="chapter3five"
             width={80}
             height={80}

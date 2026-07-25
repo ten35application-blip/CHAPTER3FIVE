@@ -33,7 +33,7 @@ export default async function InheritPage({
       <div className="flex w-full max-w-md flex-col items-center text-center">
         <div className="hero-orb hero-orb-drift flex flex-col items-center">
           <Image
-            src="/logo.png"
+            src="/logo-transparent.png"
             alt=""
             width={64}
             height={64}

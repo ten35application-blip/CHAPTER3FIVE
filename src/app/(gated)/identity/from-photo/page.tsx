@@ -33,7 +33,7 @@ export default async function IdentityFromPhotoPage({
     <main className="flex min-h-dvh flex-1 flex-col items-center justify-center px-6 py-12">
       <div className="flex w-full max-w-sm flex-col items-center text-center">
         <Image
-          src="/logo.png"
+          src="/logo-transparent.png"
           alt=""
           width={64}
           height={64}

@@ -16,9 +16,9 @@ export const metadata = {
  * Both cards get identical visual weight — the legacy path is the load-bearing
  * promise of the product and must never read as the fine-print option.
  *
- * Design note: /logo.png carries its own dark squircle box, so it sits on the
- * peach page background inside a .hero-orb coral+teal halo — never on a
- * gradient fill that would fight the box.
+ * Design note: /logo-transparent.png is the two-dots mark with alpha
+ * edges, so it floats inside the .hero-orb coral+teal halo without a
+ * visible bounding box. (/logo.png is the peach-background master.)
  */
 export default async function IdentityCreatePage() {
   const supabase = await createClient();
@@ -34,7 +34,7 @@ export default async function IdentityCreatePage() {
       <div className="flex w-full max-w-md flex-col items-center">
         <div className="hero-orb hero-orb-drift flex flex-col items-center">
           <Image
-            src="/logo.png"
+            src="/logo-transparent.png"
             alt=""
             width={64}
             height={64}

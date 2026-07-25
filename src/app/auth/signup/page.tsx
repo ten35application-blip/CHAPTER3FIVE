@@ -75,7 +75,7 @@ export default async function SignupPage({
           className="hero-orb flex items-center justify-center"
         >
           <Image
-            src="/logo.png"
+            src="/logo-transparent.png"
             alt="chapter3five"
             width={80}
             height={80}

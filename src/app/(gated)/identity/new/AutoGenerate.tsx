@@ -25,7 +25,7 @@ export function AutoGenerate() {
   return (
     <div className="flex flex-col items-center pt-16 text-center">
       <Image
-        src="/logo.png"
+        src="/logo-transparent.png"
         alt=""
         width={96}
         height={96}

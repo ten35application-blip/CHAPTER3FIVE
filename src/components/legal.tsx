@@ -6,10 +6,10 @@ import Link from "next/link";
  * /guidelines). Server component — pure layout, no state.
  *
  * Visual contract (visual-v2):
- * - Page sits on the global peach `--color-ink` background; the logo's
- *   dark squircle gets a coral+teal `.hero-orb` aura BEHIND it plus
- *   generous whitespace, so the dark box floats in a warm halo instead
- *   of fighting a gradient fill.
+ * - Page sits on the global peach `--color-ink` background; the
+ *   two-dots logo (transparent PNG) gets a coral+teal `.hero-orb`
+ *   aura BEHIND it plus generous whitespace, so the mark floats in a
+ *   warm halo with no visible bounding box.
  * - The orb appears ONLY in the hero. Everything below is a quiet
  *   ~65ch prose column — a wall of legal text doesn't need ambience.
  */
@@ -65,7 +65,7 @@ export function LegalShell({
       <header className="mt-8 flex w-full max-w-2xl flex-col items-center text-center">
         <div className="hero-orb flex items-center justify-center">
           <Image
-            src="/logo.png"
+            src="/logo-transparent.png"
             alt="chapter3five"
             width={80}
             height={80}

@@ -16,8 +16,8 @@ export const metadata = {
  * The edge proxy (src/proxy.ts) applies the same check before the shell
  * even renders; this is the second, server-component layer.
  *
- * Chrome note: deliberately no logo PNG here (its dark squircle is being
- * reworked in parallel) — text wordmark only.
+ * Chrome note: deliberately no logo PNG here — text wordmark only;
+ * admin chrome stays quiet.
  */
 export default async function AdminLayout({
   children,

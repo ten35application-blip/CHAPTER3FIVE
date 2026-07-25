@@ -24,8 +24,8 @@ type CodeRow = {
  * exists, and here is the code that lets the family bring them into their
  * world. Big code in the brand gradient, copy button, mailto link.
  *
- * Design note: the logo's dark squircle sits on the peach background inside
- * the .hero-orb halo — never on a gradient fill.
+ * Design note: the two-dots logo (transparent PNG) sits inside the
+ * .hero-orb halo — alpha edges, so it works on any surface.
  */
 export default async function SharePage({
   params,
@@ -84,7 +84,7 @@ export default async function SharePage({
       <div className="flex w-full max-w-md flex-col items-center text-center">
         <div className="hero-orb hero-orb-drift flex flex-col items-center">
           <Image
-            src="/logo.png"
+            src="/logo-transparent.png"
             alt=""
             width={72}
             height={72}

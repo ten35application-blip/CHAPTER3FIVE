@@ -71,7 +71,7 @@ export default async function SettingsPage() {
           </svg>
         </Link>
         <Image
-          src="/logo.png"
+          src="/logo-transparent.png"
           alt=""
           width={32}
           height={32}

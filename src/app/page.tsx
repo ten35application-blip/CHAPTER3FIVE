@@ -139,14 +139,14 @@ export default function Home() {
   return (
     <main className="flex min-h-dvh flex-1 flex-col overflow-x-hidden">
       {/* ── 1 · HERO ─────────────────────────────────────────────
-          The load-bearing first screen. Logo stays on the peach
-          background inside the orb halo (never on a gradient — the
-          dark squircle would fight the palette). */}
+          The load-bearing first screen. The two-dots logo (transparent
+          PNG) floats inside the orb halo — alpha edges, so it sits
+          cleanly on the halo tint and any theme background. */}
       <section className="flex min-h-dvh flex-col items-center justify-center px-6 py-16">
         <div className="flex w-full max-w-2xl flex-col items-center text-center">
           <div className="hero-orb hero-orb-drift flex items-center justify-center">
             <Image
-              src="/logo.png"
+              src="/logo-transparent.png"
               alt="chapter3five"
               width={128}
               height={128}
@@ -479,17 +479,19 @@ export default function Home() {
                   full Pro" in the same breath. */}
               <div className="mt-8 rounded-2xl border border-warm-700/70 p-5 text-left">
                 <p className="text-gradient-cta text-sm font-bold uppercase tracking-[0.14em]">
-                  Your first month is on us
+                  Your first month is on us.
                 </p>
                 <p className="mt-2 text-base leading-relaxed text-warm-300">
-                  Be one of the first{" "}
-                  <strong className="font-semibold text-warm-100">
-                    1,000 people
-                  </strong>{" "}
-                  to join and you start with thirty days of full Pro &mdash;
-                  all five companions, the legacy path, everything. No card,
-                  no catch: when the month ends, one companion stays yours
-                  free, forever.
+                  No card, no catch. The first 1,000 people to join get
+                  thirty days of everything &mdash; all five companions, the
+                  legacy path, the whole app.
+                </p>
+                <p className="mt-3 text-base leading-relaxed text-warm-300">
+                  When the month ends, one companion stays with you forever,
+                  free, no matter what. The rest wait right where you left
+                  them &mdash; nothing is deleted, no conversation is lost
+                  &mdash; behind a {MONTHLY_PRICE_LABEL}/month plan you can
+                  cancel any time.
                 </p>
               </div>
             </div>

@@ -66,12 +66,12 @@ export default async function OnboardingPage({
   return (
     <main className="flex min-h-dvh flex-1 flex-col items-center px-6 py-12">
       <div className="flex w-full max-w-md flex-col items-center text-center">
-        {/* Logo in its warm halo — dark squircle floating on the peach
-            page inside the coral+teal orb, per the visual-v2 contract.
-            Never on a gradient fill. */}
+        {/* Logo in its warm halo — the two-dots mark (transparent PNG)
+            floating inside the coral+teal orb, per the visual-v2
+            contract. */}
         <div className="hero-orb flex items-center justify-center">
           <Image
-            src="/logo.png"
+            src="/logo-transparent.png"
             alt="chapter3five"
             width={96}
             height={96}
