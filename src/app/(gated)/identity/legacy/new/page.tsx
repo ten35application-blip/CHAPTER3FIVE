@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import type { LegacySubject } from "@/lib/legacy/synthesize";
 import { createClient } from "@/lib/supabase/server";
+import { requirePro } from "@/lib/subscription";
 import { LegacyFlow } from "./LegacyFlow";
 
 export const metadata = {
@@ -32,6 +33,13 @@ export default async function LegacyNewPage({
   if (!user) {
     redirect("/auth/signin");
   }
+
+  // Legacy path is Pro-only for the creator side. Recipient side is
+  // gated separately in /identity/inherit/actions.ts. Admin allowlist
+  // bypasses. The draft is autosaved even during a lapsed state, so
+  // an in-progress draft survives a subscription hiccup.
+  const gate = await requirePro("/identity/legacy/new");
+  if (!gate.ok) redirect(gate.redirectTo);
 
   const { data: draft } = await supabase
     .from("legacy_drafts")

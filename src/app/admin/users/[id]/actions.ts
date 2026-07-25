@@ -1,6 +1,8 @@
 "use server";
 
 import { requireAdmin } from "@/lib/admin/guard";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { revalidatePath } from "next/cache";
 
 /**
  * Admin actions — INTENT STUBS. Each verifies the caller is an admin,
@@ -78,4 +80,53 @@ export async function refundPaymentAction(
     `[admin] ${admin.email} requested REFUND PAYMENT ${paymentId} (stub — no-op)`,
   );
   return { ok: true, message: "Refund recorded (stub). Needs Stripe wiring." };
+}
+
+/**
+ * Grant a target user 30 days of Pro on the house. Real: sets
+ * profiles.pro_until to 30d from now (extends further if already
+ * granted), plan_source='admin_grant'. Uses service-role to bypass
+ * RLS's "users update their own profile" scope.
+ *
+ * Used to comp friends/family without Stripe being wired end-to-end
+ * yet. Extending: hitting it a second time keeps pushing the
+ * expiration further out (adds another 30d from CURRENT expiration
+ * if that's in the future, else 30d from now).
+ */
+export async function grantProAction(userId: string): Promise<ActionResult> {
+  const admin = await requireAdmin();
+  const service = createAdminClient();
+
+  const { data: existing } = await service
+    .from("profiles")
+    .select("pro_until")
+    .eq("id", userId)
+    .maybeSingle<{ pro_until: string | null }>();
+
+  const base = existing?.pro_until
+    ? Math.max(Date.now(), new Date(existing.pro_until).getTime())
+    : Date.now();
+  const newProUntil = new Date(base + 30 * 24 * 60 * 60 * 1000).toISOString();
+
+  const { error } = await service
+    .from("profiles")
+    .update({ pro_until: newProUntil, plan_source: "admin_grant" })
+    .eq("id", userId);
+
+  if (error) {
+    console.error(
+      `[admin] ${admin.email} FAILED grant Pro for ${userId}:`,
+      error,
+    );
+    return { ok: false, message: `Failed: ${error.message}` };
+  }
+
+  console.log(
+    `[admin] ${admin.email} granted Pro to ${userId} until ${newProUntil}`,
+  );
+  revalidatePath(`/admin/users/${userId}`);
+  return {
+    ok: true,
+    message: `Pro granted through ${new Date(newProUntil).toLocaleDateString()}.`,
+  };
 }

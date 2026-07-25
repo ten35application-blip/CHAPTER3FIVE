@@ -103,7 +103,7 @@ export default async function SettingsPage() {
           <Row label="Identities" value={`${count} of ${PLAN_QUOTA}`} />
           <div className="px-4 py-4">
             <Link
-              href="/settings/upgrade"
+              href="/upgrade"
               className="flex h-14 w-full items-center justify-center rounded-full bg-amber text-base font-semibold text-white shadow-[0_14px_36px_-10px_rgba(107,140,175,0.55),_0_4px_12px_rgba(232,138,118,0.12)] transition-all hover:-translate-y-px hover:shadow-[0_18px_44px_-10px_rgba(107,140,175,0.6),_0_6px_14px_rgba(232,138,118,0.15)] active:translate-y-0 active:opacity-90"
             >
               Upgrade to chapter3five+

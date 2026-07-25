@@ -8,6 +8,7 @@ import {
 } from "@/lib/legacy/code-format";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { isPro } from "@/lib/subscription";
 
 /**
  * One friendly message for every invalid outcome — wrong shape, unknown
@@ -31,6 +32,14 @@ export async function redeemInheritCode(rawCode: string): Promise<void> {
   } = await supabase.auth.getUser();
   if (!user) {
     redirect("/auth/signin");
+  }
+
+  // Pro-gate the redeem action BEFORE the code lookup so we never
+  // reveal to a non-Pro user whether the code they typed is real.
+  // The upgrade page lets them come back to /identity/inherit with
+  // the code still in hand once they're on Pro.
+  if (!(await isPro(supabase))) {
+    redirect(`/upgrade?next=${encodeURIComponent("/identity/inherit")}`);
   }
 
   const code = normalizeInheritCode(rawCode ?? "");

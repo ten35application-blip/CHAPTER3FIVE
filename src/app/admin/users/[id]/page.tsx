@@ -12,6 +12,7 @@ import { ActionButton } from "../../_components/ActionButton";
 import {
   deleteIdentityAction,
   deleteUserAction,
+  grantProAction,
   refundPaymentAction,
   revokeInheritCodeAction,
 } from "./actions";
@@ -21,6 +22,8 @@ type ProfileRow = {
   terms_accepted_at: string | null;
   terms_version_accepted: string | null;
   deleted_at: string | null;
+  pro_until: string | null;
+  plan_source: string | null;
 };
 
 type OracleRow = {
@@ -64,7 +67,7 @@ export default async function AdminUserDetailPage({
       safeSelect<ProfileRow>(
         supabase,
         "profiles",
-        "full_name, terms_accepted_at, terms_version_accepted, deleted_at",
+        "full_name, terms_accepted_at, terms_version_accepted, deleted_at, pro_until, plan_source",
         (q) => q.eq("id", id),
       ),
       safeSelect<OracleRow>(
@@ -148,9 +151,14 @@ export default async function AdminUserDetailPage({
               : "Not yet"
           }
         />
-        {/* TODO: real plan once Stripe billing lands — $5/mo Pro plan,
-            4 formula + 1 photo identity (see src/lib/pricing.ts). */}
-        <Row label="Plan" value="Free" />
+        <Row label="Plan" value={planLabel(profile, isAdmin(user.email))} />
+        <div className="flex flex-wrap gap-2 px-4 py-3">
+          <ActionButton
+            label="Grant Pro (30 days)"
+            confirm={`Grant ${email} 30 days of Pro on the house?`}
+            action={grantProAction.bind(null, user.id)}
+          />
+        </div>
       </Section>
 
       <Section title={`Identities (${oracles.length})`}>
@@ -303,4 +311,26 @@ function Row({ label, value }: { label: string; value: string }) {
       <span className="text-right font-medium text-warm-50">{value}</span>
     </div>
   );
+}
+
+/**
+ * Renders the user's plan state: admins are always "Pro (admin)".
+ * profiles.pro_until in the future is "Pro until [date] (source)".
+ * Anything else is "Free".
+ */
+function planLabel(
+  profile: ProfileRow | undefined,
+  userIsAdmin: boolean,
+): string {
+  if (userIsAdmin) return "Pro (admin allowlist)";
+  if (!profile?.pro_until) return "Free";
+  const until = new Date(profile.pro_until);
+  if (until.getTime() <= Date.now()) return "Free (Pro expired)";
+  const source =
+    profile.plan_source === "admin_grant"
+      ? "admin grant"
+      : profile.plan_source === "stripe"
+        ? "Stripe"
+        : profile.plan_source ?? "unknown";
+  return `Pro until ${until.toLocaleDateString()} · ${source}`;
 }

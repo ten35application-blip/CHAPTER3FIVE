@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { redirectWithError } from "@/lib/action-errors";
+import { isPro } from "@/lib/subscription";
 import { SynthesisError } from "@/lib/identity/synthesize";
 import { fingerprintLegacyAnswers } from "@/lib/legacy/fingerprint";
 import { mintInheritCode } from "@/lib/legacy/mint";
@@ -102,6 +103,14 @@ export async function completeLegacyIdentity(payload: {
   } = await supabase.auth.getUser();
   if (!user) {
     redirect("/auth/signin");
+  }
+
+  // Pro-gate the completion action itself — a user could have started
+  // the draft while Pro, then lapsed. The draft stays autosaved; we
+  // just refuse to publish it (mint the inherit code) until they're
+  // Pro again. Message is warm — this is their memory, not just a form.
+  if (!(await isPro(supabase))) {
+    redirect(`/upgrade?next=${encodeURIComponent("/identity/legacy/new")}`);
   }
 
   const subject = sanitizeSubject(payload.subject);
