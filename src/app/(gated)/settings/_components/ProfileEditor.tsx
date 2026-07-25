@@ -35,9 +35,10 @@ type Toast = { kind: "success" | "error"; text: string };
  * doing it here on the client router is the belt-and-suspenders fix
  * for the "boom, nothing" bug Wilson kept hitting after upload.
  *
- * Diagnostic logs live behind console.* calls — cheap, quiet in prod
- * console-viewer logs, and give a real trace the next time something
- * regresses.
+ * Pending indicator: NOT a covering circle on the avatar (Wilson's
+ * "the round loading image is weird, covering things"). The bubble
+ * dims subtly and a small "Uploading…" line appears under it while the
+ * transition runs — clear but not intrusive.
  */
 export function ProfileEditor({ photoUrl, initial, fullName }: Props) {
   const router = useRouter();
@@ -75,12 +76,6 @@ export function ProfileEditor({ photoUrl, initial, fullName }: Props) {
 
   function onPickFile(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
-    console.log(
-      "[ProfileEditor] onPickFile fired",
-      file
-        ? { name: file.name, size: file.size, type: file.type }
-        : "no file",
-    );
     if (!file) return;
 
     const formData = new FormData();
@@ -89,7 +84,6 @@ export function ProfileEditor({ photoUrl, initial, fullName }: Props) {
     setToast(null);
     startTransition(async () => {
       const result = await uploadProfilePhoto(formData);
-      console.log("[ProfileEditor] uploadProfilePhoto returned", result);
       if (!result.ok) {
         setToast({ kind: "error", text: result.error });
       } else {
@@ -109,7 +103,6 @@ export function ProfileEditor({ photoUrl, initial, fullName }: Props) {
     setToast(null);
     startTransition(async () => {
       const result = await removeProfilePhoto();
-      console.log("[ProfileEditor] removeProfilePhoto returned", result);
       if (!result.ok) {
         setToast({ kind: "error", text: result.error });
       } else {
@@ -147,7 +140,9 @@ export function ProfileEditor({ photoUrl, initial, fullName }: Props) {
         onClick={() => inputRef.current?.click()}
         disabled={pending}
         aria-label={photoUrl ? "Change profile photo" : "Add a profile photo"}
-        className="group relative rounded-full outline-none focus-visible:ring-2 focus-visible:ring-coral/60 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-soft disabled:cursor-not-allowed"
+        className={`group relative rounded-full outline-none transition-opacity focus-visible:ring-2 focus-visible:ring-coral/60 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-soft ${
+          pending ? "cursor-progress opacity-70" : ""
+        }`}
       >
         <ProfileAvatarImage
           signedUrl={photoUrl}
@@ -183,18 +178,17 @@ export function ProfileEditor({ photoUrl, initial, fullName }: Props) {
             <circle cx="12" cy="13" r="4" />
           </svg>
         </span>
-
-        {pending ? (
-          <span
-            aria-hidden
-            className="absolute inset-0 flex items-center justify-center rounded-full bg-warm-900/45 backdrop-blur-sm"
-          >
-            <span className="h-6 w-6 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-          </span>
-        ) : null}
       </button>
 
-      {photoUrl ? (
+      {pending ? (
+        <p
+          role="status"
+          aria-live="polite"
+          className="text-xs font-medium text-warm-300"
+        >
+          Uploading…
+        </p>
+      ) : photoUrl ? (
         <button
           type="button"
           disabled={pending}
@@ -248,9 +242,9 @@ export function ProfileEditor({ photoUrl, initial, fullName }: Props) {
           {nameSaving ? (
             <span
               aria-hidden
-              className="pointer-events-none absolute inset-y-0 right-3 flex items-center"
+              className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs font-medium text-warm-400"
             >
-              <span className="h-4 w-4 animate-spin rounded-full border-2 border-coral/30 border-t-coral" />
+              Saving…
             </span>
           ) : null}
         </div>

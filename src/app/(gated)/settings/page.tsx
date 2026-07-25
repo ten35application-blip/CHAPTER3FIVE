@@ -114,21 +114,23 @@ export default async function SettingsPage() {
           />
         </Section>
 
-        {/* PLAN — quota + upgrade CTA. */}
+        {/* PLAN — count + upgrade CTA. Identity row shows the raw
+            count with descriptive text ("You have N identities") rather
+            than "N of 5". Wilson's read: the quota framing feels
+            restrictive, and it's especially wrong when N=0 (a "5 more
+            before you need premium" nudge lands as tone-deaf on an
+            empty account). Subtitle only appears when there's room
+            left and at least one identity exists. */}
         <Section label="Plan" accent="chapter3five+" icon={<SparkIcon />}>
           <IconRow icon={<StarIcon />} label="Plan" value={PLAN_NAME} />
           <Divider />
-          <IconRow
-            icon={<PeopleIcon />}
-            label="Identities"
-            value={`${count} of ${PLAN_QUOTA}`}
-          />
+          <IdentityCountRow count={count} quota={PLAN_QUOTA} />
           <div className="px-4 py-4">
             <Link
               href="/upgrade"
               className="bg-gradient-cta hover:bg-gradient-cta-hover flex h-14 w-full items-center justify-center rounded-full text-base font-semibold text-white shadow-[0_14px_36px_-10px_rgba(232,138,118,0.55),_0_4px_12px_rgba(126,196,196,0.15)] transition-all hover:-translate-y-px active:translate-y-0 active:opacity-90"
             >
-              Upgrade to chapter3five+
+              Upgrade to premium plan
             </Link>
             <p className="mt-3 text-center text-xs text-warm-300">
               {MONTHLY_PRICE_LABEL}/month for {PRICING.formulaIdentitiesPerPlan}{" "}
@@ -196,36 +198,43 @@ export default async function SettingsPage() {
           </div>
         </CollapsibleSection>
 
-        {/* DANGER ZONE — sign out is soft. Delete is permanent and
-            unambiguous per Wilson's directive: identities go with it,
-            money spent is not refunded, account cannot be recovered.
-            The confirmation copy lives on /settings/delete. */}
+        {/* SIGN OUT — plain, unadorned button under the fine print
+            per Wilson. Not scary, not in the danger zone; just a way
+            out. Warm-200 text, subtle underline on hover, sits on its
+            own row without card chrome. */}
+        <form action={signOut} className="flex justify-center">
+          <button
+            type="submit"
+            className="text-sm font-medium text-warm-200 underline-offset-4 transition-colors hover:text-warm-50 hover:underline"
+          >
+            Sign out
+          </button>
+        </form>
+
+        {/* DANGER ZONE — delete only. Wilson: "we have to make sure we
+            say that deleting your account will also fully delete ALL
+            identities." Warning copy is inline under the row (muted
+            red so it reads as consequence, not alarm). The full
+            confirmation flow lives on /settings/delete. */}
         <section>
           <h2 className="mb-2 px-4 text-xs font-semibold uppercase tracking-wider text-warm-300">
             Danger <span className="text-coral-strong">zone</span>
           </h2>
           <div className="overflow-hidden rounded-2xl bg-ink-soft ring-1 ring-warm-700/60">
-            <form action={signOut}>
-              <button
-                type="submit"
-                className="flex w-full items-center px-4 py-3 text-left text-base font-medium text-red-500 first:rounded-t-2xl last:rounded-b-2xl hover:bg-warm-700/20"
-              >
-                <span className="mr-3 flex h-8 w-8 items-center justify-center rounded-full bg-red-500/10 text-red-500">
-                  <SignOutIcon />
-                </span>
-                Sign out
-              </button>
-            </form>
-            <Divider />
             <Link
               href="/settings/delete"
-              className="flex items-center px-4 py-3 text-base font-medium text-red-500 first:rounded-t-2xl last:rounded-b-2xl hover:bg-warm-700/20"
+              className="flex items-center rounded-2xl px-4 py-3 text-base font-medium text-red-500 hover:bg-warm-700/20"
             >
               <span className="mr-3 flex h-8 w-8 items-center justify-center rounded-full bg-red-500/10 text-red-500">
                 <TrashIcon />
               </span>
-              Delete account
+              Delete my account
             </Link>
+            <p className="px-4 pb-4 text-xs leading-relaxed text-red-500/70">
+              Deleting your account will also delete every identity
+              you've made, every conversation, and every legacy code
+              you've shared. This cannot be undone.
+            </p>
           </div>
         </section>
       </div>
@@ -298,6 +307,47 @@ function IconRow({
       <span className="max-w-[55%] truncate text-base text-warm-300">
         {value}
       </span>
+    </div>
+  );
+}
+
+/**
+ * Identity count row — replaces the old "N of QUOTA" quota framing.
+ * Reads as an inventory ("You have 3 identities"), with a subtle
+ * secondary line about remaining capacity only when it's a useful
+ * nudge (i.e. the user has at least one identity AND there's room
+ * left). At N=0 we suppress the remaining-slots line entirely — a
+ * "5 more before you'll need premium" prompt lands wrong on an empty
+ * account and Wilson called that out explicitly.
+ */
+function IdentityCountRow({
+  count,
+  quota,
+}: {
+  count: number;
+  quota: number;
+}) {
+  const label = count === 1 ? "1 identity" : `${count} identities`;
+  const remaining = Math.max(0, quota - count);
+  const showRemaining = count > 0 && remaining > 0;
+  return (
+    <div className="flex items-start gap-3 px-4 py-3">
+      <span
+        aria-hidden
+        className="bg-coral/12 text-gradient-cta mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full"
+      >
+        <PeopleIcon />
+      </span>
+      <div className="flex flex-1 flex-col">
+        <span className="text-base font-medium text-warm-50">
+          You have {label}
+        </span>
+        {showRemaining ? (
+          <span className="mt-0.5 text-xs text-warm-400">
+            Room for {remaining} more on Free
+          </span>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -572,22 +622,3 @@ function TrashIcon() {
   );
 }
 
-function SignOutIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width="14"
-      height="14"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-      <polyline points="16 17 21 12 16 7" />
-      <line x1="21" y1="12" x2="9" y2="12" />
-    </svg>
-  );
-}

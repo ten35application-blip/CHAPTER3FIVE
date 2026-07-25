@@ -15,6 +15,19 @@ import { useState } from "react";
  *
  * `signedUrl` null → the fallback renders directly; no img element
  * mounts. Same behavior when a mounted img fires onError.
+ *
+ * URL-scoped failure state (fabd853 → this commit): we track WHICH url
+ * failed, not just "something failed". The old boolean flag caused
+ * Wilson's "goes to a place, boom back to the original photo" bug on
+ * iOS Safari 27: on every fresh upload the `key={signedUrl}` swap
+ * unmounted the old <img> whose in-flight request was aborted, and
+ * Safari fires onError on that aborted request. The handler ran with
+ * the OLD closure and called setFailed(true) on the parent — which was
+ * already displaying the NEW signed URL. Result: fallback stuck on
+ * even though the fresh photo had literally started rendering a
+ * millisecond earlier. Scoping failure to a specific URL makes the
+ * stale abort a no-op: the outgoing failure doesn't apply to the
+ * incoming URL.
  */
 export function ProfileAvatarImage({
   signedUrl,
@@ -29,20 +42,9 @@ export function ProfileAvatarImage({
   /** Applied to the <img> in the success branch. */
   className: string;
 }) {
-  // Reset the failed flag whenever the URL changes: after a fresh
-  // upload the parent hands us a brand-new signed URL, and any prior
-  // failure (expired token, transient 4xx) shouldn't stick and keep
-  // us in the fallback branch forever. The "reset state on prop
-  // change during render" pattern (see react.dev/reference/react/useState)
-  // avoids the cascading-render cost of doing this in useEffect.
-  const [prevUrl, setPrevUrl] = useState(signedUrl);
-  const [failed, setFailed] = useState(false);
-  if (prevUrl !== signedUrl) {
-    setPrevUrl(signedUrl);
-    setFailed(false);
-  }
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
 
-  if (!signedUrl || failed) {
+  if (!signedUrl || failedUrl === signedUrl) {
     return <>{fallback}</>;
   }
 
@@ -52,7 +54,7 @@ export function ProfileAvatarImage({
       key={signedUrl}
       src={signedUrl}
       alt={alt}
-      onError={() => setFailed(true)}
+      onError={() => setFailedUrl(signedUrl)}
       className={className}
     />
   );

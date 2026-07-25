@@ -61,17 +61,12 @@ async function requireUser() {
 export async function uploadProfilePhoto(
   formData: FormData,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  console.log("[profile-photo] uploadProfilePhoto entered");
   const { supabase, user } = await requireUser();
 
   const file = formData.get("photo");
   if (!(file instanceof File) || file.size === 0) {
-    console.warn("[profile-photo] no file in FormData");
     return { ok: false, error: "Pick a photo first." };
   }
-  console.log(
-    `[profile-photo] received file name=${file.name} size=${file.size} type=${file.type}`,
-  );
   if (file.size > MAX_UPLOAD_BYTES) {
     return {
       ok: false,
@@ -98,7 +93,6 @@ export async function uploadProfilePhoto(
       .resize(512, 512, { fit: "cover", position: "attention" })
       .jpeg({ quality: 82, mozjpeg: true })
       .toBuffer();
-    console.log(`[profile-photo] sharp done, output bytes=${processed.length}`);
   } catch (err) {
     console.error("[profile-photo] sharp failed:", err);
     return {
@@ -122,7 +116,6 @@ export async function uploadProfilePhoto(
       error: "Couldn't save the photo. Try again.",
     };
   }
-  console.log("[profile-photo] storage upload ok");
 
   const { error: updateError } = await supabase
     .from("profiles")
@@ -138,7 +131,6 @@ export async function uploadProfilePhoto(
 
   revalidatePath("/settings");
   revalidatePath("/dashboard");
-  console.log("[profile-photo] uploadProfilePhoto success");
   return { ok: true };
 }
 
