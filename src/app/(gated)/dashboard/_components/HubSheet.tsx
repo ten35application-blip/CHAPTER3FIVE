@@ -112,9 +112,9 @@ export function HubSheet({
         }}
         aria-label={open ? "Close hub" : "Open hub"}
         aria-expanded={open}
-        className="bg-gradient-cta hover:bg-gradient-cta-hover fixed bottom-6 right-6 z-50 flex h-16 w-16 items-center justify-center rounded-full text-white shadow-[0_20px_48px_-10px_rgba(232,138,118,0.55),_0_10px_28px_-6px_rgba(126,196,196,0.45)] ring-2 ring-white/40 transition-all hover:-translate-y-0.5 active:scale-95"
+        className="fixed bottom-6 right-6 z-50 flex h-16 w-16 items-center justify-center rounded-full bg-ink-soft shadow-[0_20px_48px_-10px_rgba(232,138,118,0.5),_0_10px_28px_-6px_rgba(126,196,196,0.45)] ring-2 ring-warm-700/50 transition-all hover:-translate-y-0.5 active:scale-95"
       >
-        <GridIcon />
+        <InfinityIcon />
       </button>
 
       {open ? (
@@ -122,7 +122,7 @@ export function HubSheet({
           className="fixed inset-0 z-40 flex items-end justify-center sm:justify-end sm:pr-6"
           role="dialog"
           aria-modal="true"
-          aria-label="Hub"
+          aria-label="Menu"
         >
           <button
             type="button"
@@ -187,10 +187,8 @@ function MenuPanel({
 }) {
   return (
     <>
-      <div className="px-6 pb-2 pt-5">
-        <h2 className="text-xl font-bold tracking-tight text-warm-50">
-          <span className="text-gradient-cta">Hub</span>
-        </h2>
+      <div className="flex items-center justify-center px-6 pb-2 pt-5">
+        <InfinityIcon />
       </div>
       <ul className="px-2 pb-4">
         <MenuRow
@@ -888,7 +886,7 @@ function SubHeader({
         >
           <path d="M15 6l-6 6 6 6" />
         </svg>
-        <span>Hub</span>
+        <span>Back</span>
       </button>
       <h2 className="text-base font-bold tracking-tight text-warm-50">
         {title}
@@ -969,14 +967,25 @@ function relativeDate(iso: string): string {
 /* Icons.                                                              */
 /* ================================================================== */
 
-function GridIcon() {
-  // Four rounded squares in a 2x2 grid — reads as "menu of options."
+function InfinityIcon() {
+  // Infinity glyph, dual-color: left loop coral, right loop teal —
+  // echoes the two-dots logo palette. Stroke drawn as one continuous
+  // figure-8 path; two overlapping stroked paths give each loop its
+  // own hue while sharing the center crossing.
   return (
-    <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden>
-      <rect x="4" y="4" width="7" height="7" rx="1.6" fill="currentColor" />
-      <rect x="13" y="4" width="7" height="7" rx="1.6" fill="currentColor" />
-      <rect x="4" y="13" width="7" height="7" rx="1.6" fill="currentColor" />
-      <rect x="13" y="13" width="7" height="7" rx="1.6" fill="currentColor" />
+    <svg viewBox="0 0 32 16" width="32" height="18" fill="none" aria-hidden>
+      <path
+        d="M16 8 C 16 2, 8 2, 8 8 C 8 14, 16 14, 16 8"
+        stroke="#e88a76"
+        strokeWidth="2.6"
+        strokeLinecap="round"
+      />
+      <path
+        d="M16 8 C 16 2, 24 2, 24 8 C 24 14, 16 14, 16 8"
+        stroke="#7ec4c4"
+        strokeWidth="2.6"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
