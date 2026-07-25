@@ -86,15 +86,24 @@ export async function POST(
   // the authorization.
   const { data: oracle } = await supabase
     .from("oracles")
-    .select(
-      "id, name, persona_prompt, manually_unread, blocked_at, block_reason, traits",
-    )
+    .select("id, name, manually_unread, blocked_at, block_reason, traits")
     .eq("id", oracleId)
     .is("deleted_at", null)
     .maybeSingle();
   if (!oracle) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+
+  // persona_prompt is not selectable by anon/authenticated at the DB
+  // level, so it is read here on the service-role client — only after
+  // the RLS select above has already established authorization.
+  const promptClient = createAdminClient();
+  const { data: promptRow } = await promptClient
+    .from("oracles")
+    .select("persona_prompt")
+    .eq("id", oracleId)
+    .maybeSingle();
+  const personaPrompt = promptRow?.persona_prompt ?? null;
 
   // Block enforcement — checked BEFORE the rate-limit bump so a blocked
   // send never counts against the user's daily usage. The persona set
@@ -107,7 +116,7 @@ export async function POST(
     );
   }
 
-  if (!oracle.persona_prompt) {
+  if (!personaPrompt) {
     return NextResponse.json(
       { error: "This identity isn't ready to talk yet." },
       { status: 409 },
@@ -288,7 +297,7 @@ export async function POST(
   const system: Anthropic.TextBlockParam[] = [
     {
       type: "text",
-      text: oracle.persona_prompt,
+      text: personaPrompt,
       cache_control: { type: "ephemeral", ttl: "1h" },
     },
   ];
@@ -369,7 +378,7 @@ export async function POST(
         // Persist the persona's reply server-side after the stream ends.
         let messageId: string | null = null;
         if (reply) {
-          const { data: replyRow, error: replyErr } = await supabase
+          const { data: replyRow, error: replyErr } = await admin
             .from("messages")
             .insert({
               user_id: user.id,

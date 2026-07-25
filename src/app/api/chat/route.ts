@@ -715,7 +715,9 @@ ${archiveBlock}`;
       // the block. Service role for the block insert because clients
       // can't write to chat_blocks.
       const adminWrite = createAdminClient();
-      await supabase.from("messages").insert([
+      // Assistant rows are written server-side: clients may only insert
+      // their own 'user' turns.
+      await adminWrite.from("messages").insert([
         {
           user_id: user.id,
           oracle_id: profile.active_oracle_id,
@@ -894,7 +896,9 @@ ${archiveBlock}`;
           image_url: isLast && personaPhotoUrl ? personaPhotoUrl : null,
         });
       });
-      await supabase.from("messages").insert(rows);
+      // Assistant rows are written server-side: clients may only insert
+      // their own 'user' turns.
+      await createAdminClient().from("messages").insert(rows);
     }
 
     // Memory extraction — runs every 4th turn to keep cost down. Skips on

@@ -63,7 +63,14 @@ export async function fetchMemoriesForContext(
  */
 function renderMemory(key: string, value: string): string {
   const label = key.replace(/_/g, " ").trim();
-  const v = value.trim().replace(/\s+/g, " ");
+  // The value is user-derived and ends up inside the system block: collapse
+  // whitespace (no newlines) and defuse the "== ... ==" run that the block's
+  // own headers use, so a memory can't forge one.
+  const v = value
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace(/[=_*#`]{2,}/g, " ")
+    .trim();
   // Longer values already read as facts ("trying to quit smoking") —
   // frame them as "You ...". Bare facts get "Your {label} is {value}."
   // (the block addresses the persona about the user: "Your spouse is

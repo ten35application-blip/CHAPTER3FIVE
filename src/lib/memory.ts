@@ -69,6 +69,20 @@ export async function loadMemoriesForPrompt(
 }
 
 /**
+ * Memory content is derived from what the user typed, and it lands inside
+ * the system prompt. Flatten it to a single line and defuse the characters
+ * used to open a section or a bullet, so a memory can never look like part
+ * of the prompt's own structure.
+ */
+function sanitizeMemoryText(raw: string): string {
+  return raw
+    .replace(/\s+/g, " ")
+    .replace(/[=_*#`]{2,}/g, " ")
+    .replace(/^[-•*\s]+/, "")
+    .trim();
+}
+
+/**
  * Format memories into a system-prompt block. Returns "" if none — caller
  * just concatenates.
  */
@@ -88,7 +102,7 @@ export function memoriesToPromptBlock(
     feeling: [],
   };
   for (const m of memories) {
-    grouped[m.kind].push(m.content);
+    grouped[m.kind].push(sanitizeMemoryText(m.content));
   }
 
   const sections: string[] = [];

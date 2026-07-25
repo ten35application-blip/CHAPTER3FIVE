@@ -19,9 +19,18 @@ const BUCKET_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 const ipBuckets = new Map<string, { count: number; resetAt: number }>();
 
 function getClientIp(request: NextRequest): string {
+  // Prefer headers the platform sets itself. A caller can put anything in
+  // x-forwarded-for, and the FIRST entry is the caller-supplied one — so
+  // rotating it would reset the bucket at will. The trusted proxy appends
+  // the real peer address last, so fall back to the last hop, never the
+  // first.
+  const vercel = request.headers.get("x-vercel-forwarded-for");
+  if (vercel) return vercel.split(",").pop()!.trim();
+  const real = request.headers.get("x-real-ip");
+  if (real) return real.trim();
   const forwarded = request.headers.get("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0]!.trim();
-  return request.headers.get("x-real-ip") ?? "unknown";
+  if (forwarded) return forwarded.split(",").pop()!.trim();
+  return "unknown";
 }
 
 function rateLimit(ip: string): { ok: boolean; resetAt: number } {
