@@ -10,8 +10,11 @@ const MAX_MINT_ATTEMPTS = 5;
  * as "mint later" (the share page offers a retry) rather than failing the
  * whole creation flow.
  *
- * Uses the caller's user-scoped client: the inherit_codes insert policy
- * requires created_by = auth.uid() AND ownership of the oracle.
+ * Callers must pass the SERVICE-ROLE client (createAdminClient()) and are
+ * responsible for the Pro gate + oracle-ownership check first: migration
+ * 0065 dropped the user-side insert policy on inherit_codes, so minting
+ * only happens through the Pro-gated server actions — a browser with the
+ * anon key can no longer insert codes at all.
  */
 export async function mintInheritCode(
   supabase: SupabaseClient,

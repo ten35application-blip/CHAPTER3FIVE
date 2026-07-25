@@ -3,10 +3,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  LEGACY_CATEGORY_LABELS,
-  LEGACY_QUESTIONS,
-  LEGACY_QUESTION_COUNT,
+import type {
+  LegacyCategory,
+  LegacyQuestion,
 } from "@/lib/legacy/questions";
 import type { LegacySubject } from "@/lib/legacy/synthesize";
 import { completeLegacyIdentity, saveLegacyDraft } from "./actions";
@@ -25,6 +24,11 @@ import { completeLegacyIdentity, saveLegacyDraft } from "./actions";
  */
 
 type Props = {
+  // The bank arrives as props from the Pro-gated server page — never
+  // import @/lib/legacy/questions here (it's server-only paid content;
+  // a client import would ship it in a public JS chunk).
+  questions: LegacyQuestion[];
+  categoryLabels: Record<LegacyCategory, string>;
   initialSubject: LegacySubject;
   initialAnswers: Record<string, string>;
   initialStep: number;
@@ -34,16 +38,19 @@ type Props = {
 const AUTOSAVE_MS = 1200;
 
 export function LegacyFlow({
+  questions,
+  categoryLabels,
   initialSubject,
   initialAnswers,
   initialStep,
   serverError,
 }: Props) {
+  const questionCount = questions.length;
   const [subject, setSubject] = useState<LegacySubject>(initialSubject);
   const [answers, setAnswers] =
     useState<Record<string, string>>(initialAnswers);
   const [step, setStep] = useState(() =>
-    Math.max(0, Math.min(LEGACY_QUESTION_COUNT, initialStep)),
+    Math.max(0, Math.min(questionCount, initialStep)),
   );
   const [submitting, setSubmitting] = useState(false);
   const [saved, setSaved] = useState(true);
@@ -82,7 +89,7 @@ export function LegacyFlow({
   }, []);
 
   function goTo(next: number) {
-    const clamped = Math.max(0, Math.min(LEGACY_QUESTION_COUNT, next));
+    const clamped = Math.max(0, Math.min(questionCount, next));
     setStep(clamped);
     flushSave(clamped);
     window.scrollTo({ top: 0 });
@@ -127,10 +134,12 @@ export function LegacyFlow({
           />
         ) : (
           <QuestionScreen
+            questions={questions}
+            categoryLabels={categoryLabels}
             step={step}
-            answer={answers[LEGACY_QUESTIONS[step - 1].id] ?? ""}
+            answer={answers[questions[step - 1].id] ?? ""}
             onChange={(value) => {
-              const id = LEGACY_QUESTIONS[step - 1].id;
+              const id = questions[step - 1].id;
               setAnswers((prev) => ({ ...prev, [id]: value }));
               scheduleSave();
             }}
@@ -264,6 +273,8 @@ function Field({
 // ─── Steps 1..40: one question per screen ───────────────────────────────────
 
 function QuestionScreen({
+  questions,
+  categoryLabels,
   step,
   answer,
   onChange,
@@ -273,6 +284,8 @@ function QuestionScreen({
   answeredCount,
   saved,
 }: {
+  questions: LegacyQuestion[];
+  categoryLabels: Record<LegacyCategory, string>;
   step: number;
   answer: string;
   onChange: (v: string) => void;
@@ -282,17 +295,17 @@ function QuestionScreen({
   answeredCount: number;
   saved: boolean;
 }) {
-  const question = LEGACY_QUESTIONS[step - 1];
-  const isLast = step === LEGACY_QUESTION_COUNT;
-  const progress = (step / LEGACY_QUESTION_COUNT) * 100;
+  const question = questions[step - 1];
+  const isLast = step === questions.length;
+  const progress = (step / questions.length) * 100;
 
   return (
     <div className="flex flex-1 flex-col">
       {/* Progress: label + coral→teal bar */}
       <div className="flex items-baseline justify-between">
         <p className="text-sm font-medium text-warm-300">
-          Question {step} of {LEGACY_QUESTION_COUNT} ·{" "}
-          {LEGACY_CATEGORY_LABELS[question.category]}
+          Question {step} of {questions.length} ·{" "}
+          {categoryLabels[question.category]}
         </p>
         <p
           className={`text-xs font-medium transition-opacity ${saved ? "text-warm-400 opacity-100" : "text-warm-500 opacity-70"}`}
@@ -309,7 +322,7 @@ function QuestionScreen({
 
       <p className="mt-10 text-sm font-semibold uppercase tracking-wider">
         <span className="text-gradient-cta">
-          {LEGACY_CATEGORY_LABELS[question.category]}
+          {categoryLabels[question.category]}
         </span>
       </p>
       <h1 className="mt-3 text-2xl font-semibold leading-snug tracking-tight text-warm-50 sm:text-3xl">
@@ -369,7 +382,7 @@ function QuestionScreen({
 
       {isLast ? (
         <p className="mt-4 text-center text-sm text-warm-400">
-          {answeredCount} of {LEGACY_QUESTION_COUNT} answered. You can go back
+          {answeredCount} of {questions.length} answered. You can go back
           and add more anytime before finishing.
         </p>
       ) : null}

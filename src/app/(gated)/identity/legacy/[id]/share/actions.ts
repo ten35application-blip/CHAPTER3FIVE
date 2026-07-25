@@ -3,7 +3,9 @@
 import { redirect } from "next/navigation";
 import { redirectWithError } from "@/lib/action-errors";
 import { mintInheritCode } from "@/lib/legacy/mint";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { isPro } from "@/lib/subscription";
 
 /**
  * Fallback mint — completion already mints a code, but if that best-effort
@@ -21,6 +23,14 @@ export async function mintCodeForOracle(oracleId: string): Promise<void> {
   }
 
   const sharePath = `/identity/legacy/${oracleId}/share`;
+
+  // Minting is the Pro feature. Completion already gates it, but this
+  // fallback is its own entry point — a creator whose Pro lapsed keeps
+  // the codes they already minted, they just can't mint NEW ones until
+  // they're Pro again.
+  if (!(await isPro(supabase))) {
+    redirect(`/upgrade?next=${encodeURIComponent(sharePath)}`);
+  }
 
   // Ownership check via RLS: only the creator's own legacy oracle resolves.
   const { data: oracle } = await supabase
@@ -45,7 +55,9 @@ export async function mintCodeForOracle(oracleId: string): Promise<void> {
     .maybeSingle();
 
   if (!existing) {
-    const code = await mintInheritCode(supabase, oracleId, user.id);
+    // Service-role client on purpose — 0065 made minting server-only.
+    // Ownership was verified above with the user-scoped client.
+    const code = await mintInheritCode(createAdminClient(), oracleId, user.id);
     if (!code) {
       redirectWithError(
         sharePath,

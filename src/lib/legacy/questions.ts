@@ -1,5 +1,14 @@
+import "server-only";
+
 /**
  * The 40 legacy questions — 10 categories, 4 each. All open-ended.
+ *
+ * PRO-GATE (audit 2026-07-25): this module is server-only ON PURPOSE.
+ * The bank is paid content — Wilson: "you are only able to access the
+ * questions when you pay." A client-component import would ship every
+ * question in a public JS chunk that anyone can download without Pro.
+ * The Pro-gated server page passes the questions to LegacyFlow as
+ * props instead, so they only ever serialize for authorized renders.
  *
  * Wilson's bar: "we want to lock down the same exact identity of the
  * person so when they pass, the family still feels like they have them."

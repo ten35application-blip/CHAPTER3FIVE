@@ -140,7 +140,8 @@ export default function Home() {
           </Link>
 
           <p className="mt-10 text-sm text-warm-400">
-            First identity free &middot; $5/month for all five
+            First identity free &middot; {MONTHLY_PRICE_LABEL}/month for all
+            five
           </p>
         </div>
       </section>

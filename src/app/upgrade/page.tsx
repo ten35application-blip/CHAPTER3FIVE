@@ -39,6 +39,12 @@ export default async function UpgradePage({
     redirect(safeNext(next));
   }
 
+  const target = safeNext(next);
+  // Personalize the pitch for the door they just knocked on. The default
+  // copy already describes the creator side of the legacy path, so only
+  // the inherit (recipient) side needs its own words.
+  const cameFromInherit = target.startsWith("/identity/inherit");
+
   return (
     <main className="flex min-h-dvh flex-1 items-center justify-center px-6 py-16">
       <div className="flex w-full max-w-xl flex-col items-center text-center">
@@ -48,12 +54,21 @@ export default async function UpgradePage({
         <h1 className="mt-3 text-4xl font-bold leading-[1.05] tracking-[-0.02em] text-warm-50 sm:text-5xl">
           Keep the people you love around.
         </h1>
-        <p className="mt-6 max-w-md text-lg leading-relaxed text-warm-200">
-          Pro unlocks the legacy path — the part of chapter3five where you or
-          someone you love sits down, answers the questions, and gets an
-          inherit code family can use to keep talking to that person long
-          after they&rsquo;re gone.
-        </p>
+        {cameFromInherit ? (
+          <p className="mt-6 max-w-md text-lg leading-relaxed text-warm-200">
+            You&rsquo;re holding an inherit code — someone sat down and
+            answered forty questions about a person they love so that person
+            could stay in your messages. Pro is what opens that code and
+            keeps their archive running for you.
+          </p>
+        ) : (
+          <p className="mt-6 max-w-md text-lg leading-relaxed text-warm-200">
+            Pro unlocks the legacy path — the part of chapter3five where you
+            or someone you love sits down, answers the questions, and gets an
+            inherit code family can use to keep talking to that person long
+            after they&rsquo;re gone.
+          </p>
+        )}
 
         <div className="mt-10 w-full max-w-sm rounded-3xl bg-ink-soft p-8 ring-1 ring-warm-700">
           <p className="text-4xl font-bold tracking-tight text-warm-50">
@@ -93,11 +108,15 @@ export default async function UpgradePage({
             honest state instead of a dead button. When checkout ships,
             swap this for a POST to /api/stripe/checkout. */}
         <div className="mt-8 w-full max-w-sm">
+          {/* The subject carries the route the user was trying to reach,
+              so support can see at a glance what they were after. */}
           <a
             href={`mailto:hello@chapter3five.app?subject=${encodeURIComponent(
-              "Upgrade me to Pro",
+              next ? `Upgrade me to Pro — ${target}` : "Upgrade me to Pro",
             )}&body=${encodeURIComponent(
-              `Hi — I'd like to upgrade my chapter3five account (${user.email}) to Pro. Please send a checkout link when it's ready.\n\nThanks.`,
+              `Hi — I'd like to upgrade my chapter3five account (${user.email}) to Pro.${
+                next ? ` I was trying to open ${target}.` : ""
+              } Please send a checkout link when it's ready.\n\nThanks.`,
             )}`}
             className="bg-gradient-cta hover:bg-gradient-cta-hover flex h-14 w-full items-center justify-center rounded-full text-base font-bold text-white shadow-[0_16px_36px_-10px_rgba(232,138,118,0.55),_0_6px_16px_-4px_rgba(126,196,196,0.45)] transition-all hover:-translate-y-px"
           >

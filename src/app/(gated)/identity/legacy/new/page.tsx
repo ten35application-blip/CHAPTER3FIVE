@@ -1,4 +1,8 @@
 import { redirect } from "next/navigation";
+import {
+  LEGACY_CATEGORY_LABELS,
+  LEGACY_QUESTIONS,
+} from "@/lib/legacy/questions";
 import type { LegacySubject } from "@/lib/legacy/synthesize";
 import { createClient } from "@/lib/supabase/server";
 import { requirePro } from "@/lib/subscription";
@@ -54,8 +58,13 @@ export default async function LegacyNewPage({
     heritage: draft?.subject?.heritage ?? "",
   };
 
+  // The questions bank is server-only paid content — it reaches the
+  // client exclusively through these props, behind the requirePro()
+  // gate above, never via a client-side import (see questions.ts).
   return (
     <LegacyFlow
+      questions={LEGACY_QUESTIONS}
+      categoryLabels={LEGACY_CATEGORY_LABELS}
       initialSubject={subject}
       initialAnswers={draft?.answers ?? {}}
       initialStep={draft?.current_step ?? 0}

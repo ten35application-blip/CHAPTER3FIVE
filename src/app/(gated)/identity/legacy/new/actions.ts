@@ -14,6 +14,7 @@ import {
   synthesizeLegacyPersona,
   type LegacySubject,
 } from "@/lib/legacy/synthesize";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 /** Enough answers to weave a real person from — half the bank. */
@@ -182,7 +183,11 @@ export async function completeLegacyIdentity(payload: {
   }
 
   // Best-effort: if minting somehow fails, the share page offers a retry.
-  await mintInheritCode(supabase, inserted.id, user.id);
+  // Service-role client on purpose: 0065 dropped the user-side insert
+  // policy on inherit_codes, so the Pro-gated actions are the only way
+  // a code comes to exist. We just inserted this oracle for user.id, so
+  // ownership is already established.
+  await mintInheritCode(createAdminClient(), inserted.id, user.id);
 
   // The draft has served its purpose.
   await supabase.from("legacy_drafts").delete().eq("user_id", user.id);
