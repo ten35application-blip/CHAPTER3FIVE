@@ -122,6 +122,14 @@ export default async function TutorialPage() {
                 Anyone who redeems the code can talk with the person
                 you&rsquo;ve preserved &mdash; long after you&rsquo;re gone.
               </p>
+              <p className="mt-2 text-sm text-warm-100">
+                <strong>Type the answers the way they text.</strong> The
+                lowercase, the missing periods, the run-on sentences,
+                whatever it actually looks like. Don&rsquo;t clean it up and
+                don&rsquo;t use voice dictation &mdash; dictation strips the
+                voice out. That texting rhythm is a huge part of what makes
+                them feel like them.
+              </p>
               <p className="mt-2 text-sm text-warm-400">
                 Both sides need a paid plan. Recording your own is Pro. Using
                 someone&rsquo;s code is Pro. The rest of the app stays free

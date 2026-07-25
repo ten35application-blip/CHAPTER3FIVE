@@ -172,6 +172,23 @@ function SubjectScreen({
         saves as you go, so take days if you need them.
       </p>
 
+      {/* Texting-style note — the single most important guidance for
+          fidelity. Their real texting rhythm (lowercase, no periods,
+          run-on sentences, whatever) IS part of them. Dictation cleans
+          it up into generic prose and washes that out. */}
+      <div className="mt-5 rounded-2xl bg-coral/8 p-4 ring-1 ring-coral/20">
+        <p className="text-sm font-semibold text-warm-50">
+          Type how they actually text.
+        </p>
+        <p className="mt-1.5 text-sm leading-relaxed text-warm-300">
+          The all-lowercase, the missing periods, the ALL CAPS when they&rsquo;re
+          hyped, the way they always start with &ldquo;so&rdquo; — that&rsquo;s
+          them. Don&rsquo;t fix it into clean prose. Don&rsquo;t dictate through
+          a mic; it strips the voice out. Write it the way it would land in a
+          real text from them.
+        </p>
+      </div>
+
       <div className="mt-8 flex flex-col gap-5">
         <Field
           label="Their name, the way the family says it"
@@ -314,6 +331,14 @@ function QuestionScreen({
         autoFocus
         className="mt-8 w-full flex-1 resize-none rounded-3xl bg-ink-soft p-5 text-lg leading-relaxed text-warm-50 shadow-[0_10px_28px_-12px_rgba(28,28,26,0.12)] ring-1 ring-warm-700 outline-none transition-shadow placeholder:text-warm-500 focus:ring-2 focus:ring-coral/50"
       />
+
+      {/* Small persistent reminder — the intro-page note is easy to
+          forget by question 12. Keep the "type how they text" nudge
+          in reach. */}
+      <p className="mt-3 text-xs leading-relaxed text-warm-400">
+        Type it the way they&rsquo;d text it — lowercase, no periods, run-on,
+        whatever it is. Voice dictation smooths that out; skip it.
+      </p>
 
       <div className="mt-8 flex items-center gap-3">
         <button
