@@ -75,7 +75,7 @@ export default async function SharePage({
     ? `mailto:?subject=${encodeURIComponent(
         `${oracle.name} is waiting for you on chapter3five`,
       )}&body=${encodeURIComponent(
-        `I answered forty questions about ${oracle.name}, and now they're someone you can talk to.\n\nGo to chapter3five.app, choose "Inherit an identity", and enter this code:\n\n${code}\n\nKeep it somewhere safe — it's theirs.`,
+        `I answered the questions about ${oracle.name}, and now they're someone you can talk to.\n\nGo to chapter3five.app, choose "Inherit an identity", and enter this code:\n\n${code}\n\nKeep it somewhere safe — it's theirs.`,
       )}`
     : null;
 

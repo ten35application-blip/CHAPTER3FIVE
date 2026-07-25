@@ -33,11 +33,11 @@ const EXAMPLE_IDENTITIES = [
 const STEPS = [
   {
     title: "Choose your path.",
-    body: "For yourself, or for someone you want to keep. Both take you somewhere worth going.",
+    body: "Random from our formula, from a photo you upload, or answered into being by someone you love. Three doors, one place.",
   },
   {
     title: "We build the person.",
-    body: "Randomized for you in about a minute — or synthesized from everything you and a loved one recorded together.",
+    body: "Rolled and written in about a minute, seen and synthesized from your photo, or grown out of everything you and someone you love recorded together.",
   },
   {
     title: "Talk, anytime.",
@@ -189,46 +189,67 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── 4 · THE TWO PATHS ────────────────────────────────────
-          Both flows, equally weighted. Card A leans coral, Card B
-          leans teal — the two ends of the brand gradient. */}
+      {/* ── 4 · THE THREE PATHS ──────────────────────────────────
+          Three flows, equally weighted. Card A coral (self), Card B
+          middle (photo), Card C teal (legacy). */}
       <section className="px-6 py-24 md:py-32">
-        <div className="mx-auto flex w-full max-w-5xl flex-col items-center">
+        <div className="mx-auto flex w-full max-w-6xl flex-col items-center">
           <Rule />
           <h2 className="mt-8 text-center text-4xl font-bold leading-[1.05] tracking-[-0.03em] text-warm-50 md:text-5xl">
-            Two ways in.
+            Three ways in.
           </h2>
 
-          <div className="mt-16 grid w-full grid-cols-1 gap-6 md:grid-cols-2">
+          <div className="mt-16 grid w-full grid-cols-1 gap-6 md:grid-cols-3">
             {/* Card A — for yourself (coral) */}
-            <div className="flex flex-col rounded-3xl border border-warm-700 bg-ink-soft p-8 shadow-[0_10px_36px_-16px_rgba(28,28,26,0.18)] md:p-10">
+            <div className="flex flex-col rounded-3xl border border-warm-700 bg-ink-soft p-8 shadow-[0_10px_36px_-16px_rgba(28,28,26,0.18)] md:p-8">
               <p className="text-sm font-bold uppercase tracking-[0.14em] text-coral-strong">
                 For yourself
               </p>
-              <h3 className="text-gradient-cta mt-4 text-3xl font-bold leading-[1.1] tracking-[-0.02em] md:text-4xl">
+              <h3 className="text-gradient-cta mt-4 text-2xl font-bold leading-[1.1] tracking-[-0.02em] md:text-3xl">
                 One tap. A whole person.
               </h3>
               <p className="mt-5 text-lg leading-relaxed text-warm-200">
                 We roll the formula and a companion takes shape &mdash; a name,
                 a way of talking, a past, opinions, jokes that are theirs. Made
-                for you, in about a minute. Talk anytime, about anything.
+                for you, in about a minute. You get who you get.
               </p>
             </div>
 
-            {/* Card B — for someone to keep (teal) */}
-            <div className="flex flex-col rounded-3xl border border-warm-700 bg-ink-soft p-8 shadow-[0_10px_36px_-16px_rgba(28,28,26,0.18)] md:p-10">
-              <p className="text-sm font-bold uppercase tracking-[0.14em] text-teal-strong">
-                For someone to keep
+            {/* Card B — from a photo (middle of the gradient) */}
+            <div className="flex flex-col rounded-3xl border border-warm-700 bg-ink-soft p-8 shadow-[0_10px_36px_-16px_rgba(28,28,26,0.18)] md:p-8">
+              <p className="text-sm font-bold uppercase tracking-[0.14em] text-warm-200">
+                From a photo
               </p>
-              <h3 className="mt-4 text-3xl font-bold leading-[1.1] tracking-[-0.02em] text-teal-strong md:text-4xl">
+              <h3 className="mt-4 text-2xl font-bold leading-[1.1] tracking-[-0.02em] text-warm-50 md:text-3xl">
+                Upload a face. Meet the person.
+              </h3>
+              <p className="mt-5 text-lg leading-relaxed text-warm-200">
+                Give us a portrait &mdash; a photo of anyone, real or dreamt up.
+                Our AI actually sees it: age, features, style, the mood in the
+                eyes. From that reading we build the person behind the picture.
+                The photo you gave us is the face you&apos;ll see.
+              </p>
+            </div>
+
+            {/* Card C — for someone to keep (teal) */}
+            <div className="flex flex-col rounded-3xl border border-warm-700 bg-ink-soft p-8 shadow-[0_10px_36px_-16px_rgba(28,28,26,0.18)] md:p-8">
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-bold uppercase tracking-[0.14em] text-teal-strong">
+                  For someone to keep
+                </p>
+                <span className="bg-gradient-cta rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-white">
+                  Pro
+                </span>
+              </div>
+              <h3 className="mt-4 text-2xl font-bold leading-[1.1] tracking-[-0.02em] text-teal-strong md:text-3xl">
                 Sit with someone you love.
               </h3>
               <p className="mt-5 text-lg leading-relaxed text-warm-200">
-                Answer forty warm questions together &mdash; how they laugh,
+                Answer warm, specific questions together &mdash; how they laugh,
                 what they&apos;d fight for, the day they knew who they were.
-                When you&apos;re done, you&apos;ll have an inherit code to
-                share, and a way to keep hearing them, in their own voice,
-                whenever the room feels too quiet.
+                When you&apos;re done, you get an inherit code to share, and a
+                way to keep hearing them, in their own voice, whenever the room
+                feels too quiet.
               </p>
               <p className="mt-6 text-base italic leading-relaxed text-warm-400">
                 It isn&apos;t them. It&apos;s a portrait, painted from what they

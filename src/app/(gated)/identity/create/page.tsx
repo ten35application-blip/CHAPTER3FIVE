@@ -47,21 +47,28 @@ export default async function IdentityCreatePage() {
           Who is this for?
         </h1>
         <p className="mt-2 text-center text-base text-warm-300">
-          There are two ways to bring someone into the world.
+          Three ways to bring someone into the world.
         </p>
 
         <div className="mt-10 flex w-full flex-col gap-4">
           <PathCard
             href="/identity/new"
             title="For me right now"
-            subhead="We'll create a whole person made just for you, in about a minute."
+            subhead="We roll a full trait bundle and our AI writes the person from it, in about a minute. You get who you get."
             icon={<SparkIcon />}
+          />
+          <PathCard
+            href="/identity/from-photo"
+            title="From a photo"
+            subhead="Upload a picture — a portrait works best. Our AI looks at it and builds an identity to match. The photo itself becomes their face."
+            icon={<PhotoIcon />}
           />
           <PathCard
             href="/identity/legacy/new"
             title="For someone to keep"
-            subhead="Answer ~40 questions about yourself or a loved one. When you're done, you'll get a code you can share."
+            subhead="Sit with yourself, or with someone you love. Answer warm, specific questions about who they really are. You'll get a code you can share with family."
             icon={<HeartTagIcon />}
+            proOnly
           />
         </div>
 
@@ -81,16 +88,18 @@ function PathCard({
   title,
   subhead,
   icon,
+  proOnly,
 }: {
   href: string;
   title: string;
   subhead: string;
   icon: React.ReactNode;
+  proOnly?: boolean;
 }) {
   return (
     <Link
       href={href}
-      className="group flex items-start gap-4 rounded-3xl bg-ink-soft p-6 text-left shadow-[0_14px_36px_-14px_rgba(28,28,26,0.16),_0_4px_12px_rgba(232,138,118,0.08)] ring-1 ring-warm-700 transition-all hover:-translate-y-0.5 hover:ring-coral/40 hover:shadow-[0_20px_44px_-14px_rgba(28,28,26,0.2),_0_6px_16px_rgba(232,138,118,0.12)]"
+      className="group relative flex items-start gap-4 rounded-3xl bg-ink-soft p-6 text-left shadow-[0_14px_36px_-14px_rgba(28,28,26,0.16),_0_4px_12px_rgba(232,138,118,0.08)] ring-1 ring-warm-700 transition-all hover:-translate-y-0.5 hover:ring-coral/40 hover:shadow-[0_20px_44px_-14px_rgba(28,28,26,0.2),_0_6px_16px_rgba(232,138,118,0.12)]"
     >
       <span
         aria-hidden
@@ -99,7 +108,14 @@ function PathCard({
         <span className="text-gradient-cta">{icon}</span>
       </span>
       <span className="flex min-w-0 flex-col">
-        <span className="text-lg font-semibold text-warm-50">{title}</span>
+        <span className="flex items-center gap-2">
+          <span className="text-lg font-semibold text-warm-50">{title}</span>
+          {proOnly ? (
+            <span className="bg-gradient-cta rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-white">
+              Pro
+            </span>
+          ) : null}
+        </span>
         <span className="mt-1 text-sm leading-relaxed text-warm-300">
           {subhead}
         </span>
@@ -123,6 +139,26 @@ function PathCard({
         </svg>
       </span>
     </Link>
+  );
+}
+
+function PhotoIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="20"
+      height="20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <rect x="3" y="5" width="18" height="14" rx="2.5" />
+      <circle cx="12" cy="12" r="3.5" />
+      <path d="M17 8.5h.01" />
+    </svg>
   );
 }
 
