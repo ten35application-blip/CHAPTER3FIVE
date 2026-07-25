@@ -202,10 +202,9 @@ export default function Home() {
             worth keeping.
           </h2>
           <p className="mt-8 text-lg leading-relaxed text-warm-200 md:text-xl">
-            chapter3five started in a quiet moment. I was thinking about
-            loneliness. I was thinking about death. Two of the hardest
-            chapters a life gets handed &mdash; and nobody hands you a
-            manual for either one.
+            chapter3five started in a quiet moment, sitting with two
+            of the hardest chapters a life gets handed: loneliness,
+            and death. Nobody hands you a manual for either one.
           </p>
           <p className="mt-6 text-lg leading-relaxed text-warm-200 md:text-xl">
             So we made a new chapter. One you get to open on purpose. A
