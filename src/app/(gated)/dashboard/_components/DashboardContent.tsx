@@ -55,7 +55,7 @@ export function DashboardContent({ identities, isPro, freeIdentityId }: Props) {
   }, [identities, query]);
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-4 pb-32 pt-24">
+    <div className="mx-auto w-full max-w-2xl px-4 pb-40 pt-24">
       {favorites.length > 0 ? (
         <FavoritesRow items={favorites} isLocked={isLocked} />
       ) : null}

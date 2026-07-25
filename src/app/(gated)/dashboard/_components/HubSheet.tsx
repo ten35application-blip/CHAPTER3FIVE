@@ -79,10 +79,18 @@ export function HubSheet({
       }
     }
     document.addEventListener("keydown", onKey);
-    document.body.style.overflow = "hidden";
+    // Only lock body scroll for the full sheet — the compact popover
+    // is transient and shouldn't jank the dashboard behind it. Any
+    // outside interaction closes it via the backdrop click-catch.
+    const shouldLockScroll = panel !== "menu";
+    if (shouldLockScroll) {
+      document.body.style.overflow = "hidden";
+    }
     return () => {
       document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = "";
+      if (shouldLockScroll) {
+        document.body.style.overflow = "";
+      }
     };
   }, [open, panel]);
 
@@ -117,12 +125,64 @@ export function HubSheet({
         <InfinityIcon />
       </button>
 
-      {open ? (
+      {open && panel === "menu" ? (
+        /* Compact popover — anchored above the FAB, scales in from
+           the button corner. NO dim/blur backdrop: the whole point of
+           the two-tier hub is that the menu doesn't cover the
+           dashboard behind it. Full-viewport transparent button just
+           catches taps-outside to close. */
+        <div
+          className="fixed inset-0 z-40"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Hub menu"
+        >
+          <button
+            type="button"
+            aria-label="Close"
+            onClick={closeAll}
+            className="absolute inset-0"
+          />
+          <div className="animate-popover-in absolute bottom-24 right-6 z-10 w-64 rounded-2xl bg-ink-soft p-2 shadow-[0_20px_48px_-10px_rgba(28,28,26,0.18),_0_8px_24px_-6px_rgba(232,138,118,0.15)] ring-1 ring-warm-700/60">
+            <div className="flex items-center justify-center py-2">
+              <InfinityIcon />
+            </div>
+            <ul>
+              <MenuRow
+                compact
+                onClick={() => setPanel("contacts")}
+                icon={<PeopleIcon />}
+                label="Contact list"
+                count={contacts.length}
+              />
+              <MenuRow
+                compact
+                onClick={() => setPanel("archived")}
+                icon={<ArchiveIcon />}
+                label="Archived"
+                count={archived.length}
+              />
+              <MenuRow
+                compact
+                onClick={() => setPanel("deleted")}
+                icon={<TrashIcon />}
+                label="Recently deleted"
+                count={totalDeleted}
+              />
+            </ul>
+          </div>
+        </div>
+      ) : null}
+
+      {open && panel !== "menu" ? (
+        /* Full sheet — the sub-panels contain scrollable lists so
+           they need real vertical space. Backdrop dims because the
+           user is now actively reading, not just browsing options. */
         <div
           className="fixed inset-0 z-40 flex items-end justify-center sm:justify-end sm:pr-6"
           role="dialog"
           aria-modal="true"
-          aria-label="Menu"
+          aria-label="Hub"
         >
           <button
             type="button"
@@ -140,16 +200,7 @@ export function HubSheet({
               <span className="bg-gradient-cta h-1.5 w-12 rounded-full opacity-60" />
             </div>
 
-            {panel === "menu" ? (
-              <MenuPanel
-                counts={{
-                  contacts: contacts.length,
-                  archived: archived.length,
-                  deleted: totalDeleted,
-                }}
-                onPick={setPanel}
-              />
-            ) : panel === "contacts" ? (
+            {panel === "contacts" ? (
               <ContactsPanel
                 contacts={contacts}
                 onBack={() => setPanel("menu")}
@@ -175,69 +226,62 @@ export function HubSheet({
 }
 
 /* ================================================================== */
-/* Menu panel — three tappable rows.                                   */
+/* Menu row — one tappable option inside the popover. Compact prop      */
+/* trims sizing for the floating card container; the "full" variant     */
+/* is retained in the type in case a future callsite wants it, but      */
+/* today only compact is rendered.                                      */
 /* ================================================================== */
-
-function MenuPanel({
-  counts,
-  onPick,
-}: {
-  counts: { contacts: number; archived: number; deleted: number };
-  onPick: (p: Panel) => void;
-}) {
-  return (
-    <>
-      <div className="flex items-center justify-center px-6 pb-2 pt-5">
-        <InfinityIcon />
-      </div>
-      <ul className="px-2 pb-4">
-        <MenuRow
-          onClick={() => onPick("contacts")}
-          icon={<PeopleIcon />}
-          label="Contact list"
-          count={counts.contacts}
-        />
-        <MenuRow
-          onClick={() => onPick("archived")}
-          icon={<ArchiveIcon />}
-          label="Archived"
-          count={counts.archived}
-        />
-        <MenuRow
-          onClick={() => onPick("deleted")}
-          icon={<TrashIcon />}
-          label="Recently deleted"
-          count={counts.deleted}
-        />
-      </ul>
-    </>
-  );
-}
 
 function MenuRow({
   onClick,
   icon,
   label,
   count,
+  compact,
 }: {
   onClick: () => void;
   icon: React.ReactNode;
   label: string;
   count: number;
+  compact?: boolean;
 }) {
   return (
     <li>
       <button
         type="button"
         onClick={onClick}
-        className="flex w-full items-center gap-4 rounded-xl px-4 py-4 text-left transition-colors hover:bg-coral/5"
+        className={
+          compact
+            ? "flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left transition-colors hover:bg-coral/5"
+            : "flex w-full items-center gap-4 rounded-xl px-4 py-4 text-left transition-colors hover:bg-coral/5"
+        }
       >
-        <span className="bg-coral/10 text-gradient-cta flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full">
+        <span
+          className={
+            compact
+              ? "bg-coral/10 text-gradient-cta flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full"
+              : "bg-coral/10 text-gradient-cta flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full"
+          }
+        >
           {icon}
         </span>
         <span className="flex flex-1 items-center justify-between gap-3">
-          <span className="text-base font-semibold text-warm-50">{label}</span>
-          <span className="flex items-center gap-2 text-sm text-warm-400">
+          <span
+            className={
+              compact
+                ? "text-sm font-semibold text-warm-50"
+                : "text-base font-semibold text-warm-50"
+            }
+          >
+            {label}
+          </span>
+          <span
+            className={
+              compact
+                ? "flex items-center gap-1.5 text-xs text-warm-400"
+                : "flex items-center gap-2 text-sm text-warm-400"
+            }
+          >
             {count > 0 ? <span>{count}</span> : null}
             <ChevronIcon />
           </span>
