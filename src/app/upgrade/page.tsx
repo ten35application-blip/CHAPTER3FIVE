@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { isPro } from "@/lib/subscription";
 import {
   EXTRA_IDENTITY_PRICE_LABEL,
+  EXTRA_INHERITED_PRICE_LABEL,
   MONTHLY_PRICE_LABEL,
   PRICING,
 } from "@/lib/pricing";
@@ -25,9 +26,9 @@ export const metadata = {
 export default async function UpgradePage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; reason?: string }>;
 }) {
-  const { next } = await searchParams;
+  const { next, reason } = await searchParams;
 
   const supabase = await createClient();
   const {
@@ -35,7 +36,13 @@ export default async function UpgradePage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/auth/signin");
 
-  if (await isPro(supabase)) {
+  // "extra-inherited" means the visitor is ALREADY Pro — they've used
+  // the inherited identity included with the plan and hit the slot
+  // gate. Bouncing them to `next` would loop them straight back into
+  // the gate, so the Pro bounce only applies to the other pitches.
+  const wantsExtraInherited = reason === "extra-inherited";
+
+  if (!wantsExtraInherited && (await isPro(supabase))) {
     redirect(safeNext(next));
   }
 
@@ -54,7 +61,14 @@ export default async function UpgradePage({
         <h1 className="mt-3 text-4xl font-bold leading-[1.05] tracking-[-0.02em] text-warm-50 sm:text-5xl">
           Keep the people you love around.
         </h1>
-        {cameFromInherit ? (
+        {wantsExtraInherited ? (
+          <p className="mt-6 max-w-md text-lg leading-relaxed text-warm-200">
+            You&rsquo;ve already claimed the inherited identity that comes
+            with Pro. Extra slots are {EXTRA_INHERITED_PRICE_LABEL}/month
+            each — so you can bring in a second parent, a grandparent,
+            anyone whose code you&rsquo;re holding.
+          </p>
+        ) : cameFromInherit ? (
           <p className="mt-6 max-w-md text-lg leading-relaxed text-warm-200">
             You&rsquo;re holding an inherit code — someone sat down and
             answered forty questions about a person they love so that person
@@ -91,6 +105,13 @@ export default async function UpgradePage({
               unlimited family
             </ProLine>
             <ProLine>
+              <strong className="text-warm-50">
+                One inherited identity included
+              </strong>{" "}
+              — redeem a code someone left for you. Extra inherited
+              identities are {EXTRA_INHERITED_PRICE_LABEL}/mo each.
+            </ProLine>
+            <ProLine>
               Anyone you share a code with also needs Pro to use it — that&rsquo;s
               how we keep the legacy side sustainable
             </ProLine>
@@ -112,15 +133,21 @@ export default async function UpgradePage({
               so support can see at a glance what they were after. */}
           <a
             href={`mailto:hello@chapter3five.app?subject=${encodeURIComponent(
-              next ? `Upgrade me to Pro — ${target}` : "Upgrade me to Pro",
+              wantsExtraInherited
+                ? "Add an extra inherited-identity slot"
+                : next
+                  ? `Upgrade me to Pro — ${target}`
+                  : "Upgrade me to Pro",
             )}&body=${encodeURIComponent(
-              `Hi — I'd like to upgrade my chapter3five account (${user.email}) to Pro.${
-                next ? ` I was trying to open ${target}.` : ""
-              } Please send a checkout link when it's ready.\n\nThanks.`,
+              wantsExtraInherited
+                ? `Hi — I'd like to add an extra inherited-identity slot (${EXTRA_INHERITED_PRICE_LABEL}/month) to my chapter3five account (${user.email}). I've already used the inherited identity included with Pro and I have another code to redeem.\n\nThanks.`
+                : `Hi — I'd like to upgrade my chapter3five account (${user.email}) to Pro.${
+                    next ? ` I was trying to open ${target}.` : ""
+                  } Please send a checkout link when it's ready.\n\nThanks.`,
             )}`}
             className="bg-gradient-cta hover:bg-gradient-cta-hover flex h-14 w-full items-center justify-center rounded-full text-base font-bold text-white shadow-[0_16px_36px_-10px_rgba(232,138,118,0.55),_0_6px_16px_-4px_rgba(126,196,196,0.45)] transition-all hover:-translate-y-px"
           >
-            Email us to upgrade
+            {wantsExtraInherited ? "Email us to add a slot" : "Email us to upgrade"}
           </a>
           <p className="mt-3 text-center text-xs text-warm-400">
             We&rsquo;re turning on self-serve checkout soon. Until then, drop

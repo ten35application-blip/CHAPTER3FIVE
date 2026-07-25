@@ -130,3 +130,48 @@ export async function grantProAction(userId: string): Promise<ActionResult> {
     message: `Pro granted through ${new Date(newProUntil).toLocaleDateString()}.`,
   };
 }
+
+/**
+ * Grant one extra inherited-identity slot (the $5/mo add-on) on the
+ * house. Real: bumps profiles.extra_inherited_slots by 1 via the
+ * service-role client — the column is guarded by
+ * protect_billing_columns, so this and the future Stripe webhook are
+ * the only ways it moves. Same comp pattern as grantProAction while
+ * checkout isn't wired end-to-end.
+ */
+export async function grantExtraInheritedSlotAction(
+  userId: string,
+): Promise<ActionResult> {
+  const admin = await requireAdmin();
+  const service = createAdminClient();
+
+  const { data: existing } = await service
+    .from("profiles")
+    .select("extra_inherited_slots")
+    .eq("id", userId)
+    .maybeSingle<{ extra_inherited_slots: number | null }>();
+
+  const nextCount = (existing?.extra_inherited_slots ?? 0) + 1;
+
+  const { error } = await service
+    .from("profiles")
+    .update({ extra_inherited_slots: nextCount })
+    .eq("id", userId);
+
+  if (error) {
+    console.error(
+      `[admin] ${admin.email} FAILED grant extra inherited slot for ${userId}:`,
+      error,
+    );
+    return { ok: false, message: `Failed: ${error.message}` };
+  }
+
+  console.log(
+    `[admin] ${admin.email} granted extra inherited slot to ${userId} (now ${nextCount})`,
+  );
+  revalidatePath(`/admin/users/${userId}`);
+  return {
+    ok: true,
+    message: `Extra inherited slot granted — they now have ${nextCount}.`,
+  };
+}

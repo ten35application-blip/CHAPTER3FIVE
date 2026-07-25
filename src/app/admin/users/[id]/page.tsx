@@ -12,6 +12,7 @@ import { ActionButton } from "../../_components/ActionButton";
 import {
   deleteIdentityAction,
   deleteUserAction,
+  grantExtraInheritedSlotAction,
   grantProAction,
   refundPaymentAction,
   revokeInheritCodeAction,
@@ -24,6 +25,7 @@ type ProfileRow = {
   deleted_at: string | null;
   pro_until: string | null;
   plan_source: string | null;
+  extra_inherited_slots: number | null;
 };
 
 type OracleRow = {
@@ -67,7 +69,7 @@ export default async function AdminUserDetailPage({
       safeSelect<ProfileRow>(
         supabase,
         "profiles",
-        "full_name, terms_accepted_at, terms_version_accepted, deleted_at, pro_until, plan_source",
+        "full_name, terms_accepted_at, terms_version_accepted, deleted_at, pro_until, plan_source, extra_inherited_slots",
         (q) => q.eq("id", id),
       ),
       safeSelect<OracleRow>(
@@ -152,11 +154,20 @@ export default async function AdminUserDetailPage({
           }
         />
         <Row label="Plan" value={planLabel(profile, isAdmin(user.email))} />
+        <Row
+          label="Extra inherited slots"
+          value={String(profile?.extra_inherited_slots ?? 0)}
+        />
         <div className="flex flex-wrap gap-2 px-4 py-3">
           <ActionButton
             label="Grant Pro (30 days)"
             confirm={`Grant ${email} 30 days of Pro on the house?`}
             action={grantProAction.bind(null, user.id)}
+          />
+          <ActionButton
+            label="Grant extra inherited slot"
+            confirm={`Give ${email} one extra inherited-identity slot (the $5/mo add-on) on the house?`}
+            action={grantExtraInheritedSlotAction.bind(null, user.id)}
           />
         </div>
       </Section>

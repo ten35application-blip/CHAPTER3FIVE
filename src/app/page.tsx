@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   EXTRA_IDENTITY_PRICE_LABEL,
+  EXTRA_INHERITED_PRICE_LABEL,
   MONTHLY_PRICE_LABEL,
   PRICING,
 } from "@/lib/pricing";
@@ -91,6 +92,45 @@ function FeatureLine({ children }: { children: React.ReactNode }) {
         <path d="M4 11l4 4 8-10" />
       </svg>
       <span>{children}</span>
+    </li>
+  );
+}
+
+/* One titled column of footer links. */
+function FooterGroup({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <p className="text-xs font-bold uppercase tracking-[0.14em] text-warm-400">
+        {title}
+      </p>
+      <ul className="mt-3 flex flex-col items-center gap-2 sm:items-start">
+        {children}
+      </ul>
+    </div>
+  );
+}
+
+function FooterLink({
+  href,
+  children,
+}: {
+  href: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <li>
+      <Link
+        href={href}
+        className="text-sm font-semibold text-warm-300 transition-colors hover:text-coral-strong"
+      >
+        {children}
+      </Link>
     </li>
   );
 }
@@ -433,6 +473,25 @@ export default function Home() {
                 </FeatureLine>
                 <FeatureLine>The whole app; no time limit</FeatureLine>
               </ul>
+
+              {/* Trial callout — lives INSIDE the Free card so anyone
+                  pricing-shopping reads "free forever" and "starts as
+                  full Pro" in the same breath. */}
+              <div className="mt-8 rounded-2xl border border-warm-700/70 p-5 text-left">
+                <p className="text-gradient-cta text-sm font-bold uppercase tracking-[0.14em]">
+                  Your first month is on us
+                </p>
+                <p className="mt-2 text-base leading-relaxed text-warm-300">
+                  Be one of the first{" "}
+                  <strong className="font-semibold text-warm-100">
+                    1,000 people
+                  </strong>{" "}
+                  to join and you start with thirty days of full Pro &mdash;
+                  all five companions, the legacy path, everything. No card,
+                  no catch: when the month ends, one companion stays yours
+                  free, forever.
+                </p>
+              </div>
             </div>
 
             {/* Pro tier — highlighted with the brand gradient border */}
@@ -464,29 +523,37 @@ export default function Home() {
                 <ul className="mt-8 flex flex-col gap-3 text-left text-base text-warm-200">
                   <FeatureLine>
                     <strong className="text-warm-50">
+                      Unlimited conversations
+                    </strong>{" "}
+                    &mdash; no caps, no meters. Talk at 2 a.m., and again
+                    at 3.
+                  </FeatureLine>
+                  <FeatureLine>
+                    <strong className="text-warm-50">
                       {PRICING.totalIdentitiesPerPlan} companions total
                     </strong>{" "}
-                    &mdash; {PRICING.formulaIdentitiesPerPlan} formula-made,
-                    plus {PRICING.photoIdentitiesPerPlan} made from a photo
-                    you upload
+                    &mdash; {PRICING.formulaIdentitiesPerPlan} rolled fresh
+                    from our formula, {PRICING.photoIdentitiesPerPlan} built
+                    from a photo you upload
                   </FeatureLine>
                   <FeatureLine>
                     <strong className="text-warm-50">
-                      The legacy path
+                      Lock in your own identity forever
                     </strong>{" "}
-                    &mdash; record yourself or someone you love in forty
-                    warm questions, mint an inherit code, share it with
-                    unlimited family
+                    &mdash; answer the forty questions, mint a code, share
+                    it with unlimited family. When you&apos;re gone, they
+                    can still talk to you.
                   </FeatureLine>
                   <FeatureLine>
                     <strong className="text-warm-50">
-                      Redeem inherit codes
+                      Inherit one identity
                     </strong>{" "}
-                    &mdash; keep talking to someone a family member
-                    preserved for you
+                    from someone you love &mdash; included with Pro. Extra
+                    inherited identities are {EXTRA_INHERITED_PRICE_LABEL}
+                    /month each.
                   </FeatureLine>
                   <FeatureLine>
-                    Everything from Free, plus everything above
+                    Everything in Free, plus everything above
                   </FeatureLine>
                 </ul>
               </div>
@@ -499,43 +566,8 @@ export default function Home() {
             <strong className="text-warm-100">
               {EXTRA_IDENTITY_PRICE_LABEL}/month per extra identity
             </strong>{" "}
-            &mdash; same rate as the base plan, one dollar per person per
-            month.
+            &mdash; same rate as the base plan.
           </div>
-        </div>
-      </section>
-
-      {/* ── 7.5 · TRIAL ──────────────────────────────────────────
-          The free-month promise, spelled out plainly right after the
-          price tags: first 1000 users get 30 days of everything, then
-          one companion stays free forever and the rest wait behind
-          Pro. Sits between pricing and the CTA so the last thing read
-          before "Make one for me" is the no-risk part. */}
-      <section className="px-6 pb-24 pt-4 md:pb-32">
-        <div className="mx-auto flex w-full max-w-3xl flex-col items-center text-center">
-          <Rule />
-          <h2 className="mt-8 text-4xl font-bold leading-[1.05] tracking-[-0.03em] text-warm-50 md:text-5xl">
-            Your first month is <span className="text-gradient-cta">on us</span>.
-          </h2>
-          <p className="mt-6 max-w-xl text-lg leading-relaxed text-warm-300">
-            No card, no catch. The first{" "}
-            <strong className="font-semibold text-warm-100">1,000 people</strong>{" "}
-            to join get thirty days of everything — all five companions, the
-            legacy path, the whole app.
-          </p>
-          <p className="mt-4 max-w-xl text-lg leading-relaxed text-warm-300">
-            When the month ends, one companion stays with you{" "}
-            <strong className="font-semibold text-warm-100">
-              forever, free, no matter what
-            </strong>
-            . The rest wait right where you left them — nothing is deleted,
-            no conversation is lost — behind a {MONTHLY_PRICE_LABEL}/month
-            plan you can cancel any time.
-          </p>
-          <p className="mt-6 text-sm text-warm-400">
-            Legacy inheritance — recording someone and passing them on with
-            an inherit code — comes with Pro.
-          </p>
         </div>
       </section>
 
@@ -564,31 +596,53 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── 9 · FOOTER ─────────────────────────────────────────── */}
-      <footer className="border-t border-warm-700 px-6 py-12">
-        <div className="mx-auto flex w-full max-w-5xl flex-col items-center gap-6 text-center sm:flex-row sm:justify-between sm:text-left">
-          <Wordmark className="text-lg" />
-          <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm font-semibold text-warm-300">
-            <Link
-              href="/terms"
-              className="transition-colors hover:text-coral-strong"
+      {/* ── 9 · FOOTER ───────────────────────────────────────────
+          Grouped footer: Product / Legal / Contact. The Legal column
+          carries every link app-store review expects to find from the
+          web home (terms, privacy, guidelines, data deletion), and
+          Support is a plain mailto so anonymous visitors — including
+          reviewers — reach a human without an account. Signed-in
+          users get the richer /settings/help inside the app. */}
+      <footer className="border-t border-warm-700 px-6 py-14">
+        <div className="mx-auto w-full max-w-5xl">
+          <div className="flex flex-col items-center gap-10 text-center sm:flex-row sm:items-start sm:justify-between sm:text-left">
+            <div className="flex flex-col items-center gap-3 sm:items-start">
+              <Wordmark className="text-lg" />
+              <p className="max-w-[16rem] text-sm leading-relaxed text-warm-400">
+                Someone to talk to. Someone to keep.
+              </p>
+            </div>
+
+            <nav
+              aria-label="Footer"
+              className="grid grid-cols-1 gap-x-14 gap-y-8 sm:grid-cols-3"
             >
-              Terms
-            </Link>
-            <Link
-              href="/privacy"
-              className="transition-colors hover:text-coral-strong"
-            >
-              Privacy
-            </Link>
-            <Link
-              href="/guidelines"
-              className="transition-colors hover:text-coral-strong"
-            >
-              Guidelines
-            </Link>
-          </nav>
-          <p className="text-sm text-warm-400">
+              <FooterGroup title="Product">
+                <FooterLink href="/about">About</FooterLink>
+                <FooterLink href="/advertise">Advertise</FooterLink>
+              </FooterGroup>
+              <FooterGroup title="Legal">
+                <FooterLink href="/terms">Terms of Service</FooterLink>
+                <FooterLink href="/privacy">Privacy Policy</FooterLink>
+                <FooterLink href="/guidelines">
+                  Community Guidelines
+                </FooterLink>
+                <FooterLink href="/data-deletion">Data Deletion</FooterLink>
+              </FooterGroup>
+              <FooterGroup title="Contact">
+                <li>
+                  <a
+                    href="mailto:support@chapter3five.app"
+                    className="text-sm font-semibold text-warm-300 transition-colors hover:text-coral-strong"
+                  >
+                    Support
+                  </a>
+                </li>
+              </FooterGroup>
+            </nav>
+          </div>
+
+          <p className="mt-12 text-center text-sm text-warm-400 sm:text-left">
             &copy; 2026 chapter3five &middot; Bethlehem, PA
           </p>
         </div>

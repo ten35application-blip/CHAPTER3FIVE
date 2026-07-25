@@ -6,6 +6,7 @@ import {
   isInheritCodeShaped,
   normalizeInheritCode,
 } from "@/lib/legacy/code-format";
+import { PRICING } from "@/lib/pricing";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { isPro } from "@/lib/subscription";
@@ -42,12 +43,38 @@ export async function redeemInheritCode(rawCode: string): Promise<void> {
     redirect(`/upgrade?next=${encodeURIComponent("/identity/inherit")}`);
   }
 
+  const admin = createAdminClient();
+
+  // Slot-gate BEFORE the code lookup, same reasoning as the Pro gate
+  // above: a user at their inherited-identity limit learns nothing
+  // about whether the code they typed is real. Pro includes one
+  // inherited identity; each extra slot is a paid add-on tracked on
+  // profiles.extra_inherited_slots (service-role writes only).
+  const [{ data: profileRow }, { count: shareCount }] = await Promise.all([
+    admin
+      .from("profiles")
+      .select("extra_inherited_slots")
+      .eq("id", user.id)
+      .maybeSingle<{ extra_inherited_slots: number | null }>(),
+    admin
+      .from("oracle_shares")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id),
+  ]);
+
+  const allowedSlots =
+    PRICING.includedInheritedIdentitiesPerPlan +
+    (profileRow?.extra_inherited_slots ?? 0);
+  if ((shareCount ?? 0) >= allowedSlots) {
+    redirect(
+      `/upgrade?next=${encodeURIComponent("/identity/inherit")}&reason=extra-inherited`,
+    );
+  }
+
   const code = normalizeInheritCode(rawCode ?? "");
   if (!isInheritCodeShaped(code)) {
     redirectWithError("/identity/inherit", INVALID_CODE_MESSAGE);
   }
-
-  const admin = createAdminClient();
 
   const { data: codeRow, error: lookupError } = await admin
     .from("inherit_codes")
