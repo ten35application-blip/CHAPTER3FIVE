@@ -5,7 +5,6 @@ import { getFreeIdentityId, isPro } from "@/lib/subscription";
 import { HubSheet } from "./_components/HubSheet";
 import { DashboardContent, type Identity } from "./_components/DashboardContent";
 import { PushOptIn } from "./_components/PushOptIn";
-import { StarredBubbles } from "./_components/StarredBubbles";
 import { UserMenu } from "./_components/UserMenu";
 import { signOut } from "./actions";
 
@@ -109,7 +108,6 @@ export default async function DashboardPage() {
       const hasActive = activeThreadOracleIds.has(c.id);
       return !hasAny || hasActive;
     });
-  const starred = identities.filter((i) => i.is_starred);
 
   // Archived conversations — for the archive sub-panel. The identity
   // is still in Contacts; only the thread is hidden from the inbox.
@@ -218,12 +216,13 @@ export default async function DashboardPage() {
 
   return (
     <main className="relative min-h-dvh flex-1">
-      {/* Top bar — wordmark centered, starred bubbles + user avatar on
-          the right. (Trash moved into the user menu per Wilson: opening
-          the avatar reveals "Recently deleted" above Settings.) */}
+      {/* Top bar — centered wordmark with the user-avatar menu on the
+          right. The starred-bubble strip was removed 2026-07-25 per
+          Wilson (starred rows still sort to the top of the list; the
+          top-bar strip read as noise next to the settings button). */}
       <div className="fixed inset-x-0 top-0 z-20 flex items-center justify-between gap-3 px-4 pb-3 pt-4 backdrop-blur">
-        {/* Left slot — intentionally empty; keeps the wordmark centered
-            without shifting when starred bubbles appear on the right. */}
+        {/* Left slot — intentionally empty; keeps the wordmark
+            visually centered against the user-avatar on the right. */}
         <div className="flex flex-1" />
 
         <p className="text-base font-bold tracking-tight text-warm-50">
@@ -231,7 +230,6 @@ export default async function DashboardPage() {
         </p>
 
         <div className="flex flex-1 items-center justify-end gap-3">
-          <StarredBubbles items={starred} />
           <UserMenu
             email={email}
             isAdmin={admin}

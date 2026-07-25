@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { ProfileAvatarImage } from "@/components/profile-avatar-image";
 import { createClient } from "@/lib/supabase/server";
 import {
   EXTRA_IDENTITY_PRICE_LABEL,
@@ -103,18 +104,15 @@ export default async function SettingsPage() {
             href="/settings/profile"
             className="flex items-center gap-4 px-4 py-3 first:rounded-t-2xl last:rounded-b-2xl hover:bg-warm-700/20"
           >
-            {avatarSignedUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={avatarSignedUrl}
-                alt=""
-                className="h-12 w-12 rounded-full object-cover ring-1 ring-coral/20"
-              />
-            ) : (
-              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-amber text-lg font-semibold text-white">
-                {initial}
-              </span>
-            )}
+            <ProfileAvatarImage
+              signedUrl={avatarSignedUrl}
+              className="h-12 w-12 rounded-full object-cover ring-1 ring-coral/20"
+              fallback={
+                <span className="flex h-12 w-12 items-center justify-center rounded-full bg-amber text-lg font-semibold text-white">
+                  {initial}
+                </span>
+              }
+            />
             <span className="flex min-w-0 flex-1 flex-col">
               <span className="truncate text-base font-medium text-warm-50">
                 {email}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import { ProfileAvatarImage } from "@/components/profile-avatar-image";
 import { removeProfilePhoto, uploadProfilePhoto } from "./actions";
 
 type Props = {
@@ -48,21 +49,19 @@ export function PhotoWidget({ email, photoUrl }: Props) {
 
   return (
     <div className="flex flex-col items-center gap-4 px-4 py-6">
-      {photoUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={photoUrl}
-          alt="Your profile photo"
-          className="h-28 w-28 rounded-full object-cover shadow-[0_10px_28px_-6px_rgba(232,138,118,0.35)] ring-2 ring-coral/25"
-        />
-      ) : (
-        <span
-          aria-hidden
-          className="flex h-28 w-28 items-center justify-center rounded-full bg-amber text-4xl font-semibold text-white shadow-[0_10px_28px_-6px_rgba(232,138,118,0.3)]"
-        >
-          {initial}
-        </span>
-      )}
+      <ProfileAvatarImage
+        signedUrl={photoUrl}
+        alt="Your profile photo"
+        className="h-28 w-28 rounded-full object-cover shadow-[0_10px_28px_-6px_rgba(232,138,118,0.35)] ring-2 ring-coral/25"
+        fallback={
+          <span
+            aria-hidden
+            className="flex h-28 w-28 items-center justify-center rounded-full bg-amber text-4xl font-semibold text-white shadow-[0_10px_28px_-6px_rgba(232,138,118,0.3)]"
+          >
+            {initial}
+          </span>
+        }
+      />
 
       <div className="flex items-center gap-3">
         <button

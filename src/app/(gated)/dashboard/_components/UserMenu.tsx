@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { ProfileAvatarImage } from "@/components/profile-avatar-image";
 
 type Props = {
   email: string;
@@ -46,32 +47,24 @@ export function UserMenu({ email, isAdmin, signOutAction, avatarUrl }: Props) {
 
   return (
     <div ref={rootRef} className="relative">
-      {/* Avatar button — user's uploaded photo when set, otherwise
-          the brand gradient with their email initial. Ring for weight
-          against the peach page. Bigger than the old Edit pill because
-          it's now the primary chrome anchor. */}
+      {/* Avatar button — user's uploaded photo when set, otherwise the
+          brand gradient with their email initial. The button always
+          carries the gradient + initial as the baseline so a load
+          failure inside ProfileAvatarImage gracefully falls back to the
+          initial instead of showing the browser's broken-image glyph. */}
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="Your account"
-        className={
-          avatarUrl
-            ? "flex h-11 w-11 items-center justify-center overflow-hidden rounded-full ring-2 ring-white/50 shadow-[0_6px_18px_-4px_rgba(232,138,118,0.4),_0_2px_8px_-2px_rgba(126,196,196,0.3)] transition-transform hover:-translate-y-px active:scale-95"
-            : "bg-gradient-cta flex h-11 w-11 items-center justify-center rounded-full text-base font-bold text-white shadow-[0_6px_18px_-4px_rgba(232,138,118,0.4),_0_2px_8px_-2px_rgba(126,196,196,0.3)] ring-2 ring-white/50 transition-transform hover:-translate-y-px active:scale-95"
-        }
+        className="bg-gradient-cta flex h-11 w-11 items-center justify-center overflow-hidden rounded-full text-base font-bold text-white shadow-[0_6px_18px_-4px_rgba(232,138,118,0.4),_0_2px_8px_-2px_rgba(126,196,196,0.3)] ring-2 ring-white/50 transition-transform hover:-translate-y-px active:scale-95"
       >
-        {avatarUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={avatarUrl}
-            alt=""
-            className="h-full w-full object-cover"
-          />
-        ) : (
-          initial
-        )}
+        <ProfileAvatarImage
+          signedUrl={avatarUrl}
+          className="h-full w-full object-cover"
+          fallback={<span>{initial}</span>}
+        />
       </button>
 
       {open ? (
@@ -84,18 +77,15 @@ export function UserMenu({ email, isAdmin, signOutAction, avatarUrl }: Props) {
             onClick={() => setOpen(false)}
             className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-coral/5"
           >
-            {avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={avatarUrl}
-                alt=""
-                className="h-10 w-10 rounded-full object-cover shadow-[0_4px_12px_-2px_rgba(232,138,118,0.3)]"
-              />
-            ) : (
-              <span className="bg-gradient-cta flex h-10 w-10 items-center justify-center rounded-full text-base font-bold text-white shadow-[0_4px_12px_-2px_rgba(232,138,118,0.3)]">
-                {initial}
-              </span>
-            )}
+            <ProfileAvatarImage
+              signedUrl={avatarUrl}
+              className="h-10 w-10 rounded-full object-cover shadow-[0_4px_12px_-2px_rgba(232,138,118,0.3)]"
+              fallback={
+                <span className="bg-gradient-cta flex h-10 w-10 items-center justify-center rounded-full text-base font-bold text-white shadow-[0_4px_12px_-2px_rgba(232,138,118,0.3)]">
+                  {initial}
+                </span>
+              }
+            />
             <span className="flex min-w-0 flex-col">
               <span className="truncate text-sm font-semibold text-warm-50">
                 {email}

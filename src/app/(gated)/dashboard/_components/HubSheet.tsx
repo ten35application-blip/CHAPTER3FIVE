@@ -103,27 +103,36 @@ export function HubSheet({
 
   const totalDeleted = deletedIdentities.length + deletedConversations.length;
 
+  // FAB is hidden whenever a sub-panel is showing: the bottom sheet
+  // pushes buttons (Unarchive, Recover, etc.) close to the bottom edge,
+  // and a z-50 FAB was overlapping them. Popover-menu state keeps the
+  // FAB visible so a second tap can toggle it closed; sub-panels use
+  // their own Back button + backdrop tap to dismiss.
+  const fabHidden = open && panel !== "menu";
+
   return (
     <>
-      <button
-        type="button"
-        onClick={() => {
-          // Toggle: tap to open, tap again to close. On close, defer the
-          // panel reset so the exit animation doesn't visibly flicker back
-          // to the menu — same pattern closeAll() uses.
-          if (open) {
-            setOpen(false);
-            setTimeout(() => setPanel("menu"), 200);
-          } else {
-            setOpen(true);
-          }
-        }}
-        aria-label={open ? "Close hub" : "Open hub"}
-        aria-expanded={open}
-        className="fixed bottom-6 right-6 z-50 flex h-16 w-16 items-center justify-center rounded-full bg-ink-soft shadow-[0_20px_48px_-10px_rgba(232,138,118,0.5),_0_10px_28px_-6px_rgba(126,196,196,0.45)] ring-2 ring-warm-700/50 transition-all hover:-translate-y-0.5 active:scale-95"
-      >
-        <InfinityIcon />
-      </button>
+      {!fabHidden ? (
+        <button
+          type="button"
+          onClick={() => {
+            // Toggle: tap to open, tap again to close. On close, defer the
+            // panel reset so the exit animation doesn't visibly flicker back
+            // to the menu — same pattern closeAll() uses.
+            if (open) {
+              setOpen(false);
+              setTimeout(() => setPanel("menu"), 200);
+            } else {
+              setOpen(true);
+            }
+          }}
+          aria-label={open ? "Close hub" : "Open hub"}
+          aria-expanded={open}
+          className="fixed bottom-6 right-6 z-50 flex h-16 w-16 items-center justify-center rounded-full bg-ink-soft shadow-[0_20px_48px_-10px_rgba(232,138,118,0.5),_0_10px_28px_-6px_rgba(126,196,196,0.45)] ring-2 ring-warm-700/50 transition-all hover:-translate-y-0.5 active:scale-95"
+        >
+          <InfinityIcon />
+        </button>
+      ) : null}
 
       {open && panel === "menu" ? (
         /* Compact popover — anchored above the FAB, scales in from
