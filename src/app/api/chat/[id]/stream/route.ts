@@ -103,6 +103,12 @@ export async function POST(
     .order("created_at", { ascending: false })
     .limit(HISTORY_LIMIT);
   const history = (historyRows ?? []).reverse();
+  // The Anthropic API requires messages[0].role === "user" (assistant-first
+  // is a 400). Once a thread grows past HISTORY_LIMIT, the window can open
+  // on an assistant turn — drop leading assistant rows so sends keep working.
+  while (history.length > 0 && history[0].role !== "user") {
+    history.shift();
+  }
 
   // A retry only makes sense when the thread ends on an unanswered
   // user message — otherwise there's nothing to regenerate.
