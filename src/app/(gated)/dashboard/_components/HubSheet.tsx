@@ -710,8 +710,8 @@ function DeletedPanel({
             </ul>
           ) : (
             <p className="px-6 pb-4 pt-2 text-sm text-warm-400">
-              No deleted conversations. Deleted messages land here — free
-              to recover.
+              No deleted messages yet. Delete a conversation from your
+              dashboard and it lands here — free to recover.
             </p>
           )}
         </CollapsibleSection>
@@ -729,7 +729,8 @@ function DeletedPanel({
           ) : (
             <p className="px-6 pb-4 pt-2 text-sm text-warm-400">
               No deleted identities. When you delete an identity from
-              Contacts it lands here — bringing them back costs $5.
+              Contacts it lands here — bringing them back costs{" "}
+              {RESTORE_IDENTITY_PRICE_LABEL}.
             </p>
           )}
         </CollapsibleSection>
