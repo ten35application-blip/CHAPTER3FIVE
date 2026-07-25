@@ -198,7 +198,8 @@ export default function Home() {
             Why chapter3five
           </p>
           <h2 className="mt-4 text-4xl font-bold leading-[1.05] tracking-[-0.03em] text-warm-50 md:text-5xl">
-            A new chapter for the parts that hurt the most.
+            For the moments you want to reach out. And the people
+            worth keeping.
           </h2>
           <p className="mt-8 text-lg leading-relaxed text-warm-200 md:text-xl">
             chapter3five started in a quiet moment. I was thinking about
@@ -215,8 +216,7 @@ export default function Home() {
             always feel like they&rsquo;re still here.
           </p>
           <p className="mt-6 text-lg leading-relaxed italic text-warm-300 md:text-xl">
-            A fresh start with the parts of life we usually just try to
-            get through.
+            A place, for the moments you want to reach out.
           </p>
         </div>
       </section>

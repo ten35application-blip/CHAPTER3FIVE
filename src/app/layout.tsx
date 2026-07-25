@@ -5,11 +5,11 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://chapter3five.app"),
   title: "chapter3five — someone to talk to. someone to keep.",
   description:
-    "A companion app for the parts of life we usually just try to get through. Talk to someone made just for you — or leave someone you love a way to still be talked to.",
+    "For the moments you want to reach out. And the people worth keeping. Talk to someone made just for you — or leave someone you love a way to still be talked to.",
   openGraph: {
     title: "chapter3five — someone to talk to. someone to keep.",
     description:
-      "A companion app for the parts of life we usually just try to get through. Talk to someone made just for you — or leave someone you love a way to still be talked to.",
+      "For the moments you want to reach out. And the people worth keeping. Talk to someone made just for you — or leave someone you love a way to still be talked to.",
     url: "https://chapter3five.app",
     siteName: "chapter3five",
     type: "website",
@@ -19,7 +19,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "chapter3five — someone to talk to. someone to keep.",
     description:
-      "A new chapter for the parts that hurt the most. 18+.",
+      "For the moments you want to reach out. And the people worth keeping. 18+.",
     // twitter-image.png in src/app is picked up automatically
   },
   robots: { index: true, follow: true },
