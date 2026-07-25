@@ -31,7 +31,7 @@ export default async function ChatPage({
 
   const { data: oracle } = await supabase
     .from("oracles")
-    .select("id, name, avatar_url")
+    .select("id, name, avatar_url, blocked_at, block_reason")
     .eq("id", id)
     .is("deleted_at", null)
     .maybeSingle();
@@ -42,11 +42,32 @@ export default async function ChatPage({
   // Last 100 messages of this user's thread, oldest first for render.
   const { data: rows } = await supabase
     .from("messages")
-    .select("id, role, content, created_at, read_by_oracle_at")
+    .select(
+      "id, role, content, created_at, read_by_oracle_at, image_storage_path",
+    )
     .eq("oracle_id", oracle.id)
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
     .limit(100);
+
+  // The `chat-uploads` bucket is private and the persisted image_url is
+  // a 15-minute signed URL minted at send time — long expired for
+  // anything but the freshest rows. Re-sign every stored path here
+  // (1h TTL, plenty for one page view) so history images always render.
+  const imagePaths = (rows ?? [])
+    .map((m) => m.image_storage_path)
+    .filter((p): p is string => !!p);
+  const signedByPath = new Map<string, string>();
+  if (imagePaths.length > 0) {
+    const { data: signed } = await supabase.storage
+      .from("chat-uploads")
+      .createSignedUrls(imagePaths, 60 * 60);
+    for (const entry of signed ?? []) {
+      if (entry.path && entry.signedUrl) {
+        signedByPath.set(entry.path, entry.signedUrl);
+      }
+    }
+  }
 
   const initialMessages: ChatMessage[] = (rows ?? [])
     .reverse()
@@ -57,6 +78,9 @@ export default async function ChatPage({
       createdAt: m.created_at,
       readByOracleAt: m.read_by_oracle_at,
       pending: false,
+      imageUrl: m.image_storage_path
+        ? (signedByPath.get(m.image_storage_path) ?? null)
+        : null,
     }));
 
   // Marking the persona's messages as read happens client-side on
@@ -68,6 +92,8 @@ export default async function ChatPage({
       name={oracle.name}
       avatarUrl={oracle.avatar_url}
       initialMessages={initialMessages}
+      initialBlocked={!!oracle.blocked_at}
+      blockReason={oracle.block_reason ?? null}
     />
   );
 }
