@@ -44,7 +44,9 @@ export async function POST(
     .eq("oracle_id", oracleId)
     .eq("user_id", user.id)
     .eq("role", "assistant")
-    .is("read_at", null);
+    .is("read_at", null)
+    // Soft-deleted messages don't render; don't touch their receipts.
+    .is("deleted_at", null);
 
   return new NextResponse(null, { status: 204 });
 }

@@ -49,6 +49,9 @@ export default async function ChatPage({
   }
 
   // Last 100 messages of this user's thread, oldest first for render.
+  // Soft-deleted messages (conversation delete via the dashboard hub)
+  // stay in the DB for recovery but never re-hydrate here — otherwise
+  // recovering later would double-up rows.
   const { data: rows } = await supabase
     .from("messages")
     .select(
@@ -56,6 +59,7 @@ export default async function ChatPage({
     )
     .eq("oracle_id", oracle.id)
     .eq("user_id", user.id)
+    .is("deleted_at", null)
     .order("created_at", { ascending: false })
     .limit(100);
 

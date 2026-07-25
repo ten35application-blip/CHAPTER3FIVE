@@ -161,12 +161,15 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // First-message-aversary.
+    // First-message-aversary. Excludes soft-deleted so a fully-deleted
+    // thread doesn't trigger an "it's been a year" ping about a
+    // conversation the user asked to forget.
     const { data: firstMsg } = await admin
       .from("messages")
       .select("created_at")
       .eq("oracle_id", p.active_oracle_id)
       .eq("user_id", p.id)
+      .is("deleted_at", null)
       .order("created_at", { ascending: true })
       .limit(1)
       .maybeSingle();

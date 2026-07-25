@@ -24,11 +24,21 @@ type Props = {
   children: ReactNode;
   /** Swipe LEFT reveals a panel on the RIGHT side. */
   leftAction?: SwipeAction;
+  /**
+   * Secondary action revealed alongside the primary leftAction. Never
+   * fires from a full-swipe commit — only from an explicit tap on its
+   * button inside the reveal panel. Used to offer a second choice
+   * (e.g. Delete alongside Archive) without letting a fast swipe
+   * trigger the more destructive option.
+   */
+  leftSecondaryAction?: SwipeAction;
   /** Swipe RIGHT reveals a panel on the LEFT side. */
   rightAction?: SwipeAction;
   /** Called before commit; if false, the action is aborted (e.g. confirm). */
   confirmLeft?: () => boolean;
   confirmRight?: () => boolean;
+  /** Optional confirm gate for the secondary left action's button tap. */
+  confirmLeftSecondary?: () => boolean;
 };
 
 // Row commits at 40% of its own width. Below that, snap back.
@@ -53,9 +63,11 @@ const COMMIT_FRACTION = 0.4;
 export function SwipeRow({
   children,
   leftAction,
+  leftSecondaryAction,
   rightAction,
   confirmLeft,
   confirmRight,
+  confirmLeftSecondary,
 }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [dx, setDx] = useState(0);
@@ -157,25 +169,67 @@ export function SwipeRow({
     });
   }
 
+  async function commitLeftSecondary() {
+    if (!leftSecondaryAction) return;
+    if (confirmLeftSecondary && !confirmLeftSecondary()) {
+      setDx(0);
+      return;
+    }
+    setErrorMsg(null);
+    setCommitted("left");
+    setDx(-9999);
+    startTransition(async () => {
+      const res = await leftSecondaryAction.onCommit();
+      if (!res.ok) {
+        setErrorMsg(res.error ?? "Something went wrong.");
+        setCommitted(null);
+        setDx(0);
+        return;
+      }
+      if (leftSecondaryAction.restoreOnSuccess) {
+        setCommitted(null);
+        setDx(0);
+      }
+    });
+  }
+
   const showLeftReveal = dx < 0 && leftAction;
   const showRightReveal = dx > 0 && rightAction;
 
   return (
     <div className="relative overflow-hidden">
-      {/* Reveal panels — sit behind the row. */}
+      {/* Reveal panels — sit behind the row. Secondary is rendered
+          UNDER the primary so as the swipe deepens both remain visible
+          side-by-side without either popping in mid-drag. */}
       {leftAction ? (
         <div
-          className={`absolute inset-y-0 right-0 flex items-center justify-end pr-6 ${leftAction.bgClassName}`}
+          className="absolute inset-y-0 right-0 flex items-stretch justify-end overflow-hidden"
           style={{ width: `${Math.max(0, -dx)}px` }}
           aria-hidden={!showLeftReveal}
         >
+          {leftSecondaryAction ? (
+            <button
+              type="button"
+              onClick={commitLeftSecondary}
+              className={`flex items-center justify-center px-4 text-white font-semibold ${leftSecondaryAction.bgClassName}`}
+            >
+              <span className="flex items-center gap-2">
+                <span className="opacity-90">{leftSecondaryAction.icon}</span>
+                <span className="hidden sm:inline">
+                  {leftSecondaryAction.label}
+                </span>
+              </span>
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={() => commit("left")}
-            className="flex items-center gap-2 text-white font-semibold"
+            className={`flex items-center justify-center px-6 text-white font-semibold ${leftAction.bgClassName}`}
           >
-            <span className="opacity-90">{leftAction.icon}</span>
-            <span className="hidden sm:inline">{leftAction.label}</span>
+            <span className="flex items-center gap-2">
+              <span className="opacity-90">{leftAction.icon}</span>
+              <span className="hidden sm:inline">{leftAction.label}</span>
+            </span>
           </button>
         </div>
       ) : null}

@@ -30,6 +30,7 @@ export async function GET(request: NextRequest) {
     .select("id", { count: "exact", head: true })
     .eq("oracle_id", profile.active_oracle_id)
     .eq("role", "assistant")
+    .is("deleted_at", null)
     .gt("created_at", since);
 
   return NextResponse.json({ count: count ?? 0 });

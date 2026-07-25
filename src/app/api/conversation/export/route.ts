@@ -71,11 +71,16 @@ export async function GET(request: NextRequest) {
   // beneficiary. RLS-respecting via the user client. Filter to this
   // user's user_id explicitly so a beneficiary doesn't get the
   // owner's full message history.
+  // Soft-deleted rows aren't part of the "current" conversation the
+  // user is looking at — exclude them from the exported transcript.
+  // (Full-user data export from /api/user/export still returns
+  // everything the user has, including soft-deleted history.)
   const { data: messages } = await supabase
     .from("messages")
     .select("role, content, image_url, created_at, initiated_by_oracle")
     .eq("oracle_id", oracleId)
     .eq("user_id", user.id)
+    .is("deleted_at", null)
     .order("created_at", { ascending: true });
 
   const oracleName = oracle.name ?? "your identity";

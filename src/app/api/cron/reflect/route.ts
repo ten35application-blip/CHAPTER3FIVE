@@ -60,12 +60,15 @@ export async function GET(request: NextRequest) {
   for (const profile of candidates ?? []) {
     if (!profile.active_oracle_id) continue;
     try {
-      // Pull the last week of messages for this (user, oracle).
+      // Pull the last week of messages for this (user, oracle). Skip
+      // soft-deleted rows so the reflection doesn't learn from what the
+      // user asked to forget.
       const { data: rows } = await admin
         .from("messages")
         .select("role, content, created_at")
         .eq("oracle_id", profile.active_oracle_id)
         .eq("user_id", profile.id)
+        .is("deleted_at", null)
         .gte("created_at", sevenAgo)
         .order("created_at", { ascending: true })
         .limit(200);

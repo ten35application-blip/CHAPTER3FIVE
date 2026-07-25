@@ -133,6 +133,7 @@ export async function isAtPhotoCap(args: {
       .eq("user_id", args.userId)
       .eq("role", "assistant")
       .not("image_url", "is", null)
+      .is("deleted_at", null)
       .gte("created_at", since);
     return (count ?? 0) >= 2;
   } catch (err) {

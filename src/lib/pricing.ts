@@ -23,6 +23,12 @@ export const PRICING = {
    *  $5/month per extra as a self-created extra identity. */
   includedInheritedIdentitiesPerPlan: 1,
   extraInheritedIdentityCents: 500,
+  /** One-time paywall to restore an identity from the recently-deleted
+   *  bin. Free archive vs paid restore is the intentional wedge —
+   *  changing your mind after a delete has a cost, changing your mind
+   *  after an archive doesn't. Stored on each oracle at creation time
+   *  so a user pays what they saw. */
+  restoreIdentityCents: 500,
   currency: "USD",
 } as const;
 
@@ -35,3 +41,6 @@ export const EXTRA_IDENTITY_PRICE_LABEL = `$${PRICING.extraIdentityCents / 100}`
 
 /** "$5" — extra inherited identity beyond the one included. */
 export const EXTRA_INHERITED_PRICE_LABEL = `$${PRICING.extraInheritedIdentityCents / 100}`;
+
+/** "$5" — one-time paywall on restoring a deleted identity. */
+export const RESTORE_IDENTITY_PRICE_LABEL = `$${PRICING.restoreIdentityCents / 100}`;

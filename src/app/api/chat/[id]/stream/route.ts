@@ -146,11 +146,14 @@ export async function POST(
   }
 
   // Recent history (this user's thread with this persona), oldest first.
+  // Soft-deleted rows (conversation-delete via hub) are excluded so
+  // Claude never gets recycled deleted context.
   const { data: historyRows } = await supabase
     .from("messages")
     .select("role, content, created_at")
     .eq("oracle_id", oracleId)
     .eq("user_id", user.id)
+    .is("deleted_at", null)
     .order("created_at", { ascending: false })
     .limit(HISTORY_LIMIT);
   const history = (historyRows ?? []).reverse();
@@ -284,7 +287,8 @@ export async function POST(
     .eq("oracle_id", oracleId)
     .eq("user_id", user.id)
     .eq("role", "user")
-    .is("read_by_oracle_at", null);
+    .is("read_by_oracle_at", null)
+    .is("deleted_at", null);
 
   // What this persona remembers about this user (formula v4). Changes
   // whenever the extractor lands a new fact, so it must live AFTER the

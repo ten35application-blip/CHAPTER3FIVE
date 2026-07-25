@@ -4,8 +4,9 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { SwipeRow } from "./SwipeRow";
 import {
+  archiveIdentity,
+  deleteConversation,
   markUnread,
-  softDeleteIdentity,
   toggleStar,
 } from "../actions";
 
@@ -181,7 +182,37 @@ function ConversationList({
             <div className="mx-4 h-px bg-gradient-to-r from-transparent via-coral/20 to-transparent" />
           ) : null}
           <SwipeRow
+            // Primary swipe-left commit = Archive (free, reversible,
+            // safer default now that Delete costs $5 to reverse).
             leftAction={{
+              icon: (
+                <svg
+                  viewBox="0 0 24 24"
+                  width="18"
+                  height="18"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <path d="M21 8v13H3V8" />
+                  <path d="M1 3h22v5H1z" />
+                  <path d="M10 12h4" />
+                </svg>
+              ),
+              label: "Archive",
+              bgClassName: "bg-gradient-to-r from-teal-strong to-teal-strong/90",
+              onCommit: () => archiveIdentity(p.id),
+            }}
+            // Secondary = Delete conversation (Trail A). Requires an
+            // explicit tap on the panel button. Free to invoke, free to
+            // recover — the identity stays in Contacts either way. The
+            // paid $5 "Delete identity" trail lives on the Contacts
+            // panel, NOT here, so a fast dashboard swipe never invokes
+            // the paywall path.
+            leftSecondaryAction={{
               icon: (
                 <svg
                   viewBox="0 0 24 24"
@@ -200,11 +231,9 @@ function ConversationList({
                 </svg>
               ),
               label: "Delete",
-              // Coral gradient reveal for delete — matches the brand
-              // while still reading as "warning" via the darker tone.
               bgClassName:
                 "bg-gradient-to-r from-coral-strong/90 to-coral-strong",
-              onCommit: () => softDeleteIdentity(p.id),
+              onCommit: () => deleteConversation(p.id),
             }}
             rightAction={{
               icon: (
