@@ -55,13 +55,13 @@ export default async function IdentityCreatePage() {
             href="/identity/new"
             title="For me right now"
             subhead="We'll create a whole person made just for you, in about a minute."
-            glyph="✦"
+            icon={<SparkIcon />}
           />
           <PathCard
             href="/identity/legacy/new"
             title="For someone to keep"
             subhead="Answer ~40 questions about yourself or a loved one. When you're done, you'll get a code you can share."
-            glyph="❦"
+            icon={<HeartTagIcon />}
           />
         </div>
 
@@ -80,12 +80,12 @@ function PathCard({
   href,
   title,
   subhead,
-  glyph,
+  icon,
 }: {
   href: string;
   title: string;
   subhead: string;
-  glyph: string;
+  icon: React.ReactNode;
 }) {
   return (
     <Link
@@ -94,9 +94,9 @@ function PathCard({
     >
       <span
         aria-hidden
-        className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-coral/12 text-xl leading-none"
+        className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-coral/12"
       >
-        <span className="text-gradient-cta">{glyph}</span>
+        <span className="text-gradient-cta">{icon}</span>
       </span>
       <span className="flex min-w-0 flex-col">
         <span className="text-lg font-semibold text-warm-50">{title}</span>
@@ -108,8 +108,52 @@ function PathCard({
         aria-hidden
         className="ml-auto mt-1 text-warm-400 transition-transform group-hover:translate-x-0.5"
       >
-        →
+        <svg
+          viewBox="0 0 20 20"
+          width="16"
+          height="16"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          <path d="M4 10h12M11 5l5 5-5 5" />
+        </svg>
       </span>
     </Link>
+  );
+}
+
+function SparkIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="20"
+      height="20"
+      fill="currentColor"
+      aria-hidden
+    >
+      <path d="M12 2l2.09 6.26L20 10l-5.91 1.74L12 18l-2.09-6.26L4 10l5.91-1.74L12 2z" />
+    </svg>
+  );
+}
+
+function HeartTagIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="20"
+      height="20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+    </svg>
   );
 }

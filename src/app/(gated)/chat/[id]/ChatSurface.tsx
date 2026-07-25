@@ -110,7 +110,17 @@ export default function ChatSurface({
   const [streamText, setStreamText] = useState("");
   const [rateLimited, setRateLimited] = useState(false);
   const [streamFailed, setStreamFailed] = useState(false);
+  const [avatarZoomOpen, setAvatarZoomOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!avatarZoomOpen) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setAvatarZoomOpen(false);
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [avatarZoomOpen]);
 
   const markRead = useCallback(() => {
     fetch(`/api/chat/${oracleId}/messages/read`, { method: "POST" }).catch(
@@ -318,12 +328,19 @@ export default function ChatSurface({
         </Link>
         <div className="flex flex-col items-center gap-0.5">
           {avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={avatarUrl}
-              alt={name}
-              className="h-10 w-10 rounded-xl object-cover"
-            />
+            <button
+              type="button"
+              onClick={() => setAvatarZoomOpen(true)}
+              aria-label={`View a larger photo of ${name}`}
+              className="h-10 w-10 overflow-hidden rounded-xl transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-coral/60"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={avatarUrl}
+                alt={name}
+                className="h-full w-full object-cover"
+              />
+            </button>
           ) : (
             <div className="h-10 w-10 rounded-xl bg-gradient-cta" />
           )}
@@ -337,20 +354,11 @@ export default function ChatSurface({
       {/* Messages */}
       <main className="flex-1 overflow-y-auto px-3 py-4">
         {messages.length === 0 && !isStreaming ? (
-          <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
-            <div className="hero-orb hero-orb-drift">
-              {avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={avatarUrl}
-                  alt={name}
-                  className="h-24 w-24 rounded-2xl object-cover"
-                />
-              ) : (
-                <div className="h-24 w-24 rounded-2xl bg-gradient-cta" />
-              )}
-            </div>
-            <p className="text-sm text-warm-300">Say something to {name}.</p>
+          // Empty state — avatar already lives in the top bar, so the
+          // middle stays deliberately empty to avoid the duplicate face.
+          // Just a soft prompt line, low in the pane.
+          <div className="flex h-full items-end justify-center pb-8">
+            <p className="text-sm text-warm-400">Say something to {name}.</p>
           </div>
         ) : (
           <div className="mx-auto flex w-full max-w-2xl flex-col gap-1.5">
@@ -461,6 +469,22 @@ export default function ChatSurface({
           />
         </div>
       </footer>
+
+      {avatarZoomOpen && avatarUrl && (
+        <button
+          type="button"
+          onClick={() => setAvatarZoomOpen(false)}
+          aria-label="Close photo"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={avatarUrl}
+            alt={name}
+            className="max-h-[85dvh] max-w-full rounded-2xl object-contain shadow-2xl"
+          />
+        </button>
+      )}
     </div>
   );
 }
