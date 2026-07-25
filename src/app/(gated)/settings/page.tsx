@@ -122,12 +122,18 @@ export default async function SettingsPage() {
           <NavRow href="/settings/password" label="Password" value="Change" />
         </Section>
 
-        {/* HOW THIS WORKS — the tutorial + product explanations. */}
+        {/* HOW THIS WORKS — the tutorial + get-help hub. */}
         <Section label="How this works">
           <NavRow
             href="/settings/tutorial"
             label="Tutorial"
             value="How to use chapter3five"
+          />
+          <Divider />
+          <NavRow
+            href="/settings/help"
+            label="Get help"
+            value="Contact us"
           />
         </Section>
 

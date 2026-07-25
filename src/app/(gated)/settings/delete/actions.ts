@@ -89,7 +89,7 @@ async function sendGoodbyeEmail(to: string): Promise<void> {
 <tr><td align="center" style="padding-bottom:28px;"><p style="margin:0;font-size:18px;font-weight:700;letter-spacing:-0.02em;color:#1c1c1a;">chapter<span style="color:#e88a76;">3</span>five</p></td></tr>
 <tr><td style="font-size:20px;font-weight:700;color:#1c1c1a;padding-bottom:12px;">Your account is closed.</td></tr>
 <tr><td style="font-size:16px;line-height:1.55;color:#4a4a48;padding-bottom:20px;">Every identity you made, every conversation, every photo — it&rsquo;s all been ended. There&rsquo;s no refund, and the account can&rsquo;t be brought back.</td></tr>
-<tr><td style="font-size:15px;line-height:1.55;color:#4a4a48;padding-bottom:20px;">If this was an accident and you&rsquo;re reading this within a few hours, write to us at <a href="mailto:hello@chapter3five.app" style="color:#d97359;font-weight:600;text-decoration:none;">hello@chapter3five.app</a> quickly and we&rsquo;ll do what we can.</td></tr>
+<tr><td style="font-size:15px;line-height:1.55;color:#4a4a48;padding-bottom:20px;">If this was an accident and you&rsquo;re reading this within a few hours, write to us at <a href="mailto:support@chapter3five.app" style="color:#d97359;font-weight:600;text-decoration:none;">support@chapter3five.app</a> quickly and we&rsquo;ll do what we can.</td></tr>
 <tr><td style="font-size:15px;line-height:1.55;color:#4a4a48;padding-bottom:20px;">Otherwise &mdash; thanks for the time you spent here. We meant it.</td></tr>
 <tr><td style="font-size:13px;line-height:1.5;color:#8e8e8c;border-top:1px solid #e8e6e1;padding-top:20px;">chapter3five &middot; Bethlehem, PA</td></tr>
 </table>

@@ -20,12 +20,12 @@ export default function AccountDeletedPage() {
           contact you again unless you come back and start over.
         </p>
         <p className="mt-3 text-sm text-warm-400">
-          If you deleted by accident, contact{" "}
+          If you deleted by accident, write to{" "}
           <a
-            href="mailto:hello@chapter3five.app"
+            href="mailto:support@chapter3five.app"
             className="font-semibold underline underline-offset-4 hover:text-coral-strong"
           >
-            hello@chapter3five.app
+            support@chapter3five.app
           </a>{" "}
           quickly and we&rsquo;ll do what we can.
         </p>
