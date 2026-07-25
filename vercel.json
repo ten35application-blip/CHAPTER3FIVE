@@ -36,7 +36,7 @@
     },
     {
       "path": "/api/cron/persona-outreach",
-      "schedule": "0 * * * *"
+      "schedule": "0 19 * * *"
     }
   ]
 }
