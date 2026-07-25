@@ -705,24 +705,30 @@ function DeletedPanel({
       ) : (
         <div className="min-h-0 flex-1 overflow-y-auto pb-4">
           {conversations.length > 0 ? (
-            <>
-              <SectionHeader label="Deleted conversations" />
+            <CollapsibleSection
+              storageKey="hub.deleted.messages"
+              label="Recently deleted messages"
+              count={conversations.length}
+            >
               <ul className="px-2">
                 {conversations.map((c) => (
                   <DeletedConversationRow key={c.oracle_id} item={c} />
                 ))}
               </ul>
-            </>
+            </CollapsibleSection>
           ) : null}
           {identities.length > 0 ? (
-            <>
-              <SectionHeader label="Deleted identities" />
+            <CollapsibleSection
+              storageKey="hub.deleted.identities"
+              label="Recently deleted identities"
+              count={identities.length}
+            >
               <ul className="px-2">
                 {identities.map((i) => (
                   <DeletedIdentityRow key={i.id} item={i} />
                 ))}
               </ul>
-            </>
+            </CollapsibleSection>
           ) : null}
         </div>
       )}
@@ -730,11 +736,89 @@ function DeletedPanel({
   );
 }
 
-function SectionHeader({ label }: { label: string }) {
+/**
+ * Collapsible group inside the Recently-Deleted panel. Header row is a
+ * button (chevron + label + count) that toggles the body. Both
+ * sections default OPEN so first-time users see everything without
+ * hunting; the state is memoized to sessionStorage per section so a
+ * within-session preference (e.g. collapsing the paid-identity list
+ * to focus on free conversation recovery) survives navigation to
+ * other tabs and back.
+ */
+function CollapsibleSection({
+  storageKey,
+  label,
+  count,
+  children,
+}: {
+  storageKey: string;
+  label: string;
+  count: number;
+  children: React.ReactNode;
+}) {
+  // Lazy init from sessionStorage — safe here because the deleted
+  // panel only mounts client-side (via the hub sheet's user
+  // interaction), so there's no SSR-vs-client hydration mismatch to
+  // worry about. Defaults to OPEN when nothing is stored so first-run
+  // users see everything.
+  const [open, setOpen] = useState<boolean>(() => {
+    try {
+      const raw = window.sessionStorage.getItem(storageKey);
+      if (raw === "0") return false;
+    } catch {
+      // sessionStorage unavailable (private tab, quota) — fall through.
+    }
+    return true;
+  });
+  useEffect(() => {
+    try {
+      window.sessionStorage.setItem(storageKey, open ? "1" : "0");
+    } catch {
+      // ignore
+    }
+  }, [storageKey, open]);
+
   return (
-    <div className="sticky top-0 z-[1] bg-ink-soft/95 px-6 py-1.5 text-[11px] font-bold uppercase tracking-widest text-warm-400 backdrop-blur">
-      {label}
-    </div>
+    <section>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="sticky top-0 z-[1] flex w-full items-center gap-2 bg-ink-soft/95 px-4 py-2 text-left backdrop-blur transition-colors hover:bg-warm-800/20"
+      >
+        <SectionChevron open={open} />
+        <span className="text-[11px] font-bold uppercase tracking-widest text-warm-400">
+          {label}
+        </span>
+        <span className="ml-1 text-[11px] font-semibold text-warm-500">
+          {count}
+        </span>
+      </button>
+      {open ? children : null}
+    </section>
+  );
+}
+
+function SectionChevron({ open }: { open: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="12"
+      height="12"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+      className={
+        open
+          ? "text-warm-400 transition-transform duration-150"
+          : "-rotate-90 text-warm-400 transition-transform duration-150"
+      }
+    >
+      <path d="M6 9l6 6 6-6" />
+    </svg>
   );
 }
 
@@ -794,10 +878,9 @@ function DeletedConversationRow({ item }: { item: DeletedConversation }) {
             type="button"
             disabled={pending !== null}
             onClick={onPurge}
-            aria-label="Delete forever"
-            className="rounded-full bg-coral-strong/10 px-2.5 py-1.5 text-xs font-semibold text-coral-strong transition-colors hover:bg-coral-strong/20 disabled:opacity-50"
+            className="rounded-full px-2 py-1 text-xs font-medium text-coral-strong/80 transition-colors hover:text-coral-strong disabled:opacity-50"
           >
-            {pending === "purge" ? "…" : "Delete"}
+            {pending === "purge" ? "…" : "Delete forever"}
           </button>
         </div>
       </div>
@@ -813,10 +896,53 @@ function DeletedConversationRow({ item }: { item: DeletedConversation }) {
 function DeletedIdentityRow({ item }: { item: DeletedIdentity }) {
   const [pending, setPending] = useState<null | "restore" | "purge">(null);
   const [error, setError] = useState<string | null>(null);
+  // Double-tap-to-confirm state for the paid restore: first tap arms
+  // the button (text flips to "Tap again to pay $X" in coral); second
+  // tap within the 3s window actually fires. Guards against an
+  // accidental $5 charge from a stray tap while browsing the trash.
+  const [armed, setArmed] = useState(false);
+  const armTimerRef = useRef<number | null>(null);
   const priceLabel =
     typeof item.restore_price_cents === "number"
       ? `$${item.restore_price_cents / 100}`
       : RESTORE_IDENTITY_PRICE_LABEL;
+
+  useEffect(
+    () => () => {
+      if (armTimerRef.current !== null) {
+        window.clearTimeout(armTimerRef.current);
+      }
+    },
+    [],
+  );
+
+  function disarm() {
+    setArmed(false);
+    if (armTimerRef.current !== null) {
+      window.clearTimeout(armTimerRef.current);
+      armTimerRef.current = null;
+    }
+  }
+
+  function onBringBackTap() {
+    if (pending !== null) return;
+    if (!armed) {
+      setError(null);
+      setArmed(true);
+      if (armTimerRef.current !== null) {
+        window.clearTimeout(armTimerRef.current);
+      }
+      // Revert if the second tap doesn't land within 3s.
+      armTimerRef.current = window.setTimeout(() => {
+        setArmed(false);
+        armTimerRef.current = null;
+      }, 3000);
+      return;
+    }
+    // Armed → second tap: fire checkout.
+    disarm();
+    void onRestore();
+  }
 
   async function onRestore() {
     setPending("restore");
@@ -855,6 +981,7 @@ function DeletedIdentityRow({ item }: { item: DeletedIdentity }) {
     ) {
       return;
     }
+    disarm();
     setPending("purge");
     setError(null);
     const res = await permanentDeleteIdentity(item.id);
@@ -863,6 +990,13 @@ function DeletedIdentityRow({ item }: { item: DeletedIdentity }) {
       setPending(null);
     }
   }
+
+  const bringBackLabel =
+    pending === "restore"
+      ? "Loading…"
+      : armed
+        ? `Tap again to pay ${priceLabel}`
+        : `Bring back ${priceLabel}`;
 
   return (
     <li className="flex flex-col gap-1 px-4 py-2.5">
@@ -880,19 +1014,23 @@ function DeletedIdentityRow({ item }: { item: DeletedIdentity }) {
           <button
             type="button"
             disabled={pending !== null}
-            onClick={onRestore}
-            className="bg-gradient-cta hover:bg-gradient-cta-hover rounded-full px-3 py-1.5 text-xs font-bold text-white shadow-[0_4px_12px_-2px_rgba(232,138,118,0.35)] transition-transform active:scale-95 disabled:opacity-60"
+            onClick={onBringBackTap}
+            aria-live="polite"
+            className={
+              armed
+                ? "rounded-full bg-coral-strong/15 px-3 py-1.5 text-xs font-bold text-coral-strong ring-1 ring-coral-strong/40 transition-transform active:scale-95 disabled:opacity-60"
+                : "bg-gradient-cta hover:bg-gradient-cta-hover rounded-full px-3 py-1.5 text-xs font-bold text-white shadow-[0_4px_12px_-2px_rgba(232,138,118,0.35)] transition-transform active:scale-95 disabled:opacity-60"
+            }
           >
-            {pending === "restore" ? "Loading…" : `Restore (${priceLabel})`}
+            {bringBackLabel}
           </button>
           <button
             type="button"
             disabled={pending !== null}
             onClick={onPurge}
-            aria-label="Delete forever"
-            className="rounded-full bg-coral-strong/10 px-2.5 py-1.5 text-xs font-semibold text-coral-strong transition-colors hover:bg-coral-strong/20 disabled:opacity-50"
+            className="rounded-full px-2 py-1 text-xs font-medium text-coral-strong/80 transition-colors hover:text-coral-strong disabled:opacity-50"
           >
-            {pending === "purge" ? "…" : "Delete"}
+            {pending === "purge" ? "…" : "Delete forever"}
           </button>
         </div>
       </div>

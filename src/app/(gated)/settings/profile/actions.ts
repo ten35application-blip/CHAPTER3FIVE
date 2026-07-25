@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { refresh, revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import sharp from "sharp";
 import { createClient } from "@/lib/supabase/server";
@@ -123,6 +123,13 @@ export async function uploadProfilePhoto(
   revalidatePath("/settings");
   revalidatePath("/settings/profile");
   revalidatePath("/dashboard");
+  // Next.js 16: revalidatePath only marks the cache stale — it does
+  // NOT force the client router on the current page to re-fetch. Add
+  // refresh() so the profile page immediately re-renders with the new
+  // signed URL after upload; without this the widget silently sits on
+  // the pre-upload prop and the user sees "nothing happened" (bug
+  // Wilson hit on a2b6805).
+  refresh();
   return { ok: true };
 }
 
@@ -162,5 +169,6 @@ export async function removeProfilePhoto(): Promise<
   revalidatePath("/settings");
   revalidatePath("/settings/profile");
   revalidatePath("/dashboard");
+  refresh();
   return { ok: true };
 }

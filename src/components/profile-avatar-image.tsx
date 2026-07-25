@@ -29,7 +29,18 @@ export function ProfileAvatarImage({
   /** Applied to the <img> in the success branch. */
   className: string;
 }) {
+  // Reset the failed flag whenever the URL changes: after a fresh
+  // upload the parent hands us a brand-new signed URL, and any prior
+  // failure (expired token, transient 4xx) shouldn't stick and keep
+  // us in the fallback branch forever. The "reset state on prop
+  // change during render" pattern (see react.dev/reference/react/useState)
+  // avoids the cascading-render cost of doing this in useEffect.
+  const [prevUrl, setPrevUrl] = useState(signedUrl);
   const [failed, setFailed] = useState(false);
+  if (prevUrl !== signedUrl) {
+    setPrevUrl(signedUrl);
+    setFailed(false);
+  }
 
   if (!signedUrl || failed) {
     return <>{fallback}</>;

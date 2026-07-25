@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { ProfileAvatarImage } from "@/components/profile-avatar-image";
 import { removeProfilePhoto, uploadProfilePhoto } from "./actions";
 
@@ -10,18 +10,35 @@ type Props = {
   photoUrl: string | null;
 };
 
+type Toast = { kind: "success" | "error"; text: string };
+
 /**
  * Profile photo widget for /settings/profile. Preview + file picker +
  * remove button. Server actions handle the upload/remove work; this
  * component only manages the transient upload state and surfaces
- * errors.
+ * the outcome.
+ *
+ * On upload, the parent server component re-renders (the action calls
+ * refresh() — see actions.ts) and a fresh signed URL flows in via
+ * `photoUrl`. When that transition completes we flash a short "Saved"
+ * confirmation so the user has visible acknowledgement of the mutation
+ * even though most of the state change happens outside this component.
  */
 export function PhotoWidget({ email, photoUrl }: Props) {
-  const [error, setError] = useState<string | null>(null);
+  const [toast, setToast] = useState<Toast | null>(null);
   const [pending, startTransition] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
 
   const initial = (email[0] ?? "?").toUpperCase();
+
+  // Success toasts self-dismiss after 3s so the widget doesn't sit
+  // with stale "Saved" chrome. Errors stick — the user needs to read
+  // them and retry.
+  useEffect(() => {
+    if (toast?.kind !== "success") return;
+    const id = window.setTimeout(() => setToast(null), 3000);
+    return () => window.clearTimeout(id);
+  }, [toast]);
 
   function onPickFile(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -30,38 +47,56 @@ export function PhotoWidget({ email, photoUrl }: Props) {
     const formData = new FormData();
     formData.append("photo", file);
 
-    setError(null);
+    setToast(null);
     startTransition(async () => {
       const result = await uploadProfilePhoto(formData);
-      if (!result.ok) setError(result.error);
+      if (!result.ok) {
+        setToast({ kind: "error", text: result.error });
+      } else {
+        setToast({ kind: "success", text: "Photo saved." });
+      }
       // Reset the input so picking the same file again re-triggers.
       if (inputRef.current) inputRef.current.value = "";
     });
   }
 
   function onRemove() {
-    setError(null);
+    setToast(null);
     startTransition(async () => {
       const result = await removeProfilePhoto();
-      if (!result.ok) setError(result.error);
+      if (!result.ok) {
+        setToast({ kind: "error", text: result.error });
+      } else {
+        setToast({ kind: "success", text: "Photo removed." });
+      }
     });
   }
 
   return (
     <div className="flex flex-col items-center gap-4 px-4 py-6">
-      <ProfileAvatarImage
-        signedUrl={photoUrl}
-        alt="Your profile photo"
-        className="h-28 w-28 rounded-full object-cover shadow-[0_10px_28px_-6px_rgba(232,138,118,0.35)] ring-2 ring-coral/25"
-        fallback={
+      <div className="relative">
+        <ProfileAvatarImage
+          signedUrl={photoUrl}
+          alt="Your profile photo"
+          className="h-28 w-28 rounded-full object-cover shadow-[0_10px_28px_-6px_rgba(232,138,118,0.35)] ring-2 ring-coral/25"
+          fallback={
+            <span
+              aria-hidden
+              className="flex h-28 w-28 items-center justify-center rounded-full bg-amber text-4xl font-semibold text-white shadow-[0_10px_28px_-6px_rgba(232,138,118,0.3)]"
+            >
+              {initial}
+            </span>
+          }
+        />
+        {pending ? (
           <span
             aria-hidden
-            className="flex h-28 w-28 items-center justify-center rounded-full bg-amber text-4xl font-semibold text-white shadow-[0_10px_28px_-6px_rgba(232,138,118,0.3)]"
+            className="absolute inset-0 flex items-center justify-center rounded-full bg-warm-900/45 backdrop-blur-sm"
           >
-            {initial}
+            <span className="h-6 w-6 animate-spin rounded-full border-2 border-white/30 border-t-white" />
           </span>
-        }
-      />
+        ) : null}
+      </div>
 
       <div className="flex items-center gap-3">
         <button
@@ -97,12 +132,16 @@ export function PhotoWidget({ email, photoUrl }: Props) {
         JPEG, PNG, WebP, or HEIC. Up to 8 MB. We resize to 512×512.
       </p>
 
-      {error ? (
+      {toast ? (
         <p
-          role="alert"
-          className="w-full rounded-2xl bg-coral-strong/10 px-4 py-3 text-center text-sm font-medium text-coral-strong"
+          role={toast.kind === "error" ? "alert" : "status"}
+          className={
+            toast.kind === "error"
+              ? "w-full rounded-2xl bg-coral-strong/10 px-4 py-3 text-center text-sm font-medium text-coral-strong"
+              : "w-full rounded-2xl bg-teal/10 px-4 py-3 text-center text-sm font-medium text-teal-strong"
+          }
         >
-          {error}
+          {toast.text}
         </p>
       ) : null}
     </div>
