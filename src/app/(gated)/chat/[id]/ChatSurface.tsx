@@ -372,13 +372,27 @@ export default function ChatSurface({
                         {m.content}
                       </div>
                       {i === lastUserIndex && (
-                        <span className="pr-1 text-[11px] text-warm-400">
+                        <span className="flex items-center gap-1 pr-1 text-[11px] text-warm-400">
                           {m.pending ? (
-                            "…"
+                            <span aria-label="Sending">
+                              <PendingDots />
+                            </span>
                           ) : m.readByOracleAt ? (
-                            <span className="text-teal-strong">✓✓ Read</span>
+                            <span
+                              aria-label="Read"
+                              className="flex items-center gap-1 text-teal-strong"
+                            >
+                              <ReceiptDoubleCheck />
+                              Read
+                            </span>
                           ) : (
-                            <span>✓ Sent</span>
+                            <span
+                              aria-label="Sent"
+                              className="flex items-center gap-1"
+                            >
+                              <ReceiptSingleCheck />
+                              Sent
+                            </span>
                           )}
                         </span>
                       )}
@@ -448,5 +462,62 @@ export default function ChatSurface({
         </div>
       </footer>
     </div>
+  );
+}
+
+// Inline SVG receipt marks (no emoji / no Unicode symbols per house style).
+function ReceiptSingleCheck() {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      width="12"
+      height="12"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M4 11l4 4 8-10" />
+    </svg>
+  );
+}
+
+function ReceiptDoubleCheck() {
+  return (
+    <svg
+      viewBox="0 0 24 20"
+      width="16"
+      height="12"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M2 11l4 4 8-10" />
+      <path d="M10 15l4-4M14 11l6-8" />
+    </svg>
+  );
+}
+
+function PendingDots() {
+  return (
+    <span className="inline-flex items-center gap-[3px]">
+      <span
+        className="inline-block h-1 w-1 rounded-full bg-warm-400 animate-pulse"
+        style={{ animationDelay: "0ms" }}
+      />
+      <span
+        className="inline-block h-1 w-1 rounded-full bg-warm-400 animate-pulse"
+        style={{ animationDelay: "150ms" }}
+      />
+      <span
+        className="inline-block h-1 w-1 rounded-full bg-warm-400 animate-pulse"
+        style={{ animationDelay: "300ms" }}
+      />
+    </span>
   );
 }
