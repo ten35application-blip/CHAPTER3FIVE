@@ -2,7 +2,11 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isPro } from "@/lib/subscription";
-import { MONTHLY_PRICE_LABEL, PRICING } from "@/lib/pricing";
+import {
+  EXTRA_IDENTITY_PRICE_LABEL,
+  MONTHLY_PRICE_LABEL,
+  PRICING,
+} from "@/lib/pricing";
 
 export const metadata = {
   title: "Upgrade · chapter3five",
@@ -74,6 +78,13 @@ export default async function UpgradePage({
             <ProLine>
               Anyone you share a code with also needs Pro to use it — that&rsquo;s
               how we keep the legacy side sustainable
+            </ProLine>
+            <ProLine>
+              Need more than {PRICING.totalIdentitiesPerPlan}?{" "}
+              <strong className="text-warm-50">
+                {EXTRA_IDENTITY_PRICE_LABEL}/mo per extra identity
+              </strong>{" "}
+              — same rate as the base plan.
             </ProLine>
           </ul>
         </div>

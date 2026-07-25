@@ -1,7 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { MONTHLY_PRICE_LABEL, PRICING } from "@/lib/pricing";
+import {
+  EXTRA_IDENTITY_PRICE_LABEL,
+  MONTHLY_PRICE_LABEL,
+  PRICING,
+} from "@/lib/pricing";
 
 export const metadata = {
   title: "How this works · chapter3five",
@@ -219,10 +223,15 @@ export default async function TutorialPage() {
           <h2>What it costs</h2>
           <p>
             First identity is free forever. If you want more &mdash; up to{" "}
-            {PRICING.formulaIdentitiesPerPlan} people plus one made from a
-            photo &mdash; the plan is{" "}
-            <strong>{MONTHLY_PRICE_LABEL}/month</strong>. Cancel any time
-            from Settings. The legacy path is included in the paid plan.
+            {PRICING.totalIdentitiesPerPlan} total ({PRICING.formulaIdentitiesPerPlan}{" "}
+            formula-made plus one from a photo you upload) &mdash; the plan is{" "}
+            <strong>{MONTHLY_PRICE_LABEL}/month</strong>. Cancel any time from
+            Settings. The legacy path is included in the paid plan.
+          </p>
+          <p className="mt-3">
+            Need more than {PRICING.totalIdentitiesPerPlan}? Extra identities
+            are <strong>{EXTRA_IDENTITY_PRICE_LABEL}/month each</strong> &mdash;
+            same rate as the base plan.
           </p>
           <p className="mt-3 text-sm text-warm-400">
             We don&rsquo;t refund mid-month cancellations, blocks, or

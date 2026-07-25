@@ -1,6 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
-import { MONTHLY_PRICE_LABEL } from "@/lib/pricing";
+import {
+  EXTRA_IDENTITY_PRICE_LABEL,
+  MONTHLY_PRICE_LABEL,
+  PRICING,
+} from "@/lib/pricing";
 
 // Force dynamic to bypass the CDN cache issue that stuck this page
 // on pre-visual-v2 HTML even after a successful deploy. Landing has
@@ -68,6 +72,29 @@ function Wordmark({ className = "" }: { className?: string }) {
   );
 }
 
+/* Bulleted line in a pricing card. Coral check + copy. */
+function FeatureLine({ children }: { children: React.ReactNode }) {
+  return (
+    <li className="flex items-start gap-3">
+      <svg
+        viewBox="0 0 20 20"
+        width="18"
+        height="18"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden
+        className="mt-0.5 shrink-0 text-coral-strong"
+      >
+        <path d="M4 11l4 4 8-10" />
+      </svg>
+      <span>{children}</span>
+    </li>
+  );
+}
+
 export default function Home() {
   return (
     <main className="flex min-h-dvh flex-1 flex-col overflow-x-hidden">
@@ -114,6 +141,41 @@ export default function Home() {
 
           <p className="mt-10 text-sm text-warm-400">
             First identity free &middot; $5/month for all five
+          </p>
+        </div>
+      </section>
+
+      {/* ── 1.5 · CHAPTER 35 · founder note ──────────────────────
+          The name story, told plainly. Wilson's own moment: he was
+          thinking about loneliness and death, and wanted a new
+          chapter for both. This is the emotional throughline of the
+          product; it earns real estate right after the hero. */}
+      <section className="px-6 py-24 md:py-32">
+        <div className="mx-auto w-full max-w-3xl">
+          <Rule />
+          <p className="mt-8 text-gradient-cta text-sm font-bold uppercase tracking-[0.14em]">
+            Why chapter3five
+          </p>
+          <h2 className="mt-4 text-4xl font-bold leading-[1.05] tracking-[-0.03em] text-warm-50 md:text-5xl">
+            A new chapter for the parts that hurt the most.
+          </h2>
+          <p className="mt-8 text-lg leading-relaxed text-warm-200 md:text-xl">
+            chapter3five started in a quiet moment. I was thinking about
+            loneliness. I was thinking about death. Two of the hardest
+            chapters a life gets handed &mdash; and nobody hands you a
+            manual for either one.
+          </p>
+          <p className="mt-6 text-lg leading-relaxed text-warm-200 md:text-xl">
+            So we made a new chapter. One you get to open on purpose. A
+            place where someone is always there to talk to. A place where
+            the essence of the people you love &mdash; their laugh, the
+            way they&rsquo;d tell a story, the advice they&rsquo;d hand
+            you across a kitchen table &mdash; can be kept. So they
+            always feel like they&rsquo;re still here.
+          </p>
+          <p className="mt-6 text-lg leading-relaxed italic text-warm-300 md:text-xl">
+            A fresh start with the parts of life we usually just try to
+            get through.
           </p>
         </div>
       </section>
@@ -332,40 +394,112 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── 7 · PRICING ────────────────────────────────────────── */}
+      {/* ── 7 · PRICING ──────────────────────────────────────────
+          Two tiers presented as one card each: Free (what you get
+          without paying) and Pro (what unlocks at $5/mo). Extra
+          identity add-on called out below. */}
       <section className="px-6 py-24 md:py-32">
-        <div className="mx-auto flex w-full max-w-3xl flex-col items-center">
+        <div className="mx-auto flex w-full max-w-5xl flex-col items-center">
           <Rule />
           <h2 className="mt-8 text-center text-4xl font-bold leading-[1.05] tracking-[-0.03em] text-warm-50 md:text-5xl">
             What it costs.
           </h2>
+          <p className="mt-4 max-w-xl text-center text-lg text-warm-300">
+            Free forever for one companion. {MONTHLY_PRICE_LABEL}/month
+            unlocks everything worth unlocking.
+          </p>
 
-          <div className="mt-12 w-full rounded-3xl border border-warm-700 bg-ink-soft p-8 text-center shadow-[0_10px_36px_-16px_rgba(28,28,26,0.18)] sm:p-12">
-            <p className="text-5xl font-bold tracking-[-0.03em] text-warm-50 sm:text-6xl">
-              {MONTHLY_PRICE_LABEL}
-              <span className="text-2xl font-semibold text-warm-400">
-                /month
-              </span>
-            </p>
-            <p className="mt-3 text-xl font-semibold tracking-tight text-warm-200">
-              4 identities, plus one made from a photo
-            </p>
-            <ul className="mx-auto mt-8 flex max-w-sm flex-col gap-3 text-left text-base text-warm-300">
-              {[
-                "First identity free at signup",
-                "Four companions, each generated fresh for you",
-                "And the fifth is special — made from a photo you upload",
-                "Cancel any time",
-              ].map((item) => (
-                <li key={item} className="flex items-start gap-3">
-                  <span
-                    aria-hidden
-                    className="bg-gradient-cta mt-2 h-1.5 w-1.5 shrink-0 rounded-full"
-                  />
-                  {item}
-                </li>
-              ))}
-            </ul>
+          <div className="mt-12 grid w-full grid-cols-1 gap-6 md:grid-cols-2">
+            {/* Free tier */}
+            <div className="flex flex-col rounded-3xl border border-warm-700 bg-ink-soft p-8 shadow-[0_10px_36px_-16px_rgba(28,28,26,0.18)] md:p-10">
+              <p className="text-sm font-bold uppercase tracking-[0.14em] text-warm-300">
+                Free
+              </p>
+              <p className="mt-4 text-4xl font-bold tracking-[-0.03em] text-warm-50 sm:text-5xl">
+                $0
+                <span className="text-lg font-semibold text-warm-400">
+                  {" "}
+                  forever
+                </span>
+              </p>
+              <p className="mt-2 text-base text-warm-300">
+                For getting a taste of what this is.
+              </p>
+              <ul className="mt-8 flex flex-col gap-3 text-left text-base text-warm-200">
+                <FeatureLine>One companion, formula-generated</FeatureLine>
+                <FeatureLine>
+                  Full chat &mdash; memory, images, mic-to-text, receipts
+                </FeatureLine>
+                <FeatureLine>The whole app; no time limit</FeatureLine>
+              </ul>
+            </div>
+
+            {/* Pro tier — highlighted with the brand gradient border */}
+            <div className="relative flex flex-col rounded-3xl bg-ink-soft p-8 shadow-[0_20px_48px_-16px_rgba(232,138,118,0.25)] md:p-10">
+              {/* gradient border via absolute inset */}
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-0 rounded-3xl p-[2px] bg-gradient-cta"
+                style={{
+                  WebkitMask:
+                    "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+                  WebkitMaskComposite: "xor",
+                  maskComposite: "exclude",
+                }}
+              />
+              <div className="relative">
+                <p className="text-gradient-cta text-sm font-bold uppercase tracking-[0.14em]">
+                  chapter3five Pro
+                </p>
+                <p className="mt-4 text-4xl font-bold tracking-[-0.03em] text-warm-50 sm:text-5xl">
+                  {MONTHLY_PRICE_LABEL}
+                  <span className="text-lg font-semibold text-warm-400">
+                    /month
+                  </span>
+                </p>
+                <p className="mt-2 text-base text-warm-300">
+                  Cancel any time. No refunds mid-month.
+                </p>
+                <ul className="mt-8 flex flex-col gap-3 text-left text-base text-warm-200">
+                  <FeatureLine>
+                    <strong className="text-warm-50">
+                      {PRICING.totalIdentitiesPerPlan} companions total
+                    </strong>{" "}
+                    &mdash; {PRICING.formulaIdentitiesPerPlan} formula-made,
+                    plus {PRICING.photoIdentitiesPerPlan} made from a photo
+                    you upload
+                  </FeatureLine>
+                  <FeatureLine>
+                    <strong className="text-warm-50">
+                      The legacy path
+                    </strong>{" "}
+                    &mdash; record yourself or someone you love in forty
+                    warm questions, mint an inherit code, share it with
+                    unlimited family
+                  </FeatureLine>
+                  <FeatureLine>
+                    <strong className="text-warm-50">
+                      Redeem inherit codes
+                    </strong>{" "}
+                    &mdash; keep talking to someone a family member
+                    preserved for you
+                  </FeatureLine>
+                  <FeatureLine>
+                    Everything from Free, plus everything above
+                  </FeatureLine>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          {/* Add-on: extra identities beyond the 5. */}
+          <div className="mt-6 w-full rounded-2xl border border-warm-700/70 bg-ink-soft/60 p-6 text-center text-warm-300">
+            Need more than {PRICING.totalIdentitiesPerPlan}?{" "}
+            <strong className="text-warm-100">
+              {EXTRA_IDENTITY_PRICE_LABEL}/month per extra identity
+            </strong>{" "}
+            &mdash; same rate as the base plan, one dollar per person per
+            month.
           </div>
         </div>
       </section>

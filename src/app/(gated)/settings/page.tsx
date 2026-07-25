@@ -2,7 +2,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { MONTHLY_PRICE_LABEL, PRICING } from "@/lib/pricing";
+import {
+  EXTRA_IDENTITY_PRICE_LABEL,
+  MONTHLY_PRICE_LABEL,
+  PRICING,
+} from "@/lib/pricing";
 
 export const metadata = {
   title: "Settings · chapter3five",
@@ -110,7 +114,8 @@ export default async function SettingsPage() {
             </Link>
             <p className="mt-3 text-center text-xs text-warm-300">
               {MONTHLY_PRICE_LABEL}/month for {PRICING.formulaIdentitiesPerPlan}{" "}
-              identities plus one made from a photo. Cancel anytime.
+              identities plus one made from a photo. Extras{" "}
+              {EXTRA_IDENTITY_PRICE_LABEL}/mo each. Cancel anytime.
             </p>
           </div>
         </Section>
