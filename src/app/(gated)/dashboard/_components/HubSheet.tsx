@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { CollapsibleSection } from "@/components/collapsible-section";
 import { RESTORE_IDENTITY_PRICE_LABEL } from "@/lib/pricing";
 import {
   permanentDeleteIdentity,
@@ -701,6 +702,7 @@ function DeletedPanel({
           storageKey="hub.deleted.messages"
           label="Recently deleted messages"
           count={conversations.length}
+          sticky
         >
           {conversations.length > 0 ? (
             <ul className="px-2">
@@ -719,6 +721,7 @@ function DeletedPanel({
           storageKey="hub.deleted.identities"
           label="Recently deleted identities"
           count={identities.length}
+          sticky
         >
           {identities.length > 0 ? (
             <ul className="px-2">
@@ -736,92 +739,6 @@ function DeletedPanel({
         </CollapsibleSection>
       </div>
     </div>
-  );
-}
-
-/**
- * Collapsible group inside the Recently-Deleted panel. Header row is a
- * button (chevron + label + count) that toggles the body. Both
- * sections default OPEN so first-time users see everything without
- * hunting; the state is memoized to sessionStorage per section so a
- * within-session preference (e.g. collapsing the paid-identity list
- * to focus on free conversation recovery) survives navigation to
- * other tabs and back.
- */
-function CollapsibleSection({
-  storageKey,
-  label,
-  count,
-  children,
-}: {
-  storageKey: string;
-  label: string;
-  count: number;
-  children: React.ReactNode;
-}) {
-  // Lazy init from sessionStorage — safe here because the deleted
-  // panel only mounts client-side (via the hub sheet's user
-  // interaction), so there's no SSR-vs-client hydration mismatch to
-  // worry about. Defaults to OPEN when nothing is stored so first-run
-  // users see everything.
-  const [open, setOpen] = useState<boolean>(() => {
-    try {
-      const raw = window.sessionStorage.getItem(storageKey);
-      if (raw === "0") return false;
-    } catch {
-      // sessionStorage unavailable (private tab, quota) — fall through.
-    }
-    return true;
-  });
-  useEffect(() => {
-    try {
-      window.sessionStorage.setItem(storageKey, open ? "1" : "0");
-    } catch {
-      // ignore
-    }
-  }, [storageKey, open]);
-
-  return (
-    <section>
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        className="sticky top-0 z-[1] flex w-full items-center gap-2 bg-ink-soft/95 px-4 py-2 text-left backdrop-blur transition-colors hover:bg-warm-800/20"
-      >
-        <SectionChevron open={open} />
-        <span className="text-[11px] font-bold uppercase tracking-widest text-warm-400">
-          {label}
-        </span>
-        <span className="ml-1 text-[11px] font-semibold text-warm-500">
-          {count}
-        </span>
-      </button>
-      {open ? children : null}
-    </section>
-  );
-}
-
-function SectionChevron({ open }: { open: boolean }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width="12"
-      height="12"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-      className={
-        open
-          ? "text-warm-400 transition-transform duration-150"
-          : "-rotate-90 text-warm-400 transition-transform duration-150"
-      }
-    >
-      <path d="M6 9l6 6 6-6" />
-    </svg>
   );
 }
 

@@ -295,6 +295,22 @@ export async function POST(
   // cache breakpoint. Empty string when no memories exist yet.
   const memoriesBlock = await fetchMemoriesForContext(oracleId, user.id);
 
+  // User display-name cue. profiles.full_name is what the user typed
+  // into /settings; when set, the persona addresses them by it warmly
+  // but sparingly. Re-read every request so a rename mid-conversation
+  // takes effect without waiting on the cached persona prefix. When
+  // null/empty we inject nothing rather than passing "null" — the
+  // persona then addresses the user generically like it always has.
+  const { data: userProfile } = await supabase
+    .from("profiles")
+    .select("full_name")
+    .eq("id", user.id)
+    .maybeSingle();
+  const userName = (userProfile?.full_name as string | null)?.trim();
+  const userNameCue = userName
+    ? `== Who you're talking to ==\nYou are talking to ${userName}. Use their name warmly and naturally when it fits — not in every message, and never as a greeting formality. Skip it entirely if the moment calls for silence or plain talk.`
+    : null;
+
   // Age-appropriate memory decay: an 85-year-old persona doesn't have
   // perfect recall. Birthday lives inside the traits jsonb (no dedicated
   // column); pre-formula personas without traits skip the cue.
@@ -319,6 +335,9 @@ export async function POST(
   ];
   if (ageDecayCue) {
     system.push({ type: "text", text: ageDecayCue });
+  }
+  if (userNameCue) {
+    system.push({ type: "text", text: userNameCue });
   }
   if (memoriesBlock) {
     system.push({ type: "text", text: memoriesBlock });
