@@ -40,31 +40,34 @@ export default async function DashboardPage() {
     redirect("/auth/signin");
   }
 
-  // RLS restricts to auth.uid() = user_id; still filter soft-deleted +
-  // archived. Archived rows live in the hub's archive sub-panel;
-  // deleted-identity rows live in the trash sub-panel.
+  // RLS restricts to auth.uid() = user_id; still filter soft-deleted.
+  // NOTE: no conversation_archived_at filter here — per Wilson,
+  // identities never leave Contacts on archive; only the dashboard
+  // Messages inbox hides the archived threads (filtered below). The
+  // only way an identity leaves Contacts is via explicit swipe-Delete
+  // in the Contacts panel (Trail B → Deleted identities).
   // Order: starred first (so favorites stay at the visual top of the
   // list too), then newest.
   const { data: contactsRaw } = await supabase
     .from("oracles")
     .select(
-      "id, name, avatar_url, is_starred, manually_unread, created_at",
+      "id, name, avatar_url, is_starred, manually_unread, created_at, conversation_archived_at",
     )
     .is("deleted_at", null)
-    .is("archived_at", null)
     .order("is_starred", { ascending: false })
     .order("created_at", { ascending: false });
 
-  // Full contact directory (Trail A leaves the identity in place). The
-  // Contacts hub panel lists these; the dashboard "Messages" view is a
-  // subset filtered below by "has non-deleted messages OR never
-  // messaged."
+  // Full contact directory. Includes both active-thread and
+  // conversation-archived identities — Contacts always shows every
+  // non-deleted identity. The dashboard Messages inbox is a subset
+  // (filtered below).
   const contacts = (contactsRaw ?? []).map((r) => ({
     id: r.id,
     name: r.name,
     avatar_url: r.avatar_url ?? null,
     is_starred: Boolean(r.is_starred),
     manually_unread: Boolean(r.manually_unread),
+    conversation_archived_at: (r.conversation_archived_at as string | null) ?? null,
   }));
 
   // Which contacts have "all messages soft-deleted"? Those disappear
@@ -94,25 +97,30 @@ export default async function DashboardPage() {
       .filter((v): v is string => !!v),
   );
 
-  // Dashboard = messages inbox: hide contacts whose thread is fully
-  // soft-deleted (has messages, none active). Never-messaged contacts
-  // stay visible; they're the "start a conversation" surface.
-  const identities: Identity[] = contacts.filter((c) => {
-    const hasAny = anyThreadOracleIds.has(c.id);
-    const hasActive = activeThreadOracleIds.has(c.id);
-    return !hasAny || hasActive;
-  });
+  // Dashboard = messages inbox. Hide (1) conversation-archived threads
+  // — they live in the Archived sub-panel until unarchived — and (2)
+  // contacts whose thread is fully soft-deleted (has messages, none
+  // active). Never-messaged, non-archived contacts stay visible;
+  // they're the "start a conversation" surface.
+  const identities: Identity[] = contacts
+    .filter((c) => c.conversation_archived_at === null)
+    .filter((c) => {
+      const hasAny = anyThreadOracleIds.has(c.id);
+      const hasActive = activeThreadOracleIds.has(c.id);
+      return !hasAny || hasActive;
+    });
   const starred = identities.filter((i) => i.is_starred);
 
-  // Archived contacts — for the archive sub-panel. Not a mutex with
-  // deleted: if a user archives then deletes, the row is under
-  // Deleted identities and gone from here.
+  // Archived conversations — for the archive sub-panel. The identity
+  // is still in Contacts; only the thread is hidden from the inbox.
+  // Not a mutex with deleted: if a user archives then deletes, the
+  // row is under Deleted identities and gone from here.
   const { data: archivedRaw } = await supabase
     .from("oracles")
-    .select("id, name, avatar_url, archived_at")
+    .select("id, name, avatar_url, conversation_archived_at")
     .is("deleted_at", null)
-    .not("archived_at", "is", null)
-    .order("archived_at", { ascending: false });
+    .not("conversation_archived_at", "is", null)
+    .order("conversation_archived_at", { ascending: false });
 
   // Deleted identities section (Trail B).
   const { data: deletedIdentityRaw } = await supabase
@@ -155,7 +163,7 @@ export default async function DashboardPage() {
     id: r.id,
     name: r.name,
     avatar_url: r.avatar_url ?? null,
-    archived_at: r.archived_at as string,
+    conversation_archived_at: r.conversation_archived_at as string,
   }));
 
   const deletedIdentities = (deletedIdentityRaw ?? []).map((r) => ({
@@ -187,17 +195,26 @@ export default async function DashboardPage() {
   const pro = await isPro(supabase);
   const freeIdentityId = pro ? null : await getFreeIdentityId(supabase);
 
-  // Web Push opt-in banner state. Server-side check for the stored
-  // subscription so the banner never flashes for a returning user.
+  // Web Push opt-in banner state + profile avatar. One query covers
+  // both — push_subscription is a jsonb, avatar_url is the storage
+  // path of the private profile photo (bucket profile-avatars).
   const { data: profileRow } = await supabase
     .from("profiles")
-    .select("push_subscription")
+    .select("push_subscription, avatar_url")
     .eq("id", user.id)
     .maybeSingle();
   const alreadySubscribed =
     !!profileRow?.push_subscription &&
     typeof profileRow.push_subscription === "object";
   const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
+
+  let userAvatarUrl: string | null = null;
+  if (profileRow?.avatar_url) {
+    const { data: signed } = await supabase.storage
+      .from("profile-avatars")
+      .createSignedUrl(profileRow.avatar_url, 60 * 60);
+    userAvatarUrl = signed?.signedUrl ?? null;
+  }
 
   return (
     <main className="relative min-h-dvh flex-1">
@@ -215,7 +232,12 @@ export default async function DashboardPage() {
 
         <div className="flex flex-1 items-center justify-end gap-3">
           <StarredBubbles items={starred} />
-          <UserMenu email={email} isAdmin={admin} signOutAction={signOut} />
+          <UserMenu
+            email={email}
+            isAdmin={admin}
+            signOutAction={signOut}
+            avatarUrl={userAvatarUrl}
+          />
         </div>
       </div>
 

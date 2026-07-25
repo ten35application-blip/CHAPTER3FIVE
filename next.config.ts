@@ -4,10 +4,11 @@ import { withSentryConfig } from "@sentry/nextjs";
 const nextConfig: NextConfig = {
   experimental: {
     serverActions: {
-      // Photo-to-identity uploads (identity/from-photo) send the image
-      // through a server action; the default 1 MB body limit is too small
-      // for a 5 MB photo + multipart overhead.
-      bodySizeLimit: "6mb",
+      // Photo-to-identity uploads (identity/from-photo, 5 MB) and
+      // profile-photo uploads (settings/profile, 8 MB) both send the
+      // image through a server action; the default 1 MB body limit is
+      // too small. 10 MB covers the 8 MB cap + multipart overhead.
+      bodySizeLimit: "10mb",
     },
   },
   images: {

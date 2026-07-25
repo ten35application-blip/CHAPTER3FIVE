@@ -42,6 +42,22 @@ export default async function SettingsPage() {
     .select("*", { count: "exact", head: true })
     .is("deleted_at", null);
 
+  // Signed URL for the user's own profile photo (private bucket).
+  // Same 1 h TTL as the chat-uploads history re-sign — plenty for
+  // one page view.
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("avatar_url")
+    .eq("id", user.id)
+    .maybeSingle();
+  let avatarSignedUrl: string | null = null;
+  if (profile?.avatar_url) {
+    const { data: signed } = await supabase.storage
+      .from("profile-avatars")
+      .createSignedUrl(profile.avatar_url, 60 * 60);
+    avatarSignedUrl = signed?.signedUrl ?? null;
+  }
+
   const email = user.email ?? "";
   const initial = (email[0] ?? "?").toUpperCase();
   const count = identityCount ?? 0;
@@ -87,9 +103,18 @@ export default async function SettingsPage() {
             href="/settings/profile"
             className="flex items-center gap-4 px-4 py-3 first:rounded-t-2xl last:rounded-b-2xl hover:bg-warm-700/20"
           >
-            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-amber text-lg font-semibold text-white">
-              {initial}
-            </span>
+            {avatarSignedUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={avatarSignedUrl}
+                alt=""
+                className="h-12 w-12 rounded-full object-cover ring-1 ring-coral/20"
+              />
+            ) : (
+              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-amber text-lg font-semibold text-white">
+                {initial}
+              </span>
+            )}
             <span className="flex min-w-0 flex-1 flex-col">
               <span className="truncate text-base font-medium text-warm-50">
                 {email}

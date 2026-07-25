@@ -106,9 +106,12 @@ export async function GET(request: NextRequest) {
         .gte("sent_at", twentyFourAgo);
       if ((recentOutreachCount ?? 0) > 0) continue;
 
-      // Pull the user's active (non-deleted, non-archived, non-blocked)
-      // identities. persona_prompt is server-side only and required
-      // for the opener, so this admin-client read is deliberate.
+      // Pull the user's active (non-deleted, non-archived-conversation,
+      // non-blocked) identities. Archived conversations are hidden from
+      // the dashboard; the persona shouldn't cold-open a thread the
+      // user just tucked away. persona_prompt is server-side only and
+      // required for the opener, so this admin-client read is
+      // deliberate.
       const { data: oracles } = await admin
         .from("oracles")
         .select(
@@ -116,7 +119,7 @@ export async function GET(request: NextRequest) {
         )
         .eq("user_id", profile.id)
         .is("deleted_at", null)
-        .is("archived_at", null)
+        .is("conversation_archived_at", null)
         .is("blocked_at", null);
       if (!oracles || oracles.length === 0) continue;
 

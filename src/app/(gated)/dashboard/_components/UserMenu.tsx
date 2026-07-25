@@ -7,20 +7,21 @@ type Props = {
   email: string;
   isAdmin: boolean;
   signOutAction: () => void;
+  /** Signed URL for the user's profile photo, or null for initial fallback. */
+  avatarUrl: string | null;
 };
 
 /**
  * User avatar in the top-right of the dashboard. Tap → dropdown menu.
- * Replaces the old "Edit" text pill. The avatar is currently a
- * gradient-filled circle with the email's first initial; when we
- * add a photo upload flow in Settings, swap `initial` for the
- * uploaded avatar_url on the profile.
+ * Replaces the old "Edit" text pill. Renders the user's uploaded
+ * profile photo when set (private profile-avatars bucket, signed
+ * server-side); falls back to the gradient email-initial circle.
  *
  * Admin link (Admin dashboard) only renders for allowlisted emails.
  * The isAdmin flag is computed server-side in the page component and
  * passed in — the client never trusts a client-side allowlist check.
  */
-export function UserMenu({ email, isAdmin, signOutAction }: Props) {
+export function UserMenu({ email, isAdmin, signOutAction, avatarUrl }: Props) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -45,18 +46,32 @@ export function UserMenu({ email, isAdmin, signOutAction }: Props) {
 
   return (
     <div ref={rootRef} className="relative">
-      {/* Avatar button — filled with the brand gradient, ring for
-          weight against the peach page. Bigger than the old Edit pill
-          because it's now the primary chrome anchor. */}
+      {/* Avatar button — user's uploaded photo when set, otherwise
+          the brand gradient with their email initial. Ring for weight
+          against the peach page. Bigger than the old Edit pill because
+          it's now the primary chrome anchor. */}
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="Your account"
-        className="bg-gradient-cta flex h-11 w-11 items-center justify-center rounded-full text-base font-bold text-white shadow-[0_6px_18px_-4px_rgba(232,138,118,0.4),_0_2px_8px_-2px_rgba(126,196,196,0.3)] ring-2 ring-white/50 transition-transform hover:-translate-y-px active:scale-95"
+        className={
+          avatarUrl
+            ? "flex h-11 w-11 items-center justify-center overflow-hidden rounded-full ring-2 ring-white/50 shadow-[0_6px_18px_-4px_rgba(232,138,118,0.4),_0_2px_8px_-2px_rgba(126,196,196,0.3)] transition-transform hover:-translate-y-px active:scale-95"
+            : "bg-gradient-cta flex h-11 w-11 items-center justify-center rounded-full text-base font-bold text-white shadow-[0_6px_18px_-4px_rgba(232,138,118,0.4),_0_2px_8px_-2px_rgba(126,196,196,0.3)] ring-2 ring-white/50 transition-transform hover:-translate-y-px active:scale-95"
+        }
       >
-        {initial}
+        {avatarUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={avatarUrl}
+            alt=""
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          initial
+        )}
       </button>
 
       {open ? (
@@ -69,9 +84,18 @@ export function UserMenu({ email, isAdmin, signOutAction }: Props) {
             onClick={() => setOpen(false)}
             className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-coral/5"
           >
-            <span className="bg-gradient-cta flex h-10 w-10 items-center justify-center rounded-full text-base font-bold text-white shadow-[0_4px_12px_-2px_rgba(232,138,118,0.3)]">
-              {initial}
-            </span>
+            {avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={avatarUrl}
+                alt=""
+                className="h-10 w-10 rounded-full object-cover shadow-[0_4px_12px_-2px_rgba(232,138,118,0.3)]"
+              />
+            ) : (
+              <span className="bg-gradient-cta flex h-10 w-10 items-center justify-center rounded-full text-base font-bold text-white shadow-[0_4px_12px_-2px_rgba(232,138,118,0.3)]">
+                {initial}
+              </span>
+            )}
             <span className="flex min-w-0 flex-col">
               <span className="truncate text-sm font-semibold text-warm-50">
                 {email}

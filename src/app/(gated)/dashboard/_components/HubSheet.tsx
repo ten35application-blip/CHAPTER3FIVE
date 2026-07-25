@@ -22,7 +22,7 @@ type ArchivedIdentity = {
   id: string;
   name: string;
   avatar_url: string | null;
-  archived_at: string;
+  conversation_archived_at: string;
 };
 
 type DeletedIdentity = {
@@ -578,7 +578,7 @@ function ArchivedPanel({
       {items.length === 0 ? (
         <EmptyState
           headline="Nothing archived."
-          sub="Swipe left on a row on your dashboard to archive it — chat history stays put."
+          sub="Swipe left on a row on your dashboard to archive the conversation — the identity stays in Contacts."
         />
       ) : (
         <ul className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
@@ -593,7 +593,7 @@ function ArchivedPanel({
 
 function ArchivedRow({ item }: { item: ArchivedIdentity }) {
   const [pending, setPending] = useState(false);
-  async function onRestore() {
+  async function onUnarchive() {
     setPending(true);
     const res = await unarchiveIdentity(item.id);
     if (!res.ok) setPending(false);
@@ -610,17 +610,17 @@ function ArchivedRow({ item }: { item: ArchivedIdentity }) {
             {item.name}
           </span>
           <span className="text-xs text-warm-400">
-            Archived {relativeDate(item.archived_at)}
+            Archived {relativeDate(item.conversation_archived_at)}
           </span>
         </span>
       </Link>
       <button
         type="button"
         disabled={pending}
-        onClick={onRestore}
+        onClick={onUnarchive}
         className="rounded-full bg-warm-800/60 px-3 py-1.5 text-xs font-semibold text-warm-50 ring-1 ring-warm-700/60 transition-colors hover:bg-warm-800 disabled:opacity-50"
       >
-        {pending ? "Restoring…" : "Restore"}
+        {pending ? "Unarchiving…" : "Unarchive"}
       </button>
     </li>
   );

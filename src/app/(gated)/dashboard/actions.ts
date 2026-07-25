@@ -43,19 +43,22 @@ export async function toggleStar(oracleId: string, nextStarred: boolean) {
 }
 
 /**
- * Swipe-left on a row (archive). Hides from the dashboard while
- * preserving chat history — the free alternative to delete. Reversible
- * from the archived sub-panel with `unarchiveIdentity`, no charge.
+ * Swipe-left on a dashboard row (archive). CONVERSATION-scoped: hides
+ * this thread from the Messages inbox and stashes it in the Archived
+ * sub-panel. The identity itself STAYS in Contacts either way —
+ * Wilson's rule is that identities only leave Contacts via explicit
+ * swipe-Delete in the Contacts panel. Reversible for free from the
+ * Archived sub-panel with `unarchiveIdentity`.
  */
 export async function archiveIdentity(oracleId: string) {
   const { supabase, user } = await requireUser();
 
   const { error } = await supabase
     .from("oracles")
-    .update({ archived_at: new Date().toISOString() })
+    .update({ conversation_archived_at: new Date().toISOString() })
     .eq("id", oracleId)
     .is("deleted_at", null)
-    .is("archived_at", null);
+    .is("conversation_archived_at", null);
 
   if (error) {
     return diagnose(error, "archiving", isAdmin(user.email));
@@ -65,16 +68,16 @@ export async function archiveIdentity(oracleId: string) {
   return { ok: true as const };
 }
 
-/** Restore an archived identity — free, unlike restoring from delete. */
+/** Unarchive a conversation — thread returns to the dashboard. Free. */
 export async function unarchiveIdentity(oracleId: string) {
   const { supabase, user } = await requireUser();
 
   const { error } = await supabase
     .from("oracles")
-    .update({ archived_at: null })
+    .update({ conversation_archived_at: null })
     .eq("id", oracleId)
     .is("deleted_at", null)
-    .not("archived_at", "is", null);
+    .not("conversation_archived_at", "is", null);
 
   if (error) {
     return diagnose(error, "unarchiving", isAdmin(user.email));
