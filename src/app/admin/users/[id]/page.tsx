@@ -148,8 +148,8 @@ export default async function AdminUserDetailPage({
               : "Not yet"
           }
         />
-        {/* TODO: real plan once Stripe billing lands — $10/mo base, +$3
-            per identity beyond 5, +$3 per inheritor beyond 2. */}
+        {/* TODO: real plan once Stripe billing lands — $5/mo Pro plan,
+            4 formula + 1 photo identity (see src/lib/pricing.ts). */}
         <Row label="Plan" value="Free" />
       </Section>
 
