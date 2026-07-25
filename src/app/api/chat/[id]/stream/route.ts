@@ -1,6 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { after } from "next/server";
 import type Anthropic from "@anthropic-ai/sdk";
 import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
+import { ageFromBirthday } from "@/lib/identity/formula";
+import { extractMemoriesFromMessage } from "@/lib/memory/extract";
+import { fetchMemoriesForContext } from "@/lib/memory/retrieve";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -78,7 +82,9 @@ export async function POST(
   // the authorization.
   const { data: oracle } = await supabase
     .from("oracles")
-    .select("id, name, persona_prompt, manually_unread, blocked_at, block_reason")
+    .select(
+      "id, name, persona_prompt, manually_unread, blocked_at, block_reason, traits",
+    )
     .eq("id", oracleId)
     .is("deleted_at", null)
     .maybeSingle();
@@ -212,6 +218,22 @@ export async function POST(
       );
     }
     userMessageId = userRow.id;
+
+    // Long-term memory extraction (formula v4) — registered here, AFTER
+    // the user message is persisted and BEFORE the Anthropic reply call.
+    // `after()` runs once the response is done, so extraction can never
+    // block or fail the reply; a missed extraction only costs one
+    // message's worth of memory.
+    if (userMessage) {
+      const messageForExtraction = userMessage;
+      after(async () => {
+        await extractMemoriesFromMessage(
+          messageForExtraction,
+          oracleId,
+          user.id,
+        );
+      });
+    }
   }
 
   // The persona "reads" the user's messages the moment it starts
@@ -225,8 +247,26 @@ export async function POST(
     .eq("role", "user")
     .is("read_by_oracle_at", null);
 
+  // What this persona remembers about this user (formula v4). Changes
+  // whenever the extractor lands a new fact, so it must live AFTER the
+  // cache breakpoint. Empty string when no memories exist yet.
+  const memoriesBlock = await fetchMemoriesForContext(oracleId, user.id);
+
+  // Age-appropriate memory decay: an 85-year-old persona doesn't have
+  // perfect recall. Birthday lives inside the traits jsonb (no dedicated
+  // column); pre-formula personas without traits skip the cue.
+  const traitBirthday = (oracle.traits as { birthday?: string } | null)
+    ?.birthday;
+  const personaAge = traitBirthday ? ageFromBirthday(traitBirthday) : null;
+  const ageDecayCue =
+    personaAge !== null && personaAge > 75
+      ? `== Memory texture ==\nYou are ${personaAge}. Your memory for what people have told you is good but not perfect — you may occasionally ask the user to remind you of a name or a date ("remind me — you have two boys, right?"); you do not know everything perfectly. Ask warmly, at most once in a while, and never forget the things that clearly matter most.`
+      : null;
+
   // System prompt: persona_prompt verbatim, cached (breakpoint + 1h
-  // TTL); volatile state cue as a separate block after the breakpoint.
+  // TTL); volatile blocks (memories, age cue, state cue) as separate
+  // blocks AFTER the breakpoint so they never invalidate the cached
+  // prefix.
   const system: Anthropic.TextBlockParam[] = [
     {
       type: "text",
@@ -234,6 +274,12 @@ export async function POST(
       cache_control: { type: "ephemeral", ttl: "1h" },
     },
   ];
+  if (ageDecayCue) {
+    system.push({ type: "text", text: ageDecayCue });
+  }
+  if (memoriesBlock) {
+    system.push({ type: "text", text: memoriesBlock });
+  }
   if (stateCue) {
     system.push({ type: "text", text: stateCue });
   }

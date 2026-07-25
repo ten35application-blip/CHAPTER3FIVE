@@ -2,6 +2,14 @@ import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
+  experimental: {
+    serverActions: {
+      // Photo-to-identity uploads (identity/from-photo) send the image
+      // through a server action; the default 1 MB body limit is too small
+      // for a 5 MB photo + multipart overhead.
+      bodySizeLimit: "6mb",
+    },
+  },
   images: {
     // Supabase storage hosts our avatars + chat-photos + archive-photos.
     // Allow it via remotePatterns so bare <img> tags can be swapped for
