@@ -8,7 +8,7 @@
  * `terms_version_accepted` no longer matches will be routed back
  * through /onboarding to re-accept.
  */
-export const CURRENT_TERMS_VERSION = "2026-07-24";
+export const CURRENT_TERMS_VERSION = "2026-07-25";
 
 /**
  * True only if the profile has accepted exactly the current version.
