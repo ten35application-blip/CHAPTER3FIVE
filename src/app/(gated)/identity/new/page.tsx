@@ -83,14 +83,11 @@ export default async function IdentityNewPage({
           Say hi
         </Link>
 
-        <form action={createIdentity} className="mt-4 w-full">
-          <button
-            type="submit"
-            className="flex h-12 w-full items-center justify-center px-6 text-base font-medium text-warm-300 transition-colors hover:text-warm-100"
-          >
-            Not this one
-          </button>
-        </form>
+        {/* No "not this one" reroll — you get who you get. Every
+            generation costs real money (formula + Claude synthesis +
+            face generation), and giving users an infinite retry
+            button would both bleed cost and undermine the premise
+            that this is a specific person made for you. */}
 
         <Link
           href="/dashboard"

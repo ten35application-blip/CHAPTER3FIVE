@@ -122,7 +122,34 @@ export default async function SettingsPage() {
           <NavRow href="/settings/password" label="Password" value="Change" />
         </Section>
 
-        {/* DANGER ZONE */}
+        {/* HOW THIS WORKS — the tutorial + product explanations. */}
+        <Section label="How this works">
+          <NavRow
+            href="/settings/tutorial"
+            label="Tutorial"
+            value="How to use chapter3five"
+          />
+        </Section>
+
+        {/* THE FINE PRINT — legal docs, in-app. Terms are gated on
+            the current version constant, so the same links here also
+            let users re-read what they accepted at signup. */}
+        <Section label="The fine print">
+          <NavRow href="/terms" label="Terms of Service" value="Read" />
+          <Divider />
+          <NavRow href="/privacy" label="Privacy Policy" value="Read" />
+          <Divider />
+          <NavRow
+            href="/guidelines"
+            label="Community Guidelines"
+            value="Read"
+          />
+        </Section>
+
+        {/* DANGER ZONE — sign out is soft. Delete is permanent and
+            unambiguous per Wilson's directive: identities go with it,
+            money spent is not refunded, account cannot be recovered.
+            The confirmation copy lives on /settings/delete. */}
         <Section label="Danger zone">
           <form action={signOut}>
             <button
