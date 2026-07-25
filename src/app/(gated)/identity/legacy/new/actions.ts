@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { redirectWithError } from "@/lib/action-errors";
-import { isPro } from "@/lib/subscription";
+import { claimFreeIdentitySlot, isPro } from "@/lib/subscription";
 import { SynthesisError } from "@/lib/identity/synthesize";
 import { fingerprintLegacyAnswers } from "@/lib/legacy/fingerprint";
 import { mintInheritCode } from "@/lib/legacy/mint";
@@ -181,6 +181,10 @@ export async function completeLegacyIdentity(payload: {
       insertError,
     );
   }
+
+  // First identity created claims the post-trial Free-tier slot
+  // (profiles.free_identity_id, NULL-only, server-side write).
+  await claimFreeIdentitySlot(user.id, inserted.id);
 
   // Best-effort: if minting somehow fails, the share page offers a retry.
   // Service-role client on purpose: 0065 dropped the user-side insert

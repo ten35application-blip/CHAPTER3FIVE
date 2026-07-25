@@ -19,6 +19,10 @@ export type Identity = {
 
 type Props = {
   identities: Identity[];
+  /** Pro covers paid, admin, and in-trial users — no chips, no locks. */
+  isPro: boolean;
+  /** The ONE identity a post-trial Free user keeps chatting with. */
+  freeIdentityId: string | null;
 };
 
 /**
@@ -28,9 +32,15 @@ type Props = {
  *
  * Favorites are ALWAYS shown (not filtered by search) — they're the
  * pinned quick-access row. The main list is what search filters.
+ *
+ * Post-trial Free tier: every identity except the free one stays
+ * visible but carries a "Pro" chip, and its link routes to /upgrade
+ * instead of the chat (starred ones included).
  */
-export function DashboardContent({ identities }: Props) {
+export function DashboardContent({ identities, isPro, freeIdentityId }: Props) {
   const [query, setQuery] = useState("");
+
+  const isLocked = (id: string) => !isPro && id !== freeIdentityId;
 
   const favorites = useMemo(
     () => identities.filter((i) => i.is_starred),
@@ -45,7 +55,9 @@ export function DashboardContent({ identities }: Props) {
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 pb-32 pt-24">
-      {favorites.length > 0 ? <FavoritesRow items={favorites} /> : null}
+      {favorites.length > 0 ? (
+        <FavoritesRow items={favorites} isLocked={isLocked} />
+      ) : null}
 
       {/* Search bar — always rendered; visually recedes when empty.
           Placed above the list per Wilson's revision ("search on top,
@@ -57,7 +69,7 @@ export function DashboardContent({ identities }: Props) {
       ) : filtered.length === 0 ? (
         <NoMatchesState query={query} />
       ) : (
-        <ConversationList items={filtered} />
+        <ConversationList items={filtered} isLocked={isLocked} />
       )}
     </div>
   );
@@ -68,22 +80,38 @@ export function DashboardContent({ identities }: Props) {
 /* Matches the iMessage-style pinned contacts pattern.                 */
 /* ------------------------------------------------------------------ */
 
-function FavoritesRow({ items }: { items: Identity[] }) {
+function FavoritesRow({
+  items,
+  isLocked,
+}: {
+  items: Identity[];
+  isLocked: (id: string) => boolean;
+}) {
   return (
     <section aria-label="Favorites" className="mb-6">
       <div className="grid grid-cols-3 gap-4 sm:grid-cols-4 md:grid-cols-5">
-        {items.map((p) => (
-          <Link
-            key={p.id}
-            href={`/chat/${p.id}`}
-            className="group flex flex-col items-center text-center"
-          >
-            <BigAvatar name={p.name} url={p.avatar_url} />
-            <span className="mt-2 max-w-full truncate text-xs font-semibold text-warm-200 group-hover:text-warm-50">
-              {p.name}
-            </span>
-          </Link>
-        ))}
+        {items.map((p) => {
+          const locked = isLocked(p.id);
+          return (
+            <Link
+              key={p.id}
+              href={
+                locked
+                  ? `/upgrade?next=${encodeURIComponent(`/chat/${p.id}`)}`
+                  : `/chat/${p.id}`
+              }
+              className="group flex flex-col items-center text-center"
+            >
+              <BigAvatar name={p.name} url={p.avatar_url} />
+              <span className="mt-2 flex max-w-full items-center gap-1.5">
+                <span className="truncate text-xs font-semibold text-warm-200 group-hover:text-warm-50">
+                  {p.name}
+                </span>
+                {locked ? <ProChip /> : null}
+              </span>
+            </Link>
+          );
+        })}
       </div>
     </section>
   );
@@ -138,7 +166,13 @@ function SearchBar({
 /* Conversation list — swipeable rows                                   */
 /* ------------------------------------------------------------------ */
 
-function ConversationList({ items }: { items: Identity[] }) {
+function ConversationList({
+  items,
+  isLocked,
+}: {
+  items: Identity[];
+  isLocked: (id: string) => boolean;
+}) {
   return (
     <ul className="overflow-hidden rounded-3xl bg-ink-soft shadow-[0_8px_28px_-16px_rgba(28,28,26,0.12),_0_2px_8px_-2px_rgba(232,138,118,0.08)] ring-1 ring-warm-700/60">
       {items.map((p, index) => (
@@ -198,7 +232,11 @@ function ConversationList({ items }: { items: Identity[] }) {
           >
             <div className="flex items-center gap-4 px-5 py-4">
               <Link
-                href={`/chat/${p.id}`}
+                href={
+                  isLocked(p.id)
+                    ? `/upgrade?next=${encodeURIComponent(`/chat/${p.id}`)}`
+                    : `/chat/${p.id}`
+                }
                 className="flex flex-1 items-center gap-4"
               >
                 <Avatar name={p.name} url={p.avatar_url} />
@@ -213,9 +251,10 @@ function ConversationList({ items }: { items: Identity[] }) {
                     <span className="truncate text-base font-semibold text-warm-50">
                       {p.name}
                     </span>
+                    {isLocked(p.id) ? <ProChip /> : null}
                   </span>
                   <span className="truncate text-sm text-warm-300">
-                    Tap to start
+                    {isLocked(p.id) ? "Waiting behind Pro" : "Tap to start"}
                   </span>
                 </span>
               </Link>
@@ -228,6 +267,18 @@ function ConversationList({ items }: { items: Identity[] }) {
         </li>
       ))}
     </ul>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Pro chip — marks identities waiting behind the plan                  */
+/* ------------------------------------------------------------------ */
+
+function ProChip() {
+  return (
+    <span className="bg-gradient-cta flex-shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] leading-tight text-white">
+      Pro
+    </span>
   );
 }
 

@@ -9,6 +9,7 @@ import { shouldPersonaBlock } from "@/lib/safety/block-detector";
 import { handleBlockDecision } from "@/lib/safety/block-notify";
 import { checkForCrisis } from "@/lib/safety/crisis-detector";
 import { handleCrisis } from "@/lib/safety/crisis-notify";
+import { canChatWithOracle } from "@/lib/subscription";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -120,6 +121,17 @@ export async function POST(
     return NextResponse.json(
       { error: "This identity isn't ready to talk yet." },
       { status: 409 },
+    );
+  }
+
+  // Trial / Free-tier gate — Pro (paid, admin, or in-trial) chats with
+  // everything; Free tier only with profiles.free_identity_id. Checked
+  // BEFORE the rate-limit bump so a locked send never counts against
+  // the user's daily usage.
+  if (!(await canChatWithOracle(oracleId, supabase))) {
+    return NextResponse.json(
+      { error: "trial_ended_or_locked" },
+      { status: 403 },
     );
   }
 

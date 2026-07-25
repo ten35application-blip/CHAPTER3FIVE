@@ -18,6 +18,7 @@ import {
   VisionAnalysisError,
   type SupportedImageMediaType,
 } from "@/lib/identity/vision";
+import { claimFreeIdentitySlot } from "@/lib/subscription";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -191,6 +192,11 @@ export async function createIdentityFromPhoto(
     );
   }
   const oracleId = inserted.id as string;
+
+  // First identity created claims the post-trial Free-tier slot
+  // (profiles.free_identity_id, NULL-only, server-side write). Before
+  // the avatar upload — its soft-failure path redirects early.
+  await claimFreeIdentitySlot(user.id, oracleId);
 
   // Uploads go through the service role (bypasses storage RLS — same as
   // generated faces; see 0058/0060 notes). The user's photo IS the

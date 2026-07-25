@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { canChatWithOracle } from "@/lib/subscription";
 import { createClient } from "@/lib/supabase/server";
 import ChatSurface, { type ChatMessage } from "./ChatSurface";
 
@@ -37,6 +38,14 @@ export default async function ChatPage({
     .maybeSingle();
   if (!oracle) {
     notFound();
+  }
+
+  // Trial / Free-tier gate: after the trial, only the free identity
+  // stays chattable. Locked identities remain on the dashboard but
+  // opening them lands on the upgrade page. (The stream route enforces
+  // the same rule server-side; this is the navigation half.)
+  if (!(await canChatWithOracle(oracle.id, supabase))) {
+    redirect(`/upgrade?next=${encodeURIComponent(`/chat/${oracle.id}`)}`);
   }
 
   // Last 100 messages of this user's thread, oldest first for render.

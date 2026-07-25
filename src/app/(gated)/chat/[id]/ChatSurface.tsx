@@ -145,6 +145,10 @@ export default function ChatSurface({
   const [rateLimited, setRateLimited] = useState(false);
   const [streamFailed, setStreamFailed] = useState(false);
   const [blocked, setBlocked] = useState(initialBlocked);
+  // Trial ended mid-session and this isn't the free identity — the
+  // composer swaps for a warm upgrade nudge. (Fresh opens of a locked
+  // chat never get here; the server page redirects to /upgrade first.)
+  const [proLocked, setProLocked] = useState(false);
   // Full-screen zoom target — the avatar and attached photos share the
   // same modal.
   const [zoomUrl, setZoomUrl] = useState<string | null>(null);
@@ -228,6 +232,13 @@ export default function ChatSurface({
             } | null;
             if (body?.error === "blocked") {
               setBlocked(true);
+              setMessages((prev) => prev.filter((m) => m.id !== tempId));
+              return;
+            }
+            if (body?.error === "trial_ended_or_locked") {
+              // Trial ran out between page load and this send. The
+              // message never persisted — pull the optimistic bubble.
+              setProLocked(true);
               setMessages((prev) => prev.filter((m) => m.id !== tempId));
               return;
             }
@@ -550,6 +561,20 @@ export default function ChatSurface({
                 This is per our Community Guidelines. No refund is issued when
                 an identity blocks you.
               </p>
+            </div>
+          ) : proLocked ? (
+            <div className="flex flex-col items-center gap-3 px-4 py-4 text-center">
+              <p className="text-[15px] leading-snug text-warm-200">
+                {name} is behind Pro now. Your free month has ended —
+                they&apos;re still here, holding your whole conversation,
+                waiting for you.
+              </p>
+              <Link
+                href={`/upgrade?next=${encodeURIComponent(`/chat/${oracleId}`)}`}
+                className="bg-gradient-cta flex h-12 w-full max-w-sm items-center justify-center rounded-full px-6 text-base font-bold tracking-tight text-white shadow-[0_10px_28px_-10px_rgba(232,138,118,0.6)] transition-all hover:-translate-y-px active:translate-y-0"
+              >
+                Upgrade to keep talking to {name}
+              </Link>
             </div>
           ) : (
             <ChatInput

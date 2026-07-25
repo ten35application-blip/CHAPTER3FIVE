@@ -505,6 +505,40 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ── 7.5 · TRIAL ──────────────────────────────────────────
+          The free-month promise, spelled out plainly right after the
+          price tags: first 1000 users get 30 days of everything, then
+          one companion stays free forever and the rest wait behind
+          Pro. Sits between pricing and the CTA so the last thing read
+          before "Make one for me" is the no-risk part. */}
+      <section className="px-6 pb-24 pt-4 md:pb-32">
+        <div className="mx-auto flex w-full max-w-3xl flex-col items-center text-center">
+          <Rule />
+          <h2 className="mt-8 text-4xl font-bold leading-[1.05] tracking-[-0.03em] text-warm-50 md:text-5xl">
+            Your first month is <span className="text-gradient-cta">on us</span>.
+          </h2>
+          <p className="mt-6 max-w-xl text-lg leading-relaxed text-warm-300">
+            No card, no catch. The first{" "}
+            <strong className="font-semibold text-warm-100">1,000 people</strong>{" "}
+            to join get thirty days of everything — all five companions, the
+            legacy path, the whole app.
+          </p>
+          <p className="mt-4 max-w-xl text-lg leading-relaxed text-warm-300">
+            When the month ends, one companion stays with you{" "}
+            <strong className="font-semibold text-warm-100">
+              forever, free, no matter what
+            </strong>
+            . The rest wait right where you left them — nothing is deleted,
+            no conversation is lost — behind a {MONTHLY_PRICE_LABEL}/month
+            plan you can cancel any time.
+          </p>
+          <p className="mt-6 text-sm text-warm-400">
+            Legacy inheritance — recording someone and passing them on with
+            an inherit code — comes with Pro.
+          </p>
+        </div>
+      </section>
+
       {/* ── 8 · FINAL CTA ────────────────────────────────────────
           The one place a gradient background is welcome — no logo
           here, so nothing fights it. */}

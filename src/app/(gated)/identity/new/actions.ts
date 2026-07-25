@@ -10,6 +10,7 @@ import {
   synthesizePersona,
   SynthesisError,
 } from "@/lib/identity/synthesize";
+import { claimFreeIdentitySlot } from "@/lib/subscription";
 import { createClient } from "@/lib/supabase/server";
 
 const MAX_FINGERPRINT_REROLLS = 5;
@@ -111,6 +112,10 @@ export async function createIdentity(): Promise<void> {
       insertError,
     );
   }
+
+  // First identity created claims the post-trial Free-tier slot
+  // (profiles.free_identity_id, NULL-only, server-side write).
+  await claimFreeIdentitySlot(user.id, inserted.id);
 
   // Fire-and-forget face generation. `after()` runs once the redirect
   // response is sent — Flux Pro takes 15–40s and must never block the

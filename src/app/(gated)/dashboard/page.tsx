@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isAdmin } from "@/lib/admin/allowlist";
+import { getFreeIdentityId, isPro } from "@/lib/subscription";
 import { ComposeSheet } from "./_components/ComposeSheet";
 import { DashboardContent, type Identity } from "./_components/DashboardContent";
 import { StarredBubbles } from "./_components/StarredBubbles";
@@ -61,6 +62,12 @@ export default async function DashboardPage() {
   const email = user.email ?? "";
   const admin = isAdmin(email);
 
+  // Trial / Free-tier state. Pro (paid, admin, or in-trial) sees no
+  // chips; past the trial, every identity except the free one gets a
+  // "Pro" chip and its row routes to /upgrade instead of the chat.
+  const pro = await isPro(supabase);
+  const freeIdentityId = pro ? null : await getFreeIdentityId(supabase);
+
   return (
     <main className="relative min-h-dvh flex-1">
       {/* Top bar — wordmark centered, starred bubbles + user avatar on
@@ -82,7 +89,11 @@ export default async function DashboardPage() {
       </div>
 
       {/* Middle — favorites row + search + swipeable list */}
-      <DashboardContent identities={identities} />
+      <DashboardContent
+        identities={identities}
+        isPro={pro}
+        freeIdentityId={freeIdentityId}
+      />
 
       {/* Bottom-right — + FAB with two-step compose */}
       <ComposeSheet
