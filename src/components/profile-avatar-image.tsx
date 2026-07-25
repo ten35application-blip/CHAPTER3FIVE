@@ -49,6 +49,7 @@ export function ProfileAvatarImage({
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
+      key={signedUrl}
       src={signedUrl}
       alt={alt}
       onError={() => setFailed(true)}

@@ -12,6 +12,10 @@ export const metadata = {
   title: "chapter3five",
 };
 
+// Force a fresh render on every request so the user-menu avatar picks
+// up a new signed URL immediately after upload — no waiting on cache.
+export const dynamic = "force-dynamic";
+
 /**
  * Dashboard v3 layout (iMessage-inspired):
  *

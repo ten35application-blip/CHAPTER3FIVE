@@ -13,6 +13,9 @@ export const metadata = {
   title: "Settings · chapter3five",
 };
 
+// Force a fresh render so profile-photo signed URLs are always current.
+export const dynamic = "force-dynamic";
+
 async function signOut() {
   "use server";
   const supabase = await createClient();

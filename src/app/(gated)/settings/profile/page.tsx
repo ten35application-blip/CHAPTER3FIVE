@@ -8,6 +8,10 @@ export const metadata = {
   title: "Profile · chapter3five",
 };
 
+// Force a fresh render on every request so the just-uploaded photo
+// picks up a new signed URL without waiting for cache invalidation.
+export const dynamic = "force-dynamic";
+
 const SIGNED_URL_TTL_SECONDS = 60 * 60;
 
 /**

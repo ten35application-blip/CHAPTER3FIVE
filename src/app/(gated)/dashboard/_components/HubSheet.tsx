@@ -693,45 +693,47 @@ function DeletedPanel({
   conversations: DeletedConversation[];
   onBack: () => void;
 }) {
-  const empty = identities.length === 0 && conversations.length === 0;
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <SubHeader title="Recently deleted" onBack={onBack} />
-      {empty ? (
-        <EmptyState
-          headline="Nothing to unbury."
-          sub="Deleted conversations and identities land here. Conversations are free to recover; identities cost a one-time fee."
-        />
-      ) : (
-        <div className="min-h-0 flex-1 overflow-y-auto pb-4">
+      <div className="min-h-0 flex-1 overflow-y-auto pb-4">
+        <CollapsibleSection
+          storageKey="hub.deleted.messages"
+          label="Recently deleted messages"
+          count={conversations.length}
+        >
           {conversations.length > 0 ? (
-            <CollapsibleSection
-              storageKey="hub.deleted.messages"
-              label="Recently deleted messages"
-              count={conversations.length}
-            >
-              <ul className="px-2">
-                {conversations.map((c) => (
-                  <DeletedConversationRow key={c.oracle_id} item={c} />
-                ))}
-              </ul>
-            </CollapsibleSection>
-          ) : null}
+            <ul className="px-2">
+              {conversations.map((c) => (
+                <DeletedConversationRow key={c.oracle_id} item={c} />
+              ))}
+            </ul>
+          ) : (
+            <p className="px-6 pb-4 pt-2 text-sm text-warm-400">
+              No deleted conversations. Deleted messages land here — free
+              to recover.
+            </p>
+          )}
+        </CollapsibleSection>
+        <CollapsibleSection
+          storageKey="hub.deleted.identities"
+          label="Recently deleted identities"
+          count={identities.length}
+        >
           {identities.length > 0 ? (
-            <CollapsibleSection
-              storageKey="hub.deleted.identities"
-              label="Recently deleted identities"
-              count={identities.length}
-            >
-              <ul className="px-2">
-                {identities.map((i) => (
-                  <DeletedIdentityRow key={i.id} item={i} />
-                ))}
-              </ul>
-            </CollapsibleSection>
-          ) : null}
-        </div>
-      )}
+            <ul className="px-2">
+              {identities.map((i) => (
+                <DeletedIdentityRow key={i.id} item={i} />
+              ))}
+            </ul>
+          ) : (
+            <p className="px-6 pb-4 pt-2 text-sm text-warm-400">
+              No deleted identities. When you delete an identity from
+              Contacts it lands here — bringing them back costs $5.
+            </p>
+          )}
+        </CollapsibleSection>
+      </div>
     </div>
   );
 }
