@@ -5,6 +5,10 @@ import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { ageFromBirthday } from "@/lib/identity/formula";
 import { extractMemoriesFromMessage } from "@/lib/memory/extract";
 import { fetchMemoriesForContext } from "@/lib/memory/retrieve";
+import { shouldPersonaBlock } from "@/lib/safety/block-detector";
+import { handleBlockDecision } from "@/lib/safety/block-notify";
+import { checkForCrisis } from "@/lib/safety/crisis-detector";
+import { handleCrisis } from "@/lib/safety/crisis-notify";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -219,19 +223,33 @@ export async function POST(
     }
     userMessageId = userRow.id;
 
-    // Long-term memory extraction (formula v4) — registered here, AFTER
-    // the user message is persisted and BEFORE the Anthropic reply call.
-    // `after()` runs once the response is done, so extraction can never
-    // block or fail the reply; a missed extraction only costs one
-    // message's worth of memory.
+    // Long-term memory extraction (formula v4) + crisis check —
+    // registered together via after() so neither blocks the reply.
+    // The persona's own safety block (988 line in the system prompt)
+    // is the primary crisis response; the admin email is infrastructure
+    // on top of that.
     if (userMessage) {
-      const messageForExtraction = userMessage;
+      const messageForBackground = userMessage;
+      const persistedMessageId = userMessageId;
+      const userEmail = user.email ?? "";
+      const oracleNameForCrisis = oracle.name;
       after(async () => {
         await extractMemoriesFromMessage(
-          messageForExtraction,
+          messageForBackground,
           oracleId,
           user.id,
         );
+        const crisis = await checkForCrisis(messageForBackground);
+        if (crisis.crisis) {
+          await handleCrisis({
+            crisis,
+            userId: user.id,
+            userEmail,
+            oracleId,
+            oracleName: oracleNameForCrisis,
+            messageId: persistedMessageId,
+          });
+        }
       });
     }
   }
@@ -367,12 +385,31 @@ export async function POST(
           messageId = replyRow?.id ?? null;
         }
 
-        // TODO(block-detector): post-reply hook goes here. Inspect the
-        // last N user messages for a sustained disrespect pattern
-        // (cursing at the persona, harassment, etc.) and, if the persona
-        // decides to block, set oracles.blocked_at + block_reason via the
-        // admin client. Deferred to the next pass — for now blocks are
-        // set manually and only the enforcement path above is live.
+        // Block detector — inspect the last ~10 turns for a sustained
+        // disrespect pattern. Fires via after() so a slow classifier
+        // call never delays the client's `done` event.
+        const historyForBlockCheck = [
+          ...history.slice(-9).map((h) => ({
+            role: h.role as "user" | "assistant",
+            content: h.content,
+          })),
+          ...(userMessage
+            ? [{ role: "user" as const, content: userMessage }]
+            : []),
+          ...(reply
+            ? [{ role: "assistant" as const, content: reply }]
+            : []),
+        ];
+        after(async () => {
+          const decision = await shouldPersonaBlock(historyForBlockCheck);
+          if (decision.block) {
+            await handleBlockDecision({
+              decision,
+              oracleId,
+              userId: user.id,
+            });
+          }
+        });
 
         send({ type: "done", messageId });
       } catch (err) {

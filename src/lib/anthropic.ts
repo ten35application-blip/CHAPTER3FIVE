@@ -27,3 +27,7 @@ export const anthropic = new Proxy({} as Anthropic, {
 });
 
 export const ANTHROPIC_MODEL = "claude-sonnet-4-6";
+
+/** Cheap Haiku-tier model for classifiers, extractors, and other
+ *  supporting calls that don't need Sonnet-quality reasoning. */
+export const ANTHROPIC_MODEL_HAIKU = "claude-haiku-4-5-20251001";
