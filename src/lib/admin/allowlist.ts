@@ -24,8 +24,8 @@ export function isAdmin(email: string | null | undefined): boolean {
  * a no-op ready to become load-bearing later).
  *
  * Also useful for the seed-test-data admin tool: when we spin up test
- * identities we don't charge admin cards a $3/extra fee that isn't
- * even wired yet.
+ * identities we don't burn admin plan slots against the 5-identity
+ * Pro quota (see src/lib/pricing.ts) that isn't even wired yet.
  */
 export function hasUnlimitedIdentities(
   email: string | null | undefined,

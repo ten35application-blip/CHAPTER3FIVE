@@ -134,7 +134,7 @@ export default async function AdminUsersPage({
                   : "—"}
               </span>
               {/* TODO: read real subscription status once Stripe billing
-                  lands ($10/mo base plan). Everyone is Free today. */}
+                  lands ($5/mo Pro plan — see src/lib/pricing.ts). Everyone is Free today. */}
               <span className="hidden text-warm-400 sm:block">Free</span>
             </Link>
           ))

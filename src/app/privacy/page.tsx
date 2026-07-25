@@ -71,6 +71,14 @@ export default function PrivacyPage() {
             can remember them.
           </li>
           <li>
+            <strong>Photos you choose to share</strong> — a photo you upload
+            to create a photo-based identity, or a photo you send in a chat.
+            They are stored in our database&rsquo;s storage (Supabase
+            Storage) and treated as content you own, like your answers and
+            messages. See Section 6 for how photos are processed by our AI
+            provider.
+          </li>
+          <li>
             <strong>Payment metadata</strong> — your subscription status,
             plan, and billing history. Payments are processed by Stripe;{" "}
             <strong>we never see or store your card number</strong>.
@@ -95,7 +103,8 @@ export default function PrivacyPage() {
           <li>Your contacts or address book</li>
           <li>
             Camera or microphone data, ever, without an explicit action you
-            take (and today the service doesn&rsquo;t use either at all)
+            take — uploading a photo or tapping the microphone to dictate a
+            message are such actions; nothing is captured in the background
           </li>
         </ul>
       </LegalSection>
@@ -191,6 +200,15 @@ export default function PrivacyPage() {
             <strong>never used to train AI models</strong>.
           </p>
         </LegalCallout>
+        <p>
+          The same applies to photos. A photo you upload to create a
+          photo-based identity, or send in a chat conversation, is stored in
+          Supabase Storage as content you own, and is processed by
+          Anthropic&rsquo;s vision capability under the{" "}
+          <strong>same zero-data-retention terms as your chat text</strong>:
+          used to generate the response or the identity, retained by
+          Anthropic no longer than that, and never used to train AI models.
+        </p>
         <p>
           Your conversations are stored only in our own database (Supabase),
           under your account, where you can delete them.

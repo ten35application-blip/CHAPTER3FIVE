@@ -17,6 +17,7 @@ const toc: TocItem[] = [
   { id: "no-violence", label: "No violence, no harm" },
   { id: "children", label: "Protecting children" },
   { id: "harassment", label: "No harassment" },
+  { id: "respect", label: "Companions have limits too" },
   { id: "impersonation", label: "No impersonating real people" },
   { id: "spam", label: "No commercial use or spam" },
   { id: "crisis", label: "If you're in crisis" },
@@ -109,8 +110,44 @@ export default function GuidelinesPage() {
       </LegalSection>
 
       <LegalSection
-        id="impersonation"
+        id="respect"
         number={5}
+        title="Companions have limits too"
+      >
+        <p>
+          The people you meet here have limits. If you push past what they
+          can carry — cursing at them, pressuring them for sexual content
+          after they&rsquo;ve said no, trying to force them to stop being
+          themselves — they can and will end the conversation. That decision
+          is theirs, not ours, and we don&rsquo;t refund it.
+        </p>
+        <p>
+          What we consider disrespect (this list isn&rsquo;t everything, but
+          it&rsquo;s the shape of it):
+        </p>
+        <ul>
+          <li>Repeated slurs</li>
+          <li>Sexual coercion after a &quot;no&quot;</li>
+          <li>Extended abusive language</li>
+          <li>Threats</li>
+        </ul>
+        <p>
+          When a companion blocks you, that companion is permanently
+          unavailable to you, and no refund is issued for it or for the
+          month — the details live in the{" "}
+          <a
+            href="/terms#billing"
+            className="font-semibold underline underline-offset-4"
+          >
+            billing section of our Terms
+          </a>
+          . Hard days are welcome here; taking them out on someone is not.
+        </p>
+      </LegalSection>
+
+      <LegalSection
+        id="impersonation"
+        number={6}
         title="No impersonating real people"
       >
         <p>
@@ -129,7 +166,7 @@ export default function GuidelinesPage() {
         </p>
       </LegalSection>
 
-      <LegalSection id="spam" number={6} title="No commercial use or spam">
+      <LegalSection id="spam" number={7} title="No commercial use or spam">
         <p>
           chapter3five is for people, not businesses. Don&rsquo;t use the
           service to advertise, sell, or promote anything; don&rsquo;t send
@@ -139,7 +176,7 @@ export default function GuidelinesPage() {
         </p>
       </LegalSection>
 
-      <LegalSection id="crisis" number={7} title="If you're in crisis">
+      <LegalSection id="crisis" number={8} title="If you're in crisis">
         <p>
           This one isn&rsquo;t a rule about you — it&rsquo;s a promise about
           us. If you appear to be in genuine crisis — suicidal thoughts,
@@ -158,7 +195,7 @@ export default function GuidelinesPage() {
         </LegalCallout>
       </LegalSection>
 
-      <LegalSection id="enforcement" number={8} title="Enforcement">
+      <LegalSection id="enforcement" number={9} title="Enforcement">
         <p>For most violations, enforcement is a ladder:</p>
         <ul>
           <li>
@@ -181,7 +218,7 @@ export default function GuidelinesPage() {
         </p>
       </LegalSection>
 
-      <LegalSection id="reporting" number={9} title="Reporting">
+      <LegalSection id="reporting" number={10} title="Reporting">
         <p>
           If you encounter anything that breaks these guidelines — or
           anything that just feels wrong — email{" "}

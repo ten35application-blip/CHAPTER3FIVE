@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { MONTHLY_PRICE_LABEL, PRICING } from "@/lib/pricing";
 
 export const metadata = {
   title: "Settings · chapter3five",
@@ -14,10 +15,12 @@ async function signOut() {
   redirect("/");
 }
 
-// Wilson's pricing today: 1 free forever, $10/month for up to 5, +$3 each beyond 5.
+// Wilson's pricing today: 1 free forever, $5/month for 5 total
+// (4 formula-generated + 1 made from an uploaded photo). No overage
+// tier yet. Numbers live in src/lib/pricing.ts — change them there.
 // TODO: wire subscription table — for now everyone is on Free plan.
 const PLAN_NAME = "Free plan";
-const PLAN_QUOTA = 5;
+const PLAN_QUOTA = PRICING.totalIdentitiesPerPlan;
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -106,7 +109,8 @@ export default async function SettingsPage() {
               Upgrade to chapter3five+
             </Link>
             <p className="mt-3 text-center text-xs text-warm-300">
-              $10/month. Cancel anytime.
+              {MONTHLY_PRICE_LABEL}/month for {PRICING.formulaIdentitiesPerPlan}{" "}
+              identities plus one made from a photo. Cancel anytime.
             </p>
           </div>
         </Section>

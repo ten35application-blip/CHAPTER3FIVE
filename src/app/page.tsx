@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { MONTHLY_PRICE_LABEL } from "@/lib/pricing";
 
 // Force dynamic to bypass the CDN cache issue that stuck this page
 // on pre-visual-v2 HTML even after a successful deploy. Landing has
@@ -112,7 +113,7 @@ export default function Home() {
           </Link>
 
           <p className="mt-10 text-sm text-warm-400">
-            First identity free &middot; $10/month for up to 5
+            First identity free &middot; $5/month for all five
           </p>
         </div>
       </section>
@@ -320,19 +321,19 @@ export default function Home() {
 
           <div className="mt-12 w-full rounded-3xl border border-warm-700 bg-ink-soft p-8 text-center shadow-[0_10px_36px_-16px_rgba(28,28,26,0.18)] sm:p-12">
             <p className="text-5xl font-bold tracking-[-0.03em] text-warm-50 sm:text-6xl">
-              $10
+              {MONTHLY_PRICE_LABEL}
               <span className="text-2xl font-semibold text-warm-400">
                 /month
               </span>
             </p>
             <p className="mt-3 text-xl font-semibold tracking-tight text-warm-200">
-              up to 5 identities
+              4 identities, plus one made from a photo
             </p>
             <ul className="mx-auto mt-8 flex max-w-sm flex-col gap-3 text-left text-base text-warm-300">
               {[
                 "First identity free at signup",
-                "+$3/mo per extra identity beyond 5",
-                "+$3/mo per extra legacy inheritor beyond 2",
+                "Four companions, each generated fresh for you",
+                "And the fifth is special — made from a photo you upload",
                 "Cancel any time",
               ].map((item) => (
                 <li key={item} className="flex items-start gap-3">
