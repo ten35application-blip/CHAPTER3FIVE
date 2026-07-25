@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
         : "";
 
       const severityHint =
-        row.severity === "critical"
+        row.severity === "critical" || row.severity === "temporary"
           ? "It's been about a week. They got out of line in a serious way. You're back, but careful — you want to know they're okay before you fully reopen."
           : row.severity === "severe"
             ? "It's been a day. Things got bad. You're back, gentle but real. You want to know what was going on with them."
@@ -160,6 +160,19 @@ Respond in ${language === "es" ? "Spanish" : "English"}. Just the line. No quote
         .from("chat_blocks")
         .update({ unblocked_at: now, checkin_sent_at: now })
         .eq("id", row.id);
+
+      // The automated block detector's "temporary" tier also flips
+      // oracles.blocked_at, which is what the stream route's 403 gate
+      // reads — without clearing it here, a 7-day cooldown never lifts
+      // and this check-in lands in a thread the user can't reply to.
+      // Scoped to 'temporary' so a manually-set permanent block on the
+      // oracle is never cleared by an unrelated legacy chat_blocks row.
+      if (row.severity === "temporary") {
+        await admin
+          .from("oracles")
+          .update({ blocked_at: null, block_reason: null })
+          .eq("id", row.oracle_id);
+      }
 
       // Best-effort push so they see it on mobile too.
       sendPushToUser({

@@ -57,8 +57,10 @@ export async function handleBlockDecision({
   }
 
   // 2) chat_blocks audit row (richer schema: severity + blocked_until).
+  // supabase-js returns errors rather than throwing, so check the error
+  // field — a bare try/catch here would swallow DB failures silently.
   try {
-    await admin.from("chat_blocks").insert({
+    const { error } = await admin.from("chat_blocks").insert({
       oracle_id: oracleId,
       user_id: userId,
       blocked_at: now,
@@ -66,20 +68,24 @@ export async function handleBlockDecision({
       severity: decision.severity,
       reason: decision.reason,
     });
+    if (error) console.error("[safety/block] chat_blocks insert failed:", error);
   } catch (err) {
-    console.error("[safety/block] chat_blocks insert failed:", err);
+    console.error("[safety/block] chat_blocks insert threw:", err);
   }
 
   // 3) chat_block_events (0062 audit log — smaller, decided_by column
   //    lets admins distinguish auto/human).
   try {
-    await admin.from("chat_block_events").insert({
+    const { error } = await admin.from("chat_block_events").insert({
       oracle_id: oracleId,
       user_id: userId,
       reason: decision.reason,
       decided_by: "automated",
     });
+    if (error) {
+      console.error("[safety/block] chat_block_events insert failed:", error);
+    }
   } catch (err) {
-    console.error("[safety/block] chat_block_events insert failed:", err);
+    console.error("[safety/block] chat_block_events insert threw:", err);
   }
 }
