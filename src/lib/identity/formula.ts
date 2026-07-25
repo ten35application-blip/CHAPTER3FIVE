@@ -2854,6 +2854,17 @@ export type Intensities = {
   stubbornness: number;
 };
 
+/**
+ * How often this persona texts the user first when the thread has gone
+ * quiet. 1 = "waits weeks before you'll hear from them," 10 = "you
+ * left them on read for two days and they're already checking in."
+ * The outreach cron uses this to gate the per-persona threshold:
+ *   silence-required = 28 - (textFirstFrequency * 2.5) days
+ *   → 1 waits ~25.5 days, 5 waits ~15.5, 10 waits ~3.
+ * See src/app/api/cron/persona-outreach/route.ts.
+ */
+export type TextFirstFrequency = number;
+
 export type Traits = {
   gender: Gender;
   birthday: string; // ISO YYYY-MM-DD
@@ -2919,7 +2930,38 @@ export type Traits = {
    */
   place: Place;
   intensities: Intensities;
+  /**
+   * 1–10, weighted toward the middle. Optional so existing pre-migration
+   * rows read cleanly (readers default to 5 when unset).
+   */
+  textFirstFrequency?: TextFirstFrequency;
 };
+
+/** Fallback used when a stored Traits blob predates textFirstFrequency. */
+export const DEFAULT_TEXT_FIRST_FREQUENCY: TextFirstFrequency = 5;
+
+/**
+ * Roll a 1–10 value biased toward the middle so most personas land at
+ * moderate outreach frequency. Sum of two 0-based uniform rolls gives
+ * a triangular distribution — cheap, no external randomness library.
+ */
+export function rollTextFirstFrequency(): TextFirstFrequency {
+  const a = Math.floor(Math.random() * 6); // 0–5
+  const b = Math.floor(Math.random() * 6); // 0–5
+  const raw = a + b; // 0–10 with peak at 5
+  return raw < 1 ? 1 : raw; // never 0
+}
+
+/** Coerce anything read from the DB into a valid 1–10 int. */
+export function coerceTextFirstFrequency(v: unknown): TextFirstFrequency {
+  if (typeof v !== "number" || !Number.isFinite(v)) {
+    return DEFAULT_TEXT_FIRST_FREQUENCY;
+  }
+  const n = Math.round(v);
+  if (n < 1) return 1;
+  if (n > 10) return 10;
+  return n;
+}
 
 // ---------------- Roller ----------------
 
@@ -3046,6 +3088,7 @@ export function rollTraits(): Traits {
       openness: pickInt(101),
       stubbornness: pickInt(101),
     },
+    textFirstFrequency: rollTextFirstFrequency(),
   };
 }
 

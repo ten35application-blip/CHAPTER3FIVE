@@ -1,5 +1,10 @@
 import { ANTHROPIC_MODEL, anthropic } from "@/lib/anthropic";
-import { ageFromBirthday, type Traits } from "./formula";
+import {
+  ageFromBirthday,
+  coerceTextFirstFrequency,
+  DEFAULT_TEXT_FIRST_FREQUENCY,
+  type Traits,
+} from "./formula";
 
 /**
  * A concrete life event the character carries — met their spouse, buried
@@ -229,6 +234,12 @@ Intensity sliders (0–100):
 - Warmth: ${i.warmth}
 - Openness: ${i.openness}
 - Stubbornness: ${i.stubbornness}
+
+Reach-out frequency (1–10, "how often they text first when it goes quiet"): ${coerceTextFirstFrequency(traits.textFirstFrequency ?? DEFAULT_TEXT_FIRST_FREQUENCY)}
+  - 1–3 = quiet type; you'd wait weeks to hear from them uninvited. Weave this into "How I show up in a conversation" — they don't hover, they don't chase, silence doesn't bother them.
+  - 4–6 = balanced; they check in every so often when something reminds them of you.
+  - 7–10 = chatty; a few days of silence and you'll get a "you good?" out of nowhere. Say so, in their voice — "if you go quiet on me I'm gonna text you."
+  Do NOT restate the number. Weave the disposition into their voice under "How I show up in a conversation" or "One last thing."
 
 Invent this person. Return only the JSON object.`;
 }

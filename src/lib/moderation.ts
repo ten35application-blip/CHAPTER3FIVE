@@ -62,3 +62,54 @@ export async function moderateImage(
     return { ok: true, flagged: false, categories: [] };
   }
 }
+
+/**
+ * Text-only moderation. Used as a last-line safety net on
+ * persona-INITIATED messages (the outreach worker) — the user never
+ * saw a prompt they can moderate against, so the persona shouldn't
+ * accidentally send anything flagged. No-op when OPENAI_API_KEY is
+ * missing; on any error we fail-open (better to send than to silently
+ * eat an otherwise-benign outreach).
+ */
+export async function moderateText(
+  text: string,
+): Promise<ModerationResult> {
+  const key = process.env.OPENAI_API_KEY;
+  if (!key || !text || !text.trim()) {
+    return { ok: true, flagged: false, categories: [] };
+  }
+
+  try {
+    const res = await fetch(ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify({ model: MODEL, input: text }),
+    });
+    if (!res.ok) {
+      console.error(
+        "moderation http error (text):",
+        res.status,
+        await res.text(),
+      );
+      return { ok: true, flagged: false, categories: [] };
+    }
+    const data = (await res.json()) as {
+      results?: {
+        flagged: boolean;
+        categories: Record<string, boolean>;
+      }[];
+    };
+    const result = data.results?.[0];
+    if (!result) return { ok: true, flagged: false, categories: [] };
+    const tripped = Object.entries(result.categories)
+      .filter(([, v]) => v === true)
+      .map(([k]) => k);
+    return { ok: !result.flagged, flagged: result.flagged, categories: tripped };
+  } catch (err) {
+    console.error("moderation exception (text):", err);
+    return { ok: true, flagged: false, categories: [] };
+  }
+}

@@ -33,6 +33,10 @@
     {
       "path": "/api/cron/passing",
       "schedule": "0 18 * * *"
+    },
+    {
+      "path": "/api/cron/persona-outreach",
+      "schedule": "0 * * * *"
     }
   ]
 }

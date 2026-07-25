@@ -4,6 +4,7 @@ import { isAdmin } from "@/lib/admin/allowlist";
 import { getFreeIdentityId, isPro } from "@/lib/subscription";
 import { HubSheet } from "./_components/HubSheet";
 import { DashboardContent, type Identity } from "./_components/DashboardContent";
+import { PushOptIn } from "./_components/PushOptIn";
 import { StarredBubbles } from "./_components/StarredBubbles";
 import { UserMenu } from "./_components/UserMenu";
 import { signOut } from "./actions";
@@ -186,6 +187,18 @@ export default async function DashboardPage() {
   const pro = await isPro(supabase);
   const freeIdentityId = pro ? null : await getFreeIdentityId(supabase);
 
+  // Web Push opt-in banner state. Server-side check for the stored
+  // subscription so the banner never flashes for a returning user.
+  const { data: profileRow } = await supabase
+    .from("profiles")
+    .select("push_subscription")
+    .eq("id", user.id)
+    .maybeSingle();
+  const alreadySubscribed =
+    !!profileRow?.push_subscription &&
+    typeof profileRow.push_subscription === "object";
+  const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
+
   return (
     <main className="relative min-h-dvh flex-1">
       {/* Top bar — wordmark centered, starred bubbles + user avatar on
@@ -205,6 +218,14 @@ export default async function DashboardPage() {
           <UserMenu email={email} isAdmin={admin} signOutAction={signOut} />
         </div>
       </div>
+
+      {/* Subtle first-visit banner — hides itself when unsupported,
+          already granted, already dismissed, or push isn't configured
+          yet (VAPID key absent). */}
+      <PushOptIn
+        vapidPublicKey={vapidPublicKey}
+        alreadySubscribed={alreadySubscribed}
+      />
 
       {/* Middle — favorites row + search + swipeable list */}
       <DashboardContent
