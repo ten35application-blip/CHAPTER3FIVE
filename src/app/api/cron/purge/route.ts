@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
       await admin.from("shares").delete().eq("source_user_id", p.id);
       await admin.from("payments").delete().eq("user_id", p.id);
       await admin.from("crisis_flags").delete().eq("user_id", p.id);
-      await admin.from("message_reports").delete().eq("user_id", p.id);
+      await admin.from("message_reports").delete().eq("reporter_user_id", p.id);
       await admin.from("device_tokens").delete().eq("user_id", p.id);
       await admin.from("chat_usage").delete().eq("user_id", p.id);
       await admin.from("profiles").delete().eq("id", p.id);

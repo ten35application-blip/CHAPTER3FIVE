@@ -98,8 +98,8 @@ export async function GET() {
     supabase
       .from("message_reports")
       .select("*")
-      .eq("user_id", user.id)
-      .order("reported_at", { ascending: false }),
+      .eq("reporter_user_id", user.id)
+      .order("created_at", { ascending: false }),
     supabase
       .from("agreements")
       .select("*")

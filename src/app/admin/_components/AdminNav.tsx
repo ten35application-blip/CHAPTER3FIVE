@@ -8,6 +8,7 @@ const ITEMS = [
   { href: "/admin/users", label: "Users" },
   { href: "/admin/revenue", label: "Revenue" },
   { href: "/admin/identities", label: "Identities" },
+  { href: "/admin/reports", label: "Reports" },
 ] as const;
 
 /** Sidebar nav with active-section highlighting. Client-only because the

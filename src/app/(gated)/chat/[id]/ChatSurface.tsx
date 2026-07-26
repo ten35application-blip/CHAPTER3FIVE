@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import ChatInput, { type OutgoingImage } from "./ChatInput";
+import { MessageActions, ReactionIcon } from "./MessageActions";
+import type { ReactionKind, ReportReason } from "@/lib/reactions";
 
 export type ChatMessage = {
   id: string;
@@ -14,7 +16,20 @@ export type ChatMessage = {
   /** Renderable image URL (signed server-side, or a local preview for
    *  the optimistic bubble). Null for text-only messages. */
   imageUrl: string | null;
+  /** The current user's own tapback on this message (null if none). */
+  myReaction: ReactionKind | null;
+  /** The persona's tapback on this message (null if none). Personas
+   *  react server-side via the stream route in a follow-up commit —
+   *  the render path handles it now so the badge shows up when it
+   *  starts flowing. */
+  theirReaction: ReactionKind | null;
 };
+
+/** { messageId, DOMRect } for the currently-open tapback popover, or
+ *  null when nothing is targeted. */
+type ActionsTarget = { messageId: string; anchor: DOMRect } | null;
+
+const LONG_PRESS_MS = 350;
 
 type StreamEvent =
   | { type: "begin"; userMessageId: string | null; readByOracleAt: string }
@@ -85,11 +100,19 @@ function PersonaBubble({
   showAvatar,
   avatarUrl,
   name,
+  bubbleProps,
+  myReaction,
 }: {
   children: React.ReactNode;
   showAvatar: boolean;
   avatarUrl: string | null;
   name: string;
+  /** Long-press / context-menu handlers spread onto the bubble surface.
+   *  Omitted for the live-streaming bubble which shouldn't be tappable. */
+  bubbleProps?: React.HTMLAttributes<HTMLDivElement>;
+  /** User's tapback on this persona message (if any). Rendered as a
+   *  small badge on the bubble's bottom-right corner. */
+  myReaction?: ReactionKind | null;
 }) {
   return (
     <div className="flex items-end gap-2 self-start max-w-[75%]">
@@ -106,8 +129,16 @@ function PersonaBubble({
             <div className="h-7 w-7 rounded-lg bg-gradient-cta" />
           ))}
       </div>
-      <div className="rounded-2xl rounded-bl-md bg-ink-soft px-3.5 py-2 text-[15px] leading-snug text-warm-100 ring-1 ring-teal/40 whitespace-pre-wrap break-words animate-message-pop-left">
-        {children}
+      <div className="relative">
+        <div
+          {...bubbleProps}
+          className="rounded-2xl rounded-bl-md bg-ink-soft px-3.5 py-2 text-[15px] leading-snug text-warm-100 ring-1 ring-teal/40 whitespace-pre-wrap break-words animate-message-pop-left select-none [-webkit-touch-callout:none]"
+        >
+          {children}
+        </div>
+        {myReaction && (
+          <ReactionBadge kind={myReaction} side="right" tone="user" />
+        )}
       </div>
     </div>
   );
@@ -160,6 +191,11 @@ export default function ChatSurface({
   const [capHit, setCapHit] = useState<{ current: number; limit: number } | null>(
     null,
   );
+  // Tapback + report popover target — set on a bubble long-press,
+  // anchored via the bubble's DOMRect so the popover positions itself
+  // just above.
+  const [actionsTarget, setActionsTarget] = useState<ActionsTarget>(null);
+
   // Full-screen zoom target — the avatar and attached photos share the
   // same modal.
   const [zoomUrl, setZoomUrl] = useState<string | null>(null);
@@ -210,6 +246,8 @@ export default function ChatSurface({
             readByOracleAt: null,
             pending: true,
             imageUrl: image?.previewUrl ?? null,
+            myReaction: null,
+            theirReaction: null,
           },
         ]);
       }
@@ -324,6 +362,8 @@ export default function ChatSurface({
                   readByOracleAt: null,
                   pending: false,
                   imageUrl: null,
+                  myReaction: null,
+                  theirReaction: null,
                 },
               ]);
             }
@@ -374,6 +414,87 @@ export default function ChatSurface({
       }
     },
     [markRead, oracleId],
+  );
+
+  // Long-press → open the tapback + report popover anchored to the
+  // bubble. Uses a pointer-down timer so both mouse and touch work;
+  // any pointer-up / -cancel / -leave / -move cancels the arm. Short
+  // taps do nothing (existing image / receipt behaviors keep their
+  // handlers on their own inner elements).
+  const openActionsFor = useCallback((messageId: string, target: HTMLElement) => {
+    setActionsTarget({ messageId, anchor: target.getBoundingClientRect() });
+  }, []);
+  const longPressTimer = useRef<number | null>(null);
+  const cancelLongPress = useCallback(() => {
+    if (longPressTimer.current !== null) {
+      window.clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  }, []);
+  const bubbleHandlers = useCallback(
+    (messageId: string) => ({
+      onPointerDown: (e: React.PointerEvent<HTMLDivElement>) => {
+        const target = e.currentTarget;
+        cancelLongPress();
+        longPressTimer.current = window.setTimeout(() => {
+          openActionsFor(messageId, target);
+        }, LONG_PRESS_MS);
+      },
+      onPointerUp: cancelLongPress,
+      onPointerLeave: cancelLongPress,
+      onPointerMove: cancelLongPress,
+      onPointerCancel: cancelLongPress,
+      // Desktop right-click also opens the popover — treat it the same
+      // as a long-press. Prevents the OS context menu from stealing.
+      onContextMenu: (e: React.MouseEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        openActionsFor(messageId, e.currentTarget);
+      },
+    }),
+    [cancelLongPress, openActionsFor],
+  );
+
+  const applyReaction = useCallback(
+    async (messageId: string, kind: ReactionKind) => {
+      // Optimistic toggle: if same kind is set → clear locally; else
+      // set locally. Server call rolls back on failure.
+      const target = messages.find((m) => m.id === messageId);
+      const nextReaction = target?.myReaction === kind ? null : kind;
+      setMessages((prev) =>
+        prev.map((m) => (m.id === messageId ? { ...m, myReaction: nextReaction } : m)),
+      );
+      try {
+        const res = await fetch("/api/reactions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message_id: messageId, kind }),
+        });
+        if (!res.ok) throw new Error("reaction failed");
+      } catch {
+        // Rollback on error.
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === messageId ? { ...m, myReaction: target?.myReaction ?? null } : m,
+          ),
+        );
+      }
+    },
+    [messages],
+  );
+
+  const submitReport = useCallback(
+    async (messageId: string, reason: ReportReason, notes: string) => {
+      const res = await fetch("/api/reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message_id: messageId, reason, notes: notes || undefined }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.error ?? "Report failed. Try again.");
+      }
+    },
+    [],
   );
 
   const handleSend = useCallback(
@@ -479,8 +600,20 @@ export default function ChatSurface({
                         </div>
                       )}
                       {m.content && (
-                        <div className="max-w-[75%] self-end rounded-2xl rounded-br-md bg-gradient-cta px-3.5 py-2 text-[15px] leading-snug text-white whitespace-pre-wrap break-words animate-message-pop-right">
-                          {m.content}
+                        <div className="relative max-w-[75%] self-end">
+                          <div
+                            {...bubbleHandlers(m.id)}
+                            className="rounded-2xl rounded-br-md bg-gradient-cta px-3.5 py-2 text-[15px] leading-snug text-white whitespace-pre-wrap break-words animate-message-pop-right select-none [-webkit-touch-callout:none]"
+                          >
+                            {m.content}
+                          </div>
+                          {m.theirReaction && (
+                            <ReactionBadge
+                              kind={m.theirReaction}
+                              side="left"
+                              tone="persona"
+                            />
+                          )}
                         </div>
                       )}
                       {i === lastUserIndex && (
@@ -520,6 +653,8 @@ export default function ChatSurface({
                         showAvatar={firstOfPersonaRun}
                         avatarUrl={avatarUrl}
                         name={name}
+                        bubbleProps={bubbleHandlers(m.id)}
+                        myReaction={m.myReaction}
                       >
                         {m.content}
                       </PersonaBubble>
@@ -627,6 +762,22 @@ export default function ChatSurface({
         </div>
       </footer>
 
+      {actionsTarget && (
+        <MessageActions
+          anchor={actionsTarget.anchor}
+          currentReaction={
+            messages.find((m) => m.id === actionsTarget.messageId)?.myReaction ?? null
+          }
+          onReact={(kind) => {
+            void applyReaction(actionsTarget.messageId, kind);
+          }}
+          onReport={(reason, notes) =>
+            submitReport(actionsTarget.messageId, reason, notes)
+          }
+          onClose={() => setActionsTarget(null)}
+        />
+      )}
+
       {zoomUrl && (
         <button
           type="button"
@@ -713,6 +864,34 @@ function PendingDots() {
         className="inline-block h-1 w-1 rounded-full bg-warm-400 animate-pulse"
         style={{ animationDelay: "300ms" }}
       />
+    </span>
+  );
+}
+
+/**
+ * Small tapback badge attached to a bubble's outer corner, iMessage
+ * style. Position by side ("left" = anchored to bubble's bottom-left,
+ * for badges on right-aligned user bubbles; "right" = bubble's
+ * bottom-right, for left-aligned persona bubbles). Tone controls the
+ * color of the heart / mark itself.
+ */
+function ReactionBadge({
+  kind,
+  side,
+  tone,
+}: {
+  kind: ReactionKind;
+  side: "left" | "right";
+  tone: "user" | "persona";
+}) {
+  return (
+    <span
+      aria-hidden
+      className={`absolute -bottom-2 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-ink-soft shadow-[0_4px_10px_-2px_rgba(28,28,26,0.2)] ring-1 ring-warm-700/60 ${
+        side === "left" ? "-left-1" : "-right-1"
+      } ${tone === "user" ? "text-coral-strong" : "text-teal-strong"}`}
+    >
+      <ReactionIcon kind={kind} className="h-3.5 w-3.5" />
     </span>
   );
 }

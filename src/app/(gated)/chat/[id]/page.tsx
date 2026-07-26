@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { canChatWithOracle } from "@/lib/subscription";
 import { createClient } from "@/lib/supabase/server";
+import { isReactionKind, type ReactionKind } from "@/lib/reactions";
 import ChatSurface, { type ChatMessage } from "./ChatSurface";
 
 /**
@@ -82,6 +83,32 @@ export default async function ChatPage({
     }
   }
 
+  // Reactions for these messages — this user's own reactions render as
+  // "myReaction" on the bubble, persona reactions (server-side inserts
+  // by the stream route in a follow-up commit) render as "theirReaction".
+  // RLS gates SELECT to the caller's own thread already; single round-trip.
+  const messageIds = (rows ?? []).map((m) => m.id);
+  const reactionsByMessage = new Map<
+    string,
+    { mine: ReactionKind | null; theirs: ReactionKind | null }
+  >();
+  if (messageIds.length > 0) {
+    const { data: reactionRows } = await supabase
+      .from("message_reactions")
+      .select("message_id, kind, user_id, oracle_id")
+      .in("message_id", messageIds);
+    for (const r of reactionRows ?? []) {
+      const bucket = reactionsByMessage.get(r.message_id) ?? {
+        mine: null,
+        theirs: null,
+      };
+      const kind = isReactionKind(r.kind) ? r.kind : null;
+      if (r.user_id === user.id) bucket.mine = kind;
+      else if (r.oracle_id) bucket.theirs = kind;
+      reactionsByMessage.set(r.message_id, bucket);
+    }
+  }
+
   const initialMessages: ChatMessage[] = (rows ?? [])
     .reverse()
     .map((m) => ({
@@ -94,6 +121,8 @@ export default async function ChatPage({
       imageUrl: m.image_storage_path
         ? (signedByPath.get(m.image_storage_path) ?? null)
         : null,
+      myReaction: reactionsByMessage.get(m.id)?.mine ?? null,
+      theirReaction: reactionsByMessage.get(m.id)?.theirs ?? null,
     }));
 
   // Marking the persona's messages as read happens client-side on
