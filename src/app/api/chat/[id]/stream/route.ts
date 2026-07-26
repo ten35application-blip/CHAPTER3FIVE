@@ -386,6 +386,18 @@ export async function POST(
     system.push({ type: "text", text: moodBlock });
   }
 
+  // Phase B.2 — persona-side reactions. Universal capability injected
+  // AFTER the cache breakpoint so every persona (new and existing)
+  // learns it without regenerating persona_prompt. Model may prefix
+  // its reply with [react:KIND] to tap-back on the user's last
+  // message. Server strips the marker, inserts a message_reactions
+  // row with oracle_id set, and streams a "reaction" event so the
+  // client can render the badge on the user's bubble in real time.
+  system.push({
+    type: "text",
+    text: `== Reactions (optional) ==\nYou can tap back on the user's last message the way iMessage lets you tap back. To do that, START your reply with one of these markers on the first line:\n\n[react:heart]    — for warmth, love, "this landed"\n[react:exclamation] — for "yes, this," emphasis, agreement\n[react:thumbs_up] — for "got it," "sounds good"\n[react:thumbs_down] — for "no," disagreement, when it fits your voice\n[react:question] — for "wait, what?" or genuine confusion\n[react:ha_ha]    — for anything that actually made you laugh\n\nRules:\n- OPTIONAL. Most replies should have NO reaction. Use maybe 1 in 8 messages, not every time.\n- The marker MUST be on its own first line, alone, nothing else.\n- After the marker you can continue with a text reply — OR leave it empty and just react (no text at all).\n- Never announce the reaction ("I'll give you a heart for that"). Don't reference the marker in prose.\n- Only ONE marker per reply. Pick the truest one.\n- If none of these feels right, don't force one. A plain reply is always fine.`,
+  });
+
   // Current turn: URL image block (Anthropic fetches the signed URL) +
   // text. An image-only send still needs SOME text for coherent history
   // windows later, so its persisted content is "" and the placeholder
@@ -444,11 +456,69 @@ export async function POST(
         }
 
         const final = await claudeStream.finalMessage();
-        const reply = final.content
+        let reply = final.content
           .filter((b) => b.type === "text")
           .map((b) => (b.type === "text" ? b.text : ""))
           .join("")
           .trim();
+
+        // Phase B.2 — persona-side reaction. Model may prefix its
+        // reply with [react:KIND] on its own first line. Extract, strip,
+        // insert a message_reactions row keyed to the user's message
+        // that just landed, and stream a "reaction" event so the badge
+        // renders on the user's bubble immediately.
+        const REACT_KINDS = new Set([
+          "heart",
+          "exclamation",
+          "thumbs_up",
+          "thumbs_down",
+          "question",
+          "ha_ha",
+        ]);
+        let personaReaction: string | null = null;
+        const reactMatch = reply.match(/^\s*\[react:([a-z_]+)\]\s*(?:\n|$)/i);
+        if (reactMatch) {
+          const kind = reactMatch[1].toLowerCase();
+          if (REACT_KINDS.has(kind)) {
+            personaReaction = kind;
+            reply = reply.slice(reactMatch[0].length).trim();
+          } else {
+            // Unknown kind — strip the marker anyway so garbage
+            // doesn't reach the user, but don't record a reaction.
+            reply = reply.slice(reactMatch[0].length).trim();
+          }
+        }
+
+        // Insert reaction after we know the user's message id landed.
+        // userMessageId is null for retry sends (no new user message to
+        // react to) — skip in that case. The unique index on
+        // (message_id, oracle_id) is partial so upsert can't target
+        // it via Supabase's client — a fresh user message can't have a
+        // pre-existing persona reaction so a plain insert is safe.
+        // 23505 (unique violation) is logged and swallowed so a rare
+        // race doesn't break the stream.
+        if (personaReaction && userMessageId) {
+          const { error: reactErr } = await admin
+            .from("message_reactions")
+            .insert({
+              message_id: userMessageId,
+              oracle_id: oracleId,
+              kind: personaReaction,
+            });
+          if (reactErr && reactErr.code !== "23505") {
+            console.error(
+              "[chat stream] persona reaction insert failed:",
+              reactErr,
+            );
+            personaReaction = null; // don't lie to the client
+          } else {
+            send({
+              type: "reaction",
+              messageId: userMessageId,
+              kind: personaReaction,
+            });
+          }
+        }
 
         // Phase B multi-message replies: personas with text_burst_style
         // = two_part or three_burst are instructed to use [NEXT] as a

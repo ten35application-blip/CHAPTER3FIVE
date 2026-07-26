@@ -44,6 +44,12 @@ type StreamEvent =
        *  message replies (baseline). */
       parts?: { id: string; content: string }[];
     }
+  /** Phase B.2 persona-side reaction: the persona tapped back on the
+   *  user's just-landed message with `[react:KIND]` at the top of their
+   *  reply. Server strips the marker + persists to message_reactions and
+   *  streams this event so the badge renders on the user bubble in
+   *  real time. */
+  | { type: "reaction"; messageId: string; kind: ReactionKind }
   | { type: "error"; error: string };
 
 /** Milliseconds between successive bubbles when a multi-message burst
@@ -387,6 +393,15 @@ export default function ChatSurface({
             // Display strips [NEXT] markers so a mid-stream split
             // doesn't flash the literal to the user.
             setStreamText(stripBurstMarkers(acc));
+          } else if (evt.type === "reaction") {
+            // Persona tapped back on the user's just-landed message.
+            // Server has already persisted; render the badge on the
+            // matching bubble by setting theirReaction on it.
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === evt.messageId ? { ...m, theirReaction: evt.kind } : m,
+              ),
+            );
           } else if (evt.type === "done") {
             sawDone = true;
             // Multi-message burst: the server returns pre-split parts
