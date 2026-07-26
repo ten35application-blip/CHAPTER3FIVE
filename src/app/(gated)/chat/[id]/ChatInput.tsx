@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import MicButton from "./MicButton";
+import MicButton, { type MicButtonHandle } from "./MicButton";
 
 /**
  * Bottom composer: auto-growing textarea (caps at ~4 lines, then
@@ -51,6 +51,7 @@ export default function ChatInput({
   const [fileSupported, setFileSupported] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const micRef = useRef<MicButtonHandle | null>(null);
   // Text present when a dictation session starts; the live transcript
   // is appended to this so typing + speaking compose cleanly.
   const micBaseRef = useRef("");
@@ -154,6 +155,9 @@ export default function ChatInput({
     const text = value.trim();
     if (!text && !readyImage) return;
     if (disabled || attachment?.uploading || attachment?.error) return;
+    // Kill any in-progress dictation before we lift the text out — the
+    // user's already committed to sending, no need to keep the mic hot.
+    micRef.current?.stop();
     setAndGrow("");
     // Hand the preview URL to the surface's optimistic bubble — do NOT
     // revoke it here; the bubble keeps using it until a reload re-signs
@@ -254,6 +258,7 @@ export default function ChatInput({
             </>
           )}
           <MicButton
+            ref={micRef}
             onSessionStart={() => {
               micBaseRef.current = value.trim()
                 ? `${value.replace(/\s+$/, "")} `

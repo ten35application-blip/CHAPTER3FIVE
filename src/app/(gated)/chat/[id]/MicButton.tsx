@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 
 /**
  * Speech-to-text INTO the composer via the Web Speech API.
@@ -41,32 +41,51 @@ function getSpeechRecognition(): SpeechRecognitionCtor | null {
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 }
 
-export default function MicButton({
-  onSessionStart,
-  onTranscript,
-}: {
-  onSessionStart: () => void;
-  onTranscript: (sessionText: string) => void;
-}) {
+/** Imperative surface exposed to the parent (ChatInput) via ref so a
+ *  send-tap can force-stop an in-progress dictation. */
+export type MicButtonHandle = {
+  stop: () => void;
+};
+
+const MicButton = forwardRef<
+  MicButtonHandle,
+  {
+    onSessionStart: () => void;
+    onTranscript: (sessionText: string) => void;
+  }
+>(function MicButton({ onSessionStart, onTranscript }, ref) {
   const [supported, setSupported] = useState(false);
   const [listening, setListening] = useState(false);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  // Latched flag: once stop is requested, ignore any late onresult
+  // events the recognition may still deliver before it truly winds
+  // down. iOS Safari is especially prone to trailing results.
+  const cancelledRef = useRef(false);
 
   // Detect in an effect so SSR + hydration agree on the initial render.
   useEffect(() => {
     setSupported(getSpeechRecognition() !== null);
     return () => {
+      cancelledRef.current = true;
       recognitionRef.current?.abort();
     };
   }, []);
 
-  if (!supported) return null;
-
   const stop = () => {
-    recognitionRef.current?.stop();
+    // abort(), not stop(). stop() is a graceful "please wind down after
+    // the current utterance"; iOS Safari can hold that request open for
+    // seconds and keep firing onresult in the meantime. abort() kills
+    // the session immediately and guarantees the mic stops. Latch
+    // cancelled first so any final in-flight result is dropped.
+    cancelledRef.current = true;
+    recognitionRef.current?.abort();
     recognitionRef.current = null;
     setListening(false);
   };
+
+  useImperativeHandle(ref, () => ({ stop }));
+
+  if (!supported) return null;
 
   const start = () => {
     const Ctor = getSpeechRecognition();
@@ -75,7 +94,9 @@ export default function MicButton({
     rec.lang = navigator.language || "en-US";
     rec.continuous = true;
     rec.interimResults = true;
+    cancelledRef.current = false;
     rec.onresult = (event) => {
+      if (cancelledRef.current) return;
       let text = "";
       for (let i = 0; i < event.results.length; i++) {
         text += event.results[i][0]?.transcript ?? "";
@@ -133,4 +154,6 @@ export default function MicButton({
       </svg>
     </button>
   );
-}
+});
+
+export default MicButton;
