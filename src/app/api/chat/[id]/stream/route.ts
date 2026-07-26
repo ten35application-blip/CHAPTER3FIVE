@@ -463,10 +463,13 @@ export async function POST(
           .trim();
 
         // Phase B.2 — persona-side reaction. Model may prefix its
-        // reply with [react:KIND] on its own first line. Extract, strip,
-        // insert a message_reactions row keyed to the user's message
-        // that just landed, and stream a "reaction" event so the badge
-        // renders on the user's bubble immediately.
+        // reply with [react:KIND]. Regex intentionally does NOT require
+        // a newline after the marker so `[react:heart] hello` on a
+        // single line still splits cleanly. Anchored to the start so a
+        // mid-sentence `[react:...]` mention (rare, but possible) is
+        // not stripped. The insert itself is deferred until we've
+        // confirmed at least one reply row actually persisted — a
+        // dangling reaction with no reply is worse than no reaction.
         const REACT_KINDS = new Set([
           "heart",
           "exclamation",
@@ -476,48 +479,15 @@ export async function POST(
           "ha_ha",
         ]);
         let personaReaction: string | null = null;
-        const reactMatch = reply.match(/^\s*\[react:([a-z_]+)\]\s*(?:\n|$)/i);
+        const reactMatch = reply.match(/^\s*\[react:([a-z_]+)\]\s*/i);
         if (reactMatch) {
           const kind = reactMatch[1].toLowerCase();
           if (REACT_KINDS.has(kind)) {
             personaReaction = kind;
-            reply = reply.slice(reactMatch[0].length).trim();
-          } else {
-            // Unknown kind — strip the marker anyway so garbage
-            // doesn't reach the user, but don't record a reaction.
-            reply = reply.slice(reactMatch[0].length).trim();
           }
-        }
-
-        // Insert reaction after we know the user's message id landed.
-        // userMessageId is null for retry sends (no new user message to
-        // react to) — skip in that case. The unique index on
-        // (message_id, oracle_id) is partial so upsert can't target
-        // it via Supabase's client — a fresh user message can't have a
-        // pre-existing persona reaction so a plain insert is safe.
-        // 23505 (unique violation) is logged and swallowed so a rare
-        // race doesn't break the stream.
-        if (personaReaction && userMessageId) {
-          const { error: reactErr } = await admin
-            .from("message_reactions")
-            .insert({
-              message_id: userMessageId,
-              oracle_id: oracleId,
-              kind: personaReaction,
-            });
-          if (reactErr && reactErr.code !== "23505") {
-            console.error(
-              "[chat stream] persona reaction insert failed:",
-              reactErr,
-            );
-            personaReaction = null; // don't lie to the client
-          } else {
-            send({
-              type: "reaction",
-              messageId: userMessageId,
-              kind: personaReaction,
-            });
-          }
+          // Strip marker regardless — unknown kinds shouldn't leak as
+          // literal text to the user either.
+          reply = reply.slice(reactMatch[0].length).trim();
         }
 
         // Phase B multi-message replies: personas with text_burst_style
@@ -629,6 +599,38 @@ export async function POST(
           });
           send({ type: "error", error: "persist_failed" });
           return;
+        }
+
+        // Persist + emit the persona reaction NOW, after we know at
+        // least one reply part landed (OR the reply was legitimately
+        // empty — a react-only turn is fine and should stand on its
+        // own). Doing it here (not right after the marker parse)
+        // prevents dangling reactions on the user's message when the
+        // reply itself failed to persist. userMessageId is null on
+        // retry sends — skip in that case since there is no fresh
+        // user turn to react to. 23505 (unique violation) means a
+        // rare race with another concurrent reaction on this same
+        // message — swallow it and don't emit.
+        if (personaReaction && userMessageId) {
+          const { error: reactErr } = await admin
+            .from("message_reactions")
+            .insert({
+              message_id: userMessageId,
+              oracle_id: oracleId,
+              kind: personaReaction,
+            });
+          if (reactErr && reactErr.code !== "23505") {
+            console.error(
+              "[chat stream] persona reaction insert failed:",
+              reactErr,
+            );
+          } else {
+            send({
+              type: "reaction",
+              messageId: userMessageId,
+              kind: personaReaction,
+            });
+          }
         }
 
         // When a burst produced multiple parts, ship them back in the

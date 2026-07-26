@@ -56,12 +56,17 @@ type StreamEvent =
  *  lands. Matches iMessage's read-time-between-sends feel. */
 const BURST_STAGGER_MS = 650;
 
-/** Strip [NEXT] markers from live-streaming text so the intermediate
- *  display never shows the split literal to the user. Applied both
- *  during streaming (streamText render) and as a safety net when a
- *  baseline persona happens to emit the marker in prose. */
-function stripBurstMarkers(text: string): string {
-  return text.replace(/^\s*\[NEXT\]\s*$/gm, "").replace(/\n{3,}/g, "\n\n");
+/** Strip persona-only markers ([NEXT] burst separator + [react:KIND]
+ *  tap-back marker) from live-streaming text so the intermediate
+ *  display never shows the literal. Applied during streaming and as a
+ *  safety net on the single-part done branch. Server also strips
+ *  before persist so DB rows are always clean regardless of what the
+ *  client does. */
+function stripPersonaMarkers(text: string): string {
+  return text
+    .replace(/^\s*\[NEXT\]\s*$/gim, "")
+    .replace(/^\s*\[react:[a-z_]+\]\s*/i, "")
+    .replace(/\n{3,}/g, "\n\n");
 }
 
 /**
@@ -392,7 +397,7 @@ export default function ChatSurface({
             acc += evt.text;
             // Display strips [NEXT] markers so a mid-stream split
             // doesn't flash the literal to the user.
-            setStreamText(stripBurstMarkers(acc));
+            setStreamText(stripPersonaMarkers(acc));
           } else if (evt.type === "reaction") {
             // Persona tapped back on the user's just-landed message.
             // Server has already persisted; render the badge on the
@@ -459,7 +464,7 @@ export default function ChatSurface({
               markRead();
             } else {
               // Single-message reply — baseline path unchanged.
-              const reply = stripBurstMarkers(acc).trim();
+              const reply = stripPersonaMarkers(acc).trim();
               if (reply) {
                 setMessages((prev) => [
                   ...prev,
