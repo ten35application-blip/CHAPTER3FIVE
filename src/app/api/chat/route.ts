@@ -24,6 +24,7 @@ import {
   extractAndStoreMemories,
 } from "@/lib/memory";
 import { moderateImage } from "@/lib/moderation";
+import { canSendMessageForFreeCap } from "@/lib/subscription";
 import {
   judgeTone,
   generateBlockLine,
@@ -264,6 +265,25 @@ export async function POST(request: NextRequest) {
       ]);
       return NextResponse.json({ reply, helpMode: true });
     }
+  }
+
+  // Free-tier monthly message cap. Pro/admin/trial always pass; free
+  // users get PRICING.freeMessagesPerMonth per calendar month across
+  // all conversations. Help-mode already returned above so support
+  // queries aren't gated. Runs BEFORE the daily bump so a rejected
+  // send doesn't tick against the user's daily count.
+  const freeCap = await canSendMessageForFreeCap(supabase);
+  if (!freeCap.ok) {
+    return NextResponse.json(
+      {
+        error: "free_month_cap",
+        current: freeCap.current,
+        limit: freeCap.limit,
+        message:
+          "You've hit this month's free-tier message limit. Upgrade to premium plan for unlimited messages.",
+      },
+      { status: 402 },
+    );
   }
 
   // Daily rate limit. Atomic increment via SQL — race-safe under bursts.

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
   EXTRA_IDENTITY_PRICE_LABEL,
+  FREE_MESSAGES_PER_MONTH,
   MONTHLY_PRICE_LABEL,
   PRICING,
   RESTORE_IDENTITY_PRICE_LABEL,
@@ -310,18 +311,19 @@ export default async function TutorialPage() {
         <TutorialCard
           icon={<DollarIcon />}
           eyebrow="Pricing"
-          headline="One free forever. Everything else on a $5 plan."
+          headline="Start free. Premium unlocks the rest."
         >
           <ul className="space-y-2 [&_li]:list-disc [&_li]:ml-5 [&_li]:pl-1">
             <li>
-              <strong>Free:</strong> your first identity, forever.
+              <strong>Free:</strong> your first identity, plus{" "}
+              {FREE_MESSAGES_PER_MONTH} messages a month.
             </li>
             <li>
-              <strong>Pro ({MONTHLY_PRICE_LABEL}/month):</strong> up to{" "}
-              {PRICING.totalIdentitiesPerPlan} identities (
+              <strong>Premium ({MONTHLY_PRICE_LABEL}/month):</strong> up
+              to {PRICING.totalIdentitiesPerPlan} identities (
               {PRICING.formulaIdentitiesPerPlan} formula-made plus one
-              from a photo) and unlocks the Personal identity + Inherit
-              paths.
+              from a photo), unlimited messages, and unlocks the
+              Personal identity + Inherit paths.
             </li>
             <li>
               <strong>Extras:</strong> {EXTRA_IDENTITY_PRICE_LABEL}/month

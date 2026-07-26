@@ -154,6 +154,12 @@ export default function ChatSurface({
   // composer swaps for a warm upgrade nudge. (Fresh opens of a locked
   // chat never get here; the server page redirects to /upgrade first.)
   const [proLocked, setProLocked] = useState(false);
+  // Free tier hit its monthly message cap. Same shape as proLocked but
+  // a different message and copy — the user's plan didn't END, they
+  // just hit this month's limit.
+  const [capHit, setCapHit] = useState<{ current: number; limit: number } | null>(
+    null,
+  );
   // Full-screen zoom target — the avatar and attached photos share the
   // same modal.
   const [zoomUrl, setZoomUrl] = useState<string | null>(null);
@@ -254,6 +260,19 @@ export default function ChatSurface({
           } else if (res.status === 429) {
             setRateLimited(true);
             // The message never made it — pull the optimistic bubble.
+            setMessages((prev) => prev.filter((m) => m.id !== tempId));
+          } else if (res.status === 402) {
+            // Free-tier monthly message cap hit. Pull the optimistic
+            // bubble (nothing persisted) and swap the input for the
+            // upgrade CTA.
+            const body = (await res.json().catch(() => null)) as {
+              current?: number;
+              limit?: number;
+            } | null;
+            setCapHit({
+              current: body?.current ?? 0,
+              limit: body?.limit ?? 0,
+            });
             setMessages((prev) => prev.filter((m) => m.id !== tempId));
           } else {
             setStreamFailed(true);
@@ -579,6 +598,22 @@ export default function ChatSurface({
                 className="bg-gradient-cta flex h-12 w-full max-w-sm items-center justify-center rounded-full px-6 text-base font-bold tracking-tight text-white shadow-[0_10px_28px_-10px_rgba(232,138,118,0.6)] transition-all hover:-translate-y-px active:translate-y-0"
               >
                 Upgrade to keep talking to {name}
+              </Link>
+            </div>
+          ) : capHit ? (
+            <div className="flex flex-col items-center gap-3 px-4 py-4 text-center">
+              <p className="text-[15px] leading-snug text-warm-200">
+                You&apos;ve used all{" "}
+                <strong className="text-warm-50">{capHit.limit}</strong>{" "}
+                of this month&apos;s free messages. {name} is still here
+                &mdash; upgrade to premium for unlimited messages, or come
+                back at the start of next month.
+              </p>
+              <Link
+                href={`/upgrade?next=${encodeURIComponent(`/chat/${oracleId}`)}`}
+                className="bg-gradient-cta flex h-12 w-full max-w-sm items-center justify-center rounded-full px-6 text-base font-bold tracking-tight text-white shadow-[0_10px_28px_-10px_rgba(232,138,118,0.6)] transition-all hover:-translate-y-px active:translate-y-0"
+              >
+                Upgrade to keep talking
               </Link>
             </div>
           ) : (

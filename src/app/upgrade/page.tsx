@@ -5,6 +5,7 @@ import { isPro } from "@/lib/subscription";
 import {
   EXTRA_IDENTITY_PRICE_LABEL,
   EXTRA_INHERITED_PRICE_LABEL,
+  FREE_MESSAGES_PER_MONTH,
   MONTHLY_PRICE_LABEL,
   PRICING,
 } from "@/lib/pricing";
@@ -93,6 +94,11 @@ export default async function UpgradePage({
 
           <ul className="mt-6 space-y-3 text-left text-base text-warm-200">
             <ProLine>
+              <strong className="text-warm-50">Unlimited messages</strong>{" "}
+              — no monthly cap, no meters. Free tier is limited to{" "}
+              {FREE_MESSAGES_PER_MONTH} messages a month.
+            </ProLine>
+            <ProLine>
               Up to {PRICING.formulaIdentitiesPerPlan} companions from our
               formula
             </ProLine>
@@ -119,8 +125,8 @@ export default async function UpgradePage({
               Need more than {PRICING.totalIdentitiesPerPlan}?{" "}
               <strong className="text-warm-50">
                 {EXTRA_IDENTITY_PRICE_LABEL}/mo per extra identity
-              </strong>{" "}
-              — same rate as the base plan.
+              </strong>
+              .
             </ProLine>
           </ul>
         </div>
