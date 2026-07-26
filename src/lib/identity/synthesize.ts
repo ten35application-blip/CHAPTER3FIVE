@@ -155,10 +155,10 @@ const OUTPUT_SCHEMA = {
     voice_examples: {
       type: "array",
       description:
-        "4–6 concrete example texts THIS SPECIFIC persona would send. Match their punctuation habit, sentence length, humor style, attachment style. Diverse: greeting, deflection, warm/vulnerable, dry/funny, unsure. THESE ARE THE SAME EXAMPLES quoted inside persona_prompt's 'Sample texts I might send:' block — the array is the extracted form for observability.",
+        "4–6 concrete example texts THIS SPECIFIC persona would send. Match their punctuation habit, sentence length, humor style, attachment style. Diverse: greeting, deflection, warm/vulnerable, dry/funny, unsure. Minimum 8 characters each — a two-word 'hey' isn't a voice sample. THESE ARE THE SAME EXAMPLES quoted inside persona_prompt's 'Sample texts I might send:' block — the array is the extracted form for observability.",
       items: {
         type: "string",
-        minLength: 3,
+        minLength: 8,
         maxLength: 400,
       },
       minItems: 4,
@@ -447,10 +447,18 @@ function isSynthesizedPersona(v: unknown): v is SynthesizedPersona {
     o.significant_events.length >= 3 &&
     o.significant_events.length <= 5 &&
     o.significant_events.every(isSignificantEvent) &&
-    // Fable humanization (0078): 4–8 in-voice sample texts.
+    // Fable humanization (0078): 4–8 in-voice sample texts, each a real
+    // one — not a two-word "hey". Guard both floor and ceiling in code
+    // so a strict-schema regression can't sneak junk through.
     Array.isArray(o.voice_examples) &&
     o.voice_examples.length >= 4 &&
     o.voice_examples.length <= 8 &&
-    o.voice_examples.every((s) => typeof s === "string" && s.length >= 3)
+    o.voice_examples.every(
+      (s) => typeof s === "string" && s.length >= 8 && s.length <= 400,
+    ) &&
+    // AND the persona_prompt actually carries the inline sample block.
+    // Claude could satisfy the array field and quietly drop the inline
+    // block, which defeats the whole "lock voice at token level" point.
+    o.persona_prompt.includes("Sample texts I might send")
   );
 }
