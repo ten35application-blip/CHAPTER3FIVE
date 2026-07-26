@@ -122,7 +122,10 @@ export async function backfillVoiceExamples(
   // sends the whole persona_prompt as the cached system prefix; the
   // block needs to live there, not just on the column. Idempotent —
   // if the block already exists we don't re-append.
-  const alreadyHasBlock = /Sample texts I might send/i.test(
+  // Anchored to line start so a prose mention ("sample texts I might
+  // send would include jokes") can't false-positive and leave the
+  // row in a partial state (column filled, no inline block).
+  const alreadyHasBlock = /^Sample texts I might send:/im.test(
     oracle.persona_prompt,
   );
   const appended = alreadyHasBlock

@@ -36,8 +36,11 @@ export async function POST(request: NextRequest) {
 
   const url = new URL(request.url);
   const limitRaw = Number.parseInt(url.searchParams.get("limit") ?? "50", 10);
+  // Clamp max to 100 so we don't brush the 300s runtime cap on a slow
+  // Haiku day (typical call ~1-3s serial × 200 = risky). Caller
+  // repeats the POST to continue past 100.
   const limit = Number.isFinite(limitRaw)
-    ? Math.min(Math.max(limitRaw, 1), 200)
+    ? Math.min(Math.max(limitRaw, 1), 100)
     : 50;
 
   const admin = createAdminClient();
