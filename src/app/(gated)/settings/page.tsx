@@ -8,7 +8,8 @@ import {
   MONTHLY_PRICE_LABEL,
   PRICING,
 } from "@/lib/pricing";
-import { ProfileEditor } from "./_components/ProfileEditor";
+import { NameField } from "./_components/NameField";
+import { PhotoUploader } from "./_components/PhotoUploader";
 
 export const metadata = {
   title: "Settings · chapter3five",
@@ -31,7 +32,18 @@ async function signOut() {
 const PLAN_NAME = "Free plan";
 const PLAN_QUOTA = PRICING.totalIdentitiesPerPlan;
 
-export default async function SettingsPage() {
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  // `?debug=1` toggles the photo-widget's on-screen diagnostic panel so
+  // Wilson can screenshot state changes on his phone. Any other value
+  // (including missing) → no panel. Read from RSC searchParams because
+  // the page is force-dynamic anyway.
+  const sp = await searchParams;
+  const debug = sp.debug === "1";
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -105,13 +117,19 @@ export default async function SettingsPage() {
       </header>
 
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-8 px-4 pt-8">
-        {/* PROFILE — inline photo + name editor. No sub-page. */}
+        {/* PROFILE — inline photo + name editor. Two client components
+            rather than one ProfileEditor wrapper: PhotoUploader owns
+            its native-form flow (round-4 rebuild after three
+            revert-symptom fixes failed), NameField owns the blur-save
+            name flow. Splitting them keeps the photo pipeline
+            isolated from every other bit of state on this page. */}
         <Section label="Profile" accent="You" icon={<PersonIcon />}>
-          <ProfileEditor
-            photoUrl={avatarSignedUrl}
+          <PhotoUploader
+            initialPhotoUrl={avatarSignedUrl}
             initial={initial}
-            fullName={fullName}
+            debug={debug}
           />
+          <NameField fullName={fullName} />
         </Section>
 
         {/* PLAN — count + upgrade CTA. Identity row shows the raw
@@ -169,32 +187,71 @@ export default async function SettingsPage() {
           </div>
         </CollapsibleSection>
 
-        {/* THE FINE PRINT — legal docs, collapsible per Wilson. */}
+        {/* THE FINE PRINT — full landing-footer inventory. Wilson asked
+            for every link the marketing footer carries to live here
+            too, so a signed-in user never has to leave the app to find
+            terms/privacy/about/etc. Grouped by intent: About (who we
+            are), Legal (terms and app-store review essentials),
+            Support (contact + advertise). Default-collapsed so the
+            longer list doesn't dominate the settings screen. */}
         <CollapsibleSection
           storageKey="settings.fine-print"
           label="The fine print"
+          defaultOpen={false}
         >
-          <div className="mt-2 overflow-hidden rounded-2xl bg-ink-soft ring-1 ring-warm-700/60">
-            <IconNavRow
-              href="/terms"
-              icon={<ShieldIcon />}
-              label="Terms of Service"
-              value="Read"
-            />
-            <Divider />
-            <IconNavRow
-              href="/privacy"
-              icon={<LockIcon />}
-              label="Privacy Policy"
-              value="Read"
-            />
-            <Divider />
-            <IconNavRow
-              href="/guidelines"
-              icon={<HeartIcon />}
-              label="Community Guidelines"
-              value="Read"
-            />
+          <div className="mt-2 flex flex-col gap-3">
+            <FinePrintGroup label="About">
+              <IconNavRow
+                href="/about"
+                icon={<InfoIcon />}
+                label="About"
+                value="Our story"
+              />
+            </FinePrintGroup>
+            <FinePrintGroup label="Legal">
+              <IconNavRow
+                href="/terms"
+                icon={<ShieldIcon />}
+                label="Terms of Service"
+                value="Read"
+              />
+              <Divider />
+              <IconNavRow
+                href="/privacy"
+                icon={<LockIcon />}
+                label="Privacy Policy"
+                value="Read"
+              />
+              <Divider />
+              <IconNavRow
+                href="/guidelines"
+                icon={<HeartIcon />}
+                label="Community Guidelines"
+                value="Read"
+              />
+              <Divider />
+              <IconNavRow
+                href="/data-deletion"
+                icon={<TrashIcon />}
+                label="Data deletion"
+                value="How it works"
+              />
+            </FinePrintGroup>
+            <FinePrintGroup label="Support">
+              <IconNavRow
+                href="/settings/help"
+                icon={<HeartIcon />}
+                label="Contact us"
+                value="Get help"
+              />
+              <Divider />
+              <IconNavRow
+                href="/advertise"
+                icon={<MegaphoneIcon />}
+                label="Advertise"
+                value="Reach families"
+              />
+            </FinePrintGroup>
           </div>
         </CollapsibleSection>
 
@@ -211,15 +268,12 @@ export default async function SettingsPage() {
           </button>
         </form>
 
-        {/* DANGER ZONE — delete only. Wilson: "we have to make sure we
-            say that deleting your account will also fully delete ALL
-            identities." Warning copy is inline under the row (muted
-            red so it reads as consequence, not alarm). The full
-            confirmation flow lives on /settings/delete. */}
+        {/* DELETE — red row without the DANGER ZONE header per Wilson
+            (2026-07-25): "if people want to delete their account it's
+            cool. I like how it looks in red and in the bottom." The
+            row itself carries the warning copy so the consequence is
+            still clear at the tap-target. */}
         <section>
-          <h2 className="mb-2 px-4 text-xs font-semibold uppercase tracking-wider text-warm-300">
-            Danger <span className="text-coral-strong">zone</span>
-          </h2>
           <div className="overflow-hidden rounded-2xl bg-ink-soft ring-1 ring-warm-700/60">
             <Link
               href="/settings/delete"
@@ -232,8 +286,8 @@ export default async function SettingsPage() {
             </Link>
             <p className="px-4 pb-4 text-xs leading-relaxed text-red-500/70">
               Deleting your account will also delete every identity
-              you've made, every conversation, and every legacy code
-              you've shared. This cannot be undone.
+              you&apos;ve made, every conversation, and every legacy
+              code you&apos;ve shared. This cannot be undone.
             </p>
           </div>
         </section>
@@ -281,6 +335,30 @@ function Section({
         {children}
       </div>
     </section>
+  );
+}
+
+/**
+ * Sub-group inside the fine-print list — a tiny label followed by an
+ * icon-row card. Keeps the long list scannable without adding chrome
+ * that competes with the top-level sections.
+ */
+function FinePrintGroup({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <p className="mb-1 px-4 text-[10px] font-bold uppercase tracking-widest text-warm-500">
+        {label}
+      </p>
+      <div className="overflow-hidden rounded-2xl bg-ink-soft ring-1 ring-warm-700/60">
+        {children}
+      </div>
+    </div>
   );
 }
 
@@ -602,6 +680,45 @@ function ShieldIcon() {
   );
 }
 
+function InfoIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="14"
+      height="14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <circle cx="12" cy="12" r="10" />
+      <line x1="12" y1="16" x2="12" y2="12" />
+      <line x1="12" y1="8" x2="12.01" y2="8" />
+    </svg>
+  );
+}
+
+function MegaphoneIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="14"
+      height="14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M3 11v2a1 1 0 0 0 1 1h3l6 4V6L7 10H4a1 1 0 0 0-1 1z" />
+      <path d="M17 8a5 5 0 0 1 0 8" />
+    </svg>
+  );
+}
+
 function TrashIcon() {
   return (
     <svg
@@ -621,4 +738,3 @@ function TrashIcon() {
     </svg>
   );
 }
-

@@ -14,13 +14,17 @@ import { createClient } from "@/lib/supabase/server";
  * public URL. The bucket is private so URLs are signed server-side
  * (1 h TTL) at render time — matches the chat-uploads pattern.
  *
- * These actions used to live under /settings/profile — inlined into
- * /settings per Wilson's redesign (2026-07-25). The Client Component
- * that calls them is responsible for calling `router.refresh()` after a
- * successful mutation; the server-side `refresh()` from next/cache
- * proved flaky on iOS Safari when the action is invoked from inside a
- * useTransition (rather than a form submit), so we let the client
- * router do the refresh explicitly.
+ * ROUND 4 rewrite (2026-07-25): uploadProfilePhoto and removeProfilePhoto
+ * now target `useActionState` — signature is `(prevState, formData)` and
+ * they return a typed state object. Uploads return the freshly minted
+ * signed URL alongside `{ ok: true }` so the client can swap the visible
+ * <img> without waiting on the RSC round-trip. The prior three rounds
+ * (revalidatePath alone, router.refresh, key={signedUrl}, URL-scoped
+ * failedUrl) all assumed the RSC re-render was the source of truth for
+ * the fresh photo — this returns it inline instead, decoupling the
+ * display from whatever iOS Safari is doing with the client router.
+ * updateProfileName stays a plain server function since the name flow
+ * never had the revert bug.
  */
 
 const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
@@ -37,6 +41,24 @@ const ACCEPTED_MIME_TYPES: readonly string[] = [
   "image/heic",
   "image/heif",
 ];
+
+/**
+ * Typed state for the photo upload action — shaped for useActionState.
+ * `signedUrl` is the fresh signed URL for the newly-uploaded object so
+ * the client can render it immediately without waiting for the RSC
+ * refresh (the failure mode in rounds 1-3). `bytes` and `contentType`
+ * are surfaced for the ?debug=1 panel Wilson can screenshot on his phone
+ * — they never affect UI in normal operation.
+ */
+export type PhotoUploadState =
+  | { ok: true; signedUrl: string; bytes: number; contentType: string }
+  | { ok: false; error: string; bytes?: number; contentType?: string }
+  | null;
+
+export type PhotoRemoveState =
+  | { ok: true }
+  | { ok: false; error: string }
+  | null;
 
 async function requireUser() {
   const supabase = await createClient();
@@ -57,26 +79,35 @@ async function requireUser() {
  *      with upsert so re-uploads overwrite cleanly.
  *   4. Store the storage path on profiles.avatar_url (the bucket is
  *      private — the render surface signs a URL on demand).
+ *   5. Sign a fresh URL and return it inline so the client can render
+ *      the new photo without waiting on the RSC round-trip.
  */
 export async function uploadProfilePhoto(
+  _prevState: PhotoUploadState,
   formData: FormData,
-): Promise<{ ok: true } | { ok: false; error: string }> {
+): Promise<PhotoUploadState> {
   const { supabase, user } = await requireUser();
 
   const file = formData.get("photo");
   if (!(file instanceof File) || file.size === 0) {
     return { ok: false, error: "Pick a photo first." };
   }
+  const bytes = file.size;
+  const contentType = file.type;
   if (file.size > MAX_UPLOAD_BYTES) {
     return {
       ok: false,
       error: "That photo is over 8 MB. Try a smaller one.",
+      bytes,
+      contentType,
     };
   }
   if (!ACCEPTED_MIME_TYPES.includes(file.type)) {
     return {
       ok: false,
       error: "Use a JPEG, PNG, WebP, or HEIC image.",
+      bytes,
+      contentType,
     };
   }
 
@@ -98,6 +129,8 @@ export async function uploadProfilePhoto(
     return {
       ok: false,
       error: "Couldn't read that image. Try a different photo.",
+      bytes,
+      contentType,
     };
   }
 
@@ -114,6 +147,8 @@ export async function uploadProfilePhoto(
     return {
       ok: false,
       error: "Couldn't save the photo. Try again.",
+      bytes,
+      contentType,
     };
   }
 
@@ -126,23 +161,52 @@ export async function uploadProfilePhoto(
     return {
       ok: false,
       error: "Photo uploaded but couldn't be saved. Try again.",
+      bytes,
+      contentType,
     };
   }
 
+  // Mint a fresh signed URL for the just-uploaded object. The client
+  // uses this to render the new photo IMMEDIATELY, without waiting for
+  // the RSC payload to re-arrive — that dependence was the root of the
+  // "reverts to original" symptom on iOS Safari across rounds 1-3.
+  const { data: signed, error: signError } = await supabase.storage
+    .from("profile-avatars")
+    .createSignedUrl(storagePath, 60 * 60);
+  if (signError || !signed?.signedUrl) {
+    console.error("[profile-photo] sign failed:", signError);
+    return {
+      ok: false,
+      error: "Photo saved but preview failed. Refresh to see it.",
+      bytes,
+      contentType,
+    };
+  }
+
+  // Still revalidate so other surfaces (dashboard header avatar, etc.)
+  // pick up the new photo on their next render.
   revalidatePath("/settings");
   revalidatePath("/dashboard");
-  return { ok: true };
+
+  return {
+    ok: true,
+    signedUrl: signed.signedUrl,
+    bytes,
+    contentType,
+  };
 }
 
 /**
  * Clear the profile photo. Best-effort remove from storage first, then
  * null the column — the storage delete failing (e.g. object already
  * gone) shouldn't block the user from resetting to the initial
- * fallback.
+ * fallback. Adapted to `useActionState` shape in round 4 so the whole
+ * photo widget can be one native `<form>` per action.
  */
-export async function removeProfilePhoto(): Promise<
-  { ok: true } | { ok: false; error: string }
-> {
+export async function removeProfilePhoto(
+  _prevState: PhotoRemoveState,
+  _formData: FormData,
+): Promise<PhotoRemoveState> {
   const { supabase, user } = await requireUser();
 
   const storagePath = `${user.id}/avatar.jpg`;

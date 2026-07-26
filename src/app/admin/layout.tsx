@@ -28,14 +28,30 @@ export default async function AdminLayout({
 
   return (
     <div className="flex min-h-dvh flex-col md:flex-row">
-      {/* Sidebar (top bar on mobile) */}
+      {/* Sidebar (top bar on mobile). The mobile layout gets a
+          right-aligned "Back to dashboard" pill in the top row so
+          admins on their phone always have a one-tap escape hatch —
+          Wilson's read of the /admin/* surfaces was that they felt
+          trapped. Desktop keeps the discreet footer link at the
+          bottom of the rail. */}
       <aside className="flex w-full shrink-0 flex-col gap-4 border-b border-warm-700 bg-ink-soft/60 px-4 py-4 backdrop-blur md:min-h-dvh md:w-60 md:border-b-0 md:border-r md:px-5 md:py-8">
-        <Link href="/admin" className="flex items-baseline gap-1.5">
-          <span className="text-lg font-semibold tracking-tight text-warm-50">
-            chapter<span className="text-gradient-cta">3</span>five
-          </span>
-          <span className="text-sm font-medium text-warm-400">· admin</span>
-        </Link>
+        <div className="flex items-center justify-between gap-3">
+          <Link href="/admin" className="flex items-baseline gap-1.5">
+            <span className="text-lg font-semibold tracking-tight text-warm-50">
+              chapter<span className="text-gradient-cta">3</span>five
+            </span>
+            <span className="text-sm font-medium text-warm-400">· admin</span>
+          </Link>
+
+          <Link
+            href="/dashboard"
+            className="flex items-center gap-1.5 rounded-full bg-coral/10 px-3 py-1.5 text-xs font-semibold text-coral-strong ring-1 ring-coral/25 transition-colors hover:bg-coral/15 md:hidden"
+            aria-label="Back to dashboard"
+          >
+            <CompassIcon />
+            <span>Back to dashboard</span>
+          </Link>
+        </div>
 
         <AdminNav />
 
@@ -56,5 +72,24 @@ export default async function AdminLayout({
         {children}
       </main>
     </div>
+  );
+}
+
+function CompassIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="14"
+      height="14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <circle cx="12" cy="12" r="10" />
+      <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
+    </svg>
   );
 }
