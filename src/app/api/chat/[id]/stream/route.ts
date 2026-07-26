@@ -3,6 +3,7 @@ import { after } from "next/server";
 import type Anthropic from "@anthropic-ai/sdk";
 import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { ageFromBirthday } from "@/lib/identity/formula";
+import { moodOfTheDay, moodToPromptBlock } from "@/lib/identity/mood";
 import { extractMemoriesFromMessage } from "@/lib/memory/extract";
 import { fetchMemoriesForContext } from "@/lib/memory/retrieve";
 import { shouldPersonaBlock } from "@/lib/safety/block-detector";
@@ -363,6 +364,18 @@ export async function POST(
   }
   if (stateCue) {
     system.push({ type: "text", text: stateCue });
+  }
+
+  // Fable humanization Phase 2 — mood-of-the-day. Deterministic per
+  // (oracleId, YYYY-MM-DD) so a single day stays consistent but the
+  // same persona has weather across sessions. Injected AFTER the
+  // cache breakpoint on purpose so the daily rotation doesn't
+  // invalidate the cached persona_prompt prefix. Failsafe: any
+  // unknown mood key returns null and the block is silently omitted.
+  const todayMood = moodOfTheDay(oracleId, new Date().toISOString());
+  const moodBlock = moodToPromptBlock(todayMood);
+  if (moodBlock) {
+    system.push({ type: "text", text: moodBlock });
   }
 
   // Current turn: URL image block (Anthropic fetches the signed URL) +
