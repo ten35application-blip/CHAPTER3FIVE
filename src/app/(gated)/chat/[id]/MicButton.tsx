@@ -76,9 +76,18 @@ const MicButton = forwardRef<
     // the current utterance"; iOS Safari can hold that request open for
     // seconds and keep firing onresult in the meantime. abort() kills
     // the session immediately and guarantees the mic stops. Latch
-    // cancelled first so any final in-flight result is dropped.
+    // cancelled first so any final in-flight result is dropped, then
+    // detach handlers on the outgoing instance — rapid stop→start
+    // otherwise lets the old rec's trailing onresult fire under the
+    // new session's cancelledRef=false and pollute the transcript.
     cancelledRef.current = true;
-    recognitionRef.current?.abort();
+    const rec = recognitionRef.current;
+    if (rec) {
+      rec.onresult = null;
+      rec.onend = null;
+      rec.onerror = null;
+      rec.abort();
+    }
     recognitionRef.current = null;
     setListening(false);
   };
