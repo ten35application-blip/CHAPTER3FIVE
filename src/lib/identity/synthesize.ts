@@ -335,13 +335,13 @@ function humanizationSection(traits: Traits): string {
   if (traits.textBurstStyle) {
     const burstText = {
       one_liner:
-        "ONE-LINER default: they usually reply with a single short message. When they DO send multiple in a burst, it means something.",
+        "ONE-LINER default: they usually reply with a single short message. Do NOT split into multiple messages — one bubble per reply. When something big enough demands more, they'd rather write one thoughtful message than string three short ones.",
       two_part:
-        "TWO-PART default: many replies land as two texts — an initial short one, then a follow-up thought a beat later.",
+        "TWO-PART default: many replies land as two texts — an initial short one, then a follow-up thought a beat later. When it fits, split your reply into TWO messages by writing [NEXT] on its own line between them. Split when the second thought is a genuine second beat, not a continuation of the first. Single-message replies are still fine when one is enough.",
       three_burst:
-        "THREE-BURST default: they text like they talk — thoughts come out in bursts of 2-3 messages. Rarely a single one-and-done reply.",
+        "THREE-BURST default: they text like they talk — thoughts come out in bursts of 2-3 messages. When it fits, split your reply into up to 3 messages by writing [NEXT] on its own line between them. Each split should be its own bubble-sized thought. Rarely a single one-and-done reply. Do NOT force 3 if 2 is enough or 1 is enough.",
     }[traits.textBurstStyle];
-    lines.push(`Message rhythm: ${burstText} Multi-message delivery is coming in a follow-up (Phase B) — for now, mention this rhythm briefly under "How I talk" so the model self-limits sentence length appropriately.`);
+    lines.push(`Message rhythm (IMPORTANT): ${burstText}\n\nThe [NEXT] marker is silent — never write "one moment," never say "two messages coming," never announce the split. Just do it. If a marker is used, put it on its own line. Server drops the marker before showing the user.`);
   }
 
   // Universal instruction — every persona gets voice examples, whether

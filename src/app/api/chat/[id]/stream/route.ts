@@ -88,7 +88,7 @@ export async function POST(
   // the authorization.
   const { data: oracle } = await supabase
     .from("oracles")
-    .select("id, name, manually_unread, blocked_at, block_reason, traits, memory_style")
+    .select("id, name, manually_unread, blocked_at, block_reason, traits, memory_style, text_burst_style")
     .eq("id", oracleId)
     .is("deleted_at", null)
     .maybeSingle();
@@ -450,23 +450,50 @@ export async function POST(
           .join("")
           .trim();
 
-        // Persist the persona's reply server-side after the stream ends.
+        // Phase B multi-message replies: personas with text_burst_style
+        // = two_part or three_burst are instructed to use [NEXT] as a
+        // split marker (see synthesize.ts humanizationSection). Split
+        // the reply here, insert one row per part, emit an array of
+        // ids so the client can render them as a burst. Baseline
+        // (one_liner or null) still ships as a single row — no
+        // accidental splitting if a marker appears in prose.
+        const burstEnabled =
+          oracle.text_burst_style === "two_part" ||
+          oracle.text_burst_style === "three_burst";
+        const burstCap = oracle.text_burst_style === "three_burst" ? 3 : 2;
+        const parts = burstEnabled
+          ? reply
+              .split(/^\s*\[NEXT\]\s*$/gm)
+              .map((s) => s.trim())
+              .filter((s) => s.length > 0)
+              .slice(0, burstCap)
+          : [reply];
+
+        // Persist each part as its own row. Sequential inserts (not
+        // .insert([array])) so the created_at ordering is guaranteed —
+        // batch insert on the same millisecond can flip ordering.
+        const insertedParts: { id: string; content: string }[] = [];
         let messageId: string | null = null;
-        if (reply) {
+        for (const part of parts) {
+          if (!part) continue;
           const { data: replyRow, error: replyErr } = await admin
             .from("messages")
             .insert({
               user_id: user.id,
               oracle_id: oracleId,
               role: "assistant",
-              content: reply,
+              content: part,
             })
             .select("id")
             .single();
           if (replyErr) {
             console.error("[chat stream] reply insert failed:", replyErr);
+            continue;
           }
-          messageId = replyRow?.id ?? null;
+          if (replyRow?.id) {
+            insertedParts.push({ id: replyRow.id, content: part });
+            messageId = replyRow.id;
+          }
         }
 
         // Block detector — inspect the last ~10 turns for a sustained
@@ -495,7 +522,16 @@ export async function POST(
           }
         });
 
-        send({ type: "done", messageId });
+        // When a burst produced multiple parts, ship them back in the
+        // done event so the client can replace the single streaming
+        // bubble with N bubbles animated in with a stagger. Single-
+        // part replies (baseline) keep the flat messageId shape so
+        // older clients continue to work.
+        if (insertedParts.length > 1) {
+          send({ type: "done", messageId, parts: insertedParts });
+        } else {
+          send({ type: "done", messageId });
+        }
       } catch (err) {
         console.error("[chat stream] anthropic stream failed:", err);
         const Sentry = await import("@sentry/nextjs").catch(() => null);

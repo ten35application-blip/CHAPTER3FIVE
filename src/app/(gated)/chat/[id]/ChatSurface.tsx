@@ -34,8 +34,29 @@ const LONG_PRESS_MS = 350;
 type StreamEvent =
   | { type: "begin"; userMessageId: string | null; readByOracleAt: string }
   | { type: "text"; text: string }
-  | { type: "done"; messageId: string | null }
+  | {
+      type: "done";
+      messageId: string | null;
+      /** Phase B multi-message replies: when the persona's text_burst_style
+       *  is two_part or three_burst and they used the [NEXT] marker, the
+       *  server splits and inserts N rows; parts here carries all of them
+       *  so the client can render staggered bubbles. Absent for single-
+       *  message replies (baseline). */
+      parts?: { id: string; content: string }[];
+    }
   | { type: "error"; error: string };
+
+/** Milliseconds between successive bubbles when a multi-message burst
+ *  lands. Matches iMessage's read-time-between-sends feel. */
+const BURST_STAGGER_MS = 650;
+
+/** Strip [NEXT] markers from live-streaming text so the intermediate
+ *  display never shows the split literal to the user. Applied both
+ *  during streaming (streamText render) and as a safety net when a
+ *  baseline persona happens to emit the marker in prose. */
+function stripBurstMarkers(text: string): string {
+  return text.replace(/^\s*\[NEXT\]\s*$/gm, "").replace(/\n{3,}/g, "\n\n");
+}
 
 /**
  * Time separator label. Today → "2:34 PM"; this year → "Wed, Jul 12,
@@ -347,18 +368,27 @@ export default function ChatSurface({
             );
           } else if (evt.type === "text") {
             acc += evt.text;
-            setStreamText(acc);
+            // Display strips [NEXT] markers so a mid-stream split
+            // doesn't flash the literal to the user.
+            setStreamText(stripBurstMarkers(acc));
           } else if (evt.type === "done") {
             sawDone = true;
-            const reply = acc.trim();
-            if (reply) {
+            // Multi-message burst: the server returns pre-split parts
+            // with real DB ids. Render each as its own bubble with a
+            // stagger so it feels like the persona sent them in
+            // sequence, not all at once.
+            if (evt.parts && evt.parts.length > 1) {
+              // First part appears immediately (replaces the streaming
+              // typing indicator), the rest cascade in.
+              const parts = evt.parts;
+              const nowIso = new Date().toISOString();
               setMessages((prev) => [
                 ...prev,
                 {
-                  id: evt.messageId ?? `reply-${Date.now()}`,
+                  id: parts[0].id,
                   role: "assistant",
-                  content: reply,
-                  createdAt: new Date().toISOString(),
+                  content: parts[0].content,
+                  createdAt: nowIso,
                   readByOracleAt: null,
                   pending: false,
                   imageUrl: null,
@@ -366,10 +396,55 @@ export default function ChatSurface({
                   theirReaction: null,
                 },
               ]);
+              setIsStreaming(false);
+              setStreamText("");
+              // Stagger the remaining parts in via setTimeout so each
+              // pops with the message-in animation. Timers accumulate
+              // an offset so #2 appears at 650ms, #3 at 1300ms, etc.
+              for (let i = 1; i < parts.length; i++) {
+                const offset = i * BURST_STAGGER_MS;
+                const part = parts[i];
+                setTimeout(() => {
+                  setMessages((prev) => [
+                    ...prev,
+                    {
+                      id: part.id,
+                      role: "assistant",
+                      content: part.content,
+                      createdAt: new Date().toISOString(),
+                      readByOracleAt: null,
+                      pending: false,
+                      imageUrl: null,
+                      myReaction: null,
+                      theirReaction: null,
+                    },
+                  ]);
+                }, offset);
+              }
+              markRead();
+            } else {
+              // Single-message reply — baseline path unchanged.
+              const reply = stripBurstMarkers(acc).trim();
+              if (reply) {
+                setMessages((prev) => [
+                  ...prev,
+                  {
+                    id: evt.messageId ?? `reply-${Date.now()}`,
+                    role: "assistant",
+                    content: reply,
+                    createdAt: new Date().toISOString(),
+                    readByOracleAt: null,
+                    pending: false,
+                    imageUrl: null,
+                    myReaction: null,
+                    theirReaction: null,
+                  },
+                ]);
+              }
+              setIsStreaming(false);
+              setStreamText("");
+              markRead();
             }
-            setIsStreaming(false);
-            setStreamText("");
-            markRead();
           } else if (evt.type === "error") {
             sawDone = true;
             setIsStreaming(false);
