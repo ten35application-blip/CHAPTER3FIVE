@@ -181,6 +181,13 @@ export async function createIdentityFromPhoto(
       persona_prompt: persona.persona_prompt,
       significant_events: persona.significant_events,
       creation_source: "photo",
+      // Fable humanization (0078) — same rolls the auto path stores.
+      disclosure_pace: traits.disclosurePace ?? null,
+      silence_style: traits.silenceStyle ?? null,
+      punctuation_habit: traits.punctuationHabit ?? null,
+      memory_style: traits.memoryStyle ?? null,
+      text_burst_style: traits.textBurstStyle ?? null,
+      voice_examples: persona.voice_examples,
     })
     .select("id")
     .single();

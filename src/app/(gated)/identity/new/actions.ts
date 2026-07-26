@@ -101,6 +101,14 @@ export async function createIdentity(): Promise<void> {
       one_line_hook: persona.one_line_hook,
       persona_prompt: persona.persona_prompt,
       significant_events: persona.significant_events,
+      // Fable humanization (0078) — nullable rolls from formula.
+      // Each may be null (no forced quirk) or a rolled value.
+      disclosure_pace: traits.disclosurePace ?? null,
+      silence_style: traits.silenceStyle ?? null,
+      punctuation_habit: traits.punctuationHabit ?? null,
+      memory_style: traits.memoryStyle ?? null,
+      text_burst_style: traits.textBurstStyle ?? null,
+      voice_examples: persona.voice_examples,
     })
     .select("id")
     .single();

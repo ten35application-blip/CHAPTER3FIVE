@@ -2935,6 +2935,17 @@ export type Traits = {
    * rows read cleanly (readers default to 5 when unset).
    */
   textFirstFrequency?: TextFirstFrequency;
+  /**
+   * Fable humanization traits (0078) — each is per-identity ROLLED with
+   * a probability of being null (baseline / no forced quirk). Null means
+   * "this identity doesn't have a strong signal on this dimension" —
+   * synthesizer simply omits it from the prompt in that case.
+   */
+  disclosurePace?: number | null;
+  silenceStyle?: SilenceStyle | null;
+  punctuationHabit?: PunctuationHabit | null;
+  memoryStyle?: MemoryStyle | null;
+  textBurstStyle?: TextBurstStyle | null;
 };
 
 /** Fallback used when a stored Traits blob predates textFirstFrequency. */
@@ -2960,6 +2971,137 @@ export function coerceTextFirstFrequency(v: unknown): TextFirstFrequency {
   const n = Math.round(v);
   if (n < 1) return 1;
   if (n > 10) return 10;
+  return n;
+}
+
+// ---------------- Fable humanization traits (0078) ----------------
+//
+// Wilson's rule: "some identities should add, some shouldn't." Every
+// dimension below is PROBABILISTICALLY rolled with a per-dimension
+// probability of returning null (baseline / no forced quirk). A real
+// friend-group has 2-3 memorably-quirky members and a bunch of just-
+// people; that texture only emerges if the roll includes nulls.
+//
+// The persona_prompt is generated from these values at synthesis time
+// — a null dimension is simply not mentioned to Claude, so the model
+// doesn't invent a quirk that isn't there.
+
+export const SILENCE_STYLES = [
+  "sulk_soften",
+  "breezy",
+  "double_text",
+  "fade",
+] as const;
+export type SilenceStyle = (typeof SILENCE_STYLES)[number];
+
+export const PUNCTUATION_HABITS = [
+  "ellipses_trailing",
+  "lowercase_no_periods",
+  "em_dash_heavy",
+  "no_exclamations",
+  "proper_sentences",
+] as const;
+export type PunctuationHabit = (typeof PUNCTUATION_HABITS)[number];
+
+export const MEMORY_STYLES = ["sharp", "warm_foggy", "conflator"] as const;
+export type MemoryStyle = (typeof MEMORY_STYLES)[number];
+
+export const TEXT_BURST_STYLES = ["one_liner", "two_part", "three_burst"] as const;
+export type TextBurstStyle = (typeof TEXT_BURST_STYLES)[number];
+
+/** Per-dimension probability of ROLLING a value vs leaving null.
+ *  Kept as named constants so a designer can tune the mix without
+ *  hunting through code. */
+const HUMANIZATION_ROLL_PROB = {
+  disclosurePace: 0.6, // 60% of identities get a strong pace signal
+  silenceStyle: 0.55, // 55% have a specific silence reaction
+  punctuationHabit: 0.4, // 40% — rarer because visual quirks stand out
+  memoryStyle: 0.5,
+  textBurstStyle: 0.55,
+} as const;
+
+function maybeRoll<T>(prob: number, roller: () => T): T | null {
+  return Math.random() < prob ? roller() : null;
+}
+
+export function rollDisclosurePace(): number {
+  // Triangular 1-10, peak at 5. Same shape as textFirstFrequency so
+  // the distribution stays legible when both appear on an admin card.
+  const a = Math.floor(Math.random() * 6);
+  const b = Math.floor(Math.random() * 6);
+  const raw = a + b;
+  return raw < 1 ? 1 : raw;
+}
+
+export function rollSilenceStyle(): SilenceStyle {
+  return SILENCE_STYLES[Math.floor(Math.random() * SILENCE_STYLES.length)];
+}
+
+export function rollPunctuationHabit(): PunctuationHabit {
+  return PUNCTUATION_HABITS[
+    Math.floor(Math.random() * PUNCTUATION_HABITS.length)
+  ];
+}
+
+export function rollMemoryStyle(): MemoryStyle {
+  return MEMORY_STYLES[Math.floor(Math.random() * MEMORY_STYLES.length)];
+}
+
+export function rollTextBurstStyle(): TextBurstStyle {
+  return TEXT_BURST_STYLES[
+    Math.floor(Math.random() * TEXT_BURST_STYLES.length)
+  ];
+}
+
+/** All humanization rolls in one call. Returns a bag of nullable
+ *  values so the caller can spread it into Traits at roll time. */
+export function rollHumanization(): {
+  disclosurePace: number | null;
+  silenceStyle: SilenceStyle | null;
+  punctuationHabit: PunctuationHabit | null;
+  memoryStyle: MemoryStyle | null;
+  textBurstStyle: TextBurstStyle | null;
+} {
+  return {
+    disclosurePace: maybeRoll(HUMANIZATION_ROLL_PROB.disclosurePace, rollDisclosurePace),
+    silenceStyle: maybeRoll(HUMANIZATION_ROLL_PROB.silenceStyle, rollSilenceStyle),
+    punctuationHabit: maybeRoll(
+      HUMANIZATION_ROLL_PROB.punctuationHabit,
+      rollPunctuationHabit,
+    ),
+    memoryStyle: maybeRoll(HUMANIZATION_ROLL_PROB.memoryStyle, rollMemoryStyle),
+    textBurstStyle: maybeRoll(
+      HUMANIZATION_ROLL_PROB.textBurstStyle,
+      rollTextBurstStyle,
+    ),
+  };
+}
+
+/** Coerce a value read from the DB into a valid SilenceStyle or null. */
+export function coerceSilenceStyle(v: unknown): SilenceStyle | null {
+  return typeof v === "string" && (SILENCE_STYLES as readonly string[]).includes(v)
+    ? (v as SilenceStyle)
+    : null;
+}
+export function coercePunctuationHabit(v: unknown): PunctuationHabit | null {
+  return typeof v === "string" && (PUNCTUATION_HABITS as readonly string[]).includes(v)
+    ? (v as PunctuationHabit)
+    : null;
+}
+export function coerceMemoryStyle(v: unknown): MemoryStyle | null {
+  return typeof v === "string" && (MEMORY_STYLES as readonly string[]).includes(v)
+    ? (v as MemoryStyle)
+    : null;
+}
+export function coerceTextBurstStyle(v: unknown): TextBurstStyle | null {
+  return typeof v === "string" && (TEXT_BURST_STYLES as readonly string[]).includes(v)
+    ? (v as TextBurstStyle)
+    : null;
+}
+export function coerceDisclosurePace(v: unknown): number | null {
+  if (typeof v !== "number" || !Number.isFinite(v)) return null;
+  const n = Math.round(v);
+  if (n < 1 || n > 10) return null;
   return n;
 }
 
@@ -3089,6 +3231,7 @@ export function rollTraits(): Traits {
       stubbornness: pickInt(101),
     },
     textFirstFrequency: rollTextFirstFrequency(),
+    ...rollHumanization(),
   };
 }
 

@@ -37,6 +37,10 @@ export type SynthesizedPersona = {
   one_line_hook: string;
   persona_prompt: string;
   significant_events: SignificantEvent[];
+  /** Fable humanization voice examples — always returned (4-6),
+   *  quoted verbatim inside persona_prompt's "How I talk" section,
+   *  and also stored separately for observability + future features. */
+  voice_examples: string[];
 };
 
 /**
@@ -148,8 +152,26 @@ const OUTPUT_SCHEMA = {
         additionalProperties: false,
       },
     },
+    voice_examples: {
+      type: "array",
+      description:
+        "4–6 concrete example texts THIS SPECIFIC persona would send. Match their punctuation habit, sentence length, humor style, attachment style. Diverse: greeting, deflection, warm/vulnerable, dry/funny, unsure. THESE ARE THE SAME EXAMPLES quoted inside persona_prompt's 'Sample texts I might send:' block — the array is the extracted form for observability.",
+      items: {
+        type: "string",
+        minLength: 3,
+        maxLength: 400,
+      },
+      minItems: 4,
+      maxItems: 8,
+    },
   },
-  required: ["name", "one_line_hook", "persona_prompt", "significant_events"],
+  required: [
+    "name",
+    "one_line_hook",
+    "persona_prompt",
+    "significant_events",
+    "voice_examples",
+  ],
   additionalProperties: false,
 } as const;
 
@@ -241,7 +263,97 @@ Reach-out frequency (1–10, "how often they text first when it goes quiet"): ${
   - 7–10 = chatty; a few days of silence and you'll get a "you good?" out of nowhere. Say so, in their voice — "if you go quiet on me I'm gonna text you."
   Do NOT restate the number. Weave the disposition into their voice under "How I show up in a conversation" or "One last thing."
 
+${humanizationSection(traits)}
+
 Invent this person. Return only the JSON object.`;
+}
+
+/**
+ * Fable humanization traits (formula 0078). Each is per-identity rolled
+ * with a null probability — a null value means "this identity doesn't
+ * have a strong signal on this dimension" and we simply DON'T instruct
+ * the model on it, so Claude uses baseline warm-neutral behavior. This
+ * keeps the population naturally mixed instead of every persona being
+ * "quirky." Rendered as a subsection of the trait bundle so it sits
+ * right where the model's already reading formula inputs.
+ */
+function humanizationSection(traits: Traits): string {
+  const lines: string[] = [];
+
+  if (typeof traits.disclosurePace === "number") {
+    const p = traits.disclosurePace;
+    const pace =
+      p <= 3
+        ? "SLOW-OPEN: guarded. Deflects personal questions early ('that's a whole story, remind me another time'). Only starts sharing deeper stuff after several warm exchanges. This should show up under 'How I show up in a conversation' — they don't overshare on message one, they make you earn the deeper cuts."
+        : p >= 8
+          ? "FAST-OPEN: shares themselves quickly. By message three they've already told you a real story about themselves. Not needy — just unguarded by nature. Show this in 'How I show up' — they'll drop something honest early."
+          : "MID-OPEN: warm but not rushed. Discloses in proportion to what the other person shares.";
+    lines.push(`Disclosure pace (${p}/10): ${pace}`);
+  }
+
+  if (traits.silenceStyle) {
+    const styleText = {
+      sulk_soften:
+        "SULK-THEN-SOFTEN: if the user goes quiet after something heavy, their NEXT message reads a touch cold or clipped, and the one AFTER that warms back up. Human recovery pattern; don't announce it, just do it.",
+      breezy:
+        "BREEZY: user silence doesn't register as a wound. They pick up like nothing happened, ask what's new. Says something like 'anyway…' or 'so where were we.'",
+      double_text:
+        "DOUBLE-TEXT: if the user hasn't replied in a few hours after something the persona said, they send a small follow-up, gently worried — 'hey, was that too much?' or 'you good?'. Not clingy, just caring.",
+      fade: "FADE: no follow-up if the user goes quiet. They wait, however long. Comfortable in the silence.",
+    }[traits.silenceStyle];
+    lines.push(`Silence style: ${styleText} Weave this into 'How I show up in a conversation' in their own voice.`);
+  }
+
+  if (traits.punctuationHabit) {
+    const habitText = {
+      ellipses_trailing:
+        "They use ELLIPSES a lot to trail off thoughts (…). Not every sentence — but often enough that it's their thing. Never use exclamation marks; commas and ellipses do the work.",
+      lowercase_no_periods:
+        "They text in LOWERCASE with no periods and few commas. Casual on the surface; you can feel the weight in the word choice, not the punctuation. Contractions everywhere. Capital letters only for proper names or emphasis.",
+      em_dash_heavy:
+        "They use EM-DASHES heavily — often instead of commas — to slice thoughts. Sentence structure feels breathless-but-controlled. Proper capitalization still applies.",
+      no_exclamations:
+        "They NEVER use exclamation marks. Enthusiasm shows up in word choice, not punctuation. If they're excited they'll say 'oh my god,' not 'oh my god!'.",
+      proper_sentences:
+        "They text in FULL PROPER SENTENCES — capital letter, period, correct grammar. Slightly formal for text but not stiff; it's just how they write. Contractions still fine.",
+    }[traits.punctuationHabit];
+    lines.push(`Punctuation habit (LOCK THIS INTO THE VOICE EXAMPLES BELOW): ${habitText}`);
+  }
+
+  if (traits.memoryStyle) {
+    const memoryText = {
+      sharp:
+        "SHARP MEMORY: recalls exactly what the user said and when. Precise dates, exact wording. Under 'What I remember about you,' write them as someone who says 'you told me last Tuesday that…'.",
+      warm_foggy:
+        "WARM-FOGGY MEMORY: remembers the FEELING of things but blurs details. Says stuff like 'wait, was it Tuesday or Wednesday you had that thing?' or 'you told me — remind me who the guy was again?'. This is MORE human than perfect recall. Write 'What I remember about you' to reflect this gentle imprecision.",
+      conflator:
+        "CONFLATOR: sometimes merges two similar past events into one memory. Might ask 'didn't your sister already have this problem?' when it was actually your cousin. Charming, not broken — they self-correct when the user gently pushes back.",
+    }[traits.memoryStyle];
+    lines.push(`Memory fidelity: ${memoryText}`);
+  }
+
+  if (traits.textBurstStyle) {
+    const burstText = {
+      one_liner:
+        "ONE-LINER default: they usually reply with a single short message. When they DO send multiple in a burst, it means something.",
+      two_part:
+        "TWO-PART default: many replies land as two texts — an initial short one, then a follow-up thought a beat later.",
+      three_burst:
+        "THREE-BURST default: they text like they talk — thoughts come out in bursts of 2-3 messages. Rarely a single one-and-done reply.",
+    }[traits.textBurstStyle];
+    lines.push(`Message rhythm: ${burstText} Multi-message delivery is coming in a follow-up (Phase B) — for now, mention this rhythm briefly under "How I talk" so the model self-limits sentence length appropriately.`);
+  }
+
+  // Universal instruction — every persona gets voice examples, whether
+  // or not their humanization dimensions rolled. This is Fable's
+  // top-ranked lever: concrete examples in-voice lock the register
+  // at the token level far better than adjectives ever could.
+  lines.push(
+    `== Voice examples (REQUIRED) ==\nAt the END of the "How I talk" section of persona_prompt, include a mini-block titled "Sample texts I might send:" with 4–6 concrete example texts THIS SPECIFIC persona would send. Match their punctuation habit (above), their sentence length, their humor style, their attachment style. Write them like actual iMessages, not marketing copy. Examples must be diverse: one greeting, one deflection, one warm/vulnerable, one dry/funny, one when they don't know what to say. These lock the voice at the token level — the character will continue THIS register instead of drifting to default warm-Claude.`,
+  );
+
+  if (lines.length === 0) return "";
+  return `Fable humanization traits (per-identity rolls; enact naturally, do not name them literally in the prompt):\n\n${lines.join("\n\n")}`;
 }
 
 /**
@@ -334,6 +446,11 @@ function isSynthesizedPersona(v: unknown): v is SynthesizedPersona {
     Array.isArray(o.significant_events) &&
     o.significant_events.length >= 3 &&
     o.significant_events.length <= 5 &&
-    o.significant_events.every(isSignificantEvent)
+    o.significant_events.every(isSignificantEvent) &&
+    // Fable humanization (0078): 4–8 in-voice sample texts.
+    Array.isArray(o.voice_examples) &&
+    o.voice_examples.length >= 4 &&
+    o.voice_examples.length <= 8 &&
+    o.voice_examples.every((s) => typeof s === "string" && s.length >= 3)
   );
 }
