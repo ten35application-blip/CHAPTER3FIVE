@@ -65,6 +65,22 @@ export async function POST(request: NextRequest) {
     .eq("user_id", user.id)
     .maybeSingle<{ id: string; kind: string }>();
 
+  // Helper: read the CURRENT stored reaction for this (message, user)
+  // pair and shape it as an error response. Any time an operation
+  // fails we send this so the client can re-sync its optimistic state
+  // to reality — critical for the change-of-kind path (DELETE then
+  // INSERT) where an interrupted second step could leave the DB with
+  // no reaction while the client rolls back to the OLD one.
+  async function currentReaction(): Promise<string | null> {
+    const { data } = await supabase
+      .from("message_reactions")
+      .select("kind")
+      .eq("message_id", messageId)
+      .eq("user_id", user!.id)
+      .maybeSingle<{ kind: string }>();
+    return data?.kind ?? null;
+  }
+
   if (existing && existing.kind === kind) {
     // Same tap twice = untap.
     const { error } = await supabase
@@ -75,7 +91,10 @@ export async function POST(request: NextRequest) {
       if (error.code === "42501") {
         return NextResponse.json({ error: "not_your_message" }, { status: 403 });
       }
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json(
+        { error: error.message, reaction: await currentReaction() },
+        { status: 500 },
+      );
     }
     return NextResponse.json({ ok: true, reaction: null });
   }
@@ -87,7 +106,10 @@ export async function POST(request: NextRequest) {
       .delete()
       .eq("id", existing.id);
     if (delErr) {
-      return NextResponse.json({ error: delErr.message }, { status: 500 });
+      return NextResponse.json(
+        { error: delErr.message, reaction: await currentReaction() },
+        { status: 500 },
+      );
     }
   }
 
@@ -100,7 +122,12 @@ export async function POST(request: NextRequest) {
     if (insErr.code === "42501") {
       return NextResponse.json({ error: "not_your_message" }, { status: 403 });
     }
-    return NextResponse.json({ error: insErr.message }, { status: 500 });
+    // Includes the 23505 unique-violation path — the DB is authoritative;
+    // return whatever's actually stored so the client stops guessing.
+    return NextResponse.json(
+      { error: insErr.message, reaction: await currentReaction() },
+      { status: 500 },
+    );
   }
   return NextResponse.json({ ok: true, reaction: kind });
 }

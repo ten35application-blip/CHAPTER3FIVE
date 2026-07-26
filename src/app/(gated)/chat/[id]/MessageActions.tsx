@@ -43,8 +43,17 @@ export function MessageActions({
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
     }
+    // Close on scroll / resize — matches iMessage. The popover is
+    // anchored to a captured DOMRect and would otherwise float in
+    // stale coordinates the moment the layout shifts.
     document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    window.addEventListener("scroll", onClose, true);
+    window.addEventListener("resize", onClose);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", onClose, true);
+      window.removeEventListener("resize", onClose);
+    };
   }, [onClose]);
 
   // Position: center horizontally over the bubble; sit just above.

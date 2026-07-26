@@ -457,11 +457,17 @@ export default function ChatSurface({
   const applyReaction = useCallback(
     async (messageId: string, kind: ReactionKind) => {
       // Optimistic toggle: if same kind is set → clear locally; else
-      // set locally. Server call rolls back on failure.
+      // set locally. On failure we re-sync from whatever the server
+      // says is stored — the endpoint returns { reaction } on both
+      // success AND error paths, so we can't diverge on a broken
+      // DELETE-then-INSERT race.
       const target = messages.find((m) => m.id === messageId);
-      const nextReaction = target?.myReaction === kind ? null : kind;
+      const optimisticReaction: ReactionKind | null =
+        target?.myReaction === kind ? null : kind;
       setMessages((prev) =>
-        prev.map((m) => (m.id === messageId ? { ...m, myReaction: nextReaction } : m)),
+        prev.map((m) =>
+          m.id === messageId ? { ...m, myReaction: optimisticReaction } : m,
+        ),
       );
       try {
         const res = await fetch("/api/reactions", {
@@ -469,9 +475,19 @@ export default function ChatSurface({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ message_id: messageId, kind }),
         });
-        if (!res.ok) throw new Error("reaction failed");
+        const body = (await res.json().catch(() => null)) as {
+          reaction?: ReactionKind | null;
+        } | null;
+        if (!res.ok) {
+          // Re-sync to whatever the server actually has stored.
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === messageId ? { ...m, myReaction: body?.reaction ?? null } : m,
+            ),
+          );
+        }
       } catch {
-        // Rollback on error.
+        // Network error — roll back the optimistic tap.
         setMessages((prev) =>
           prev.map((m) =>
             m.id === messageId ? { ...m, myReaction: target?.myReaction ?? null } : m,
@@ -602,7 +618,9 @@ export default function ChatSurface({
                       {m.content && (
                         <div className="relative max-w-[75%] self-end">
                           <div
-                            {...bubbleHandlers(m.id)}
+                            {...(m.pending || m.id.startsWith("optimistic-")
+                              ? {}
+                              : bubbleHandlers(m.id))}
                             className="rounded-2xl rounded-br-md bg-gradient-cta px-3.5 py-2 text-[15px] leading-snug text-white whitespace-pre-wrap break-words animate-message-pop-right select-none [-webkit-touch-callout:none]"
                           >
                             {m.content}
@@ -653,7 +671,11 @@ export default function ChatSurface({
                         showAvatar={firstOfPersonaRun}
                         avatarUrl={avatarUrl}
                         name={name}
-                        bubbleProps={bubbleHandlers(m.id)}
+                        bubbleProps={
+                          m.pending || m.id.startsWith("optimistic-") || m.id.startsWith("reply-")
+                            ? undefined
+                            : bubbleHandlers(m.id)
+                        }
                         myReaction={m.myReaction}
                       >
                         {m.content}

@@ -160,7 +160,7 @@ export default async function ReportsPage() {
                 ) : null}
 
                 {r.notes ? (
-                  <p className="mt-3 text-sm text-warm-300">
+                  <p className="mt-3 whitespace-pre-wrap text-sm text-warm-300">
                     <span className="font-semibold text-warm-200">
                       Reporter notes:
                     </span>{" "}
