@@ -29,6 +29,11 @@ export const PRICING = {
    *  after an archive doesn't. Stored on each oracle at creation time
    *  so a user pays what they saw. */
   restoreIdentityCents: 500,
+  /** Monthly message cap for the Free tier. Pro is unlimited. Counted
+   *  per calendar month against the user's outgoing messages
+   *  (role='user') across all their conversations. Wilson's rule:
+   *  free is a taste, Pro removes the ceiling. */
+  freeMessagesPerMonth: 100,
   currency: "USD",
 } as const;
 
@@ -44,3 +49,6 @@ export const EXTRA_INHERITED_PRICE_LABEL = `$${PRICING.extraInheritedIdentityCen
 
 /** "$5" — one-time paywall on restoring a deleted identity. */
 export const RESTORE_IDENTITY_PRICE_LABEL = `$${PRICING.restoreIdentityCents / 100}`;
+
+/** "100" — monthly message cap for the Free tier. */
+export const FREE_MESSAGES_PER_MONTH = PRICING.freeMessagesPerMonth;

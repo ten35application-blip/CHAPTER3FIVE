@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { requirePro } from "@/lib/subscription";
 import { InheritForm } from "./InheritForm";
 
 export const metadata = {
@@ -26,6 +27,15 @@ export default async function InheritPage({
   } = await supabase.auth.getUser();
   if (!user) {
     redirect("/auth/signin");
+  }
+
+  // Inheriting a code requires Pro. Bounce to /upgrade before we show
+  // the form so nobody types in a code only to hit a 403 from the
+  // action. Wilson's rule: talking to a family member's identity is
+  // paid-only, always.
+  const gate = await requirePro("/identity/inherit");
+  if (!gate.ok) {
+    redirect(gate.redirectTo);
   }
 
   return (

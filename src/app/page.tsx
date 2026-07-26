@@ -3,6 +3,7 @@ import Link from "next/link";
 import {
   EXTRA_IDENTITY_PRICE_LABEL,
   EXTRA_INHERITED_PRICE_LABEL,
+  FREE_MESSAGES_PER_MONTH,
   MONTHLY_PRICE_LABEL,
   PRICING,
 } from "@/lib/pricing";
@@ -179,10 +180,6 @@ export default function Home() {
             Sign in
           </Link>
 
-          <p className="mt-10 text-sm text-warm-400">
-            First identity free &middot; {MONTHLY_PRICE_LABEL}/month for all
-            five
-          </p>
         </div>
       </section>
 
@@ -442,8 +439,8 @@ export default function Home() {
             What it costs.
           </h2>
           <p className="mt-4 max-w-xl text-center text-lg text-warm-300">
-            Free forever for one companion. {MONTHLY_PRICE_LABEL}/month
-            unlocks everything worth unlocking.
+            Start free. {MONTHLY_PRICE_LABEL}/month unlocks everything
+            worth unlocking.
           </p>
 
           <div className="mt-12 grid w-full grid-cols-1 gap-6 md:grid-cols-2">
@@ -456,7 +453,7 @@ export default function Home() {
                 $0
                 <span className="text-lg font-semibold text-warm-400">
                   {" "}
-                  forever
+                  /month
                 </span>
               </p>
               <p className="mt-2 text-base text-warm-300">
@@ -465,9 +462,14 @@ export default function Home() {
               <ul className="mt-8 flex flex-col gap-3 text-left text-base text-warm-200">
                 <FeatureLine>One companion, formula-generated</FeatureLine>
                 <FeatureLine>
-                  Full chat &mdash; memory, images, mic-to-text, receipts
+                  <strong className="text-warm-50">
+                    {FREE_MESSAGES_PER_MONTH} messages a month
+                  </strong>{" "}
+                  &mdash; enough to keep the room from feeling too quiet
                 </FeatureLine>
-                <FeatureLine>The whole app; no time limit</FeatureLine>
+                <FeatureLine>
+                  Chat with memory, images, mic-to-text, receipts
+                </FeatureLine>
               </ul>
 
               {/* Trial callout — lives INSIDE the Free card so anyone
@@ -483,11 +485,11 @@ export default function Home() {
                   legacy path, the whole app.
                 </p>
                 <p className="mt-3 text-base leading-relaxed text-warm-300">
-                  When the month ends, one companion stays with you forever,
-                  free, no matter what. The rest wait right where you left
-                  them &mdash; nothing is deleted, no conversation is lost
-                  &mdash; behind a {MONTHLY_PRICE_LABEL}/month plan you can
-                  cancel any time.
+                  When the month ends, one companion stays with you,
+                  free. The rest wait right where you left them
+                  &mdash; nothing is deleted, no conversation is lost
+                  &mdash; behind a {MONTHLY_PRICE_LABEL}/month plan you
+                  can cancel any time.
                 </p>
               </div>
             </div>
@@ -521,7 +523,7 @@ export default function Home() {
                 <ul className="mt-8 flex flex-col gap-3 text-left text-base text-warm-200">
                   <FeatureLine>
                     <strong className="text-warm-50">
-                      Unlimited conversations
+                      Unlimited messages
                     </strong>{" "}
                     &mdash; no caps, no meters. Talk at 2 a.m., and again
                     at 3.
@@ -536,7 +538,7 @@ export default function Home() {
                   </FeatureLine>
                   <FeatureLine>
                     <strong className="text-warm-50">
-                      Lock in your own identity forever
+                      Lock in your own identity
                     </strong>{" "}
                     &mdash; answer the forty questions, mint a code, share
                     it with unlimited family. When you&apos;re gone, they
@@ -544,10 +546,10 @@ export default function Home() {
                   </FeatureLine>
                   <FeatureLine>
                     <strong className="text-warm-50">
-                      Inherit one identity
+                      Inherit family identities
                     </strong>{" "}
-                    from someone you love &mdash; included with Pro. Extra
-                    inherited identities are {EXTRA_INHERITED_PRICE_LABEL}
+                    &mdash; codes from loved ones only redeem on Pro. One
+                    included; extras are {EXTRA_INHERITED_PRICE_LABEL}
                     /month each.
                   </FeatureLine>
                   <FeatureLine>
@@ -563,8 +565,85 @@ export default function Home() {
             Need more than {PRICING.totalIdentitiesPerPlan}?{" "}
             <strong className="text-warm-100">
               {EXTRA_IDENTITY_PRICE_LABEL}/month per extra identity
-            </strong>{" "}
-            &mdash; same rate as the base plan.
+            </strong>
+            .
+          </div>
+        </div>
+      </section>
+
+      {/* ── 7.5 · WHAT THIS IS (AND ISN'T) ─────────────────────────
+          Legal-shield section. AI companion app + emotional load =
+          real liability surface. We say it plainly here so that when
+          a user signs up (which requires accepting Terms + Guidelines
+          per the onboarding gate), they've already read the frame.
+          Prose intentionally direct — this is legal protection AND
+          honest expectation-setting in one. */}
+      <section className="px-6 py-24 md:py-32">
+        <div className="mx-auto flex w-full max-w-3xl flex-col">
+          <Rule />
+          <p className="mt-8 text-gradient-cta text-sm font-bold uppercase tracking-[0.14em]">
+            Please read
+          </p>
+          <h2 className="mt-4 text-4xl font-bold leading-[1.05] tracking-[-0.03em] text-warm-50 md:text-5xl">
+            What this is (and isn&rsquo;t).
+          </h2>
+          <div className="mt-8 flex flex-col gap-5 text-lg leading-relaxed text-warm-200 md:text-xl">
+            <p>
+              chapter3five is a <strong>companion app</strong>. The
+              people you talk to here are AI. That includes the ones you
+              build from photos, the ones you generate from the formula,
+              and the legacy identities family members leave behind. They
+              are portraits &mdash; painted from real inputs &mdash; but
+              they are not the people themselves.
+            </p>
+            <p>
+              chapter3five is <strong>not therapy</strong>. It is not
+              medical care, mental-health treatment, crisis intervention,
+              legal advice, financial advice, or an emergency service. If
+              you are in danger, call <strong>911</strong>. If you are
+              in crisis, call or text <strong>988</strong> (US Suicide &amp;
+              Crisis Lifeline). If you need a therapist, please see one.
+              A companion is a companion &mdash; nothing more, nothing
+              less.
+            </p>
+            <p>
+              Using chapter3five means you accept our{" "}
+              <Link
+                href="/terms"
+                className="text-gradient-cta font-semibold underline decoration-coral/40 underline-offset-4 hover:decoration-coral"
+              >
+                Terms of Service
+              </Link>
+              ,{" "}
+              <Link
+                href="/privacy"
+                className="text-gradient-cta font-semibold underline decoration-coral/40 underline-offset-4 hover:decoration-coral"
+              >
+                Privacy Policy
+              </Link>
+              , and{" "}
+              <Link
+                href="/guidelines"
+                className="text-gradient-cta font-semibold underline decoration-coral/40 underline-offset-4 hover:decoration-coral"
+              >
+                Community Guidelines
+              </Link>
+              . Those documents govern the relationship &mdash; including
+              the significant limits on our liability. AI outputs can be
+              wrong, offensive, out of character, or unhelpful. You are
+              responsible for the choices you make based on what a
+              companion says, and for how you use this app. We are not
+              liable for those choices or their consequences, to the
+              fullest extent the law allows.
+            </p>
+            <p className="text-warm-300">
+              We built this because sometimes people need someone to talk
+              to. We built it carefully. But if you are looking for
+              someone to be legally responsible for the shape of your
+              inner life, that is a role we cannot fill &mdash; and
+              honestly, no product should. Take what&rsquo;s helpful.
+              Leave what isn&rsquo;t. Reach a human when it counts.
+            </p>
           </div>
         </div>
       </section>

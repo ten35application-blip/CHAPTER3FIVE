@@ -9,7 +9,7 @@ import { shouldPersonaBlock } from "@/lib/safety/block-detector";
 import { handleBlockDecision } from "@/lib/safety/block-notify";
 import { checkForCrisis } from "@/lib/safety/crisis-detector";
 import { handleCrisis } from "@/lib/safety/crisis-notify";
-import { canChatWithOracle } from "@/lib/subscription";
+import { canChatWithOracle, canSendMessageForFreeCap } from "@/lib/subscription";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -133,6 +133,25 @@ export async function POST(
       { error: "trial_ended_or_locked" },
       { status: 403 },
     );
+  }
+
+  // Free-tier monthly message cap. Pro/admin/trial are always allowed;
+  // Free users get PRICING.freeMessagesPerMonth per calendar month
+  // across all their conversations. On retry (isRetry) we skip — the
+  // user isn't sending a new message, just re-rolling the assistant's
+  // response to one that's already counted.
+  if (!isRetry) {
+    const cap = await canSendMessageForFreeCap(supabase);
+    if (!cap.ok) {
+      return NextResponse.json(
+        {
+          error: "free_month_cap",
+          current: cap.current,
+          limit: cap.limit,
+        },
+        { status: 402 },
+      );
+    }
   }
 
   // Daily rate limit — atomic increment via the 0018 helper. Service

@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isAdmin } from "@/lib/admin/allowlist";
+import { PRICING } from "@/lib/pricing";
 
 /** Early-access cap: only the first N users receive the signup trial. */
 const TRIAL_SEAT_CAP = 1000;
@@ -143,6 +144,60 @@ export async function claimFreeIdentitySlot(
   } catch (err) {
     console.error("[subscription] free-identity claim failed:", err);
   }
+}
+
+/**
+ * Free-tier monthly message cap check. Counts USER messages sent
+ * this calendar month (in the caller's timezone-agnostic UTC month
+ * bucket) against PRICING.freeMessagesPerMonth. Pro/admin/trial users
+ * always pass. Fail-CLOSED on any error — if we can't count, we deny
+ * (better than accidentally letting a free user blow past the cap).
+ *
+ * Returns:
+ *   { ok: true, current: N }                             — allowed
+ *   { ok: false, current: N, limit }                     — free cap hit
+ */
+export async function canSendMessageForFreeCap(
+  supabase?: SupabaseClient,
+): Promise<
+  | { ok: true; current: number }
+  | { ok: false; current: number; limit: number }
+> {
+  const client = supabase ?? (await createClient());
+  const {
+    data: { user },
+  } = await client.auth.getUser();
+  if (!user) return { ok: false, current: 0, limit: PRICING.freeMessagesPerMonth };
+
+  if (await isPro(client)) return { ok: true, current: 0 };
+
+  const monthStart = new Date();
+  monthStart.setUTCHours(0, 0, 0, 0);
+  monthStart.setUTCDate(1);
+
+  const { count, error } = await client
+    .from("messages")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .eq("role", "user")
+    .gte("created_at", monthStart.toISOString());
+
+  if (error || count === null) {
+    return {
+      ok: false,
+      current: 0,
+      limit: PRICING.freeMessagesPerMonth,
+    };
+  }
+
+  if (count >= PRICING.freeMessagesPerMonth) {
+    return {
+      ok: false,
+      current: count,
+      limit: PRICING.freeMessagesPerMonth,
+    };
+  }
+  return { ok: true, current: count };
 }
 
 /**
