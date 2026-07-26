@@ -25,6 +25,24 @@ import { createClient } from "@/lib/supabase/server";
  * display from whatever iOS Safari is doing with the client router.
  * updateProfileName stays a plain server function since the name flow
  * never had the revert bug.
+ *
+ * ROUND 5 (2026-07-25): the REAL bug all along was that the sharp-produced
+ * Node Buffer was being passed straight to supabase-js .upload(). storage-js
+ * routes a raw Buffer through the "manual body" branch, which sets the
+ * body as-is on fetch. Inside a Next 16 server action, Next's patched
+ * fetch pipeline UTF-8-decodes that binary body — every byte >= 0x80 gets
+ * replaced with U+FFFD (bytes 0xEF 0xBF 0xBD). The stored object was a
+ * 3x-inflated blob of replacement chars starting `EF BF BD EF BF BD…`
+ * instead of the JPEG SOI `FF D8 FF E0`. Direct proof: curl-ing the
+ * signed URL returned 200 + 49137 bytes with 11046 U+FFFD sequences
+ * (~67% of the file). The browser can't render it → Safari draws its
+ * broken-image "?" glyph → Wilson sees "?" on settings, "W" fallback on
+ * the dashboard. The dashboard's chat-uploads photos work because those
+ * are Files (from the browser), which go through the FormData branch.
+ * The fix: wrap `processed` in a Blob before .upload(). storage-js then
+ * routes it through the FormData multipart path (index.mjs L586), which
+ * preserves binary end-to-end. Rounds 1-4 all fixed the RENDER side but
+ * were serving a corrupt object the whole time.
  */
 
 const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
@@ -136,9 +154,17 @@ export async function uploadProfilePhoto(
 
   const storagePath = `${user.id}/avatar.jpg`;
 
+  // Wrap the Buffer in a Blob so supabase-js goes through the FormData
+  // multipart branch (StorageFileApi.uploadOrUpdate). See the round-5
+  // note above — Next 16's patched fetch corrupts a raw Buffer body via
+  // UTF-8 decode, and the multipart path is the workaround.
+  const uploadBody = new Blob([new Uint8Array(processed)], {
+    type: "image/jpeg",
+  });
+
   const { error: uploadError } = await supabase.storage
     .from("profile-avatars")
-    .upload(storagePath, processed, {
+    .upload(storagePath, uploadBody, {
       contentType: "image/jpeg",
       upsert: true,
     });

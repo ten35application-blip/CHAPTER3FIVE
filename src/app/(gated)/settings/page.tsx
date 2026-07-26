@@ -10,6 +10,7 @@ import {
 } from "@/lib/pricing";
 import { NameField } from "./_components/NameField";
 import { PhotoUploader } from "./_components/PhotoUploader";
+import { ThemeToggle } from "./_components/ThemeToggle";
 
 export const metadata = {
   title: "Settings · chapter3five",
@@ -163,6 +164,16 @@ export default async function SettingsPage({
             yet — dropping the dead row until it is. */}
         <Section label="Account" accent="secure" icon={<KeyIcon />}>
           <IconRow icon={<MailIcon />} label="Email" value={email} />
+        </Section>
+
+        {/* APPEARANCE — theme picker. Client-only state; localStorage
+            persists across visits; the inline script in RootLayout
+            reapplies before first paint so there's no FOUC. Placed
+            here (between Account and the collapsible fine-print) so
+            it's discoverable without competing with the main tasks
+            up top. */}
+        <Section label="Appearance" accent="you" icon={<MoonIcon />}>
+          <ThemeToggle />
         </Section>
 
         {/* HOW THIS WORKS — collapsible per Wilson (default open). */}
@@ -715,6 +726,24 @@ function MegaphoneIcon() {
     >
       <path d="M3 11v2a1 1 0 0 0 1 1h3l6 4V6L7 10H4a1 1 0 0 0-1 1z" />
       <path d="M17 8a5 5 0 0 1 0 8" />
+    </svg>
+  );
+}
+
+function MoonIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="14"
+      height="14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
     </svg>
   );
 }

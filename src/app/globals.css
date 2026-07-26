@@ -67,6 +67,32 @@
   --color-teal-strong: #4fa5a5;
 }
 
+/* DARK — near-black page, warm-white text. Coral+teal brand palette
+   holds; the warm-50..warm-700 greyscale ramp REVERSES so utility
+   uses across the app (e.g. text-warm-50 for primary, text-warm-300
+   for secondary, bg-warm-700 for dividers/chip bg) read correctly:
+   warm-50 is the lightest tone, warm-700 the darkest surface tint.
+   Ink is a hair off-black so the coral+teal ambient wash on <body>
+   still reads as color rather than dying against pure #000. */
+:root[data-theme="dark"] {
+  --color-ink: #0f0f12;
+  --color-ink-soft: #191a1e;
+  --color-warm-50: #f5f4f1;
+  --color-warm-100: #eaeae7;
+  --color-warm-200: #c8c7c3;
+  --color-warm-300: #9c9b97;
+  --color-warm-400: #78776f;
+  --color-warm-500: #56554f;
+  --color-warm-600: #3a3937;
+  --color-warm-700: #26262a;
+  --color-amber: #5ac8fa;
+  --color-amber-soft: #7ed4fa;
+  --color-coral: #e88a76;
+  --color-coral-strong: #d97359;
+  --color-teal: #7ec4c4;
+  --color-teal-strong: #4fa5a5;
+}
+
 /* Ambient wash — the logo's coral+teal gradient breathing over the
  * page background. Twice as strong as the flare-pass version (which
  * Wilson said "looked the same") — three overlapping ellipses now,
