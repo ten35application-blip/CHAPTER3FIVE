@@ -222,6 +222,18 @@ export default function ChatSurface({
   const [zoomUrl, setZoomUrl] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
+  // Multi-message burst cascade timers — tracked in a ref so we can
+  // clear them if the user sends a new message mid-burst or navigates
+  // away. Without cleanup, a persona sending 3 bubbles at 650ms
+  // intervals could land bubble #3 AFTER the user's follow-up turn,
+  // scrambling the visible order.
+  const burstTimersRef = useRef<number[]>([]);
+  const clearBurstTimers = useCallback(() => {
+    for (const id of burstTimersRef.current) window.clearTimeout(id);
+    burstTimersRef.current = [];
+  }, []);
+  useEffect(() => clearBurstTimers, [clearBurstTimers]);
+
   useEffect(() => {
     if (!zoomUrl) return;
     function onKey(e: KeyboardEvent) {
@@ -254,6 +266,10 @@ export default function ChatSurface({
     async (text: string | null, image: OutgoingImage | null = null) => {
       setRateLimited(false);
       setStreamFailed(false);
+      // Any prior in-flight burst cascade would land after this new
+      // turn if left running — clear it now so the visible order
+      // matches the true send order.
+      clearBurstTimers();
 
       const tempId = `optimistic-${Date.now()}`;
       if (text !== null) {
@@ -398,13 +414,16 @@ export default function ChatSurface({
               ]);
               setIsStreaming(false);
               setStreamText("");
-              // Stagger the remaining parts in via setTimeout so each
-              // pops with the message-in animation. Timers accumulate
-              // an offset so #2 appears at 650ms, #3 at 1300ms, etc.
+              // Stagger the remaining parts via setTimeout so each pops
+              // with the message-in animation. Timers accumulate an
+              // offset so #2 appears at 650ms, #3 at 1300ms, etc.
+              // Track the ids so a new user turn (or unmount) can
+              // clear them and prevent late bubbles from landing out of
+              // order with the user's next message.
               for (let i = 1; i < parts.length; i++) {
                 const offset = i * BURST_STAGGER_MS;
                 const part = parts[i];
-                setTimeout(() => {
+                const timerId = window.setTimeout(() => {
                   setMessages((prev) => [
                     ...prev,
                     {
@@ -420,6 +439,7 @@ export default function ChatSurface({
                     },
                   ]);
                 }, offset);
+                burstTimersRef.current.push(timerId);
               }
               markRead();
             } else {
@@ -488,7 +508,7 @@ export default function ChatSurface({
         );
       }
     },
-    [markRead, oracleId],
+    [clearBurstTimers, markRead, oracleId],
   );
 
   // Long-press → open the tapback + report popover anchored to the

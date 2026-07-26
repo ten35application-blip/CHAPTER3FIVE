@@ -461,13 +461,35 @@ export async function POST(
           oracle.text_burst_style === "two_part" ||
           oracle.text_burst_style === "three_burst";
         const burstCap = oracle.text_burst_style === "three_burst" ? 3 : 2;
-        const parts = burstEnabled
-          ? reply
-              .split(/^\s*\[NEXT\]\s*$/gm)
-              .map((s) => s.trim())
-              .filter((s) => s.length > 0)
-              .slice(0, burstCap)
-          : [reply];
+        // Case-insensitive; still anchored to its own line so a
+        // "[next]" mention inside prose (or code) can't accidentally
+        // split. Server always strips markers before persisting so
+        // baseline personas that emit one in prose don't leave a
+        // literal [NEXT] in the DB row on refresh.
+        const NEXT_MARKER_RE = /^\s*\[next\]\s*$/gim;
+        let parts: string[];
+        if (burstEnabled) {
+          const raw = reply
+            .split(NEXT_MARKER_RE)
+            .map((s) => s.trim())
+            .filter((s) => s.length > 0);
+          // Overflow: fold parts beyond cap into the last kept part so
+          // an over-eager model doesn't lose content silently.
+          if (raw.length > burstCap) {
+            parts = [
+              ...raw.slice(0, burstCap - 1),
+              raw.slice(burstCap - 1).join("\n\n"),
+            ];
+          } else {
+            parts = raw;
+          }
+        } else {
+          // Baseline: never split, but still scrub any stray marker
+          // so it doesn't reach the DB / render.
+          parts = [reply.replace(NEXT_MARKER_RE, "").trim()].filter(
+            (s) => s.length > 0,
+          );
+        }
 
         // Persist each part as its own row. Sequential inserts (not
         // .insert([array])) so the created_at ordering is guaranteed —
@@ -521,6 +543,23 @@ export async function POST(
             });
           }
         });
+
+        // All inserts failed — persona said something but nothing
+        // persisted. Send an error so the client shows the retry
+        // affordance instead of silently pretending the message
+        // landed. Sentry breadcrumb so we notice repeated occurrences.
+        if (parts.length > 0 && insertedParts.length === 0) {
+          console.error(
+            "[chat stream] all reply inserts failed for oracle",
+            oracleId,
+          );
+          const Sentry = await import("@sentry/nextjs").catch(() => null);
+          Sentry?.captureMessage("chat.stream.all_inserts_failed", {
+            tags: { route: "api/chat/[id]/stream", oracle_id: oracleId },
+          });
+          send({ type: "error", error: "persist_failed" });
+          return;
+        }
 
         // When a burst produced multiple parts, ship them back in the
         // done event so the client can replace the single streaming
