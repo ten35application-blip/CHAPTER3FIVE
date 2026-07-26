@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { after } from "next/server";
 import type Anthropic from "@anthropic-ai/sdk";
 import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
+import { backfillVoiceExamples } from "@/lib/identity/backfillVoiceExamples";
 import { ageFromBirthday } from "@/lib/identity/formula";
 import { moodOfTheDay, moodToPromptBlock } from "@/lib/identity/mood";
 import { extractMemoriesFromMessage } from "@/lib/memory/extract";
@@ -88,7 +89,7 @@ export async function POST(
   // the authorization.
   const { data: oracle } = await supabase
     .from("oracles")
-    .select("id, name, manually_unread, blocked_at, block_reason, traits, memory_style, text_burst_style")
+    .select("id, name, manually_unread, blocked_at, block_reason, traits, memory_style, text_burst_style, voice_examples")
     .eq("id", oracleId)
     .is("deleted_at", null)
     .maybeSingle();
@@ -583,6 +584,24 @@ export async function POST(
             });
           }
         });
+
+        // Lazy voice-examples backfill for pre-0078 identities. Fires
+        // after the current turn ships so the user's wait time never
+        // includes the extra Haiku call. Idempotent — once the column
+        // is filled, subsequent turns short-circuit inside the helper.
+        // Never throws.
+        if (!oracle.voice_examples || oracle.voice_examples.length === 0) {
+          after(async () => {
+            const result = await backfillVoiceExamples(oracleId);
+            if (!result.ok) {
+              console.warn(
+                "[chat stream] voice-examples backfill failed for",
+                oracleId,
+                result.error,
+              );
+            }
+          });
+        }
 
         // All inserts failed — persona said something but nothing
         // persisted. Send an error so the client shows the retry
