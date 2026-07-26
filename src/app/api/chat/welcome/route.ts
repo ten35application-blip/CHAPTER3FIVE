@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
+import { moodOfTheDay, moodToPromptBlock } from "@/lib/identity/mood";
 import { questions } from "@/content/questions";
 
 export const runtime = "nodejs";
@@ -50,12 +51,13 @@ export async function POST(request: NextRequest) {
   let oracleName = "your identity";
   let textingStyle: string | null = null;
   let ownerDeceased = false;
+  let memoryStyle: string | null = null;
 
   if (oracleId) {
     // Beneficiary path (or owner passing their own id explicitly).
     const { data: oracle } = await admin
       .from("oracles")
-      .select("id, name, preferred_language, user_id")
+      .select("id, name, preferred_language, user_id, memory_style")
       .eq("id", oracleId)
       .maybeSingle();
     if (!oracle) {
@@ -94,6 +96,7 @@ export async function POST(request: NextRequest) {
 
     preferredLanguage = (oracle.preferred_language ?? "en") as "en" | "es";
     oracleName = oracle.name ?? "your identity";
+    memoryStyle = (oracle.memory_style as string | null) ?? null;
   } else {
     // Owner path — read active oracle off profile.
     const { data: profile } = await supabase
@@ -221,11 +224,27 @@ A FEW ARCHIVE ANSWERS for voice anchor (do NOT reference them directly):
 
 ${archiveSnippet || "(no answers recorded — keep the welcome short and present)"}`;
 
-  const systemPrompt = isBeneficiary
+  let systemPrompt = isBeneficiary
     ? ownerDeceased
       ? beneficiaryMemorialPrompt
       : beneficiaryLivingPrompt
     : ownerSystemPrompt;
+
+  // Fable humanization Phase 2 — mood-of-the-day colors even the
+  // first-impression opener, so the same identity has weather on
+  // day-one too. SKIP on the memorial branch — the dead don't have
+  // moods, and "MOOD TODAY" language on a "you're seeing me for
+  // the first time since I died" moment would be gross.
+  if (oracleId && !(isBeneficiary && ownerDeceased)) {
+    const welcomeAvoid = memoryStyle === "sharp" ? (["distracted"] as const) : [];
+    const welcomeMood = moodOfTheDay(oracleId, new Date().toISOString(), {
+      avoid: welcomeAvoid,
+    });
+    const welcomeMoodBlock = moodToPromptBlock(welcomeMood);
+    if (welcomeMoodBlock) {
+      systemPrompt = `${systemPrompt}\n\n${welcomeMoodBlock}`;
+    }
+  }
 
   try {
     const resp = await anthropic.messages.create({

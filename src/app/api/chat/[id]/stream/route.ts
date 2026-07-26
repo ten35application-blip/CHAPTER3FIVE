@@ -88,7 +88,7 @@ export async function POST(
   // the authorization.
   const { data: oracle } = await supabase
     .from("oracles")
-    .select("id, name, manually_unread, blocked_at, block_reason, traits")
+    .select("id, name, manually_unread, blocked_at, block_reason, traits, memory_style")
     .eq("id", oracleId)
     .is("deleted_at", null)
     .maybeSingle();
@@ -372,7 +372,15 @@ export async function POST(
   // cache breakpoint on purpose so the daily rotation doesn't
   // invalidate the cached persona_prompt prefix. Failsafe: any
   // unknown mood key returns null and the block is silently omitted.
-  const todayMood = moodOfTheDay(oracleId, new Date().toISOString());
+  // Guard the mood roll against Phase 1 trait contradictions —
+  // "distracted" mood tells the persona to fumble a name, which
+  // clashes hard with memory_style="sharp." Rehash to a different
+  // deterministic mood in that case so the day still feels stable
+  // but doesn't fight the identity's baked-in memory.
+  const avoid = oracle.memory_style === "sharp" ? (["distracted"] as const) : [];
+  const todayMood = moodOfTheDay(oracleId, new Date().toISOString(), {
+    avoid,
+  });
   const moodBlock = moodToPromptBlock(todayMood);
   if (moodBlock) {
     system.push({ type: "text", text: moodBlock });

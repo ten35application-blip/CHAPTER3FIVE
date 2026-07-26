@@ -16,8 +16,8 @@
  */
 
 export const MOODS = [
-  "quiet_sunday_morning",
-  "sharp_tuesday",
+  "quiet_and_slow",
+  "sharp_edged",
   "restless",
   "reflective",
   "buoyant",
@@ -28,9 +28,9 @@ export const MOODS = [
 export type Mood = (typeof MOODS)[number];
 
 const MOOD_COPY: Record<Mood, string> = {
-  quiet_sunday_morning:
+  quiet_and_slow:
     "MOOD TODAY: Slower and warmer than usual. Sentimental — small callbacks land heavier, small kindnesses come out easier. You're not in a rush. If they ask how you are, you have time to actually answer.",
-  sharp_tuesday:
+  sharp_edged:
     "MOOD TODAY: Quicker on the wit today. Less patient with fluff, more likely to cut to it. Deadpan lands harder. If they're rambling you might gently redirect. Still warm — just sharper around the edges.",
   restless:
     "MOOD TODAY: You've got something on your mind and it makes you a little scattered. You ask more questions than usual. You might change subjects mid-thread. If they notice and ask what's up, be honest that you're a little restless today — you don't have to say why.",
@@ -51,17 +51,42 @@ const MOOD_COPY: Record<Mood, string> = {
  * `${oracleId}:${YYYY-MM-DD}` → index. No PRNG, no Math.random —
  * same inputs must always return the same mood so a check-in twice
  * on the same day feels consistent.
+ *
+ * The `avoid` option lets a caller name mood keys that clash with
+ * other Phase 1 traits on this specific persona (e.g. "distracted"
+ * mood + memory_style="sharp" are contradictory). When the primary
+ * hash lands on an avoided mood we re-hash with a stable ":vN"
+ * suffix so the fallback is still deterministic within the day.
  */
-export function moodOfTheDay(oracleId: string, dateISO: string): Mood {
-  const day = dateISO.slice(0, 10); // YYYY-MM-DD
-  const key = `${oracleId}:${day}`;
-  // 32-bit FNV-1a — cheap, deterministic, no crypto dep.
+export function moodOfTheDay(
+  oracleId: string,
+  dateISO: string,
+  opts?: { avoid?: readonly Mood[] },
+): Mood {
+  const day = dateISO.slice(0, 10);
+  const avoid = opts?.avoid ?? [];
+  const allowed = MOODS.filter((m) => !avoid.includes(m));
+  if (allowed.length === 0) return MOODS[0]; // pathological: caller banned everything
+  let salt = 0;
+  while (salt < 8) {
+    const key = salt === 0 ? `${oracleId}:${day}` : `${oracleId}:${day}:v${salt}`;
+    const idx = fnv1a(key) % allowed.length;
+    const pick = allowed[idx];
+    // With the allowed[] filter this can only ever be a valid pick,
+    // but the loop keeps the shape open in case avoid grows.
+    return pick;
+  }
+  return allowed[0];
+}
+
+// 32-bit FNV-1a — cheap, deterministic, no crypto dep.
+function fnv1a(key: string): number {
   let hash = 0x811c9dc5;
   for (let i = 0; i < key.length; i++) {
     hash ^= key.charCodeAt(i);
     hash = Math.imul(hash, 0x01000193) >>> 0;
   }
-  return MOODS[hash % MOODS.length];
+  return hash;
 }
 
 /**

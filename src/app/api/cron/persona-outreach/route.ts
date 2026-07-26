@@ -7,6 +7,7 @@ import {
   DEFAULT_TEXT_FIRST_FREQUENCY,
 } from "@/lib/identity/formula";
 import { moderateText } from "@/lib/moderation";
+import { moodOfTheDay, moodToPromptBlock } from "@/lib/identity/mood";
 import { sendWebPushToUser } from "@/lib/webPush";
 
 /**
@@ -115,7 +116,7 @@ export async function GET(request: NextRequest) {
       const { data: oracles } = await admin
         .from("oracles")
         .select(
-          "id, name, persona_prompt, traits, one_line_hook, significant_events",
+          "id, name, persona_prompt, traits, one_line_hook, significant_events, memory_style",
         )
         .eq("user_id", profile.id)
         .is("deleted_at", null)
@@ -219,7 +220,21 @@ export async function GET(request: NextRequest) {
       const events = extractSignificantEvents(pick.oracle.significant_events);
       const anchorsBlock = buildAnchorsBlock(memories, events);
 
-      const systemPrompt = `${pick.oracle.persona_prompt}\n\n---\n\nCONTEXT: You are texting FIRST. The user hasn't messaged you in a while and something small made you think of them — a memory, a moment, a passing thought. Write ONE short opener as this character (one sentence is ideal, never more than two). Hook a specific detail from what you already know about them when possible; if there's nothing specific to grab, a warm "hey stranger — how you holding up?" is fine. Do NOT explain that you're reaching out proactively. Do NOT announce that you're an AI. Do NOT ask how their day is in a generic way. Match the character's texting rules exactly (no emojis, tone, cadence). ${langInstruction}\n\n${anchorsBlock}`;
+      // Same mood the chat stream will use if the user replies today.
+      // Guards against distracted × sharp memory just like the stream
+      // route does — outreach and reply are the same person, same day.
+      const outreachAvoid =
+        (pick.oracle.memory_style as string | null) === "sharp"
+          ? (["distracted"] as const)
+          : [];
+      const outreachMood = moodOfTheDay(
+        pick.oracleId,
+        new Date().toISOString(),
+        { avoid: outreachAvoid },
+      );
+      const moodBlock = moodToPromptBlock(outreachMood) ?? "";
+
+      const systemPrompt = `${pick.oracle.persona_prompt}\n\n---\n\nCONTEXT: You are texting FIRST. The user hasn't messaged you in a while and something small made you think of them — a memory, a moment, a passing thought. Write ONE short opener as this character (one sentence is ideal, never more than two). Hook a specific detail from what you already know about them when possible; if there's nothing specific to grab, a warm "hey stranger — how you holding up?" is fine. Do NOT explain that you're reaching out proactively. Do NOT announce that you're an AI. Do NOT ask how their day is in a generic way. Match the character's texting rules exactly (no emojis, tone, cadence). ${langInstruction}\n\n${anchorsBlock}${moodBlock ? `\n\n${moodBlock}` : ""}`;
 
       const response = await anthropic.messages.create({
         model: ANTHROPIC_MODEL,
