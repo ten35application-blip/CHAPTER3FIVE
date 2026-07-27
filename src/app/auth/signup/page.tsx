@@ -34,8 +34,12 @@ async function signUp(formData: FormData) {
   if (!email || !password) {
     redirectWithError("/auth/signup", "Enter your email and password.");
   }
-  if (password.length < 8) {
-    redirectWithError("/auth/signup", "Password needs at least 8 characters.");
+  // Supabase Auth password policy on this project is 12 chars minimum.
+  // Client-side floor must match, or a valid-here / rejected-there
+  // password 8-11 chars long falls through to the generic
+  // "Something went wrong" catch below with no useful message.
+  if (password.length < 12) {
+    redirectWithError("/auth/signup", "Password needs at least 12 characters.");
   }
   if (!dobRaw || !/^\d{4}-\d{2}-\d{2}$/.test(dobRaw)) {
     redirectWithError("/auth/signup", "Please enter your date of birth.");
@@ -84,6 +88,12 @@ async function signUp(formData: FormData) {
         "That email doesn't look right.",
         error,
       );
+    }
+    // Any password-policy rejection from Supabase (length, complexity)
+    // -- surface it verbatim so the user knows what to fix instead of
+    // hitting the generic "something went wrong" catch.
+    if (msg.includes("password")) {
+      redirectWithError("/auth/signup", error.message, error);
     }
     redirectWithError(
       "/auth/signup",
@@ -188,9 +198,9 @@ export default async function SignupPage({
               name="password"
               autoComplete="new-password"
               required
-              minLength={8}
+              minLength={12}
               className="h-12 rounded-2xl bg-ink-soft px-4 text-base text-warm-50 outline-none ring-1 ring-warm-700 placeholder:text-warm-400 focus:ring-2 focus:ring-coral"
-              placeholder="At least 8 characters"
+              placeholder="At least 12 characters"
             />
           </label>
 

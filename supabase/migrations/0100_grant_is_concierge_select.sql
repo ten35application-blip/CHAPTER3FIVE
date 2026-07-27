@@ -1,0 +1,16 @@
+-- 0096 added oracles.is_concierge but did NOT grant SELECT to
+-- authenticated. Post-0096 code paths reference the column in WHERE
+-- clauses from the user client:
+--   * dashboard/actions.ts softDeleteIdentity + permanentDeleteIdentity
+--     guard: .eq("is_concierge", false)
+-- Postgres requires SELECT permission on every column referenced in an
+-- UPDATE/DELETE WHERE clause, so the user-role writes 42501 with
+-- "permission denied for table oracles" -- swipe-Delete silently fails
+-- on the dashboard. Same class of bug as 0095's post-0080 column-grant
+-- misses.
+--
+-- is_concierge is a public boolean flag with no sensitivity: any user
+-- who sees the concierge oracle already knows it's the concierge (the
+-- SELECT policy from 0096 exposes the whole row). Granting SELECT to
+-- authenticated + anon is the correct fix.
+grant select (is_concierge) on public.oracles to anon, authenticated;
