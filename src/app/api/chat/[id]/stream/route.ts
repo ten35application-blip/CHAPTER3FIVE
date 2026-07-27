@@ -659,22 +659,29 @@ export async function POST(
   // coffee," "sun's finally out," "hands are cold from dishes."
   // Never fires the injection on the emotional-heavy path — the model
   // still owns the judgment call turn to turn.
-  system.push({
-    type: "text",
-    text: `== Grounding (optional) ==\nEvery so often — roughly 1 in 6 messages when it FITS your character and the moment isn't heavy — you may open with a small sensory or location cue: what you're doing, the weather, the temperature of the room, what's on the stove. "just made coffee." "sun's finally out." "in line at the grocery store, so if I disappear it's because it's my turn." Never announce that you're grounding. Never force it if the reply is emotionally heavy. Some characters do this constantly; some never do. Your voice decides.`,
-  });
+  // Universal persona-flavor blocks (Grounding + Reactions) are for
+  // real personas -- the concierge (Adrian) is a scoped product-Q&A
+  // helper whose 0099 prompt explicitly says "no chit-chat, keep replies
+  // short," so sensory openers and iMessage tap-backs contradict its
+  // job AND add ~1.7k input chars per free-user message. Skip both.
+  if (!isConciergeOracle) {
+    system.push({
+      type: "text",
+      text: `== Grounding (optional) ==\nEvery so often — roughly 1 in 6 messages when it FITS your character and the moment isn't heavy — you may open with a small sensory or location cue: what you're doing, the weather, the temperature of the room, what's on the stove. "just made coffee." "sun's finally out." "in line at the grocery store, so if I disappear it's because it's my turn." Never announce that you're grounding. Never force it if the reply is emotionally heavy. Some characters do this constantly; some never do. Your voice decides.`,
+    });
 
-  // Phase B.2 — persona-side reactions. Universal capability injected
-  // AFTER the cache breakpoint so every persona (new and existing)
-  // learns it without regenerating persona_prompt. Model may prefix
-  // its reply with [react:KIND] to tap-back on the user's last
-  // message. Server strips the marker, inserts a message_reactions
-  // row with oracle_id set, and streams a "reaction" event so the
-  // client can render the badge on the user's bubble in real time.
-  system.push({
-    type: "text",
-    text: `== Reactions (optional) ==\nYou can tap back on the user's last message the way iMessage lets you tap back. To do that, START your reply with one of these markers on the first line:\n\n[react:heart]    — for warmth, love, "this landed"\n[react:exclamation] — for "yes, this," emphasis, agreement\n[react:thumbs_up] — for "got it," "sounds good"\n[react:thumbs_down] — for "no," disagreement, when it fits your voice\n[react:question] — for "wait, what?" or genuine confusion\n[react:ha_ha]    — for anything that actually made you laugh\n\nRules:\n- OPTIONAL. Most replies should have NO reaction. Use maybe 1 in 8 messages, not every time.\n- The marker MUST be on its own first line, alone, nothing else.\n- After the marker you can continue with a text reply — OR leave it empty and just react (no text at all).\n- Never announce the reaction ("I'll give you a heart for that"). Don't reference the marker in prose.\n- Only ONE marker per reply. Pick the truest one.\n- If none of these feels right, don't force one. A plain reply is always fine.`,
-  });
+    // Phase B.2 — persona-side reactions. Universal capability injected
+    // AFTER the cache breakpoint so every persona (new and existing)
+    // learns it without regenerating persona_prompt. Model may prefix
+    // its reply with [react:KIND] to tap-back on the user's last
+    // message. Server strips the marker, inserts a message_reactions
+    // row with oracle_id set, and streams a "reaction" event so the
+    // client can render the badge on the user's bubble in real time.
+    system.push({
+      type: "text",
+      text: `== Reactions (optional) ==\nYou can tap back on the user's last message the way iMessage lets you tap back. To do that, START your reply with one of these markers on the first line:\n\n[react:heart]    — for warmth, love, "this landed"\n[react:exclamation] — for "yes, this," emphasis, agreement\n[react:thumbs_up] — for "got it," "sounds good"\n[react:thumbs_down] — for "no," disagreement, when it fits your voice\n[react:question] — for "wait, what?" or genuine confusion\n[react:ha_ha]    — for anything that actually made you laugh\n\nRules:\n- OPTIONAL. Most replies should have NO reaction. Use maybe 1 in 8 messages, not every time.\n- The marker MUST be on its own first line, alone, nothing else.\n- After the marker you can continue with a text reply — OR leave it empty and just react (no text at all).\n- Never announce the reaction ("I'll give you a heart for that"). Don't reference the marker in prose.\n- Only ONE marker per reply. Pick the truest one.\n- If none of these feels right, don't force one. A plain reply is always fine.`,
+    });
+  }
 
   // Current turn: URL image block (Anthropic fetches the signed URL) +
   // text. An image-only send still needs SOME text for coherent history
@@ -737,7 +744,11 @@ export async function POST(
           payload.hour_of_day <= 23
             ? Math.floor(payload.hour_of_day)
             : null;
-        const replyGapMs = isRetry
+        // Concierge (Adrian) skips the reply-gap -- a helper bot doesn't
+        // need to "read and start typing" like a real friend would; snappy
+        // is the correct UX for product Q&A. Non-persona surface anyway,
+        // no chronotype/mood to compute against.
+        const replyGapMs = isRetry || isConciergeOracle
           ? 0
           : computeReplyGapMs({
               chronotype: coerceChronotype(oracle.chronotype),
