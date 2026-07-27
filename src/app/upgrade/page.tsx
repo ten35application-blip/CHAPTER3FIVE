@@ -193,6 +193,18 @@ export default async function UpgradePage({
         >
           Not right now &mdash; back to the app
         </Link>
+
+        {/* Billing-location note. When the mobile apps ship, taps on
+            "Upgrade" from inside iOS/Android open the external browser
+            to this page (per the 2025 external-payment ruling — no
+            store commission). Framing here so a mobile visitor
+            understands why they landed on the web. */}
+        <p className="mt-8 max-w-xs text-center text-[11px] leading-relaxed text-warm-500">
+          Billing lives here on chapter3five.app for everyone &mdash;
+          web and app. Every dollar reaches us directly (minus Stripe
+          processing), which is what keeps the plan at{" "}
+          {MONTHLY_PRICE_LABEL}/month.
+        </p>
       </div>
     </main>
   );

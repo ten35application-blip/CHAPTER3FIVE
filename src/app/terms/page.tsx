@@ -5,6 +5,7 @@ import {
   LegalShell,
   type TocItem,
 } from "@/components/legal";
+import { MONTHLY_PRICE_LABEL } from "@/lib/pricing";
 
 export const metadata: Metadata = {
   title: "Terms of Service — chapter3five",
@@ -343,12 +344,30 @@ export default function TermsPage() {
         </ul>
         <p>
           Subscriptions are billed monthly in advance through Stripe and
-          renew automatically until you cancel. You can cancel any time from
-          your account settings; cancellation takes effect at the end of the
-          current billing period. We may change prices with at least 30
-          days&rsquo; email notice; changes apply from your next billing
-          period, and if you don&rsquo;t agree, you may cancel before they
-          take effect.
+          renew automatically until you cancel. You can cancel any time
+          from your account settings; cancellation takes effect at the
+          end of the current billing period. We may change prices with
+          at least 30 days&rsquo; email notice; changes apply from your
+          next billing period, and if you don&rsquo;t agree, you may
+          cancel before they take effect.
+        </p>
+        <p>
+          <strong>How to subscribe and manage billing.</strong>{" "}
+          Subscriptions, plan changes, and cancellations are all
+          handled at{" "}
+          <a
+            href="https://chapter3five.app"
+            className="text-coral-strong hover:underline"
+          >
+            chapter3five.app
+          </a>
+          . If you signed up through our iOS or Android app, tap
+          &ldquo;Manage subscription&rdquo; and you&rsquo;ll be sent to
+          your account on the web to complete the payment or the
+          cancellation. We don&rsquo;t bill through Apple or Google
+          &mdash; every dollar you pay reaches us directly (minus
+          Stripe processing), which is what lets us keep the plan at{" "}
+          {MONTHLY_PRICE_LABEL}/month.
         </p>
         <p>
           <strong>Payments are non-refundable</strong>, except where the law
