@@ -3,17 +3,13 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isPro } from "@/lib/subscription";
 import {
-  EXTRA_IDENTITY_PRICE_LABEL,
   EXTRA_INHERITED_PRICE_LABEL,
   FREE_MESSAGES_PER_MONTH,
   MONTHLY_PRICE_LABEL,
-  PLUS_IMAGES_PER_MONTH,
   PLUS_MONTHLY_PRICE_LABEL,
   PLUS_TIER_LABEL,
-  PRICING,
-  PRO_IMAGES_PER_MONTH,
 } from "@/lib/pricing";
-import { UpgradeButton } from "@/app/(gated)/settings/_components/UpgradeButton";
+import { PlanCards } from "@/components/PlanCards";
 
 export const metadata = {
   title: "Upgrade · chapter3five",
@@ -149,171 +145,18 @@ export default async function UpgradePage({
           </p>
         )}
 
-        {/* Plan cards — same anatomy as the landing pricing section:
-            Pro keeps the gradient-border highlight as the primary
-            tier, Plus sits beside it with a quiet solid border. */}
-        <div className="mt-12 grid w-full grid-cols-1 gap-6 text-left md:grid-cols-2">
-          {/* Pro — gradient border via absolute inset */}
-          <div className="relative flex flex-col rounded-3xl bg-ink-soft p-8 shadow-[0_20px_48px_-16px_rgba(232,138,118,0.25)]">
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-0 rounded-3xl p-[2px] bg-gradient-cta"
-              style={{
-                WebkitMask:
-                  "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
-                WebkitMaskComposite: "xor",
-                maskComposite: "exclude",
-              }}
-            />
-            <div className="relative flex flex-1 flex-col">
-              <p className="text-gradient-cta text-sm font-bold uppercase tracking-[0.14em]">
-                chapter3five Pro
-              </p>
-              <p className="mt-4 text-4xl font-bold tracking-[-0.03em] text-warm-50">
-                {MONTHLY_PRICE_LABEL}
-                <span className="text-lg font-semibold text-warm-400">
-                  /month
-                </span>
-              </p>
-              <p className="mt-2 text-base text-warm-300">
-                Cancel any time from Settings.
-              </p>
-              <ul className="mt-8 flex flex-1 flex-col gap-3 text-base text-warm-200">
-                <FeatureLine>
-                  <strong className="text-warm-50">Unlimited messages</strong>{" "}
-                  &mdash; no monthly cap, no meters
-                </FeatureLine>
-                <FeatureLine>
-                  Up to {PRICING.formulaIdentitiesPerPlan} companions from
-                  our formula, plus {PRICING.photoIdentitiesPerPlan} made
-                  from a photo you upload
-                </FeatureLine>
-                <FeatureLine>
-                  Record an archive if you want to leave one, or open{" "}
-                  <strong className="text-warm-50">
-                    {PRICING.includedInheritedIdentitiesPerPlan} inherited
-                    archive
-                  </strong>{" "}
-                  from a code someone left you
-                </FeatureLine>
-                <FeatureLine>
-                  <strong className="text-warm-50">
-                    {PRO_IMAGES_PER_MONTH} photos a month
-                  </strong>{" "}
-                  you can send to any of your companions
-                </FeatureLine>
-                <FeatureLine>
-                  Need more? {EXTRA_IDENTITY_PRICE_LABEL}/mo per extra
-                  identity or inherited slot
-                </FeatureLine>
-              </ul>
-              <div className="mt-8">
-                {checkoutEnabled ? (
-                  <UpgradeButton
-                    checkoutEnabled
-                    fallbackHref="/upgrade"
-                    label="Enroll"
-                  />
-                ) : (
-                  <a
-                    href={`mailto:hello@chapter3five.app?subject=${encodeURIComponent(
-                      next ? `Upgrade me to Pro — ${target}` : "Upgrade me to Pro",
-                    )}&body=${encodeURIComponent(
-                      `Hi — I'd like to upgrade my chapter3five account (${email}) to Pro (${MONTHLY_PRICE_LABEL}/month).${
-                        next ? ` I was trying to open ${target}.` : ""
-                      } Please send a checkout link when it's ready.\n\nThanks.`,
-                    )}`}
-                    className="bg-gradient-cta hover:bg-gradient-cta-hover flex h-14 w-full items-center justify-center rounded-full text-base font-bold text-white shadow-[0_16px_36px_-10px_rgba(232,138,118,0.55),_0_6px_16px_-4px_rgba(126,196,196,0.45)] transition-all hover:-translate-y-px"
-                  >
-                    Enroll
-                  </a>
-                )}
-                <p className="mt-3 text-center text-xs text-warm-400">
-                  {checkoutEnabled ? (
-                    <>
-                      Auto-renews monthly at {MONTHLY_PRICE_LABEL} until
-                      you cancel. See our{" "}
-                      <Link
-                        href="/terms#billing"
-                        className="text-warm-300 underline underline-offset-2 hover:text-coral-strong"
-                      >
-                        billing and refund policy
-                      </Link>
-                      .
-                    </>
-                  ) : (
-                    <>
-                      Self-serve checkout is coming online &mdash; this
-                      emails us and we&rsquo;ll flip your account on
-                      within a day.
-                    </>
-                  )}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Plus — solid border. No Stripe Price exists yet, so the
-              Enroll button is an honest reserve-your-spot mailto, not
-              a checkout that would 503. */}
-          <div className="flex flex-col rounded-3xl border border-warm-600 bg-ink-soft p-8 shadow-[0_10px_36px_-16px_rgba(28,28,26,0.18)]">
-            <p className="text-gradient-cta text-sm font-bold uppercase tracking-[0.14em]">
-              {PLUS_TIER_LABEL}
-            </p>
-            <p className="mt-4 text-4xl font-bold tracking-[-0.03em] text-warm-50">
-              {PLUS_MONTHLY_PRICE_LABEL}
-              <span className="text-lg font-semibold text-warm-400">
-                /month
-              </span>
-            </p>
-            <p className="mt-2 text-base text-warm-300">
-              For one person who wants more room.
-            </p>
-            <ul className="mt-8 flex flex-1 flex-col gap-3 text-base text-warm-200">
-              <FeatureLine>
-                <strong className="text-warm-50">Everything in Pro</strong>{" "}
-                &mdash; unlimited messages, your own archive, all of it
-              </FeatureLine>
-              <FeatureLine>
-                <strong className="text-warm-50">
-                  {PRICING.plusTotalIdentitiesPerPlan +
-                    PRICING.plusIncludedInheritedIdentitiesPerPlan}{" "}
-                  companions
-                </strong>{" "}
-                &mdash; {PRICING.plusFormulaIdentitiesPerPlan} from our
-                formula, {PRICING.plusPhotoIdentitiesPerPlan} from photos
-                you upload, and{" "}
-                {PRICING.plusIncludedInheritedIdentitiesPerPlan} inherited
-                slot
-              </FeatureLine>
-              <FeatureLine>
-                <strong className="text-warm-50">
-                  {PLUS_IMAGES_PER_MONTH} photos a month
-                </strong>{" "}
-                across your companions
-              </FeatureLine>
-              <FeatureLine>
-                <strong className="text-warm-50">Priority support</strong>{" "}
-                &mdash; your questions go to the front of the line
-              </FeatureLine>
-            </ul>
-            <div className="mt-8">
-              <a
-                href={`mailto:hello@chapter3five.app?subject=${encodeURIComponent(
-                  `Reserve my spot — ${PLUS_TIER_LABEL}`,
-                )}&body=${encodeURIComponent(
-                  `Hi — I'd like to enroll in ${PLUS_TIER_LABEL} (${PLUS_MONTHLY_PRICE_LABEL}/month) on my chapter3five account (${email}). Please reserve my spot and send a checkout link when enrollment opens.\n\nThanks.`,
-                )}`}
-                className="flex h-14 w-full items-center justify-center rounded-full border-2 border-warm-500 text-base font-bold text-warm-50 transition-all hover:-translate-y-px hover:border-warm-300"
-              >
-                Enroll
-              </a>
-              <p className="mt-3 text-center text-xs text-warm-400">
-                {PLUS_TIER_LABEL} enrollment opens soon &mdash; this
-                emails us and we&rsquo;ll reserve your spot.
-              </p>
-            </div>
-          </div>
+        {/* Plan cards — single source of truth lives in
+            src/components/PlanCards.tsx so /upgrade and the settings
+            free-tier block can't drift on prices, features, or copy.
+            `nextHref` threads context into the Pro mailto so a user
+            who was trying to open /identity/inherit/... gives us that
+            context when they email us. */}
+        <div className="mt-12">
+          <PlanCards
+            email={email}
+            checkoutEnabled={checkoutEnabled}
+            nextHref={next ? target : null}
+          />
         </div>
 
         <Link
@@ -353,26 +196,5 @@ function BillingLocationNote() {
   );
 }
 
-/* Bulleted line in a plan card. Coral check + copy — mirrors the
-   landing pricing section's FeatureLine. */
-function FeatureLine({ children }: { children: React.ReactNode }) {
-  return (
-    <li className="flex items-start gap-3">
-      <svg
-        viewBox="0 0 20 20"
-        width="18"
-        height="18"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden
-        className="mt-0.5 shrink-0 text-coral-strong"
-      >
-        <path d="M4 11l4 4 8-10" />
-      </svg>
-      <span>{children}</span>
-    </li>
-  );
-}
+// FeatureLine helper removed -- plan cards moved to
+// src/components/PlanCards.tsx which owns its own bullet rendering.

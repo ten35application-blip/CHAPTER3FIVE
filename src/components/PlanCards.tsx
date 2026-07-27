@@ -121,7 +121,9 @@ export function PlanCards({
             ) : (
               <a
                 href={`mailto:hello@chapter3five.app?subject=${encodeURIComponent(
-                  "Upgrade me to Pro",
+                  nextHref
+                    ? `Upgrade me to Pro — ${nextHref}`
+                    : "Upgrade me to Pro",
                 )}&body=${encodeURIComponent(
                   `Hi — I'd like to upgrade my chapter3five account (${email}) to Pro (${MONTHLY_PRICE_LABEL}/month).${targetContext} Please send a checkout link when it's ready.\n\nThanks.`,
                 )}`}
