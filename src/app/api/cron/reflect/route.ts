@@ -85,15 +85,22 @@ export async function GET(request: NextRequest) {
         .order("created_at", { ascending: false })
         .limit(80);
 
+      // Defense-in-depth scrub — user-derived strings that get
+      // interpolated into a model prompt (even in the user role) can
+      // otherwise carry `==` / underscore runs that forge headers or
+      // dominate framing. Same pattern retrieve.ts / residue.ts /
+      // outreach.ts apply. Cheap; never worse than a no-op.
+      const scrub = (v: string) =>
+        v.replace(/\s+/g, " ").replace(/[=_*#`]{2,}/g, " ").trim();
       const existingBlock =
-        (existingMemories ?? []).map((m, i) => `${i + 1}. ${m.content}`).join(
-          "\n",
-        ) || "(none)";
+        (existingMemories ?? [])
+          .map((m, i) => `${i + 1}. ${scrub(String(m.content ?? ""))}`)
+          .join("\n") || "(none)";
 
       const transcript = rows
         .map(
           (m) =>
-            `${m.role === "user" ? "Them" : profile.oracle_name ?? "You"}: ${m.content}`,
+            `${m.role === "user" ? "Them" : profile.oracle_name ?? "You"}: ${scrub(String(m.content ?? ""))}`,
         )
         .join("\n");
 

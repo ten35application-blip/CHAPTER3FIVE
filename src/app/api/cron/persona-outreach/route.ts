@@ -108,6 +108,30 @@ export async function GET(request: NextRequest) {
         .gte("created_at", sixHoursAgo);
       if ((veryRecentUserMsgCount ?? 0) > 0) continue;
 
+      // Crisis guard on ANY outreach (fresh-callback OR long-silence).
+      // If the user's most recent turn EVER tripped detectCrisis, we
+      // absolutely do not want to fire a cold "hey stranger" outreach
+      // on a crisis line. Skip the whole user for this cron run. This
+      // is broader than the earlier fresh-callback-specific guard —
+      // it also covers the long-silence pathway where the last turn
+      // may be days or weeks old.
+      const { data: mostRecentTurn } = await admin
+        .from("messages")
+        .select("content")
+        .eq("user_id", profile.id)
+        .eq("role", "user")
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (
+        mostRecentTurn &&
+        typeof mostRecentTurn.content === "string" &&
+        detectCrisis(mostRecentTurn.content).triggered
+      ) {
+        continue;
+      }
+
       // Fresh-callback window: the user's most recent USER message
       // 6-48h old. If present, this drives a persona to say "earlier
       // when you said…" — much more human than a cold "hey stranger."
@@ -456,13 +480,25 @@ function readTextFirstFrequency(traits: unknown): unknown {
 }
 
 type SignificantEvent = { ageAtEvent?: number; summary?: string };
+/** Same defense-in-depth scrub retrieve.ts / residue.ts / cross-persona
+ *  use before user-derived content lands inside a system prompt. Runs
+ *  of `==`, `__`, `**`, `##`, and backticks can forge headers or
+ *  formatting; strip them. */
+function scrubForPrompt(v: string): string {
+  return v
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace(/[=_*#`]{2,}/g, " ")
+    .trim();
+}
+
 function extractSignificantEvents(v: unknown): string[] {
   if (!Array.isArray(v)) return [];
   return v
     .filter(
       (e): e is SignificantEvent => typeof e === "object" && e !== null,
     )
-    .map((e) => (typeof e.summary === "string" ? e.summary.trim() : ""))
+    .map((e) => (typeof e.summary === "string" ? scrubForPrompt(e.summary) : ""))
     .filter((s): s is string => s.length > 0)
     .slice(0, 5);
 }
@@ -481,7 +517,7 @@ async function fetchMemoryHooks(
     .order("last_referenced_at", { ascending: false })
     .limit(10);
   return (data ?? [])
-    .map((m) => (typeof m.content === "string" ? m.content : ""))
+    .map((m) => (typeof m.content === "string" ? scrubForPrompt(m.content) : ""))
     .filter((s) => s.length > 0);
 }
 

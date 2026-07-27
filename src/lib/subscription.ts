@@ -105,10 +105,15 @@ export async function getFreeIdentityId(
 export async function canChatWithOracle(
   oracleId: string,
   supabase?: SupabaseClient,
+  precomputedIsPro?: boolean,
 ): Promise<boolean> {
   try {
     const client = supabase ?? (await createClient());
-    if (await isPro(client)) return true;
+    const pro =
+      precomputedIsPro !== undefined
+        ? precomputedIsPro
+        : await isPro(client);
+    if (pro) return true;
     const freeId = await getFreeIdentityId(client);
     return freeId !== null && freeId === oracleId;
   } catch {
@@ -159,6 +164,7 @@ export async function claimFreeIdentitySlot(
  */
 export async function canSendMessageForFreeCap(
   supabase?: SupabaseClient,
+  precomputedIsPro?: boolean,
 ): Promise<
   | { ok: true; current: number }
   | { ok: false; current: number; limit: number }
@@ -169,7 +175,11 @@ export async function canSendMessageForFreeCap(
   } = await client.auth.getUser();
   if (!user) return { ok: false, current: 0, limit: PRICING.freeMessagesPerMonth };
 
-  if (await isPro(client)) return { ok: true, current: 0 };
+  const pro =
+    precomputedIsPro !== undefined
+      ? precomputedIsPro
+      : await isPro(client);
+  if (pro) return { ok: true, current: 0 };
 
   const monthStart = new Date();
   monthStart.setUTCHours(0, 0, 0, 0);

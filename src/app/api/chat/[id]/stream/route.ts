@@ -64,6 +64,12 @@ export async function POST(
     user_message?: string;
     image_storage_path?: string;
     retry?: boolean;
+    /** Local hour-of-day 0-23 in the USER's timezone. Optional. Used
+     *  by humanization #1 (chronotype × mood × hour reply-gap) so
+     *  morning-person peaks fire in the user's actual rhythm, not
+     *  Vercel's UTC. Absent → server falls back to server-hour, which
+     *  works but is phase-shifted for non-US-East users. */
+    hour_of_day?: number;
   };
   try {
     payload = await request.json();
@@ -139,11 +145,15 @@ export async function POST(
     );
   }
 
+  // Plan check runs ONCE per request; every downstream gate reuses it
+  // via precomputedIsPro. Cuts 3 profiles-table SELECTs per turn to 1.
+  const requesterIsPro = await isPro(supabase);
+
   // Trial / Free-tier gate — Pro (paid, admin, or in-trial) chats with
   // everything; Free tier only with profiles.free_identity_id. Checked
   // BEFORE the rate-limit bump so a locked send never counts against
   // the user's daily usage.
-  if (!(await canChatWithOracle(oracleId, supabase))) {
+  if (!(await canChatWithOracle(oracleId, supabase, requesterIsPro))) {
     return NextResponse.json(
       { error: "trial_ended_or_locked" },
       { status: 403 },
@@ -156,7 +166,7 @@ export async function POST(
   // user isn't sending a new message, just re-rolling the assistant's
   // response to one that's already counted.
   if (!isRetry) {
-    const cap = await canSendMessageForFreeCap(supabase);
+    const cap = await canSendMessageForFreeCap(supabase, requesterIsPro);
     if (!cap.ok) {
       return NextResponse.json(
         {
@@ -463,7 +473,7 @@ export async function POST(
   // identities; Free tier has one chattable identity anyway. Never
   // reveals other-persona MEMORIES or messages — just names and
   // hooks. RLS on oracles scopes to auth.uid = user_id already.
-  if (await isPro(supabase)) {
+  if (requesterIsPro) {
     const { data: sibs } = await supabase
       .from("oracles")
       .select("id, name, one_line_hook")
@@ -605,12 +615,22 @@ export async function POST(
         // Skip the delay on retry — the persona already "read" this
         // turn once; making them pause again to re-read reads as
         // "network broken," not "took a beat."
+        // Prefer the client-supplied local hour when it looks valid;
+        // fall back to server-hour (UTC on Vercel) otherwise. Closes
+        // the timezone fidelity gap Fable flagged on humanization #1.
+        const clientHour =
+          typeof payload.hour_of_day === "number" &&
+          Number.isFinite(payload.hour_of_day) &&
+          payload.hour_of_day >= 0 &&
+          payload.hour_of_day <= 23
+            ? Math.floor(payload.hour_of_day)
+            : null;
         const replyGapMs = isRetry
           ? 0
           : computeReplyGapMs({
               chronotype: coerceChronotype(oracle.chronotype),
               mood: todayMood,
-              hourOfDay: new Date().getHours(),
+              hourOfDay: clientHour ?? new Date().getHours(),
             });
         if (replyGapMs > 0) {
           await new Promise((resolve) => setTimeout(resolve, replyGapMs));

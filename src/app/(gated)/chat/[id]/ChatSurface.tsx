@@ -305,6 +305,10 @@ export default function ChatSurface({
       let acc = "";
 
       try {
+        // Local hour-of-day for humanization #1 chronotype timing so
+        // the persona's morning-peak fires in the USER'S rhythm, not
+        // Vercel's UTC.
+        const hourOfDay = new Date().getHours();
         const res = await fetch(`/api/chat/${oracleId}/stream`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -312,9 +316,10 @@ export default function ChatSurface({
             text !== null
               ? {
                   user_message: text,
+                  hour_of_day: hourOfDay,
                   ...(image ? { image_storage_path: image.storagePath } : {}),
                 }
-              : { retry: true },
+              : { retry: true, hour_of_day: hourOfDay },
           ),
         });
 
