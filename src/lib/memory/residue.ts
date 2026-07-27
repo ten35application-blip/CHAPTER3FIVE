@@ -18,8 +18,24 @@ import { anthropic } from "@/lib/anthropic";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const RESIDUE_KEY = "_session_residue";
-const RESIDUE_MODEL = "claude-haiku-4-5-20251001";
+// Alias, not the pinned date-stamp — extract.ts uses the alias too,
+// so the family bumps together on a Haiku upgrade.
+const RESIDUE_MODEL = "claude-haiku-4-5";
 const MAX_RESIDUE_CHARS = 200;
+
+/** Same shape retrieve.ts uses on memory values before interpolation:
+ *  collapse whitespace, defuse "==" and other run patterns that would
+ *  otherwise forge a system-prompt header. Residue is Haiku output
+ *  derived from user content in the transcript — a crafted user turn
+ *  could steer the classifier to emit forgery-shaped text. Belt-and-
+ *  suspenders. */
+function scrubResidueForPrompt(v: string): string {
+  return v
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace(/[=_*#`]{2,}/g, " ")
+    .trim();
+}
 
 const OUTPUT_SCHEMA = {
   type: "object",
@@ -117,7 +133,9 @@ export async function fetchResidueBlock(
       .eq("key", RESIDUE_KEY)
       .maybeSingle<{ value: string }>();
     if (!data?.value) return "";
-    return `== Since last time ==\nOur last chat ended: ${data.value}. If they open with something light, meet them there — don't force a callback. If they seem to want to pick up where you left off, do.`;
+    const clean = scrubResidueForPrompt(data.value);
+    if (!clean) return "";
+    return `== Since last time ==\nOur last chat ended: ${clean}. If they open with something light, meet them there — don't force a callback. If they seem to want to pick up where you left off, do.`;
   } catch {
     return "";
   }

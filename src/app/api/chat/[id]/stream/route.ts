@@ -10,7 +10,10 @@ import {
   extractAndSaveResidue,
   fetchResidueBlock,
 } from "@/lib/memory/residue";
-import { detectDistress, DISTRESS_TONE_BLOCK } from "@/lib/safety/distress";
+import {
+  anyRecentTurnDistressed,
+  DISTRESS_TONE_BLOCK,
+} from "@/lib/safety/distress";
 import { extractMemoriesFromMessage } from "@/lib/memory/extract";
 import { fetchMemoriesForContext } from "@/lib/memory/retrieve";
 import { shouldPersonaBlock } from "@/lib/safety/block-detector";
@@ -329,6 +332,17 @@ export async function POST(
   // clearly a "vibe of last time" signal, not a fact.
   const residueBlock = await fetchResidueBlock(oracleId, user.id);
 
+  // Fable humanization #6 — distress signal is computed HERE (before
+  // the memory hedge below) so #3 can suppress hedging when the user
+  // is in a hard moment. The actual DISTRESS_TONE_BLOCK is pushed
+  // later, after mood, so it lands at the correct spot in the system
+  // stack for tone-override. Look-back covers turn-N-fell-apart /
+  // turn-N+3-chirps failure mode.
+  const recentUserTurns = history
+    .filter((h) => h.role === "user")
+    .map((h) => (typeof h.content === "string" ? h.content : ""));
+  const distressed = anyRecentTurnDistressed(userMessage, recentUserTurns);
+
   // Fable humanization #3 — memory imperfection. If the persona was
   // rolled with warm_foggy or conflator memory_style at synthesis
   // (0078), append a small hedging cue so the model occasionally
@@ -336,9 +350,20 @@ export async function POST(
   // fired for sharp / null personas — those keep perfect recall.
   // Added HERE (not in fetchMemoriesForContext) so the retrieval layer
   // stays focused on retrieval; humanization is a stream-time concern.
-  if (memoriesBlock && oracle.memory_style === "warm_foggy") {
+  //
+  // SUPPRESSED when the current or recent turns tripped the distress
+  // detector, OR when the memory block itself contains any signal of
+  // a heavy memory (grief / death / illness). Fable audit: prose-only
+  // "never on heavy" guardrails can't be trusted alone — hard-gate.
+  const memoryTextLooksHeavy =
+    /\b(died|passed away|lost my|the cancer|hospice|funeral|grief|grieving|tumor|terminal|divorce)\b/i.test(
+      memoriesBlock,
+    );
+  const canHedgeMemory =
+    memoriesBlock && !distressed && !memoryTextLooksHeavy;
+  if (canHedgeMemory && oracle.memory_style === "warm_foggy") {
     memoriesBlock += `\n\nMemory-style note: you're warm-foggy on details. About once every 4-5 replies, in-character, hedge ONE small detail from what you remember about them — "wait, was it Tuesday or Wednesday you had that thing?" or "remind me — was your sister's name Sara or Sarah?". Never in the same reply as a call-back to something heavy. It should feel like a friend, not a bug.`;
-  } else if (memoriesBlock && oracle.memory_style === "conflator") {
+  } else if (canHedgeMemory && oracle.memory_style === "conflator") {
     memoriesBlock += `\n\nMemory-style note: you sometimes conflate two similar things. About once every 4-5 replies, in-character, merge two similar past details — "didn't your sister already have this problem?" (when it was actually a cousin). Self-correct warmly when they push back. Never do this on anything emotionally heavy or crisis-adjacent.`;
   }
 
@@ -416,14 +441,12 @@ export async function POST(
     system.push({ type: "text", text: moodBlock });
   }
 
-  // Fable humanization #6 — bad-day tone shift. Fast keyword check on
-  // the current user message (retries have userMessage=null so this
-  // no-ops). When it trips, override the day's mood with a "hold space,
-  // don't fix" cue so the persona doesn't chirp through grief. Injected
-  // AFTER mood so it lands later in the stack and effectively overrides.
-  // Doesn't replace the crisis pipeline (crisis has its own detector +
-  // response rails); this is the softer band below that.
-  if (userMessage && detectDistress(userMessage)) {
+  // Fable humanization #6 — bad-day tone shift. `distressed` was
+  // computed upstream (before the memory hedge so #3 can suppress on
+  // heavy turns). Push the DISTRESS_TONE_BLOCK here, AFTER mood, so
+  // the hold-space cue lands later in the system stack and effectively
+  // overrides the day's mood tone.
+  if (distressed) {
     system.push({ type: "text", text: DISTRESS_TONE_BLOCK });
   }
 
