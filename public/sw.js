@@ -24,8 +24,8 @@ self.addEventListener("push", (event) => {
       body,
       tag,
       data: { url },
-      badge: "/icon.png",
-      icon: "/icon.png",
+      badge: "/logo.png",
+      icon: "/logo.png",
     }),
   );
 });

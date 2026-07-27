@@ -62,7 +62,12 @@ export type SpendRoute =
   | "block_detector"
   | "welcome"
   | "help"
-  | "crisis_helper";
+  | "crisis_helper"
+  | "cron_anniversaries"
+  | "cron_check_in"
+  | "cron_proactive"
+  | "cron_reflect"
+  | "whisper";
 
 /** Compute estimated cost in whole cents (rounded up). Never returns
  *  0 for a call with any tokens — a 1-cent floor keeps the ledger

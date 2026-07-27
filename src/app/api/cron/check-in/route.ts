@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { recordAnthropicSpend } from "@/lib/spendGovernor";
 import { sendPushToUser } from "@/lib/push";
 
 export const runtime = "nodejs";
@@ -125,6 +126,15 @@ Respond in ${language === "es" ? "Spanish" : "English"}. Just the line. No quote
             content: "(system) Write the comeback line now. Just the line.",
           },
         ],
+      });
+
+      void recordAnthropicSpend({
+        userId: row.user_id,
+        model: ANTHROPIC_MODEL,
+        usage: resp.usage as unknown as Parameters<
+          typeof recordAnthropicSpend
+        >[0]["usage"],
+        route: "cron_check_in",
       });
 
       const reply = resp.content

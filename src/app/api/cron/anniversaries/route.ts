@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
+import { recordAnthropicSpend } from "@/lib/spendGovernor";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendPushToUser } from "@/lib/push";
 
@@ -240,6 +241,17 @@ Respond in ${language === "es" ? "Spanish" : "English"}.
                 "(system) Send the message now. No prelude. No quotes around it.",
             },
           ],
+        });
+
+        // Ledger the spend against the recipient so /admin/revenue
+        // can attribute background-outreach cost per user.
+        void recordAnthropicSpend({
+          userId: p.id,
+          model: ANTHROPIC_MODEL,
+          usage: resp.usage as unknown as Parameters<
+            typeof recordAnthropicSpend
+          >[0]["usage"],
+          route: "cron_anniversaries",
         });
 
         const reply = resp.content

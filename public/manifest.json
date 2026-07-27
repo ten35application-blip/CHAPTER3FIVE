@@ -1,0 +1,25 @@
+{
+  "name": "chapter3five",
+  "short_name": "chapter3five",
+  "description": "Someone to talk to. Someone to keep.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#1c1c1a",
+  "theme_color": "#e88a76",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo-legacy-squircle.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { recordAnthropicSpend } from "@/lib/spendGovernor";
 import { embedText, toPgVector } from "@/lib/embeddings";
 import type { MemoryKind } from "@/lib/memory";
 
@@ -123,6 +124,15 @@ Use kind = "topic" for recurring themes, "feeling" for emotional patterns, "even
         system:
           "You extract durable higher-order memories from conversation transcripts. Output ONLY a valid JSON array, never prose.",
         messages: [{ role: "user", content: prompt }],
+      });
+
+      void recordAnthropicSpend({
+        userId: profile.id,
+        model: ANTHROPIC_MODEL,
+        usage: resp.usage as unknown as Parameters<
+          typeof recordAnthropicSpend
+        >[0]["usage"],
+        route: "cron_reflect",
       });
 
       const text = resp.content

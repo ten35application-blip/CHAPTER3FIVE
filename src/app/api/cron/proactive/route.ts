@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { recordAnthropicSpend } from "@/lib/spendGovernor";
 import { questions } from "@/content/questions";
 import { sendPushToUser } from "@/lib/push";
 
@@ -130,6 +131,15 @@ export async function GET(request: NextRequest) {
               "(system) Send a short proactive text now. Don't reply to this prompt — just write the message.",
           },
         ],
+      });
+
+      void recordAnthropicSpend({
+        userId: profile.id,
+        model: ANTHROPIC_MODEL,
+        usage: response.usage as unknown as Parameters<
+          typeof recordAnthropicSpend
+        >[0]["usage"],
+        route: "cron_proactive",
       });
 
       const reply = response.content

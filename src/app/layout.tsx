@@ -23,6 +23,7 @@ export const metadata: Metadata = {
     // twitter-image.png in src/app is picked up automatically
   },
   robots: { index: true, follow: true },
+  manifest: "/manifest.json",
   // Note: no title.template — every page already hard-codes its
   // "· chapter3five" suffix; a template would double it.
   // Favicons come from the file conventions src/app/icon.png and
