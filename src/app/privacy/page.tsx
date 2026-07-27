@@ -184,15 +184,18 @@ export default function PrivacyPage() {
             unless you opt in — we do not opt in.
           </li>
           <li>
-            <strong>Replicate</strong> — image generation for
-            photo-based identities. When you upload a reference photo
-            of yourself or someone you want to build an identity of,
-            we send that photo plus a text prompt to Replicate&rsquo;s
-            hosted Flux Kontext model to generate the identity&rsquo;s
-            avatar. Replicate processes the image to produce the
-            output; it&rsquo;s not shared with third parties beyond
-            Replicate&rsquo;s own infrastructure, and per Replicate&rsquo;s
-            policy it isn&rsquo;t used to train their public models.
+            <strong>Replicate</strong> — image generation. Used in two
+            ways: (a) creating an identity&rsquo;s initial avatar from
+            a text prompt (no reference photo sent), and (b) generating
+            in-chat photos an identity might &ldquo;send you&rdquo; mid-
+            conversation, where we send that identity&rsquo;s existing
+            avatar as a reference so the generated photo preserves the
+            face, plus a short text prompt describing the scene.
+            Replicate processes these to produce the output; per their
+            terms of service, API traffic isn&rsquo;t used to train
+            their models. Payloads may transit third-party model hosts
+            that Replicate proxies to (e.g. Black Forest Labs for Flux
+            models) under Replicate&rsquo;s own privacy contract.
           </li>
           <li>
             <strong>Stripe</strong> — payments. Handles your card and billing
@@ -210,6 +213,15 @@ export default function PrivacyPage() {
             <strong>Sentry</strong> — error monitoring. If something breaks,
             it receives technical error reports (browser, device, what
             failed) so we can fix it. It is not an analytics or ad tracker.
+          </li>
+          <li>
+            <strong>Expo</strong> — push-notification delivery. When you
+            opt into push, we send your device push token, notification
+            title, and message excerpt (typically the first 140 characters
+            of a companion reply or a system prompt) to Expo&rsquo;s Push
+            API so Apple and Google can route the notification to your
+            device. Expo processes the payload for delivery and does not
+            use it for any other purpose.
           </li>
         </ul>
         <p>

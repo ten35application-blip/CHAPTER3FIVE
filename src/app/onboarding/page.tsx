@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { hasAcceptedCurrentTerms } from "@/lib/legal/version";
 import { AcceptForm } from "./AcceptForm";
 import { signOut } from "./actions";
+import { ManageSubscriptionButton } from "@/app/(gated)/settings/_components/ManageSubscriptionButton";
 
 export const metadata = {
   title: "Before we begin · chapter3five",
@@ -61,13 +62,22 @@ export default async function OnboardingPage({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("terms_version_accepted")
+    .select("terms_version_accepted, stripe_customer_id")
     .eq("id", user.id)
     .maybeSingle();
 
   if (profile && hasAcceptedCurrentTerms(profile)) {
     redirect("/dashboard");
   }
+
+  // A re-consent user who is also a paying customer needs to be able
+  // to cancel from here (FTC click-to-cancel + no dead-end trap).
+  // The billing portal is deliberately ungated so this works even
+  // before they accept.
+  const hasSubscription = Boolean(
+    (profile as { stripe_customer_id?: string | null } | null)
+      ?.stripe_customer_id,
+  );
 
   // Distinguish first-time consent from re-consent (existing user hit
   // by a legal-version bump). A non-null terms_version_accepted means
@@ -187,6 +197,18 @@ export default async function OnboardingPage({
             Sign out
           </button>
         </form>
+
+        {hasSubscription ? (
+          <div className="mt-6 w-full max-w-xs rounded-2xl bg-ink-soft p-4 ring-1 ring-warm-700">
+            <p className="text-xs text-warm-300">
+              Rather cancel your subscription first? You can manage or
+              cancel it from the billing portal without accepting.
+            </p>
+            <div className="mt-3">
+              <ManageSubscriptionButton />
+            </div>
+          </div>
+        ) : null}
       </div>
     </main>
   );

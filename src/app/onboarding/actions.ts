@@ -97,7 +97,10 @@ export async function acceptTerms(formData: FormData) {
           ip_address: ip,
           user_agent: userAgent,
         });
-      if (ledgerErr) {
+      // 23505 = duplicate on the (user_id, terms_version) unique
+      // index from 0089. Concurrent double-submit that slipped past
+      // the read-check; the losing insert is the idempotent no-op.
+      if (ledgerErr && ledgerErr.code !== "23505") {
         console.error(
           "[onboarding] terms_acceptances ledger insert failed:",
           ledgerErr,
