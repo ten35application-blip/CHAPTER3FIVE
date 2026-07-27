@@ -772,6 +772,18 @@ export default function ChatSurface({
             <span className="max-w-[60vw] truncate text-xs font-medium text-warm-200">
               {name}
             </span>
+            {/* One-line bio surfaced in the header so a persona's
+                identity is visible at a glance -- previously only shown
+                inside the avatar zoom modal, which meant personas
+                without a photo (Adrian in particular) had NO surface
+                for their bio at all. Truncated to keep the sticky
+                header compact; long bios wrap gracefully at wider
+                widths via the same max-w bound as the name. */}
+            {oneLineHook ? (
+              <span className="max-w-[70vw] truncate text-[11px] leading-tight text-warm-400">
+                {oneLineHook}
+              </span>
+            ) : null}
           </div>
           <div />
         </div>

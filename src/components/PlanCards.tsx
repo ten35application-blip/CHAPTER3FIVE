@@ -157,12 +157,29 @@ export function PlanCards({
         </div>
       </div>
 
-      {/* Plus — solid border. No Stripe Price yet, so Enroll is an
-          honest reserve-your-spot mailto. */}
+      {/* Plus — teal gradient border, paralleling Pro's coral gradient
+          so both cards read as "real, pickable" instead of "Pro is the
+          real option and Plus is greyed out." Pro's border is warmer
+          (coral+teal) so it still visually leads as the primary tier;
+          Plus gets a cooler all-teal frame that says "premium sibling,"
+          not "afterthought." */}
       <div
-        className={`flex flex-col rounded-3xl border border-warm-600 bg-ink-soft shadow-[0_10px_36px_-16px_rgba(28,28,26,0.18)] ${pad}`}
+        className={`relative flex flex-col rounded-3xl bg-ink-soft shadow-[0_20px_48px_-16px_rgba(126,196,196,0.22)] ${pad}`}
       >
-        <p className="text-gradient-cta text-sm font-bold uppercase tracking-[0.14em]">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 rounded-3xl p-[2px]"
+          style={{
+            background:
+              "linear-gradient(135deg, var(--color-teal) 0%, var(--color-teal-strong) 100%)",
+            WebkitMask:
+              "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+            WebkitMaskComposite: "xor",
+            maskComposite: "exclude",
+          }}
+        />
+        <div className="relative flex flex-1 flex-col">
+        <p className="text-sm font-bold uppercase tracking-[0.14em] text-teal-strong">
           {PLUS_TIER_LABEL}
         </p>
         <p
@@ -206,7 +223,13 @@ export function PlanCards({
             )}&body=${encodeURIComponent(
               `Hi — I'd like to enroll in ${PLUS_TIER_LABEL} (${PLUS_MONTHLY_PRICE_LABEL}/month) for my chapter3five account (${email}). Please send a checkout link when it's ready.\n\nThanks.`,
             )}`}
-            className="flex h-14 w-full items-center justify-center rounded-full bg-warm-700 px-6 text-base font-bold tracking-tight text-warm-50 transition-all hover:-translate-y-px hover:bg-warm-600"
+            className="flex h-14 w-full items-center justify-center rounded-full px-6 text-base font-bold text-white transition-all hover:-translate-y-px"
+            style={{
+              background:
+                "linear-gradient(135deg, var(--color-teal) 0%, var(--color-teal-strong) 100%)",
+              boxShadow:
+                "0 14px 32px -10px rgba(126,196,196,0.5), 0 4px 12px -4px rgba(126,196,196,0.3)",
+            }}
           >
             Enroll
           </a>
@@ -214,6 +237,7 @@ export function PlanCards({
             Enrollment opens soon &mdash; this emails us and we&rsquo;ll
             reserve your spot.
           </p>
+        </div>
         </div>
       </div>
     </div>
