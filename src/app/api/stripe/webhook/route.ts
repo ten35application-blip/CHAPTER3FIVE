@@ -13,8 +13,16 @@ export const runtime = "nodejs";
  * Stripe webhook receiver.
  *
  * Handles:
- *   checkout.session.completed   → mark payment paid + grant the right credit
- *   charge.refunded              → mark payment refunded + revert credit
+ *   checkout.session.completed        → mark payment paid + grant credit
+ *                                        OR (subscription mode) bind
+ *                                        customer/subscription + Pro window
+ *   charge.refunded                   → mark refunded + revert credit
+ *   invoice.paid                      → renewal — extend pro_until forward
+ *   invoice.payment_failed            → note it, don't revoke (Stripe smart
+ *                                        retries take multiple days)
+ *   customer.subscription.updated     → sync cancel_at_period_end + status
+ *   customer.subscription.deleted     → let pro_until expire naturally at
+ *                                        current_period_end; clear the sub id
  *
  * Idempotency: every event id is recorded in `stripe_events`. If the same
  * id arrives twice (Stripe retry, replay, our 5xx + Stripe re-fire), we
@@ -57,6 +65,14 @@ export async function POST(request: NextRequest) {
     event.type === "charge.dispute.closed"
   ) {
     await handleChargeRefunded(event, admin);
+  } else if (event.type === "invoice.paid") {
+    await handleInvoicePaid(event, admin);
+  } else if (event.type === "invoice.payment_failed") {
+    await handleInvoicePaymentFailed(event, admin);
+  } else if (event.type === "customer.subscription.updated") {
+    await handleSubscriptionUpdated(event, admin);
+  } else if (event.type === "customer.subscription.deleted") {
+    await handleSubscriptionDeleted(event, admin);
   } else {
     // Unhandled event types: still record so we don't reprocess if Stripe
     // re-fires, but no state change.
@@ -95,9 +111,19 @@ async function handleCheckoutCompleted(
       purpose !== "oracle" &&
       purpose !== "beneficiary_slot" &&
       purpose !== "restore_account" &&
-      purpose !== "restore_oracle")
+      purpose !== "restore_oracle" &&
+      purpose !== "pro_monthly")
   ) {
     await recordEvent(event, admin, userId);
+    return;
+  }
+
+  // Subscription bootstrap: bind the customer + subscription to the
+  // profile so future portal sessions + invoice.paid renewals can
+  // reverse-lookup. pro_until is set here from current_period_end;
+  // invoice.paid extends it on each renewal.
+  if (purpose === "pro_monthly") {
+    await handleProMonthlyCheckout(event, session, admin, userId);
     return;
   }
 
@@ -195,6 +221,261 @@ async function handleCheckoutCompleted(
   });
 
   await recordEvent(event, admin, userId);
+}
+
+async function handleProMonthlyCheckout(
+  event: Stripe.Event,
+  session: Stripe.Checkout.Session,
+  admin: AdminClient,
+  userId: string,
+) {
+  const customerId =
+    typeof session.customer === "string" ? session.customer : null;
+  const subscriptionId =
+    typeof session.subscription === "string" ? session.subscription : null;
+  if (!customerId || !subscriptionId) {
+    await recordEvent(event, admin, userId);
+    return;
+  }
+
+  const stripe = getStripe();
+  const sub = await stripe.subscriptions.retrieve(subscriptionId);
+  const periodEnd = subPeriodEndIso(sub);
+
+  // Claim the pending payment row for this session, same shape as
+  // one-shot purchases so /admin/revenue reconciles cleanly.
+  await admin
+    .from("payments")
+    .update({
+      status: "paid",
+      stripe_event_id: event.id,
+      paid_at: new Date().toISOString(),
+    })
+    .eq("stripe_session_id", session.id)
+    .eq("status", "pending");
+
+  await admin
+    .from("profiles")
+    .update({
+      stripe_customer_id: customerId,
+      stripe_subscription_id: subscriptionId,
+      current_period_end: periodEnd,
+      cancel_at_period_end: sub.cancel_at_period_end,
+      subscription_status: sub.status,
+      plan_source: "stripe",
+      pro_until: periodEnd,
+    })
+    .eq("id", userId);
+
+  await recordEvent(event, admin, userId);
+}
+
+async function handleInvoicePaid(event: Stripe.Event, admin: AdminClient) {
+  const invoice = event.data.object as Stripe.Invoice;
+  const subscriptionId = invoiceSubscriptionId(invoice);
+  if (!subscriptionId) {
+    await recordEvent(event, admin, null);
+    return;
+  }
+
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("id")
+    .eq("stripe_subscription_id", subscriptionId)
+    .maybeSingle<{ id: string }>();
+  if (!profile) {
+    // Renewal for a subscription we don't track — likely a manual test
+    // subscription or a legacy row. Record and move on.
+    await recordEvent(event, admin, null);
+    return;
+  }
+
+  const stripe = getStripe();
+  const sub = await stripe.subscriptions.retrieve(subscriptionId);
+  const periodEnd = subPeriodEndIso(sub);
+
+  await admin
+    .from("profiles")
+    .update({
+      current_period_end: periodEnd,
+      cancel_at_period_end: sub.cancel_at_period_end,
+      subscription_status: sub.status,
+      pro_until: periodEnd,
+    })
+    .eq("id", profile.id);
+
+  // Renewal ledger row — one per invoice.paid so /admin/revenue MRR
+  // math has something to sum. The initial checkout also writes a
+  // paid row via handleProMonthlyCheckout; skip on the first invoice
+  // (billing_reason='subscription_create') so we don't double-book.
+  if (invoice.billing_reason !== "subscription_create") {
+    await admin.from("payments").insert({
+      user_id: profile.id,
+      stripe_payment_intent_id: invoicePaymentIntentId(invoice),
+      amount_cents: invoice.amount_paid ?? 0,
+      currency: invoice.currency ?? "usd",
+      purpose: "pro_monthly_renewal",
+      status: "paid",
+      stripe_event_id: event.id,
+      paid_at: new Date().toISOString(),
+    });
+  }
+
+  await recordEvent(event, admin, profile.id);
+}
+
+async function handleInvoicePaymentFailed(
+  event: Stripe.Event,
+  admin: AdminClient,
+) {
+  const invoice = event.data.object as Stripe.Invoice;
+  const subscriptionId = invoiceSubscriptionId(invoice);
+  if (!subscriptionId) {
+    await recordEvent(event, admin, null);
+    return;
+  }
+
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("id")
+    .eq("stripe_subscription_id", subscriptionId)
+    .maybeSingle<{ id: string }>();
+  if (!profile) {
+    await recordEvent(event, admin, null);
+    return;
+  }
+
+  // We DO NOT revoke pro_until here. Stripe smart retries run for
+  // ~3 weeks; revoking on the first failed payment would flap Pro
+  // access on transient card issues. Instead we just sync status
+  // and let the eventual customer.subscription.deleted (if the card
+  // ultimately fails) drive the lapse.
+  const stripe = getStripe();
+  const sub = await stripe.subscriptions.retrieve(subscriptionId);
+  await admin
+    .from("profiles")
+    .update({
+      subscription_status: sub.status,
+      cancel_at_period_end: sub.cancel_at_period_end,
+    })
+    .eq("id", profile.id);
+
+  await recordEvent(event, admin, profile.id);
+}
+
+async function handleSubscriptionUpdated(
+  event: Stripe.Event,
+  admin: AdminClient,
+) {
+  const sub = event.data.object as Stripe.Subscription;
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("id")
+    .eq("stripe_subscription_id", sub.id)
+    .maybeSingle<{ id: string }>();
+  if (!profile) {
+    await recordEvent(event, admin, null);
+    return;
+  }
+
+  await admin
+    .from("profiles")
+    .update({
+      current_period_end: subPeriodEndIso(sub),
+      cancel_at_period_end: sub.cancel_at_period_end,
+      subscription_status: sub.status,
+    })
+    .eq("id", profile.id);
+
+  await recordEvent(event, admin, profile.id);
+}
+
+async function handleSubscriptionDeleted(
+  event: Stripe.Event,
+  admin: AdminClient,
+) {
+  const sub = event.data.object as Stripe.Subscription;
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("id, pro_until")
+    .eq("stripe_subscription_id", sub.id)
+    .maybeSingle<{ id: string; pro_until: string | null }>();
+  if (!profile) {
+    await recordEvent(event, admin, null);
+    return;
+  }
+
+  // Do NOT clear pro_until — the user paid for the period. They
+  // keep Pro until pro_until (= last period end) passes naturally.
+  // Just clear the subscription id + mark cancelled so we don't
+  // try to renew a dead subscription.
+  await admin
+    .from("profiles")
+    .update({
+      stripe_subscription_id: null,
+      subscription_status: sub.status,
+      cancel_at_period_end: false,
+    })
+    .eq("id", profile.id);
+
+  await recordEvent(event, admin, profile.id);
+}
+
+/**
+ * Stripe 2024 API moved current_period_end from the Subscription root
+ * to Subscription.items[i].current_period_end (each item can now
+ * bill on its own cadence). Our Pro plan is a single-item subscription
+ * so item[0] is authoritative. Fallback = now + 1 minute if the shape
+ * changes again, so a busted read never fabricates infinite Pro access.
+ */
+function subPeriodEndIso(sub: Stripe.Subscription): string {
+  const item = sub.items?.data?.[0];
+  const unix =
+    (item as unknown as { current_period_end?: number } | undefined)
+      ?.current_period_end ?? null;
+  if (typeof unix !== "number") {
+    return new Date(Date.now() + 60_000).toISOString();
+  }
+  return new Date(unix * 1000).toISOString();
+}
+
+/**
+ * Stripe 2024 API moved invoice.subscription off the root and onto
+ * invoice.parent.subscription_details.subscription. Returns the
+ * subscription id (string) or null when the invoice isn't
+ * subscription-driven (one-off invoices, receipts).
+ */
+function invoiceSubscriptionId(invoice: Stripe.Invoice): string | null {
+  const parent = (invoice as unknown as { parent?: unknown }).parent as
+    | {
+        subscription_details?: {
+          subscription?: string | Stripe.Subscription;
+        };
+      }
+    | null
+    | undefined;
+  const s = parent?.subscription_details?.subscription;
+  if (typeof s === "string") return s;
+  if (s && typeof s === "object" && "id" in s) return (s as { id: string }).id;
+  return null;
+}
+
+/**
+ * Stripe 2024 API removed invoice.payment_intent. The PaymentIntent
+ * now lives inside invoice.payments[0].payment.payment_intent (paid
+ * invoices always have at least one payment). Returns the intent id
+ * or null when the invoice hasn't been paid or the shape shifts.
+ */
+function invoicePaymentIntentId(invoice: Stripe.Invoice): string | null {
+  const payments = (invoice as unknown as {
+    payments?: { data?: Array<{ payment?: { payment_intent?: unknown } }> };
+  }).payments;
+  const raw = payments?.data?.[0]?.payment?.payment_intent;
+  if (typeof raw === "string") return raw;
+  if (raw && typeof raw === "object" && "id" in raw) {
+    return (raw as { id: string }).id;
+  }
+  return null;
 }
 
 async function handleChargeRefunded(event: Stripe.Event, admin: AdminClient) {

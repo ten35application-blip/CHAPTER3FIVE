@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { headers } from "next/headers";
 import { getStripe, RANDOMIZE_PRICE_USD_CENTS } from "@/lib/stripe";
+import { PRICING } from "@/lib/pricing";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -16,7 +17,8 @@ export async function POST(request: NextRequest) {
     | "oracle"
     | "beneficiary_slot"
     | "restore_account"
-    | "restore_oracle";
+    | "restore_oracle"
+    | "pro_monthly";
   let purpose: Purpose = "randomize";
   let restoreOracleId: string | null = null;
   const isPurpose = (v: unknown): v is Purpose =>
@@ -24,7 +26,8 @@ export async function POST(request: NextRequest) {
     v === "oracle" ||
     v === "beneficiary_slot" ||
     v === "restore_account" ||
-    v === "restore_oracle";
+    v === "restore_oracle" ||
+    v === "pro_monthly";
   try {
     const body = await request.clone().json();
     if (isPurpose(body?.purpose)) {
@@ -56,6 +59,65 @@ export async function POST(request: NextRequest) {
   const origin = `${proto}://${host}`;
 
   const stripe = getStripe();
+
+  // Recurring subscription branch. Feature-flagged on the price env
+  // so the code can ship before Wilson has created the Product/Price
+  // in Stripe. When the env is absent the upgrade page still shows
+  // the mailto fallback.
+  if (purpose === "pro_monthly") {
+    const priceId = process.env.STRIPE_PRICE_ID_PRO_MONTHLY;
+    if (!priceId) {
+      return NextResponse.json(
+        { error: "pro_checkout_not_configured" },
+        { status: 503 },
+      );
+    }
+
+    const admin = createAdminClient();
+    // Reuse the customer id if we've already made one for this user
+    // (previous cancelled subscription, previous one-shot purchase).
+    // Otherwise Stripe creates one on session.completed and we bind
+    // it in the webhook.
+    const { data: profile } = await admin
+      .from("profiles")
+      .select("stripe_customer_id")
+      .eq("id", user.id)
+      .maybeSingle<{ stripe_customer_id: string | null }>();
+
+    const session = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      payment_method_types: ["card"],
+      ...(profile?.stripe_customer_id
+        ? { customer: profile.stripe_customer_id }
+        : { customer_email: user.email ?? undefined }),
+      line_items: [{ price: priceId, quantity: 1 }],
+      // App Store 3.1.2 + auto-renew disclosure: this text is repeated
+      // on the /terms page and the upgrade CTA copy.
+      subscription_data: {
+        metadata: { user_id: user.id, product: "pro_monthly" },
+      },
+      metadata: {
+        user_id: user.id,
+        purpose: "pro_monthly",
+      },
+      allow_promotion_codes: true,
+      success_url: `${origin}/dashboard?upgraded=1`,
+      cancel_url: `${origin}/upgrade?cancelled=1`,
+    });
+
+    // Pending payment ledger row — mirrors the one-shot flow so
+    // /admin/revenue and reconciliation tooling see the same shape.
+    await admin.from("payments").insert({
+      user_id: user.id,
+      stripe_session_id: session.id,
+      amount_cents: PRICING.monthlyCents,
+      currency: "usd",
+      purpose: "pro_monthly",
+      status: "pending",
+    });
+
+    return NextResponse.json({ url: session.url });
+  }
 
   const productName =
     purpose === "oracle"

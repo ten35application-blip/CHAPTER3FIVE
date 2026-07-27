@@ -9,6 +9,7 @@ import {
   MONTHLY_PRICE_LABEL,
   PRICING,
 } from "@/lib/pricing";
+import { UpgradeButton } from "@/app/(gated)/settings/_components/UpgradeButton";
 
 export const metadata = {
   title: "Upgrade · chapter3five",
@@ -52,6 +53,7 @@ export default async function UpgradePage({
   // copy already describes the creator side of the legacy path, so only
   // the inherit (recipient) side needs its own words.
   const cameFromInherit = target.startsWith("/identity/inherit");
+  const checkoutEnabled = Boolean(process.env.STRIPE_PRICE_ID_PRO_MONTHLY);
 
   return (
     <main className="flex min-h-dvh flex-1 items-center justify-center px-6 py-16">
@@ -131,33 +133,46 @@ export default async function UpgradePage({
           </ul>
         </div>
 
-        {/* Stripe checkout isn't wired end-to-end yet — we present the
-            honest state instead of a dead button. When checkout ships,
-            swap this for a POST to /api/stripe/checkout. */}
+        {/* Self-serve checkout when STRIPE_PRICE_ID_PRO_MONTHLY is
+            configured, mailto fallback otherwise. The "extra inherited
+            slot" path is a different SKU that isn't wired yet, so that
+            branch keeps the mailto flow even when checkout is live. */}
         <div className="mt-8 w-full max-w-sm">
-          {/* The subject carries the route the user was trying to reach,
-              so support can see at a glance what they were after. */}
-          <a
-            href={`mailto:hello@chapter3five.app?subject=${encodeURIComponent(
-              wantsExtraInherited
-                ? "Add an extra inherited-identity slot"
-                : next
-                  ? `Upgrade me to Pro — ${target}`
-                  : "Upgrade me to Pro",
-            )}&body=${encodeURIComponent(
-              wantsExtraInherited
-                ? `Hi — I'd like to add an extra inherited-identity slot (${EXTRA_INHERITED_PRICE_LABEL}/month) to my chapter3five account (${user.email}). I've already used the inherited identity included with Pro and I have another code to redeem.\n\nThanks.`
-                : `Hi — I'd like to upgrade my chapter3five account (${user.email}) to Pro.${
-                    next ? ` I was trying to open ${target}.` : ""
-                  } Please send a checkout link when it's ready.\n\nThanks.`,
-            )}`}
-            className="bg-gradient-cta hover:bg-gradient-cta-hover flex h-14 w-full items-center justify-center rounded-full text-base font-bold text-white shadow-[0_16px_36px_-10px_rgba(232,138,118,0.55),_0_6px_16px_-4px_rgba(126,196,196,0.45)] transition-all hover:-translate-y-px"
-          >
-            {wantsExtraInherited ? "Email us to add a slot" : "Email us to upgrade"}
-          </a>
+          {wantsExtraInherited ? (
+            <a
+              href={`mailto:hello@chapter3five.app?subject=${encodeURIComponent(
+                "Add an extra inherited-identity slot",
+              )}&body=${encodeURIComponent(
+                `Hi — I'd like to add an extra inherited-identity slot (${EXTRA_INHERITED_PRICE_LABEL}/month) to my chapter3five account (${user.email}). I've already used the inherited identity included with Pro and I have another code to redeem.\n\nThanks.`,
+              )}`}
+              className="bg-gradient-cta hover:bg-gradient-cta-hover flex h-14 w-full items-center justify-center rounded-full text-base font-bold text-white shadow-[0_16px_36px_-10px_rgba(232,138,118,0.55),_0_6px_16px_-4px_rgba(126,196,196,0.45)] transition-all hover:-translate-y-px"
+            >
+              Email us to add a slot
+            </a>
+          ) : checkoutEnabled ? (
+            <UpgradeButton
+              checkoutEnabled
+              fallbackHref="/upgrade"
+              label={`Upgrade to Pro — ${MONTHLY_PRICE_LABEL}/month`}
+            />
+          ) : (
+            <a
+              href={`mailto:hello@chapter3five.app?subject=${encodeURIComponent(
+                next ? `Upgrade me to Pro — ${target}` : "Upgrade me to Pro",
+              )}&body=${encodeURIComponent(
+                `Hi — I'd like to upgrade my chapter3five account (${user.email}) to Pro.${
+                  next ? ` I was trying to open ${target}.` : ""
+                } Please send a checkout link when it's ready.\n\nThanks.`,
+              )}`}
+              className="bg-gradient-cta hover:bg-gradient-cta-hover flex h-14 w-full items-center justify-center rounded-full text-base font-bold text-white shadow-[0_16px_36px_-10px_rgba(232,138,118,0.55),_0_6px_16px_-4px_rgba(126,196,196,0.45)] transition-all hover:-translate-y-px"
+            >
+              Email us to upgrade
+            </a>
+          )}
           <p className="mt-3 text-center text-xs text-warm-400">
-            We&rsquo;re turning on self-serve checkout soon. Until then, drop
-            us a note and we&rsquo;ll flip your account on within a day.
+            {checkoutEnabled && !wantsExtraInherited
+              ? `Auto-renews monthly at ${MONTHLY_PRICE_LABEL} until you cancel. Cancel any time in Settings.`
+              : "We’re turning on self-serve checkout soon. Until then, drop us a note and we’ll flip your account on within a day."}
           </p>
         </div>
 

@@ -3,14 +3,17 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CollapsibleSection } from "@/components/collapsible-section";
 import { createClient } from "@/lib/supabase/server";
+import { isPro } from "@/lib/subscription";
 import {
   EXTRA_IDENTITY_PRICE_LABEL,
   MONTHLY_PRICE_LABEL,
   PRICING,
 } from "@/lib/pricing";
+import { ManageSubscriptionButton } from "./_components/ManageSubscriptionButton";
 import { NameField } from "./_components/NameField";
 import { PhotoUploader } from "./_components/PhotoUploader";
 import { ThemeToggle } from "./_components/ThemeToggle";
+import { UpgradeButton } from "./_components/UpgradeButton";
 
 export const metadata = {
   title: "Settings · chapter3five",
@@ -27,10 +30,8 @@ async function signOut() {
 }
 
 // Wilson's pricing today: 1 free forever, $5/month for 5 total
-// (4 formula-generated + 1 made from an uploaded photo). No overage
-// tier yet. Numbers live in src/lib/pricing.ts — change them there.
-// TODO: wire subscription table — for now everyone is on Free plan.
-const PLAN_NAME = "Free plan";
+// (4 formula-generated + 1 made from an uploaded photo). Numbers
+// live in src/lib/pricing.ts — change them there.
 const PLAN_QUOTA = PRICING.totalIdentitiesPerPlan;
 
 export default async function SettingsPage({
@@ -62,10 +63,14 @@ export default async function SettingsPage({
 
   // Signed URL for the user's own profile photo (private bucket).
   // Same 1 h TTL as the chat-uploads history re-sign — plenty for
-  // one page view. Also pull full_name for the inline name editor.
+  // one page view. Also pull full_name for the inline name editor,
+  // and the subscription mirror columns so the Plan block can render
+  // "cancels on X" vs "renews on X" without a second round-trip.
   const { data: profile } = await supabase
     .from("profiles")
-    .select("avatar_url, full_name")
+    .select(
+      "avatar_url, full_name, stripe_customer_id, current_period_end, cancel_at_period_end, plan_source",
+    )
     .eq("id", user.id)
     .maybeSingle();
   let avatarSignedUrl: string | null = null;
@@ -80,6 +85,31 @@ export default async function SettingsPage({
   const initial = (email[0] ?? "?").toUpperCase();
   const count = identityCount ?? 0;
   const fullName = (profile?.full_name as string | null) ?? null;
+
+  const pro = await isPro(supabase);
+  const stripeCustomerId =
+    (profile?.stripe_customer_id as string | null) ?? null;
+  const currentPeriodEnd =
+    (profile?.current_period_end as string | null) ?? null;
+  const cancelAtPeriodEnd = Boolean(profile?.cancel_at_period_end);
+  const planSource = (profile?.plan_source as string | null) ?? "none";
+  // Only offer the Stripe Checkout button when Wilson has wired the
+  // price env. Absent env → the Upgrade button falls through to /upgrade
+  // which still has the mailto flow.
+  const checkoutEnabled = Boolean(process.env.STRIPE_PRICE_ID_PRO_MONTHLY);
+
+  const planName = pro
+    ? planSource === "admin_grant"
+      ? "Pro (comped)"
+      : "Pro plan"
+    : "Free plan";
+  const periodEndLabel = currentPeriodEnd
+    ? new Date(currentPeriodEnd).toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })
+    : null;
 
   return (
     <main className="min-h-dvh flex-1 pb-16">
@@ -141,21 +171,49 @@ export default async function SettingsPage({
             empty account). Subtitle only appears when there's room
             left and at least one identity exists. */}
         <Section label="Plan" accent="chapter3five+" icon={<SparkIcon />}>
-          <IconRow icon={<StarIcon />} label="Plan" value={PLAN_NAME} />
+          <IconRow icon={<StarIcon />} label="Plan" value={planName} />
+          {pro && periodEndLabel ? (
+            <>
+              <Divider />
+              <IconRow
+                icon={<StarIcon />}
+                label={cancelAtPeriodEnd ? "Cancels on" : "Renews on"}
+                value={periodEndLabel}
+              />
+            </>
+          ) : null}
           <Divider />
           <IdentityCountRow count={count} quota={PLAN_QUOTA} />
           <div className="px-4 py-4">
-            <Link
-              href="/upgrade"
-              className="bg-gradient-cta hover:bg-gradient-cta-hover flex h-14 w-full items-center justify-center rounded-full text-base font-semibold text-white shadow-[0_14px_36px_-10px_rgba(232,138,118,0.55),_0_4px_12px_rgba(126,196,196,0.15)] transition-all hover:-translate-y-px active:translate-y-0 active:opacity-90"
-            >
-              Upgrade to premium plan
-            </Link>
-            <p className="mt-3 text-center text-xs text-warm-300">
-              {MONTHLY_PRICE_LABEL}/month for {PRICING.formulaIdentitiesPerPlan}{" "}
-              identities plus one made from a photo. Extras{" "}
-              {EXTRA_IDENTITY_PRICE_LABEL}/mo each. Cancel anytime.
-            </p>
+            {pro && stripeCustomerId ? (
+              <>
+                <ManageSubscriptionButton />
+                <p className="mt-3 text-center text-xs text-warm-300">
+                  Update your card, view invoices, or cancel any time
+                  in the Stripe billing portal.
+                </p>
+              </>
+            ) : pro ? (
+              // Admin-granted or trial Pro — no Stripe customer to manage.
+              <p className="text-center text-xs text-warm-300">
+                You&rsquo;re on Pro. No card on file — enjoy.
+              </p>
+            ) : (
+              <>
+                <UpgradeButton
+                  checkoutEnabled={checkoutEnabled}
+                  fallbackHref="/upgrade"
+                  label="Upgrade to Pro"
+                />
+                <p className="mt-3 text-center text-xs text-warm-300">
+                  {MONTHLY_PRICE_LABEL}/month for{" "}
+                  {PRICING.formulaIdentitiesPerPlan} identities plus
+                  one made from a photo. Extras{" "}
+                  {EXTRA_IDENTITY_PRICE_LABEL}/mo each. Cancel any
+                  time. Auto-renews monthly until cancelled.
+                </p>
+              </>
+            )}
           </div>
         </Section>
 
