@@ -212,7 +212,7 @@ export default async function SettingsPage({
             </>
           ) : null}
           <Divider />
-          <IdentityCountRow count={count} quota={PLAN_QUOTA} />
+          <IdentityCountRow count={count} quota={PLAN_QUOTA} pro={pro} />
           <div className="px-4 py-4">
             {pro && stripeCustomerId ? (
               <>
@@ -516,24 +516,35 @@ function IconRow({
 }
 
 /**
- * Identity count row — replaces the old "N of QUOTA" quota framing.
- * Reads as an inventory ("You have 3 identities"), with a subtle
- * secondary line about remaining capacity only when it's a useful
- * nudge (i.e. the user has at least one identity AND there's room
- * left). At N=0 we suppress the remaining-slots line entirely — a
- * "5 more before you'll need premium" prompt lands wrong on an empty
- * account and Wilson called that out explicitly.
+ * Identity count row — reads as an inventory ("You have 3
+ * identities"), tier-aware below the fold:
+ *   - Free: the "Room for N more on Free" nudge, only when the user
+ *     has at least one identity AND there's room left. At N=0 we
+ *     suppress it entirely — a "more before you'll need premium"
+ *     prompt lands wrong on an empty account and Wilson called that
+ *     out explicitly.
+ *   - Pro (paid, comped, admin): the Free upsell line is wrong — the
+ *     main line becomes "You have N of Y identities" against the
+ *     plan ceiling instead. Past the ceiling (extra purchased slots)
+ *     the "of Y" fraction would read as an error, so it drops back
+ *     to the plain inventory line.
  */
 function IdentityCountRow({
   count,
   quota,
+  pro,
 }: {
   count: number;
   quota: number;
+  pro: boolean;
 }) {
   const label = count === 1 ? "1 identity" : `${count} identities`;
   const remaining = Math.max(0, quota - count);
-  const showRemaining = count > 0 && remaining > 0;
+  const showRemaining = !pro && count > 0 && remaining > 0;
+  const mainLine =
+    pro && count <= quota
+      ? `You have ${count} of ${quota} identities`
+      : `You have ${label}`;
   return (
     <div className="flex items-start gap-3 px-4 py-3">
       <span
@@ -544,7 +555,7 @@ function IdentityCountRow({
       </span>
       <div className="flex flex-1 flex-col">
         <span className="text-base font-medium text-warm-50">
-          You have {label}
+          {mainLine}
         </span>
         {showRemaining ? (
           <span className="mt-0.5 text-xs text-warm-400">
