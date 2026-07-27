@@ -40,16 +40,21 @@ export function InheritForm() {
             Before you bring them in
           </p>
           <p className="text-base leading-relaxed text-warm-100">
-            The code someone left for you opens a persona built from
-            forty answers about a real person. Once you redeem it,
-            they&rsquo;ll appear in your contacts and you can message
-            them from your dashboard.
+            The code you were given opens a persona built from forty
+            answers about a real person. Someone wanted you to have
+            it. Could be serious &mdash; a parent leaving something
+            behind, a family recording someone they lost. Could be
+            playful &mdash; a friend or a partner handing you a
+            version of themselves to text when the real one is busy.
+            Either way, once you redeem it, they&rsquo;ll appear in
+            your contacts and you can message them from your
+            dashboard.
           </p>
           <p className="text-sm leading-relaxed text-warm-300">
             To be clear: this is an AI companion, a portrait painted
-            from what the family chose to share &mdash; not the person
-            themselves. It isn&rsquo;t therapy, medical care, or a
-            crisis service. Keep both feet on the ground.
+            from what they chose to share about themselves. It
+            isn&rsquo;t the person. It isn&rsquo;t therapy, medical
+            care, or a crisis service. Keep both feet on the ground.
           </p>
         </div>
 

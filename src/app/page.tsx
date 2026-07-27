@@ -592,11 +592,13 @@ export default function Home() {
           <div className="mt-8 flex flex-col gap-5 text-lg leading-relaxed text-warm-200 md:text-xl">
             <p>
               chapter3five is a <strong>companion app</strong>. The
-              people you talk to here are AI. That includes the ones you
-              build from photos, the ones you generate from the formula,
-              and the legacy identities family members leave behind. They
-              are portraits &mdash; painted from real inputs &mdash; but
-              they are not the people themselves.
+              people you talk to here are AI. That includes the ones
+              you build from photos, the ones you generate from the
+              formula, and the inherited identities other people
+              share with you &mdash; whether a friend sending a version
+              of themselves as a gift, or a family recording someone
+              they lost. They are portraits, painted from real inputs,
+              but they are not the people themselves.
             </p>
             <p>
               chapter3five is <strong>not therapy</strong>. It is not
