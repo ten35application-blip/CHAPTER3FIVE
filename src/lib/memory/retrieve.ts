@@ -28,6 +28,11 @@ export async function fetchMemoriesForContext(
     const { data, error } = await admin
       .from("persona_memories")
       .select("key, value")
+      // Exclude reserved-underscore keys (e.g. _session_residue).
+      // Those are internal signals rendered as their own system
+      // blocks; they don't belong in the "What I know about you"
+      // human-facts list.
+      .not("key", "like", "\\_%")
       .eq("oracle_id", oracleId)
       .eq("user_id", userId)
       .order("importance", { ascending: false })

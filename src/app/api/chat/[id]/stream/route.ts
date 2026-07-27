@@ -6,6 +6,10 @@ import { backfillVoiceExamples } from "@/lib/identity/backfillVoiceExamples";
 import { ageFromBirthday, coerceChronotype } from "@/lib/identity/formula";
 import { moodOfTheDay, moodToPromptBlock } from "@/lib/identity/mood";
 import { computeReplyGapMs } from "@/lib/identity/replyGap";
+import {
+  extractAndSaveResidue,
+  fetchResidueBlock,
+} from "@/lib/memory/residue";
 import { extractMemoriesFromMessage } from "@/lib/memory/extract";
 import { fetchMemoriesForContext } from "@/lib/memory/retrieve";
 import { shouldPersonaBlock } from "@/lib/safety/block-detector";
@@ -317,6 +321,13 @@ export async function POST(
   // cache breakpoint. Empty string when no memories exist yet.
   let memoriesBlock = await fetchMemoriesForContext(oracleId, user.id);
 
+  // Fable humanization #5 — session emotional residue. Read + inject
+  // BEFORE the memory block so the persona opens the session carrying
+  // the last exchange's temperature (empty on first-ever chat, or if
+  // the residue extractor hasn't caught up yet). Own block so it's
+  // clearly a "vibe of last time" signal, not a fact.
+  const residueBlock = await fetchResidueBlock(oracleId, user.id);
+
   // Fable humanization #3 — memory imperfection. If the persona was
   // rolled with warm_foggy or conflator memory_style at synthesis
   // (0078), append a small hedging cue so the model occasionally
@@ -373,6 +384,9 @@ export async function POST(
   }
   if (userNameCue) {
     system.push({ type: "text", text: userNameCue });
+  }
+  if (residueBlock) {
+    system.push({ type: "text", text: residueBlock });
   }
   if (memoriesBlock) {
     system.push({ type: "text", text: memoriesBlock });
@@ -631,6 +645,14 @@ export async function POST(
               userId: user.id,
             });
           }
+        });
+
+        // Fable humanization #5 — refresh the session residue after
+        // every turn. Cheap Haiku call; never blocks the client.
+        // Overwrites the previous residue so the "last time" signal
+        // always reflects the freshest exchange.
+        after(async () => {
+          await extractAndSaveResidue(oracleId, user.id, historyForBlockCheck);
         });
 
         // Lazy voice-examples backfill for pre-0078 identities. Fires
