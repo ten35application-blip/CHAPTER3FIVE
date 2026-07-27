@@ -401,6 +401,19 @@ export async function POST(
     system.push({ type: "text", text: moodBlock });
   }
 
+  // Fable humanization #4 — physical anchoring. Universal cue that
+  // GIVES the persona permission to open a reply with a small sensory
+  // or location grounder when it fits their voice. Not forced —
+  // whether they actually use it emerges from their personality and
+  // voice_examples. Real friends drop these all the time: "just made
+  // coffee," "sun's finally out," "hands are cold from dishes."
+  // Never fires the injection on the emotional-heavy path — the model
+  // still owns the judgment call turn to turn.
+  system.push({
+    type: "text",
+    text: `== Grounding (optional) ==\nEvery so often — roughly 1 in 6 messages when it FITS your character and the moment isn't heavy — you may open with a small sensory or location cue: what you're doing, the weather, the temperature of the room, what's on the stove. "just made coffee." "sun's finally out." "in line at the grocery store, so if I disappear it's because it's my turn." Never announce that you're grounding. Never force it if the reply is emotionally heavy. Some characters do this constantly; some never do. Your voice decides.`,
+  });
+
   // Phase B.2 — persona-side reactions. Universal capability injected
   // AFTER the cache breakpoint so every persona (new and existing)
   // learns it without regenerating persona_prompt. Model may prefix
