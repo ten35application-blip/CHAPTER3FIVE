@@ -124,9 +124,12 @@ async function signUp(formData: FormData) {
     }
   }
 
-  // Straight to the acceptance gate — the (gated) layout would bounce
-  // them there from /dashboard anyway, but going direct skips a hop.
-  redirect("/onboarding");
+  // Supabase Auth requires email confirmation, so signUpData.user is
+  // created but the session isn't yet valid. Redirect to a "check your
+  // email" screen instead of /onboarding (which would bounce to
+  // /auth/signin and read as "signup failed"). Passing the email in
+  // the query lets the page show it back so a typo is catchable.
+  redirect(`/auth/check-email?email=${encodeURIComponent(email)}`);
 }
 
 export default async function SignupPage({

@@ -6,11 +6,10 @@ import { createClient } from "@/lib/supabase/server";
 import { isAdmin } from "@/lib/admin/allowlist";
 import { isPro } from "@/lib/subscription";
 import {
-  EXTRA_IDENTITY_PRICE_LABEL,
   MONTHLY_PRICE_LABEL,
   PRICING,
-  PRO_IMAGES_PER_MONTH,
 } from "@/lib/pricing";
+import { PlanCards } from "@/components/PlanCards";
 import { DataExportButton } from "./_components/DataExportButton";
 import { ManageSubscriptionButton } from "./_components/ManageSubscriptionButton";
 import { NameField } from "./_components/NameField";
@@ -241,21 +240,16 @@ export default async function SettingsPage({
                 You&rsquo;re on Pro. No card on file — enjoy.
               </p>
             ) : (
-              <>
-                <UpgradeButton
-                  checkoutEnabled={checkoutEnabled}
-                  fallbackHref="/upgrade"
-                  label="Upgrade to Pro"
-                />
-                <p className="mt-3 text-center text-xs text-warm-300">
-                  {MONTHLY_PRICE_LABEL}/month for{" "}
-                  {PRICING.formulaIdentitiesPerPlan} identities plus one
-                  from a photo plus one inherited slot, {PRO_IMAGES_PER_MONTH}{" "}
-                  photo sends a month, unlimited messages. Extras{" "}
-                  {EXTRA_IDENTITY_PRICE_LABEL}/mo each. Cancel any time.
-                  Auto-renews monthly until cancelled.
-                </p>
-              </>
+              // Free-tier user: show both plans as cards so they can
+              // pick and enroll from here (Wilson's ask -- same shape as
+              // the landing pricing section, buttons on each). Compact
+              // variant scales the cards down so this Plan section
+              // doesn't dominate the settings page.
+              <PlanCards
+                email={email}
+                checkoutEnabled={checkoutEnabled}
+                variant="compact"
+              />
             )}
           </div>
         </Section>
