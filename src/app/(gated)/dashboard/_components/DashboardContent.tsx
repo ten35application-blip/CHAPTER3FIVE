@@ -15,6 +15,10 @@ export type Identity = {
   avatar_url: string | null;
   is_starred: boolean;
   manually_unread: boolean;
+  /** For legacy identities THIS user created, the inherit code so the
+   *  dashboard row can show a "share" chip. Null for everything else
+   *  (formula/photo identities, inherited-not-created legacy ones). */
+  inherit_code?: string | null;
 };
 
 type Props = {
@@ -23,6 +27,11 @@ type Props = {
   isPro: boolean;
   /** The ONE identity a post-trial Free user keeps chatting with. */
   freeIdentityId: string | null;
+  /** When a user just inherited an identity, the redeem action redirects
+   *  to /dashboard?welcomed={oracleId}. The server passes the newly-
+   *  redeemed oracle's info here so this component renders the "X is
+   *  now in your contacts" toast. Null for a normal dashboard load. */
+  welcomed?: { oracleId: string; name: string } | null;
 };
 
 /**
@@ -37,8 +46,14 @@ type Props = {
  * visible but carries a "Pro" chip, and its link routes to /upgrade
  * instead of the chat (starred ones included).
  */
-export function DashboardContent({ identities, isPro, freeIdentityId }: Props) {
+export function DashboardContent({
+  identities,
+  isPro,
+  freeIdentityId,
+  welcomed,
+}: Props) {
   const [query, setQuery] = useState("");
+  const [dismissedWelcome, setDismissedWelcome] = useState(false);
 
   const isLocked = (id: string) => !isPro && id !== freeIdentityId;
 
@@ -55,6 +70,14 @@ export function DashboardContent({ identities, isPro, freeIdentityId }: Props) {
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 pb-40 pt-24">
+      {welcomed && !dismissedWelcome ? (
+        <WelcomeBanner
+          oracleId={welcomed.oracleId}
+          name={welcomed.name}
+          onDismiss={() => setDismissedWelcome(true)}
+        />
+      ) : null}
+
       {favorites.length > 0 ? (
         <FavoritesRow items={favorites} isLocked={isLocked} />
       ) : null}
@@ -261,6 +284,9 @@ function ConversationList({
                   <span className="truncate text-sm text-warm-300">
                     {isLocked(p.id) ? "Waiting behind Pro" : "Tap to start"}
                   </span>
+                  {p.inherit_code ? (
+                    <InheritCodeChip code={p.inherit_code} />
+                  ) : null}
                 </span>
               </Link>
               <StarButton
@@ -272,6 +298,105 @@ function ConversationList({
         </li>
       ))}
     </ul>
+  );
+}
+
+/** Small inline chip that renders on legacy-identity rows the user
+ *  created — one-tap copy of the share code so a creator doesn't have
+ *  to open the sub-page to grab it. Wilson's rule: the code should be
+ *  findable from the dashboard itself. */
+function InheritCodeChip({ code }: { code: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        // Prevent the wrapping Link from navigating on chip tap.
+        e.preventDefault();
+        e.stopPropagation();
+        void (async () => {
+          try {
+            await navigator.clipboard.writeText(code);
+            setCopied(true);
+            window.setTimeout(() => setCopied(false), 1600);
+          } catch {
+            /* clipboard unavailable — quietly no-op */
+          }
+        })();
+      }}
+      aria-label={copied ? "Copied" : `Copy share code ${code}`}
+      className="mt-1.5 flex w-fit items-center gap-1.5 rounded-full bg-coral/10 px-2.5 py-1 text-[11px] font-medium text-coral-strong ring-1 ring-coral/25 transition-colors hover:bg-coral/15"
+    >
+      <span aria-hidden>
+        <ShareIcon />
+      </span>
+      <span className="font-mono">{copied ? "Copied" : code}</span>
+    </button>
+  );
+}
+
+function ShareIcon() {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      width="11"
+      height="11"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <rect x="6" y="2" width="10" height="12" rx="1.75" />
+      <path d="M4 6v10a2 2 0 0 0 2 2h8" />
+    </svg>
+  );
+}
+
+/** Post-inherit welcome banner. Shows once when a redemption redirects
+ *  back to /dashboard?welcomed={oracleId} — "such-and-such is now in
+ *  your contacts" with a "Say hi" CTA that jumps straight into the chat. */
+function WelcomeBanner({
+  oracleId,
+  name,
+  onDismiss,
+}: {
+  oracleId: string;
+  name: string;
+  onDismiss: () => void;
+}) {
+  return (
+    <div
+      role="status"
+      className="mb-6 flex items-center gap-3 rounded-2xl bg-coral/10 px-4 py-3 ring-1 ring-coral/25"
+    >
+      <span className="flex-1 text-sm leading-relaxed text-warm-50">
+        <strong className="text-gradient-cta font-semibold">{name}</strong>{" "}
+        is now in your contacts.
+      </span>
+      <Link
+        href={`/chat/${oracleId}`}
+        className="bg-gradient-cta rounded-full px-3.5 py-1.5 text-xs font-semibold text-white shadow-[0_4px_10px_-2px_rgba(232,138,118,0.35)]"
+      >
+        Say hi
+      </Link>
+      <button
+        type="button"
+        onClick={onDismiss}
+        aria-label="Dismiss"
+        className="flex h-6 w-6 items-center justify-center rounded-full text-warm-400 hover:text-warm-100"
+      >
+        <svg viewBox="0 0 20 20" width="12" height="12" fill="none" aria-hidden>
+          <path
+            d="M5 5l10 10M15 5 5 15"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+          />
+        </svg>
+      </button>
+    </div>
   );
 }
 

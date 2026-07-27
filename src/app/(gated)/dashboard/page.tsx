@@ -33,7 +33,12 @@ export const dynamic = "force-dynamic";
  * avatar itself opens the account menu — including an Admin link for
  * allowlisted emails only.
  */
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ welcomed?: string }>;
+}) {
+  const { welcomed: welcomedId } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -54,11 +59,33 @@ export default async function DashboardPage() {
   const { data: contactsRaw } = await supabase
     .from("oracles")
     .select(
-      "id, name, avatar_url, is_starred, manually_unread, created_at, conversation_archived_at",
+      "id, name, avatar_url, is_starred, manually_unread, created_at, conversation_archived_at, is_legacy, user_id",
     )
     .is("deleted_at", null)
     .order("is_starred", { ascending: false })
     .order("created_at", { ascending: false });
+
+  // Inherit codes for legacy identities THIS user created (not ones
+  // they've merely redeemed). Small side query keyed to the ids we
+  // just loaded. Wilson's rule: the code should be findable from the
+  // dashboard so a creator can share it without hunting through
+  // sub-pages.
+  const ownedLegacyIds = (contactsRaw ?? [])
+    .filter((r) => r.is_legacy && r.user_id === user.id)
+    .map((r) => r.id as string);
+  const codesByOracle = new Map<string, string>();
+  if (ownedLegacyIds.length > 0) {
+    const { data: codeRows } = await supabase
+      .from("inherit_codes")
+      .select("code, oracle_id")
+      .in("oracle_id", ownedLegacyIds)
+      .is("revoked_at", null);
+    for (const c of codeRows ?? []) {
+      if (typeof c.code === "string" && typeof c.oracle_id === "string") {
+        codesByOracle.set(c.oracle_id, c.code);
+      }
+    }
+  }
 
   // Full contact directory. Includes both active-thread and
   // conversation-archived identities — Contacts always shows every
@@ -71,6 +98,7 @@ export default async function DashboardPage() {
     is_starred: Boolean(r.is_starred),
     manually_unread: Boolean(r.manually_unread),
     conversation_archived_at: (r.conversation_archived_at as string | null) ?? null,
+    inherit_code: codesByOracle.get(r.id as string) ?? null,
   }));
 
   // Which contacts have "all messages soft-deleted"? Those disappear
@@ -197,6 +225,19 @@ export default async function DashboardPage() {
   const pro = await isPro(supabase);
   const freeIdentityId = pro ? null : await getFreeIdentityId(supabase);
 
+  // Post-inherit welcome banner. When the redeem action redirects to
+  // /dashboard?welcomed={oracleId}, resolve the name here so
+  // DashboardContent can render "X is now in your contacts" with a
+  // "Say hi" CTA. RLS gates visibility — if the oracle isn't the
+  // caller's (via ownership or oracle_shares) we silently omit.
+  let welcomed: { oracleId: string; name: string } | null = null;
+  if (welcomedId) {
+    const match = contacts.find((c) => c.id === welcomedId);
+    if (match) {
+      welcomed = { oracleId: match.id, name: match.name };
+    }
+  }
+
   // Web Push opt-in banner state + profile avatar. One query covers
   // both — push_subscription is a jsonb, avatar_url is the storage
   // path of the private profile photo (bucket profile-avatars).
@@ -256,6 +297,7 @@ export default async function DashboardPage() {
         identities={identities}
         isPro={pro}
         freeIdentityId={freeIdentityId}
+        welcomed={welcomed}
       />
 
       {/* Bottom-right — hub FAB. Menu-of-options icon that opens a

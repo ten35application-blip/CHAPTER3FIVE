@@ -122,5 +122,9 @@ export async function redeemInheritCode(rawCode: string): Promise<void> {
     }
   }
 
-  redirect(`/chat/${oracle.id}`);
+  // Redirect BACK to the dashboard, not straight into the chat. The
+  // dashboard renders a "X is now in your contacts" banner with a
+  // "Say hi" CTA — Wilson's spec. Landing in the chat mid-motion skips
+  // that beat and the redeem feels transactional instead of warm.
+  redirect(`/dashboard?welcomed=${oracle.id}`);
 }
