@@ -8,6 +8,7 @@ import {
   EXTRA_IDENTITY_PRICE_LABEL,
   MONTHLY_PRICE_LABEL,
   PRICING,
+  PRO_IMAGES_PER_MONTH,
 } from "@/lib/pricing";
 import { DataExportButton } from "./_components/DataExportButton";
 import { ManageSubscriptionButton } from "./_components/ManageSubscriptionButton";
@@ -30,9 +31,10 @@ async function signOut() {
   redirect("/");
 }
 
-// Wilson's pricing today: 1 free forever, $5/month for 5 total
-// (4 formula-generated + 1 made from an uploaded photo). Numbers
-// live in src/lib/pricing.ts — change them there.
+// Wilson's pricing (July 2026 rework): Free tier chats with Adrian
+// only; Pro is $10/month for 3 formula + 1 photo (4 self-created,
+// what this constant counts) + 1 inherited slot. Numbers live in
+// src/lib/pricing.ts -- change them there.
 const PLAN_QUOTA = PRICING.totalIdentitiesPerPlan;
 
 export default async function SettingsPage({
@@ -235,10 +237,11 @@ export default async function SettingsPage({
                 />
                 <p className="mt-3 text-center text-xs text-warm-300">
                   {MONTHLY_PRICE_LABEL}/month for{" "}
-                  {PRICING.formulaIdentitiesPerPlan} identities plus
-                  one made from a photo. Extras{" "}
-                  {EXTRA_IDENTITY_PRICE_LABEL}/mo each. Cancel any
-                  time. Auto-renews monthly until cancelled.
+                  {PRICING.formulaIdentitiesPerPlan} identities plus one
+                  from a photo plus one inherited slot, {PRO_IMAGES_PER_MONTH}{" "}
+                  photo sends a month, unlimited messages. Extras{" "}
+                  {EXTRA_IDENTITY_PRICE_LABEL}/mo each. Cancel any time.
+                  Auto-renews monthly until cancelled.
                 </p>
               </>
             )}

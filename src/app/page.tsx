@@ -431,8 +431,8 @@ export default function Home() {
       </section>
 
       {/* ── 7 · PRICING ──────────────────────────────────────────
-          Two tiers presented as one card each: Free (what you get
-          without paying) and Pro (what unlocks at $5/mo). Extra
+          Two tiers presented as one card each: Free (chat with Adrian)
+          and Pro (what unlocks at MONTHLY_PRICE_LABEL/mo). Extra
           identity add-on called out below. */}
       <section className="px-6 py-24 md:py-32">
         <div className="mx-auto flex w-full max-w-5xl flex-col items-center">

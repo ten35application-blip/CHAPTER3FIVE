@@ -88,9 +88,10 @@ export default async function UpgradePage({
           </p>
         ) : (
           <p className="mt-6 max-w-md text-lg leading-relaxed text-warm-200">
-            Unlimited messages, five identities you build, photos you can
-            share, and &mdash; when you want it &mdash; the ability to
-            record an archive or redeem one someone left you.
+            Unlimited messages, five companions in your contacts (three
+            from our formula, one from a photo you upload, one from an
+            inherit code someone gives you), photos you can share, and
+            the ability to record your own legacy archive when you want it.
           </p>
         )}
 
@@ -147,7 +148,7 @@ export default async function UpgradePage({
               href={`mailto:hello@chapter3five.app?subject=${encodeURIComponent(
                 "Add an extra inherited-identity slot",
               )}&body=${encodeURIComponent(
-                `Hi — I'd like to add an extra inherited-identity slot (${EXTRA_INHERITED_PRICE_LABEL}/month) to my chapter3five account (${user.email}). I've already filled the three inherited archives included with Pro and I have another code to redeem.\n\nThanks.`,
+                `Hi — I'd like to add an extra inherited-identity slot (${EXTRA_INHERITED_PRICE_LABEL}/month) to my chapter3five account (${user.email}). I've already filled the inherited slot included with Pro and I have another code to redeem.\n\nThanks.`,
               )}`}
               className="bg-gradient-cta hover:bg-gradient-cta-hover flex h-14 w-full items-center justify-center rounded-full text-base font-bold text-white shadow-[0_16px_36px_-10px_rgba(232,138,118,0.55),_0_6px_16px_-4px_rgba(126,196,196,0.45)] transition-all hover:-translate-y-px"
             >

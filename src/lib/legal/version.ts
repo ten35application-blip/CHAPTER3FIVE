@@ -21,8 +21,16 @@
  *                 rewritten to cover mobile applications (Apple + Play)
  *                 instead of iOS specifically; privacy: DOB now
  *                 collected at signup for age verification.
+ *   2026-07-27d — Terms §8 rewritten for the new pricing model:
+ *                 $5 → $10/mo Pro; Free tier now chats with the shared
+ *                 Adrian concierge (100 msg/mo, 0 image sends); Pro
+ *                 slot layout re-stated as 3 formula + 1 photo + 1
+ *                 inherited (5 total, includedInheritedIdentitiesPerPlan
+ *                 dropped from 3 to 1); Pro image cap disclosed at
+ *                 20/month; add-on prices re-stated; explicit "no free
+ *                 trial" clause added.
  */
-export const CURRENT_TERMS_VERSION = "2026-07-27c";
+export const CURRENT_TERMS_VERSION = "2026-07-27d";
 
 /**
  * True only if the profile has accepted exactly the current version.
