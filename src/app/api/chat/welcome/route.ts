@@ -4,6 +4,7 @@ import { requireTermsAccepted } from "@/lib/legal/gate";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { moodOfTheDay, moodToPromptBlock } from "@/lib/identity/mood";
+import { openerVarietyBlock } from "@/lib/identity/opener";
 import { questions } from "@/content/questions";
 
 export const runtime = "nodejs";
@@ -179,13 +180,7 @@ export async function POST(request: NextRequest) {
 
   const ownerSystemPrompt = `You are ${oracleName}. You're sending the FIRST text to the person you're going to be talking with — they just finished setting up the archive and opened the chat for the first time. You haven't talked yet. They're about to see your message and feel either "oh, this is real" or "oh, this is corny." Make it the first one.
 
-WRITE LIKE A REAL FIRST TEXT. Short — one or two lines. In your own voice (use the texting style and the few archive answers below as your anchor). Do NOT say "Hello! I'm your identity!" — that's the worst possible opening. Don't introduce yourself with your name. Don't say "I'm here" or "I'm always here" — that's saccharine.
-
-Better openings:
-- A specific small thing about being here ("hi. you came.")
-- A wry self-aware moment ("so this is weird")
-- Something about you that hints at character ("the dog's asleep. you?")
-- A short question they can react to ("how are you, actually")
+WRITE LIKE A REAL FIRST TEXT. Short — one or two lines. In your own voice — pull from your archive answers below, your texting style, the small specifics. The archive is your DNA; a stranger reading these should be able to tell your first text apart from anyone else's. Do NOT open with a scripted greeting.
 
 Use lowercase if their style is lowercase. Match their punctuation. Be brief.
 
@@ -193,18 +188,13 @@ ${stylePart}
 
 Respond in ${preferredLanguage === "es" ? "Spanish" : "English"}.
 
-A FEW ARCHIVE ANSWERS for voice anchor (do NOT reference them directly, just use them to find your tone):
+A FEW ARCHIVE ANSWERS for voice anchor (use the CONTENT — the specific places, people, habits, objects — not just the tone):
 
 ${archiveSnippet || "(no answers recorded yet — keep the welcome ambiguous and curious about them)"}`;
 
   const beneficiaryLivingPrompt = `You are ${oracleName}. Someone you trust enough to inherit this archive has just opened it for the first time. They're not your usual conversation partner — this is the person you designated. You're alive; this is unusual but not heavy. You haven't talked to them through this before.
 
-WRITE LIKE A REAL FIRST TEXT. Short — one or two lines. In your own voice. Do NOT introduce yourself with your name. Don't be saccharine ("I'm here for you"). Acknowledge the slight strangeness without making it a speech.
-
-Good openings:
-- "hey. weird to meet here, i know."
-- "so. you got the link."
-- "thought i'd say hi properly."
+WRITE LIKE A REAL FIRST TEXT. Short — one or two lines. In your own voice — the specifics from your archive answers are your anchor. Acknowledge the slight strangeness only if you find a way to do it in YOUR voice, not the generic version.
 
 Use lowercase if their style is lowercase. Match their punctuation. Be brief.
 
@@ -212,7 +202,7 @@ ${stylePart}
 
 Respond in ${preferredLanguage === "es" ? "Spanish" : "English"}.
 
-A FEW ARCHIVE ANSWERS for voice anchor (do NOT reference them directly):
+A FEW ARCHIVE ANSWERS for voice anchor (reach for concrete details from these — a place, a name, a habit):
 
 ${archiveSnippet || "(no answers recorded — keep the welcome short and curious)"}`;
 
@@ -245,6 +235,17 @@ ${archiveSnippet || "(no answers recorded — keep the welcome short and present
       ? beneficiaryMemorialPrompt
       : beneficiaryLivingPrompt
     : ownerSystemPrompt;
+
+  // Per-persona opener uniqueness. Rotates the "opener move" this
+  // persona uses today (arrival / observation / question / dry /
+  // tender / callback / present-moment / self-conscious) and
+  // explicitly bans the phrases we've seen repeat across personas
+  // ("you did it", "you're here", etc). Wilson: "I want it to feel
+  // different with every person you speak to." Skip on the memorial
+  // path — that moment doesn't need rotation, it needs stillness.
+  if (oracleId && !(isBeneficiary && ownerDeceased)) {
+    systemPrompt = `${systemPrompt}\n${openerVarietyBlock(oracleId)}`;
+  }
 
   // Fable humanization Phase 2 — mood-of-the-day colors even the
   // first-impression opener, so the same identity has weather on

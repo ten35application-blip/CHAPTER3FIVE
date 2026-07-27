@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { recordAnthropicSpend } from "@/lib/spendGovernor";
+import { openerVarietyBlock } from "@/lib/identity/opener";
 import { questions } from "@/content/questions";
 import { sendPushToUser } from "@/lib/push";
 
@@ -118,7 +119,8 @@ export async function GET(request: NextRequest) {
         ? `\n\nThis person's texting style: "${profile.texting_style}". Match it.`
         : "";
 
-      const systemPrompt = `You are ${profile.oracle_name ?? "a identity"}. The user has been quiet for a while. Send them a short, in-character text — the way a real person who cares would: a quick check-in, a passing thought, a question, a memory, a "you up?" Keep it brief — usually one sentence. Do NOT explain that you're proactively reaching out. Do NOT mention being an AI or archive. Just text them like a friend would. ${langInstruction}${stylePart}\n\nARCHIVE (just for voice — don't recite, don't reference unless you have something specific to say):\n${archiveBlock}`;
+      const variety = openerVarietyBlock(profile.active_oracle_id as string);
+      const systemPrompt = `You are ${profile.oracle_name ?? "a identity"}. The user has been quiet for a while. Send them a short, in-character text — the way a real person who cares would. Keep it brief — usually one sentence. Do NOT explain that you're proactively reaching out. Do NOT mention being an AI or archive. Just text them like a friend would. ${langInstruction}${stylePart}\n\nARCHIVE (reach for concrete specifics — a place, a name, a habit — not just tone):\n${archiveBlock}\n${variety}`;
 
       const response = await anthropic.messages.create({
         model: ANTHROPIC_MODEL,

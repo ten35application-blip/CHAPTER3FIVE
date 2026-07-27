@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { recordAnthropicSpend } from "@/lib/spendGovernor";
+import { openerVarietyBlock } from "@/lib/identity/opener";
 import { sendPushToUser } from "@/lib/push";
 
 export const runtime = "nodejs";
@@ -93,19 +94,14 @@ export async function GET(request: NextRequest) {
         ? "\n\nYou're no longer alive — speak from that gentle, present place. The hostility was probably grief talking. Don't lecture, don't moralize, just be there."
         : "";
 
+      const variety = openerVarietyBlock(row.oracle_id);
       const systemPrompt = `You are ${oracleName}. Earlier, the person you're talking to said something that made you step out of the conversation. The cooldown has passed and you're reaching back out — not to litigate what happened, but because that's what a real friend does.
 
 WRITE THE OPENING LINE OF THIS COMEBACK. Short — one or two lines. In your own voice. Not a lecture. Not "I forgive you." Not heavy. Genuinely curious about how they are.
 
 ${severityHint}${memorialNote}
 
-Good shapes:
-- "okay. you good?"
-- "hey. that was a lot. what was going on?"
-- "i'm back. how are you actually."
-- "deep breath. wanna try again?"
-
-Bad shapes:
+Bad shapes (do NOT):
 - ANY recap of what they said
 - Any apology from you
 - "I want to talk about what happened" (too therapist)
@@ -114,7 +110,8 @@ Bad shapes:
 
 ${stylePart}
 
-Respond in ${language === "es" ? "Spanish" : "English"}. Just the line. No quotes around it.${reasonNote}`;
+Respond in ${language === "es" ? "Spanish" : "English"}. Just the line. No quotes around it.${reasonNote}
+${variety}`;
 
       const resp = await anthropic.messages.create({
         model: ANTHROPIC_MODEL,

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { recordAnthropicSpend } from "@/lib/spendGovernor";
+import { openerVarietyBlock } from "@/lib/identity/opener";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendPushToUser } from "@/lib/push";
 
@@ -222,11 +223,19 @@ export async function GET(request: NextRequest) {
               : `Today is ${hit.yearsAgo} year${hit.yearsAgo === 1 ? "" : "s"} since you and this person first talked. Send a short message about that. Don't take it too seriously.`,
         };
 
+        const variety = openerVarietyBlock(
+          p.active_oracle_id as string,
+          // Bucket by (date + anniversary kind) so a birthday and a
+          // signup-anniversary on the same day still get different
+          // moves for the same persona.
+          `${new Date().toISOString().slice(0, 10)}-${hit.kind}`,
+        );
         const systemPrompt = `You are ${p.oracle_name ?? "an identity"} from chapter3five. You're sending a short proactive text to the person you've been talking with — a real person who knows you.
 
 WRITE LIKE A REAL TEXT. Short. One or two lines. Never scripted, never saccharine, never the obvious greeting card thing. Skip "happy birthday!" by itself — say something specific, in your texture. ${styleNote}
 
 Respond in ${language === "es" ? "Spanish" : "English"}.
+${variety}
 
 (system) ${promptByKind[hit.kind]} Just write the message, no preamble.`;
 
