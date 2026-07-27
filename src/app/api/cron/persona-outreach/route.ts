@@ -9,6 +9,11 @@ import {
 import { detectCrisis } from "@/lib/crisis";
 import { moderateText } from "@/lib/moderation";
 import { moodOfTheDay, moodToPromptBlock } from "@/lib/identity/mood";
+import {
+  overFreeCap,
+  recordAnthropicSpend,
+} from "@/lib/spendGovernor";
+import { isProByUserId } from "@/lib/subscription";
 import { sendWebPushToUser } from "@/lib/webPush";
 
 /**
@@ -107,6 +112,15 @@ export async function GET(request: NextRequest) {
         .is("deleted_at", null)
         .gte("created_at", sixHoursAgo);
       if ((veryRecentUserMsgCount ?? 0) > 0) continue;
+
+      // Spend gate. If a Free-tier user is at or over their monthly
+      // Anthropic-spend cap, don't fire an unsolicited outreach —
+      // that would push them further over the ceiling with content
+      // they didn't ask for. Pro/admin/trial are never gated.
+      // isProByUserId works in cron context (no auth.getUser session).
+      const outreachIsPro = await isProByUserId(profile.id);
+      const outreachSpend = await overFreeCap(profile.id, outreachIsPro);
+      if (outreachSpend.over) continue;
 
       // Crisis guard on ANY outreach (fresh-callback OR long-silence).
       // If the user's most recent turn EVER tripped detectCrisis, we
@@ -363,6 +377,14 @@ export async function GET(request: NextRequest) {
               "(system) Send your short opener now. Don't reply to this line — just write the message you'd send.",
           },
         ],
+      });
+      void recordAnthropicSpend({
+        userId: profile.id,
+        model: ANTHROPIC_MODEL,
+        usage: response.usage as unknown as Parameters<
+          typeof recordAnthropicSpend
+        >[0]["usage"],
+        route: "outreach",
       });
 
       const reply = response.content

@@ -15,6 +15,7 @@
  */
 
 import { anthropic } from "@/lib/anthropic";
+import { recordAnthropicSpend } from "@/lib/spendGovernor";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const RESIDUE_KEY = "_session_residue";
@@ -81,6 +82,15 @@ export async function extractAndSaveResidue(
         format: { type: "json_schema", schema: OUTPUT_SCHEMA },
       },
       messages: [{ role: "user", content: transcript }],
+    });
+    // Record against the ledger — background Haiku spend still adds up.
+    void recordAnthropicSpend({
+      userId,
+      model: RESIDUE_MODEL,
+      usage: response.usage as unknown as Parameters<
+        typeof recordAnthropicSpend
+      >[0]["usage"],
+      route: "residue",
     });
     const textBlock = response.content.find((b) => b.type === "text");
     if (!textBlock || textBlock.type !== "text") return;

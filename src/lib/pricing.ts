@@ -34,6 +34,13 @@ export const PRICING = {
    *  (role='user') across all their conversations. Wilson's rule:
    *  free is a taste, Pro removes the ceiling. */
   freeMessagesPerMonth: 100,
+  /** Monthly Anthropic-spend cap for the Free tier, in whole cents.
+   *  Wilson pays for Claude tokens directly; this hard-stops runaway
+   *  spend on Free users (misbehaving accounts, testing loops, edge
+   *  cases). Pro/admin/trial are never gated. Cap is on ESTIMATED cost
+   *  (recorded per call via recordAnthropicSpend); over-run by one
+   *  in-flight call is acceptable. */
+  freeMonthlySpendCents: 1000,
   currency: "USD",
 } as const;
 
@@ -52,3 +59,6 @@ export const RESTORE_IDENTITY_PRICE_LABEL = `$${PRICING.restoreIdentityCents / 1
 
 /** "100" — monthly message cap for the Free tier. */
 export const FREE_MESSAGES_PER_MONTH = PRICING.freeMessagesPerMonth;
+
+/** "$10.00" — user-facing label for the Free monthly spend cap. */
+export const FREE_MONTHLY_SPEND_LABEL = `$${(PRICING.freeMonthlySpendCents / 100).toFixed(2)}`;

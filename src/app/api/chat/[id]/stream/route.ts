@@ -14,6 +14,7 @@ import {
   anyRecentTurnDistressed,
   DISTRESS_TONE_BLOCK,
 } from "@/lib/safety/distress";
+import { overFreeCap, recordAnthropicSpend } from "@/lib/spendGovernor";
 import { extractMemoriesFromMessage } from "@/lib/memory/extract";
 import { fetchMemoriesForContext } from "@/lib/memory/retrieve";
 import { shouldPersonaBlock } from "@/lib/safety/block-detector";
@@ -173,6 +174,26 @@ export async function POST(
           error: "free_month_cap",
           current: cap.current,
           limit: cap.limit,
+        },
+        { status: 402 },
+      );
+    }
+  }
+
+  // Free-tier Anthropic-spend gate. Wilson pays for tokens directly;
+  // this is the hard ceiling against runaway spend from a Free user
+  // (a misbehaving/testing account, an edge case, a stuck loop).
+  // Retries still count against last month's actual send (they're
+  // just re-rolls), so the same gate applies. Pro/admin/trial pass
+  // through immediately.
+  {
+    const spend = await overFreeCap(user.id, requesterIsPro);
+    if (spend.over) {
+      return NextResponse.json(
+        {
+          error: "free_month_spend_cap",
+          current_cents: spend.current,
+          limit_cents: spend.limit,
         },
         { status: 402 },
       );
@@ -659,6 +680,22 @@ export async function POST(
           .join("")
           .trim();
 
+        // Record this call's spend against the user's monthly
+        // ceiling. Fire in after() so the client never waits on the
+        // ledger write. Sonnet input+output pricing baked into
+        // spendGovernor.ts. Reads final.usage which the SDK populates
+        // once the stream completes.
+        after(async () => {
+          await recordAnthropicSpend({
+            userId: user.id,
+            model: ANTHROPIC_MODEL,
+            usage: final.usage as unknown as Parameters<
+              typeof recordAnthropicSpend
+            >[0]["usage"],
+            route: "chat_stream",
+          });
+        });
+
         // Phase B.2 — persona-side reaction. Model may prefix its
         // reply with [react:KIND]. Regex intentionally does NOT require
         // a newline after the marker so `[react:heart] hello` on a
@@ -771,7 +808,10 @@ export async function POST(
             : []),
         ];
         after(async () => {
-          const decision = await shouldPersonaBlock(historyForBlockCheck);
+          const decision = await shouldPersonaBlock(
+            historyForBlockCheck,
+            user.id,
+          );
           if (decision.block) {
             await handleBlockDecision({
               decision,

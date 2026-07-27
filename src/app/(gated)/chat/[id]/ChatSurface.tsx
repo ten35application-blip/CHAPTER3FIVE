@@ -220,9 +220,14 @@ export default function ChatSurface({
   // Free tier hit its monthly message cap. Same shape as proLocked but
   // a different message and copy — the user's plan didn't END, they
   // just hit this month's limit.
-  const [capHit, setCapHit] = useState<{ current: number; limit: number } | null>(
-    null,
-  );
+  // Two ceilings can trip a 402: monthly message count OR monthly
+  // Anthropic-spend cap. Both funnel here; `kind` drives copy so the
+  // upgrade banner reads correctly for each.
+  const [capHit, setCapHit] = useState<
+    | { kind: "messages"; current: number; limit: number }
+    | { kind: "spend"; current: number; limit: number }
+    | null
+  >(null);
   // Tapback + report popover target — set on a bubble long-press,
   // anchored via the bubble's DOMRect so the popover positions itself
   // just above.
@@ -353,17 +358,30 @@ export default function ChatSurface({
             // The message never made it — pull the optimistic bubble.
             setMessages((prev) => prev.filter((m) => m.id !== tempId));
           } else if (res.status === 402) {
-            // Free-tier monthly message cap hit. Pull the optimistic
-            // bubble (nothing persisted) and swap the input for the
-            // upgrade CTA.
+            // Free-tier ceiling hit — either the message cap or the
+            // Anthropic-spend cap. Both surface as 402 with the same
+            // upgrade CTA. Pull the optimistic bubble (nothing
+            // persisted) and swap the input.
             const body = (await res.json().catch(() => null)) as {
+              error?: string;
               current?: number;
               limit?: number;
+              current_cents?: number;
+              limit_cents?: number;
             } | null;
-            setCapHit({
-              current: body?.current ?? 0,
-              limit: body?.limit ?? 0,
-            });
+            if (body?.error === "free_month_spend_cap") {
+              setCapHit({
+                kind: "spend",
+                current: body?.current_cents ?? 0,
+                limit: body?.limit_cents ?? 0,
+              });
+            } else {
+              setCapHit({
+                kind: "messages",
+                current: body?.current ?? 0,
+                limit: body?.limit ?? 0,
+              });
+            }
             setMessages((prev) => prev.filter((m) => m.id !== tempId));
           } else {
             setStreamFailed(true);
@@ -883,11 +901,25 @@ export default function ChatSurface({
           ) : capHit ? (
             <div className="flex flex-col items-center gap-3 px-4 py-4 text-center">
               <p className="text-[15px] leading-snug text-warm-200">
-                You&apos;ve used all{" "}
-                <strong className="text-warm-50">{capHit.limit}</strong>{" "}
-                of this month&apos;s free messages. {name} is still here
-                &mdash; upgrade to premium for unlimited messages, or come
-                back at the start of next month.
+                {capHit.kind === "spend" ? (
+                  <>
+                    You&apos;ve reached this month&apos;s free-tier usage
+                    allowance ({(capHit.limit / 100).toFixed(2)} spent).
+                    {" "}
+                    {name} is still here &mdash; upgrade to premium to keep
+                    the conversations going, or come back at the start of
+                    next month.
+                  </>
+                ) : (
+                  <>
+                    You&apos;ve used all{" "}
+                    <strong className="text-warm-50">{capHit.limit}</strong>
+                    {" "}
+                    of this month&apos;s free messages. {name} is still here
+                    &mdash; upgrade to premium for unlimited messages, or
+                    come back at the start of next month.
+                  </>
+                )}
               </p>
               <Link
                 href={`/upgrade?next=${encodeURIComponent(`/chat/${oracleId}`)}`}

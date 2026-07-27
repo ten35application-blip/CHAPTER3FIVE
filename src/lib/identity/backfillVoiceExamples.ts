@@ -23,6 +23,7 @@
  */
 
 import { anthropic } from "@/lib/anthropic";
+import { recordAnthropicSpend } from "@/lib/spendGovernor";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /** Haiku model used for the backfill call — cheap and fast, more than
@@ -58,13 +59,14 @@ export async function backfillVoiceExamples(
 
   const { data: oracle, error: readErr } = await admin
     .from("oracles")
-    .select("id, name, persona_prompt, voice_examples")
+    .select("id, name, persona_prompt, voice_examples, user_id")
     .eq("id", oracleId)
     .maybeSingle<{
       id: string;
       name: string;
       persona_prompt: string | null;
       voice_examples: string[] | null;
+      user_id: string;
     }>();
 
   if (readErr || !oracle) {
@@ -97,6 +99,14 @@ export async function backfillVoiceExamples(
       ],
     });
 
+    void recordAnthropicSpend({
+      userId: oracle.user_id,
+      model: BACKFILL_MODEL,
+      usage: response.usage as unknown as Parameters<
+        typeof recordAnthropicSpend
+      >[0]["usage"],
+      route: "voice_backfill",
+    });
     const textBlock = response.content.find((b) => b.type === "text");
     if (!textBlock || textBlock.type !== "text") {
       return { ok: false, error: "no text block in Haiku response" };

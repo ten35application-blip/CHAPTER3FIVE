@@ -1,4 +1,5 @@
 import { ANTHROPIC_MODEL_HAIKU, anthropic } from "@/lib/anthropic";
+import { recordAnthropicSpend } from "@/lib/spendGovernor";
 
 /**
  * Decides whether a persona should end a conversation with the user
@@ -44,9 +45,12 @@ const SEXUAL_PUSH_TRIGGERS: readonly RegExp[] = [
 
 type Turn = { role: "user" | "assistant"; content: string };
 
-/** Public entry point. Call from the stream route via after(). */
+/** Public entry point. Call from the stream route via after().
+ *  Optional userId powers the spend ledger — omit for legacy callers
+ *  who don't have one in scope; call attribution just gets skipped. */
 export async function shouldPersonaBlock(
   recentMessages: readonly Turn[],
+  userId?: string,
 ): Promise<BlockDecision> {
   const userMessages = recentMessages.filter((m) => m.role === "user");
   if (userMessages.length === 0) return { block: false };
@@ -55,7 +59,7 @@ export async function shouldPersonaBlock(
   if (!flagged.hit) return { block: false };
 
   try {
-    return await classify(recentMessages, flagged.category);
+    return await classify(recentMessages, flagged.category, userId);
   } catch (err) {
     console.error("[safety/block] classifier failed, defaulting to no-block:", err);
     return { block: false };
@@ -98,6 +102,7 @@ function firstPassScreen(recent: readonly Turn[]): ScreenResult {
 async function classify(
   recent: readonly Turn[],
   category: "slur_or_threat" | "sexual_push",
+  userId?: string,
 ): Promise<BlockDecision> {
   const transcript = recent
     .map((m) => `${m.role === "user" ? "User" : "Persona"}: ${m.content}`)
@@ -127,6 +132,7 @@ Return a JSON object exactly matching the output schema. Err toward NOT blocking
     max_tokens: 256,
     system,
     messages: [{ role: "user", content: transcript }],
+    // usage recorded below regardless of the response's block/no-block
     output_config: {
       format: {
         type: "json_schema",
@@ -149,6 +155,16 @@ Return a JSON object exactly matching the output schema. Err toward NOT blocking
         },
       },
     },
+  });
+  // Ledger every classify call — this fires per turn when the first-
+  // pass keyword screen trips, so it's a real ongoing spend line.
+  void recordAnthropicSpend({
+    userId,
+    model: ANTHROPIC_MODEL_HAIKU,
+    usage: resp.usage as unknown as Parameters<
+      typeof recordAnthropicSpend
+    >[0]["usage"],
+    route: "block_detector",
   });
 
   const textBlock = resp.content.find((b) => b.type === "text");

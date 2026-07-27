@@ -52,6 +52,37 @@ export async function isPro(
 }
 
 /**
+ * Cron / service-context variant of isPro that takes a user_id
+ * directly (no auth.getUser). Uses the admin client. Returns false
+ * on any failure so a broken query never accidentally elevates a
+ * Free user to Pro.
+ */
+export async function isProByUserId(userId: string): Promise<boolean> {
+  try {
+    const admin = createAdminClient();
+    const { data, error } = await admin
+      .from("profiles")
+      .select("email, pro_until, trial_ends_at")
+      .eq("id", userId)
+      .maybeSingle<{
+        email: string | null;
+        pro_until: string | null;
+        trial_ends_at: string | null;
+      }>();
+    if (error || !data) return false;
+    if (isAdmin(data.email)) return true;
+    const now = Date.now();
+    if (data.pro_until && new Date(data.pro_until).getTime() > now) return true;
+    if (data.trial_ends_at && new Date(data.trial_ends_at).getTime() > now) {
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Server-side guard for Pro-only routes. Call from a server component
  * or server action; if it returns { ok: false }, redirect the caller
  * to the returned path.
