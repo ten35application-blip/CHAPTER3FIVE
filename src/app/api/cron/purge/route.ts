@@ -45,19 +45,46 @@ export async function GET(request: NextRequest) {
 
   for (const p of accountsToDelete ?? []) {
     try {
-      // App-side data, in dependency order.
-      await admin.from("answers").delete().eq("user_id", p.id);
-      await admin.from("agreements").delete().eq("user_id", p.id);
-      await admin.from("oracles").delete().eq("user_id", p.id);
-      await admin.from("shares").delete().eq("source_user_id", p.id);
-      await admin.from("payments").delete().eq("user_id", p.id);
-      await admin.from("crisis_flags").delete().eq("user_id", p.id);
-      await admin.from("message_reports").delete().eq("reporter_user_id", p.id);
-      await admin.from("device_tokens").delete().eq("user_id", p.id);
-      await admin.from("chat_usage").delete().eq("user_id", p.id);
-      await admin.from("profiles").delete().eq("id", p.id);
+      // Order matters (Fable audit):
+      //
+      // Previously the app-side rows were deleted BEFORE
+      // auth.admin.deleteUser. If deleteUser errored the profile
+      // row was already gone and every cascade-dependent table
+      // still holding data (chat_spend_events, message_reactions,
+      // conversation_state, persona_memories, chat_blocks,
+      // oracle_shares, archive_grants, legacy_drafts, etc.) had no
+      // owner to hang off — silent orphans until the next full
+      // audit.
+      //
+      // New order:
+      //   1. Delete auth.users FIRST. Almost every app table has
+      //      `references auth.users(id) on delete cascade` so this
+      //      one call sweeps them clean. Retry twice on transient
+      //      error; if all three attempts fail, skip this row and
+      //      let the next daily run retry (nothing else has been
+      //      touched).
+      //   2. THEN scrub storage (still needs p.id for the path).
+      //   3. THEN belt-and-suspenders app-side deletes for tables
+      //      whose FKs are `on delete set null` rather than cascade
+      //      (audit_log, email_log, stripe_events, etc.) — those
+      //      keep their rows on account delete by design.
+      let authErr: { message: string } | null = null;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const res = await admin.auth.admin.deleteUser(p.id);
+        authErr = res.error ?? null;
+        if (!authErr) break;
+        // Small backoff between retries; keeps the cron under its
+        // time budget even for a stubborn error.
+        await new Promise((r) => setTimeout(r, 200 * (attempt + 1)));
+      }
+      if (authErr) {
+        errors.push(`auth ${p.id}: ${authErr.message}`);
+        // Skip everything else for this row so the next daily run
+        // can retry from a clean state.
+        continue;
+      }
 
-      // Storage cleanup: avatars (flat) + chat-photos (nested).
+      // Storage cleanup — the auth-cascade doesn't touch storage.
       try {
         const { data: avatarFiles } = await admin.storage
           .from("avatars")
@@ -88,12 +115,6 @@ export async function GET(request: NextRequest) {
         }
       } catch (err) {
         console.error(`purge chat-photos cleanup failed for ${p.id}`, err);
-      }
-
-      // Then the auth.users row itself — irreversible.
-      const { error: authErr } = await admin.auth.admin.deleteUser(p.id);
-      if (authErr) {
-        errors.push(`auth ${p.id}: ${authErr.message}`);
       }
 
       await admin.from("audit_log").insert({

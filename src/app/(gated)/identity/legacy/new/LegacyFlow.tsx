@@ -58,6 +58,11 @@ export function LegacyFlow({
   );
   const [submitting, setSubmitting] = useState(false);
   const [saved, setSaved] = useState(true);
+  // Fable audit: void save().then() with no .catch left the chip
+  // stuck on "Saving…" forever if the write threw. Track failures
+  // and surface a retry affordance next to the progress row + guard
+  // navigation with beforeunload while dirty.
+  const [saveError, setSaveError] = useState(false);
 
   // Latest state in a ref so the debounced save always writes fresh data.
   const latest = useRef({ subject, answers, step });
@@ -73,11 +78,20 @@ export function LegacyFlow({
       timer.current = null;
     }
     const { subject, answers, step } = latest.current;
-    void saveLegacyDraft({
+    saveLegacyDraft({
       subject,
       answers,
       currentStep: stepOverride ?? step,
-    }).then(() => setSaved(true));
+    })
+      .then(() => {
+        setSaved(true);
+        setSaveError(false);
+      })
+      .catch((err) => {
+        console.error("[legacy] autosave failed:", err);
+        setSaved(false);
+        setSaveError(true);
+      });
   }, []);
 
   const scheduleSave = useCallback(() => {
@@ -91,6 +105,19 @@ export function LegacyFlow({
       if (timer.current) clearTimeout(timer.current);
     };
   }, []);
+
+  // beforeunload guard: warn on tab close if there's dirty unsaved
+  // state (a pending debounced write or a prior save failure). Only
+  // engages when there's something to lose.
+  useEffect(() => {
+    if (saved && !saveError) return;
+    function onBeforeUnload(e: BeforeUnloadEvent) {
+      e.preventDefault();
+      e.returnValue = "";
+    }
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [saved, saveError]);
 
   function goTo(next: number) {
     const clamped = Math.max(0, Math.min(questionCount, next));
@@ -152,6 +179,8 @@ export function LegacyFlow({
             onFinish={finish}
             answeredCount={answeredCount}
             saved={saved}
+            saveError={saveError}
+            onRetrySave={() => flushSave()}
           />
         )}
       </div>
@@ -397,6 +426,14 @@ function Field({
 
 // ─── Steps 1..40: one question per screen ───────────────────────────────────
 
+// Server-side MIN_ANSWERS gate (src/app/(gated)/identity/legacy/new/
+// actions.ts) — a partial archive is completable once the count is
+// this high. Keep in sync with the server constant. Fable audit:
+// without this the user had to click "Skip" 18 times to reach the
+// "Bring them together" button on Q40 if the person they were
+// recording died mid-flow.
+const MIN_ANSWERS_TO_FINISH = 20;
+
 function QuestionScreen({
   questions,
   categoryLabels,
@@ -408,6 +445,8 @@ function QuestionScreen({
   onFinish,
   answeredCount,
   saved,
+  saveError,
+  onRetrySave,
 }: {
   questions: LegacyQuestion[];
   categoryLabels: Record<LegacyCategory, string>;
@@ -419,9 +458,12 @@ function QuestionScreen({
   onFinish: () => void;
   answeredCount: number;
   saved: boolean;
+  saveError: boolean;
+  onRetrySave: () => void;
 }) {
   const question = questions[step - 1];
   const isLast = step === questions.length;
+  const canFinishEarly = !isLast && answeredCount >= MIN_ANSWERS_TO_FINISH;
   const progress = (step / questions.length) * 100;
 
   return (
@@ -432,11 +474,21 @@ function QuestionScreen({
           Question {step} of {questions.length} ·{" "}
           {categoryLabels[question.category]}
         </p>
-        <p
-          className={`text-xs font-medium transition-opacity ${saved ? "text-warm-400 opacity-100" : "text-warm-500 opacity-70"}`}
-        >
-          {saved ? "Saved" : "Saving…"}
-        </p>
+        {saveError ? (
+          <button
+            type="button"
+            onClick={onRetrySave}
+            className="text-xs font-medium text-coral-strong underline underline-offset-2 hover:text-coral"
+          >
+            Save failed — retry
+          </button>
+        ) : (
+          <p
+            className={`text-xs font-medium transition-opacity ${saved ? "text-warm-400 opacity-100" : "text-warm-500 opacity-70"}`}
+          >
+            {saved ? "Saved" : "Saving…"}
+          </p>
+        )}
       </div>
       <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-warm-700">
         <div
@@ -504,6 +556,21 @@ function QuestionScreen({
           </button>
         )}
       </div>
+
+      {/* Finish-early affordance for partial archives. The server
+          accepts anything ≥ MIN_ANSWERS (20) — before this, family
+          members recording someone who passed mid-flow had to click
+          "Skip for now" through every remaining question just to
+          reach the "Bring them together" button on Q40. */}
+      {canFinishEarly ? (
+        <button
+          type="button"
+          onClick={onFinish}
+          className="mt-4 flex h-11 items-center justify-center rounded-full px-6 text-sm font-medium text-warm-300 ring-1 ring-warm-700 transition-colors hover:text-warm-100 hover:ring-warm-500"
+        >
+          Finish now with {answeredCount} answers
+        </button>
+      ) : null}
 
       {isLast ? (
         <p className="mt-4 text-center text-sm text-warm-400">
