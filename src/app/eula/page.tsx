@@ -28,11 +28,13 @@ const toc: TocItem[] = [
 /**
  * Public End-User License Agreement.
  *
- * Apple's App Store Review Guidelines (§ 3.2.1(vii) / Schedule 1) let
- * developers either accept Apple's standard EULA or provide their own
- * URL. This page is that URL. When accessed through iOS, the iOS
- * section applies alongside these terms; Apple's standard EULA is
- * incorporated by reference so nothing under it is lost.
+ * Apple's "Instructions for Minimum Terms of Developer's EULA" let
+ * developers either accept Apple's standard EULA or provide their own,
+ * so long as ours includes the listed Minimum Terms. Section 5 below
+ * carries those Minimum Terms in near-verbatim form (Acknowledgment,
+ * Scope, Maintenance & Support, Warranty & Warranty-Refund, Product
+ * Claims, IP, Legal Compliance, Developer Name & Address, Third-Party
+ * Terms, Third-Party Beneficiary).
  *
  * For web usage this page and the Terms of Service both apply — the
  * ToS covers the broader relationship (billing, conduct, disputes)
@@ -153,48 +155,108 @@ export default function EulaPage() {
         </p>
         <ul>
           <li>
-            This EULA is between you and chapter3five only, not with
-            Apple. Apple is not responsible for the app or its content.
+            <strong>Acknowledgment.</strong> This EULA is concluded
+            between you and chapter3five only, not with Apple, and
+            chapter3five (not Apple) is solely responsible for the app
+            and its content. This EULA does not provide for usage rules
+            for the app that are less restrictive than or in conflict
+            with the Apple Media Services Terms and Conditions.
           </li>
           <li>
-            The license Apple grants you is limited to using the app on
-            an Apple-branded product that you own or control, as
-            permitted by the Usage Rules in the App Store Terms of
-            Service.
+            <strong>Scope of License.</strong> The license Apple grants
+            you for the app is limited to a non-transferable license
+            to use the app on any Apple-branded product that you own
+            or control, and as permitted by the Usage Rules set forth
+            in the Apple Media Services Terms and Conditions, except
+            that the app may be accessed, acquired, and used by other
+            accounts associated with you via Family Sharing or volume
+            purchasing.
           </li>
           <li>
-            Apple has no obligation whatsoever to provide any
-            maintenance or support services with respect to the app.
+            <strong>Maintenance and Support.</strong> chapter3five is
+            solely responsible for providing any maintenance and
+            support services with respect to the app, as specified in
+            this EULA or as required under applicable law. You and
+            chapter3five acknowledge that Apple has no obligation
+            whatsoever to furnish any maintenance and support services
+            with respect to the app.
           </li>
           <li>
-            To the maximum extent permitted by law, Apple has no
-            warranty obligation whatsoever with respect to the app.
+            <strong>Warranty.</strong> chapter3five is solely
+            responsible for any product warranties, whether express or
+            implied by law, to the extent not effectively disclaimed.
+            In the event of any failure of the app to conform to any
+            applicable warranty, you may notify Apple, and Apple will
+            refund the purchase price for the app to you; and to the
+            maximum extent permitted by applicable law, Apple will
+            have no other warranty obligation whatsoever with respect
+            to the app. Any other claims, losses, liabilities, damages,
+            costs, or expenses attributable to any failure to conform
+            to any warranty will be the sole responsibility of
+            chapter3five.
           </li>
           <li>
-            chapter3five is solely responsible for addressing any
-            claims relating to the app — product liability, legal or
-            regulatory non-conformance, consumer protection, or any
-            similar claim.
+            <strong>Product Claims.</strong> You and chapter3five
+            acknowledge that chapter3five, not Apple, is responsible
+            for addressing any claims of yours or of any third party
+            relating to the app or your possession and/or use of the
+            app, including but not limited to: (i) product-liability
+            claims; (ii) any claim that the app fails to conform to
+            any applicable legal or regulatory requirement; and (iii)
+            claims arising under consumer-protection, privacy, or
+            similar legislation, including in connection with the
+            app&rsquo;s use of the HealthKit or HomeKit frameworks (if
+            applicable).
           </li>
           <li>
-            In the event of any third-party claim that the app or your
-            possession and use of it infringes that party&rsquo;s
-            intellectual-property rights, chapter3five (not Apple) is
-            solely responsible for the investigation, defense,
-            settlement, and discharge of any such claim.
+            <strong>Intellectual-Property Rights.</strong> You and
+            chapter3five acknowledge that, in the event of any
+            third-party claim that the app or your possession and use
+            of the app infringes that third party&rsquo;s
+            intellectual-property rights, chapter3five, not Apple, will
+            be solely responsible for the investigation, defense,
+            settlement, and discharge of any such intellectual-property
+            infringement claim.
           </li>
           <li>
-            You represent that you are not located in a country subject
-            to a U.S. Government embargo, or that has been designated
-            by the U.S. Government as a &ldquo;terrorist supporting&rdquo;
-            country, and are not listed on any U.S. Government list of
-            prohibited or restricted parties.
+            <strong>Legal Compliance.</strong> You represent and
+            warrant that (i) you are not located in a country that is
+            subject to a U.S. Government embargo, or that has been
+            designated by the U.S. Government as a &ldquo;terrorist
+            supporting&rdquo; country; and (ii) you are not listed on
+            any U.S. Government list of prohibited or restricted
+            parties.
           </li>
           <li>
-            Apple and its subsidiaries are third-party beneficiaries of
-            this EULA. Upon your acceptance, Apple has the right (and
-            will be deemed to have accepted the right) to enforce this
-            EULA against you as a third-party beneficiary.
+            <strong>Developer Name and Address.</strong> Questions,
+            complaints, or claims with respect to the app should be
+            directed to chapter3five at{" "}
+            <a
+              href="mailto:hello@chapter3five.app"
+              className="text-coral-strong hover:underline"
+            >
+              hello@chapter3five.app
+            </a>
+            . A physical mailing address for legal service will be
+            provided on request. (This EULA will be updated with a
+            street address once our business registration is complete.)
+          </li>
+          <li>
+            <strong>Third-Party Terms of Agreement.</strong> You must
+            comply with applicable third-party terms of agreement when
+            using the app — for example, your wireless data-service
+            agreement and any Apple terms that apply to your use of
+            iCloud, Family Sharing, or other Apple services the app
+            interacts with.
+          </li>
+          <li>
+            <strong>Third-Party Beneficiary.</strong> You and
+            chapter3five acknowledge and agree that Apple, and
+            Apple&rsquo;s subsidiaries, are third-party beneficiaries
+            of this EULA, and that, upon your acceptance of the terms
+            and conditions of this EULA, Apple will have the right
+            (and will be deemed to have accepted the right) to enforce
+            this EULA against you as a third-party beneficiary thereof.
           </li>
         </ul>
       </LegalSection>

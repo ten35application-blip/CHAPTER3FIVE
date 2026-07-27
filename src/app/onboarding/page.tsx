@@ -69,6 +69,15 @@ export default async function OnboardingPage({
     redirect("/dashboard");
   }
 
+  // Distinguish first-time consent from re-consent (existing user hit
+  // by a legal-version bump). A non-null terms_version_accepted means
+  // they've been through here before — the copy shifts to explain WHY
+  // they're back rather than reading like a first-run gate.
+  const isReconsent =
+    profile !== null &&
+    profile.terms_version_accepted !== null &&
+    !hasAcceptedCurrentTerms(profile);
+
   return (
     <main className="flex min-h-dvh flex-1 flex-col items-center px-6 py-12">
       <div className="flex w-full max-w-md flex-col items-center text-center">
@@ -87,14 +96,35 @@ export default async function OnboardingPage({
         </div>
 
         <p className="text-gradient-cta mt-8 text-sm font-bold uppercase tracking-[0.14em]">
-          One more thing
+          {isReconsent ? "One quick thing" : "One more thing"}
         </p>
         <h1 className="mt-3 text-4xl font-bold leading-[1.05] tracking-[-0.02em] text-warm-50 sm:text-5xl">
-          Before we <span className="text-gradient-cta">begin.</span>
+          {isReconsent ? (
+            <>
+              A small <span className="text-gradient-cta">update.</span>
+            </>
+          ) : (
+            <>
+              Before we <span className="text-gradient-cta">begin.</span>
+            </>
+          )}
         </h1>
         <p className="mt-4 max-w-sm text-base leading-relaxed text-warm-300">
-          chapter3five holds real weight &mdash; people&apos;s voices,
-          memories, and legacy. A quick agreement, then you&apos;re in.
+          {isReconsent ? (
+            <>
+              We&rsquo;ve added a dedicated End-User License Agreement
+              so the store versions of the app have the specific
+              license text they need. Nothing about how chapter3five
+              works has changed &mdash; please take a look and
+              re-confirm.
+            </>
+          ) : (
+            <>
+              chapter3five holds real weight &mdash; people&apos;s
+              voices, memories, and legacy. A quick agreement, then
+              you&apos;re in.
+            </>
+          )}
         </p>
 
         {error ? (

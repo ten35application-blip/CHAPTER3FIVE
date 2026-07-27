@@ -162,12 +162,19 @@ export default async function SignupPage({
             >
               EULA
             </Link>
-            , and{" "}
+            ,{" "}
             <Link
               href="/privacy"
               className="font-semibold text-warm-300 underline-offset-2 transition-colors hover:text-coral-strong hover:underline"
             >
               Privacy Policy
+            </Link>
+            , and{" "}
+            <Link
+              href="/guidelines"
+              className="font-semibold text-warm-300 underline-offset-2 transition-colors hover:text-coral-strong hover:underline"
+            >
+              Community Guidelines
             </Link>
             .
           </p>

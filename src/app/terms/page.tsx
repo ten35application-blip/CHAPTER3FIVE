@@ -573,10 +573,10 @@ export default function TermsPage() {
           </a>
           . To report a safety concern:{" "}
           <a
-            href="mailto:safety@chapter3five.app"
+            href="mailto:hello@chapter3five.app"
             className="font-semibold underline underline-offset-4"
           >
-            safety@chapter3five.app
+            hello@chapter3five.app
           </a>
           .
         </p>
