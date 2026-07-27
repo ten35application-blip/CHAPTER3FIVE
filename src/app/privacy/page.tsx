@@ -184,6 +184,17 @@ export default function PrivacyPage() {
             unless you opt in — we do not opt in.
           </li>
           <li>
+            <strong>Replicate</strong> — image generation for
+            photo-based identities. When you upload a reference photo
+            of yourself or someone you want to build an identity of,
+            we send that photo plus a text prompt to Replicate&rsquo;s
+            hosted Flux Kontext model to generate the identity&rsquo;s
+            avatar. Replicate processes the image to produce the
+            output; it&rsquo;s not shared with third parties beyond
+            Replicate&rsquo;s own infrastructure, and per Replicate&rsquo;s
+            policy it isn&rsquo;t used to train their public models.
+          </li>
+          <li>
             <strong>Stripe</strong> — payments. Handles your card and billing
             details; we receive only subscription metadata.
           </li>

@@ -39,9 +39,12 @@ export async function acceptTerms(formData: FormData) {
     redirect("/auth/signin");
   }
 
-  // Upsert so a missing profile row (trigger hiccup) can't strand the
-  // user here. RLS from 0001 allows insert/update of your own row.
-  const { error } = await supabase.from("profiles").upsert({
+  // Write via the admin client — 0087 blocks authenticated-role
+  // writes to terms_accepted_at and terms_version_accepted so a
+  // mobile client can't PATCH the columns directly and bypass this
+  // action. The admin client bypasses the trigger via service_role.
+  const admin = createAdminClient();
+  const { error } = await admin.from("profiles").upsert({
     id: user.id,
     terms_accepted_at: new Date().toISOString(),
     terms_version_accepted: CURRENT_TERMS_VERSION,
@@ -70,21 +73,36 @@ export async function acceptTerms(formData: FormData) {
       ? forwarded.split(",")[0].trim()
       : (h.get("x-real-ip") ?? null);
     const userAgent = h.get("user-agent");
-    const admin = createAdminClient();
-    const { error: ledgerErr } = await admin
+    // Dedupe against rapid retries: if a row already exists for this
+    // user + version in the last 60 seconds, skip the insert so a
+    // double-click / refresh doesn't flood the ledger with copies.
+    // Genuine re-consent on a NEW version still writes a row because
+    // terms_version changes on the version bump.
+    const cutoff = new Date(Date.now() - 60_000).toISOString();
+    const { data: recent } = await admin
       .from("terms_acceptances")
-      .insert({
-        user_id: user.id,
-        user_email: user.email ?? null,
-        terms_version: CURRENT_TERMS_VERSION,
-        ip_address: ip,
-        user_agent: userAgent,
-      });
-    if (ledgerErr) {
-      console.error(
-        "[onboarding] terms_acceptances ledger insert failed:",
-        ledgerErr,
-      );
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("terms_version", CURRENT_TERMS_VERSION)
+      .gt("accepted_at", cutoff)
+      .limit(1)
+      .maybeSingle();
+    if (!recent) {
+      const { error: ledgerErr } = await admin
+        .from("terms_acceptances")
+        .insert({
+          user_id: user.id,
+          user_email: user.email ?? null,
+          terms_version: CURRENT_TERMS_VERSION,
+          ip_address: ip,
+          user_agent: userAgent,
+        });
+      if (ledgerErr) {
+        console.error(
+          "[onboarding] terms_acceptances ledger insert failed:",
+          ledgerErr,
+        );
+      }
     }
   } catch (err) {
     console.error("[onboarding] terms_acceptances ledger threw:", err);

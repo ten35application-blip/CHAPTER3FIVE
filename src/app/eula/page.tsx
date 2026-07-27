@@ -53,7 +53,7 @@ export default function EulaPage() {
       contactNote="Questions about this license? Write to us and a person will answer."
     >
       <LegalCallout>
-        Effective July 27, 2026. This EULA sits alongside our{" "}
+        This EULA sits alongside our{" "}
         <Link href="/terms" className="text-coral-strong hover:underline">
           Terms of Service
         </Link>{" "}
@@ -62,7 +62,7 @@ export default function EulaPage() {
           Privacy Policy
         </Link>
         . If you don&rsquo;t agree with any of them, don&rsquo;t use
-        chapter3five.
+        chapter3five. The effective date is shown in the banner above.
       </LegalCallout>
 
       <LegalSection id="what-this-is" number={1} title="What this document is">

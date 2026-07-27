@@ -3,7 +3,6 @@ import { headers } from "next/headers";
 import { getStripe } from "@/lib/stripe";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { requireTermsAccepted } from "@/lib/legal/gate";
 
 /**
  * Create a Stripe Billing Portal session for the current user and
@@ -30,8 +29,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
 
-  const legal = await requireTermsAccepted(supabase, user.id);
-  if (!legal.ok) return legal.response;
+  // Deliberately NOT gated on requireTermsAccepted — a user must
+  // always be able to reach the billing portal to cancel, per FTC
+  // click-to-cancel guidance. Blocking here would trap someone with
+  // stale consent inside a running paid subscription.
 
   const admin = createAdminClient();
   const { data: profile } = await admin

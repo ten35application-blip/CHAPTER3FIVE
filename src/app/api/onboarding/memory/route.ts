@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { requireTermsAccepted } from "@/lib/legal/gate";
 import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { questions } from "@/content/questions";
 
@@ -53,6 +54,9 @@ export async function POST(request: NextRequest) {
   if (!user) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
+
+  const legal = await requireTermsAccepted(supabase, user.id);
+  if (!legal.ok) return legal.response;
 
   const { data: profile } = await supabase
     .from("profiles")
