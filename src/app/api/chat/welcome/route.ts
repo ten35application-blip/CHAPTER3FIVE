@@ -4,6 +4,7 @@ import { requireTermsAccepted } from "@/lib/legal/gate";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { arcToPromptBlock, currentArc } from "@/lib/identity/arc";
+import { buildConciergePricingBlock } from "@/lib/identity/concierge";
 import { moodOfTheDay, moodToPromptBlock } from "@/lib/identity/mood";
 import { openerVarietyBlock } from "@/lib/identity/opener";
 import { questions } from "@/content/questions";
@@ -53,6 +54,7 @@ export async function POST(request: NextRequest) {
   // Resolve which oracle we're welcoming on.
   let oracleId: string | null = bodyOracleId;
   let isBeneficiary = false;
+  let isConcierge = false;
   let preferredLanguage: "en" | "es" = "en";
   let oracleName = "your identity";
   let textingStyle: string | null = null;
@@ -63,19 +65,23 @@ export async function POST(request: NextRequest) {
     // Beneficiary path (or owner passing their own id explicitly).
     const { data: oracle } = await admin
       .from("oracles")
-      .select("id, name, preferred_language, user_id, memory_style")
+      .select("id, name, preferred_language, user_id, memory_style, is_concierge")
       .eq("id", oracleId)
       .maybeSingle();
     if (!oracle) {
       return NextResponse.json({ skipped: "no_such_oracle" });
     }
+    isConcierge = oracle.is_concierge === true;
 
-    if (oracle.user_id !== user.id) {
+    if (oracle.user_id !== user.id && !isConcierge) {
       // Verify the caller has access on this oracle via either path:
       //   - archive_grants: family/invite share (0014)
       //   - oracle_shares:  inherit-code redemption (0055)
       //   - beneficiary claim (post-mortem) also lands in archive_grants
       //     via /app/legacy/[token]/actions.ts.
+      // The concierge is exempt -- its RLS policy makes it universally
+      // readable, so any authenticated user can legitimately open a
+      // welcome thread with Chapter without a grant/share row.
       const [{ data: grant }, { data: share }] = await Promise.all([
         admin
           .from("archive_grants")
@@ -157,6 +163,89 @@ export async function POST(request: NextRequest) {
 
   if ((count ?? 0) > 0) {
     return NextResponse.json({ skipped: "already_started" });
+  }
+
+  // Random gate for personal personas: only ~1 in 5 first-opens
+  // trigger an auto-welcome from the persona. Wilson's call -- real
+  // friends do not text you the moment you open the app. Deterministic
+  // per (user, oracle) so a re-tap of the same silent chat stays
+  // silent (rather than re-rolling and firing later). Concierge
+  // (Adrian) always welcomes -- it is the guide's actual job.
+  if (!isConcierge) {
+    const key = `${user.id}::${oracleId}`;
+    let h = 2166136261;
+    for (let i = 0; i < key.length; i++) {
+      h ^= key.charCodeAt(i);
+      h = Math.imul(h, 16777619) >>> 0;
+    }
+    if ((h >>> 0) % 5 !== 0) {
+      return NextResponse.json({ skipped: "silent_open" });
+    }
+  }
+
+  // Concierge welcome: Adrian doesn't have an archive to draw from --
+  // a completely different prompt shape from the persona flow. Runs
+  // BEFORE the archive query below so we don't waste a round-trip on
+  // an oracle that intentionally has no answers.
+  if (isConcierge) {
+    const conciergeSystemPrompt = `You are Adrian — the guide for chapter3five. Someone just opened a chat with you for the very first time. This is your welcome message and their first impression of you.
+
+Adrian is warm, sub-30, plain-spoken, quietly funny — like someone who has explained a lot of things to a lot of people and gotten good at it. Not saccharine. Not scripted.
+
+WRITE A SHORT WARM OPENER. One or two lines. Say hello. Let them know who you are (Adrian, the guide) and that you can answer questions about how chapter3five works. Do NOT quote pricing from memory — a fresh pricing block is provided below and you can refer to it when they ask about cost. Do NOT pretend to be anyone else. Do NOT be corny.
+
+Good shape:
+- "hey — I'm adrian, the guide around here. ask me anything about chapter3five and I'll try to explain it plainly."
+- "hi. adrian here — I keep an eye on this app. anything you want to know?"
+- "hey, I'm adrian. sort of the concierge for this place. what brings you in?"
+
+Use lowercase and light punctuation. Be brief. Be human. Do not open with a scripted formal greeting.
+
+Respond in English.
+
+${buildConciergePricingBlock()}`;
+
+    try {
+      const resp = await anthropic.messages.create({
+        model: ANTHROPIC_MODEL,
+        max_tokens: 120,
+        system: conciergeSystemPrompt,
+        messages: [
+          {
+            role: "user",
+            content:
+              "(system) Write the welcome message now. Just the text. No quotes around it, no preamble.",
+          },
+        ],
+      });
+
+      const reply = resp.content
+        .filter((b) => b.type === "text")
+        .map((b) => (b.type === "text" ? b.text : ""))
+        .join("")
+        .trim()
+        .replace(/^["']|["']$/g, "");
+
+      if (!reply) {
+        return NextResponse.json({ skipped: "empty_reply" });
+      }
+
+      await admin.from("messages").insert({
+        user_id: user.id,
+        oracle_id: oracleId,
+        role: "assistant",
+        content: reply,
+        initiated_by_oracle: true,
+      });
+
+      return NextResponse.json({ sent: true });
+    } catch (err) {
+      console.error("concierge welcome failed:", err);
+      return NextResponse.json(
+        { error: err instanceof Error ? err.message : "Unknown error" },
+        { status: 500 },
+      );
+    }
   }
 
   // Pull a few archive answers to anchor voice.

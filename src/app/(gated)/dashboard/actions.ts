@@ -114,10 +114,15 @@ export async function markUnread(oracleId: string, nextUnread: boolean) {
 export async function softDeleteIdentity(oracleId: string) {
   const { supabase, user } = await requireUser();
 
+  // Never let the concierge be soft-deleted. Only the admin who owns
+  // it can even try (RLS scopes UPDATE to auth.uid() = user_id), but
+  // one accidental swipe on Wilson's dashboard would break the free
+  // tier for every user. Silent no-op via the extra .eq() filter.
   const { error } = await supabase
     .from("oracles")
     .update({ deleted_at: new Date().toISOString() })
     .eq("id", oracleId)
+    .eq("is_concierge", false)
     .is("deleted_at", null);
 
   if (error) {
@@ -210,6 +215,7 @@ export async function permanentDeleteIdentity(oracleId: string) {
     .from("oracles")
     .delete()
     .eq("id", oracleId)
+    .eq("is_concierge", false)
     .not("deleted_at", "is", null);
 
   if (error) {

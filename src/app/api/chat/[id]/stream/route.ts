@@ -6,6 +6,7 @@ import { backfillVoiceExamples } from "@/lib/identity/backfillVoiceExamples";
 import { ageFromBirthday, coerceChronotype } from "@/lib/identity/formula";
 import { moodOfTheDay, moodToPromptBlock } from "@/lib/identity/mood";
 import { arcToPromptBlock, currentArc } from "@/lib/identity/arc";
+import { buildConciergePricingBlock } from "@/lib/identity/concierge";
 import { computeReplyGapMs } from "@/lib/identity/replyGap";
 import {
   extractAndSaveResidue,
@@ -133,13 +134,18 @@ export async function POST(
   // persona_prompt is not selectable by anon/authenticated at the DB
   // level, so it is read here on the service-role client — only after
   // the RLS select above has already established authorization.
+  // is_concierge rides along so the concierge branch can short-circuit
+  // mood/arc/cross-persona-awareness injections without a second read
+  // (and without granting the flag to the authenticated role, which
+  // would leak the system-object bit into every dashboard SELECT).
   const promptClient = createAdminClient();
   const { data: promptRow } = await promptClient
     .from("oracles")
-    .select("persona_prompt")
+    .select("persona_prompt, is_concierge")
     .eq("id", oracleId)
     .maybeSingle();
   const personaPrompt = promptRow?.persona_prompt ?? null;
+  const isConciergeOracle = promptRow?.is_concierge === true;
 
   // Block enforcement — checked BEFORE the rate-limit bump so a blocked
   // send never counts against the user's daily usage. The persona set
@@ -509,13 +515,22 @@ export async function POST(
   // clashes hard with memory_style="sharp." Rehash to a different
   // deterministic mood in that case so the day still feels stable
   // but doesn't fight the identity's baked-in memory.
+  // Concierge exempt: Adrian's persona explicitly says "no mood,
+  // no arc, no proactive outreach" -- injecting weather here would
+  // contradict the cached prefix. Same reason mood/arc/cross-persona
+  // blocks are all gated on !isConciergeOracle below. `todayMood` is
+  // hoisted so the reply-gap calculation further down can still read
+  // it -- computeReplyGapMs accepts null and short-circuits gracefully
+  // (concierge gets a fixed baseline delay from chronotype=null).
   const avoid = oracle.memory_style === "sharp" ? (["distracted"] as const) : [];
-  const todayMood = moodOfTheDay(oracleId, new Date().toISOString(), {
-    avoid,
-  });
-  const moodBlock = moodToPromptBlock(todayMood);
-  if (moodBlock) {
-    system.push({ type: "text", text: moodBlock });
+  const todayMood = isConciergeOracle
+    ? null
+    : moodOfTheDay(oracleId, new Date().toISOString(), { avoid });
+  if (todayMood) {
+    const moodBlock = moodToPromptBlock(todayMood);
+    if (moodBlock) {
+      system.push({ type: "text", text: moodBlock });
+    }
   }
 
   // Formula v5 — ongoing arc. The persona's life keeps moving in
@@ -525,9 +540,10 @@ export async function POST(
   // via src/lib/identity/arc.ts. Same post-cache-breakpoint injection
   // shape as mood so it varies week-to-week without invalidating
   // the cached persona_prompt prefix.
-  const arcTemplate = (
-    oracle.traits as { ongoingArcTemplate?: string | null } | null
-  )?.ongoingArcTemplate;
+  const arcTemplate = isConciergeOracle
+    ? null
+    : (oracle.traits as { ongoingArcTemplate?: string | null } | null)
+        ?.ongoingArcTemplate;
   if (arcTemplate && oracle.created_at) {
     const arc = currentArc(
       arcTemplate as Parameters<typeof currentArc>[0],
@@ -558,7 +574,7 @@ export async function POST(
   // identities; Free tier has one chattable identity anyway. Never
   // reveals other-persona MEMORIES or messages — just names and
   // hooks. RLS on oracles scopes to auth.uid = user_id already.
-  if (requesterIsPro) {
+  if (requesterIsPro && !isConciergeOracle) {
     const { data: sibs } = await supabase
       .from("oracles")
       .select("id, name, one_line_hook")
@@ -614,6 +630,7 @@ export async function POST(
   //   - isRetry (persona re-answering; can't have just seen it)
   const canPretendDelayed =
     !isRetry &&
+    !isConciergeOracle &&
     history.length > 0 &&
     hoursSinceLastUser !== null &&
     hoursSinceLastUser >= 0.25;
@@ -622,6 +639,16 @@ export async function POST(
       type: "text",
       text: `== Delayed-reply feel (optional) ==\nEvery so often — roughly 1 in 10 messages when it FITS your character and the moment isn't heavy — you may text as if you saw the user's earlier message and are just now getting back to it. Openers like "sorry, saw this earlier — meeting ran long", "just had a sec, was making dinner", "wanted to write earlier — kids were up all night". This is a voice quirk, not a real time gap. Some characters do this constantly (busy, distracted, jugglers); some never do (present, focused, always available). Your voice decides. Never on heavy replies.`,
     });
+  }
+
+  // Concierge pricing block. Injected AFTER the cache breakpoint so a
+  // pricing tweak (change $10 -> $12, image cap 20 -> 30) never
+  // invalidates Adrian's cached persona_prompt prefix. The prompt
+  // instructs Adrian to refer to this block rather than quoting
+  // numbers from memory, so this is the ground truth Adrian reads
+  // whenever pricing comes up in conversation.
+  if (isConciergeOracle) {
+    system.push({ type: "text", text: buildConciergePricingBlock() });
   }
 
   // Fable humanization #4 — physical anchoring. Universal cue that

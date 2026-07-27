@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isAdmin } from "@/lib/admin/allowlist";
+import { getConciergeId } from "@/lib/identity/concierge";
 import { PRICING } from "@/lib/pricing";
 
 /** Early-access cap: only the first N users receive the signup trial. */
@@ -130,8 +131,13 @@ export async function getFreeIdentityId(
 /**
  * May the current user chat with this identity?
  *   - Pro (paid, admin, or in-trial): yes, always.
+ *   - The concierge (Adrian): yes, always -- everyone can chat with
+ *     the guide regardless of plan or which identity happens to be
+ *     saved as free_identity_id. Belt against grandfathered users
+ *     whose free_identity_id points at a personal oracle and against
+ *     Pro users who want to ask a product question.
  *   - Free tier: only their free_identity_id.
- * Never throws — any failure reads as "no" (fail-closed).
+ * Never throws -- any failure reads as "no" (fail-closed).
  */
 export async function canChatWithOracle(
   oracleId: string,
@@ -145,6 +151,8 @@ export async function canChatWithOracle(
         ? precomputedIsPro
         : await isPro(client);
     if (pro) return true;
+    const conciergeId = await getConciergeId();
+    if (conciergeId && oracleId === conciergeId) return true;
     const freeId = await getFreeIdentityId(client);
     return freeId !== null && freeId === oracleId;
   } catch {
@@ -230,6 +238,7 @@ export async function canCreateOracle(
         .from("oracles")
         .select("id", { count: "exact", head: true })
         .eq("user_id", userId)
+        .eq("is_concierge", false)
         .is("deleted_at", null),
     ]);
 

@@ -55,7 +55,15 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
-      <body className="min-h-full flex flex-col bg-ink text-warm-50">
+      {/* overflow-x-hidden on body is a hard stop against horizontal
+          scroll on iPad-width viewports. Something occasionally
+          overflows -- a long unbroken word, a gradient card at full
+          card width plus its shadow, a ring outline. Rather than chase
+          each culprit, gate the whole page. Vertical scroll unaffected.
+          If a page ever legitimately needs horizontal scrolling
+          (a wide table, a code block), it wraps in its own
+          overflow-x:auto container. */}
+      <body className="min-h-full flex flex-col overflow-x-hidden bg-ink text-warm-50">
         {children}
       </body>
     </html>

@@ -127,15 +127,23 @@ export async function GET(request: NextRequest) {
       // ("wedding's Saturday and my sister has lost her whole mind")
       // rather than generic warmth. Tiny extra read; huge payoff on
       // the exact surface where the persona feels most alive.
+      //
+      // is_concierge rides along so we can short-circuit -- Adrian's
+      // persona explicitly says "no proactive outreach"; the cron
+      // would violate that if it ever ran with the concierge as the
+      // active oracle (edge case where the concierge is somehow the
+      // last-touched persona for a user).
       const { data: oracleRow } = await admin
         .from("oracles")
-        .select("traits, created_at, pet_name")
+        .select("traits, created_at, pet_name, is_concierge")
         .eq("id", profile.active_oracle_id)
         .maybeSingle<{
           traits: { ongoingArcTemplate?: string | null } | null;
           created_at: string;
           pet_name: string | null;
+          is_concierge: boolean | null;
         }>();
+      if (oracleRow?.is_concierge === true) continue;
       const arcTemplate = oracleRow?.traits?.ongoingArcTemplate;
       const arcBlock =
         arcTemplate && oracleRow?.created_at

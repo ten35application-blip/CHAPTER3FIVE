@@ -723,52 +723,58 @@ export default function ChatSurface({
 
   return (
     <div className="flex h-dvh flex-col">
-      {/* Top bar */}
-      <header className="sticky top-0 z-10 grid grid-cols-[2.5rem_1fr_2.5rem] items-center border-b border-warm-700 bg-ink/85 px-2 py-2 backdrop-blur">
-        <Link
-          href="/dashboard"
-          aria-label="Back to dashboard"
-          className="flex h-10 w-10 items-center justify-center rounded-full text-warm-200 hover:bg-ink-soft"
-        >
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 20 20"
-            fill="none"
-            aria-hidden="true"
+      {/* Top bar. Outer sticky/blur stretches full viewport (so the
+          backdrop-blur reads edge-to-edge on wide screens); inner grid
+          is constrained to the same max-w-2xl the messages column
+          uses, so avatar + back-arrow align with the conversation
+          below instead of floating in a sea of empty header on iPad. */}
+      <header className="sticky top-0 z-10 border-b border-warm-700 bg-ink/85 backdrop-blur">
+        <div className="mx-auto grid w-full max-w-2xl grid-cols-[2.5rem_1fr_2.5rem] items-center px-2 py-2">
+          <Link
+            href="/dashboard"
+            aria-label="Back to dashboard"
+            className="flex h-10 w-10 items-center justify-center rounded-full text-warm-200 hover:bg-ink-soft"
           >
-            <path
-              d="M12.5 4 6.5 10l6 6"
-              stroke="currentColor"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </Link>
-        <div className="flex flex-col items-center gap-0.5">
-          {avatarUrl ? (
-            <button
-              type="button"
-              onClick={() => setZoomUrl(avatarUrl)}
-              aria-label={`View a larger photo of ${name}`}
-              className="h-10 w-10 overflow-hidden rounded-xl transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-coral/60"
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 20 20"
+              fill="none"
+              aria-hidden="true"
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={avatarUrl}
-                alt={name}
-                className="h-full w-full object-cover"
+              <path
+                d="M12.5 4 6.5 10l6 6"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
               />
-            </button>
-          ) : (
-            <div className="h-10 w-10 rounded-xl bg-gradient-cta" />
-          )}
-          <span className="max-w-[60vw] truncate text-xs font-medium text-warm-200">
-            {name}
-          </span>
+            </svg>
+          </Link>
+          <div className="flex flex-col items-center gap-0.5">
+            {avatarUrl ? (
+              <button
+                type="button"
+                onClick={() => setZoomUrl(avatarUrl)}
+                aria-label={`View a larger photo of ${name}`}
+                className="h-10 w-10 overflow-hidden rounded-xl transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-coral/60"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={avatarUrl}
+                  alt={name}
+                  className="h-full w-full object-cover"
+                />
+              </button>
+            ) : (
+              <div className="h-10 w-10 rounded-xl bg-gradient-cta" />
+            )}
+            <span className="max-w-[60vw] truncate text-xs font-medium text-warm-200">
+              {name}
+            </span>
+          </div>
+          <div />
         </div>
-        <div />
       </header>
 
       {/* Messages */}
