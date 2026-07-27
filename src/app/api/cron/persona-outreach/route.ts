@@ -10,6 +10,7 @@ import { detectCrisis } from "@/lib/crisis";
 import { moderateText } from "@/lib/moderation";
 import { moodOfTheDay, moodToPromptBlock } from "@/lib/identity/mood";
 import {
+  isTrialOnly,
   overFreeCap,
   recordAnthropicSpend,
 } from "@/lib/spendGovernor";
@@ -113,13 +114,21 @@ export async function GET(request: NextRequest) {
         .gte("created_at", sixHoursAgo);
       if ((veryRecentUserMsgCount ?? 0) > 0) continue;
 
-      // Spend gate. If a Free-tier user is at or over their monthly
-      // Anthropic-spend cap, don't fire an unsolicited outreach —
-      // that would push them further over the ceiling with content
-      // they didn't ask for. Pro/admin/trial are never gated.
+      // Spend gate. If a Free-tier OR trial-only user is at or over
+      // their monthly Anthropic-spend cap, don't fire an unsolicited
+      // outreach — that would push them further over the ceiling
+      // with content they didn't ask for. Paying subscribers and
+      // admin-comped accounts are not gated.
       // isProByUserId works in cron context (no auth.getUser session).
       const outreachIsPro = await isProByUserId(profile.id);
-      const outreachSpend = await overFreeCap(profile.id, outreachIsPro);
+      const outreachTrialOnly = outreachIsPro
+        ? await isTrialOnly(profile.id)
+        : false;
+      const outreachSpend = await overFreeCap(
+        profile.id,
+        outreachIsPro,
+        outreachTrialOnly,
+      );
       if (outreachSpend.over) continue;
 
       // Crisis guard on ANY outreach (fresh-callback OR long-silence).

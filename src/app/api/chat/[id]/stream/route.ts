@@ -14,7 +14,11 @@ import {
   anyRecentTurnDistressed,
   DISTRESS_TONE_BLOCK,
 } from "@/lib/safety/distress";
-import { overFreeCap, recordAnthropicSpend } from "@/lib/spendGovernor";
+import {
+  isTrialOnly,
+  overFreeCap,
+  recordAnthropicSpend,
+} from "@/lib/spendGovernor";
 import { extractMemoriesFromMessage } from "@/lib/memory/extract";
 import { fetchMemoriesForContext } from "@/lib/memory/retrieve";
 import { shouldPersonaBlock } from "@/lib/safety/block-detector";
@@ -191,10 +195,21 @@ export async function POST(
   // this is the hard ceiling against runaway spend from a Free user
   // (a misbehaving/testing account, an edge case, a stuck loop).
   // Retries still count against last month's actual send (they're
-  // just re-rolls), so the same gate applies. Pro/admin/trial pass
-  // through immediately.
+  // just re-rolls), so the same gate applies.
+  //
+  // Applies to trial users too — a 30-day full-Pro trial fires on
+  // every new signup, so without this a scripted signup fleet can
+  // burn ~$10+/account before the cap engages. Paying subscribers
+  // and admin-comped accounts remain uncapped.
   {
-    const spend = await overFreeCap(user.id, requesterIsPro);
+    const requesterTrialOnly = requesterIsPro
+      ? await isTrialOnly(user.id)
+      : false;
+    const spend = await overFreeCap(
+      user.id,
+      requesterIsPro,
+      requesterTrialOnly,
+    );
     if (spend.over) {
       return NextResponse.json(
         {

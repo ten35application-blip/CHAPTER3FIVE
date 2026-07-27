@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isAdmin } from "@/lib/admin/allowlist";
 
 export const runtime = "nodejs";
 
@@ -8,10 +9,10 @@ export const runtime = "nodejs";
  * Diagnostic-only endpoint. Runs each query the dashboard makes,
  * isolated, and reports which one (if any) errors. Returns JSON.
  *
- * Visit /api/debug/dashboard while signed in. Paste the response
- * to find which call is throwing in production.
- *
- * SAFE: no writes, no secrets in output, owner-only.
+ * Admin-only. The endpoint uses the service-role admin client for
+ * two subqueries where RLS would otherwise hide the result — before
+ * the admin gate was added, those subqueries leaked a random other
+ * user's group_room_members / beneficiary_rooms row. Fable audit.
  */
 export async function GET() {
   const out: Record<string, { ok: boolean; error?: string; sample?: unknown }> =
@@ -29,6 +30,13 @@ export async function GET() {
     };
     if (!userRes.data.user) {
       return NextResponse.json(out);
+    }
+    // Admin gate — the diagnostic queries below use the service-role
+    // client to reach RLS-hidden joins; non-admins have no business
+    // seeing that shape and any leak from a mis-scoped query would
+    // land in random users' inboxes.
+    if (!isAdmin(userRes.data.user.email)) {
+      return NextResponse.json({ error: "not_admin" }, { status: 403 });
     }
     const userId = userRes.data.user.id;
     const admin = createAdminClient();
@@ -92,10 +100,12 @@ export async function GET() {
       sample: gr.data?.length,
     };
 
-    // 6. group_room_members (with oracles join)
+    // 6. group_room_members (with oracles join). Scope to the caller's
+    // owned rooms so this diagnostic only ever looks at their own data.
     const grm = await admin
       .from("group_room_members")
-      .select("room_id, oracle_id, oracles(avatar_url)")
+      .select("room_id, oracle_id, oracles(avatar_url), group_rooms!inner(owner_user_id)")
+      .eq("group_rooms.owner_user_id", userId)
       .limit(1);
     out.group_room_members = {
       ok: !grm.error,
@@ -114,10 +124,12 @@ export async function GET() {
       sample: brm.data?.length,
     };
 
-    // 8. beneficiary_rooms
+    // 8. beneficiary_rooms — scope to rooms this admin created so
+    // we don't sample another user's room by accident.
     const br = await admin
       .from("beneficiary_rooms")
       .select("id, name, oracle_id, last_message_at, created_at")
+      .eq("created_by_user_id", userId)
       .limit(1);
     out.beneficiary_rooms = {
       ok: !br.error,

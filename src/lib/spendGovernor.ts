@@ -140,16 +140,74 @@ export async function sumMonthlySpendCents(
 }
 
 /**
- * True when a FREE-TIER user has hit or exceeded the monthly spend
- * cap. Pass precomputedIsPro to avoid a redundant profile SELECT
- * (chat stream already computed it).
+ * True when a user has hit or exceeded the monthly spend cap.
+ *
+ * Applies to:
+ *   - Free-tier users (isPro=false).
+ *   - Trial-only Pro users (in-future trial_ends_at with no paid
+ *     subscription and no admin grant). Fable audit surfaced that
+ *     every new signup gets a 30-day full-Pro trial (0072), so
+ *     without this a scripted signup can burn $10+/account of
+ *     Anthropic spend before the cap kicks in. Trial users get
+ *     the SAME monthly ceiling as free users — they still get to
+ *     experience Pro features, they just can't run us into the
+ *     ground.
+ *
+ * Bypassed for real paying subscribers (pro_until in future) and
+ * for admin-comped accounts (plan_source='admin_grant').
+ *
+ * `trialOnly` lets the caller signal that isPro is true purely
+ * because of a trial. Chat stream computes this once so we don't
+ * re-hit the DB here.
  */
 export async function overFreeCap(
   userId: string,
   precomputedIsPro: boolean,
+  trialOnly: boolean = false,
 ): Promise<{ over: boolean; current: number; limit: number }> {
   const limit = PRICING.freeMonthlySpendCents;
-  if (precomputedIsPro) return { over: false, current: 0, limit };
+  // Real Pro (paid or admin) is exempt. Trial-only users are NOT.
+  if (precomputedIsPro && !trialOnly) {
+    return { over: false, current: 0, limit };
+  }
   const current = await sumMonthlySpendCents(userId);
   return { over: current >= limit, current, limit };
+}
+
+/**
+ * Look up whether a user's isPro=true is trial-only (in-future
+ * trial_ends_at but no paid subscription and no admin grant).
+ * Used by callers that already know isPro is true but need the
+ * distinction to decide whether the spend cap applies.
+ *
+ * Never throws — returns false on any read error (fail-open on
+ * the query, not on the cap; the cap itself is fail-closed).
+ */
+export async function isTrialOnly(userId: string): Promise<boolean> {
+  try {
+    const admin = createAdminClient();
+    const { data, error } = await admin
+      .from("profiles")
+      .select("pro_until, trial_ends_at, plan_source")
+      .eq("id", userId)
+      .maybeSingle<{
+        pro_until: string | null;
+        trial_ends_at: string | null;
+        plan_source: string | null;
+      }>();
+    if (error || !data) return false;
+    if (data.plan_source === "admin_grant") return false;
+    if (data.pro_until && new Date(data.pro_until).getTime() > Date.now()) {
+      return false;
+    }
+    if (
+      data.trial_ends_at &&
+      new Date(data.trial_ends_at).getTime() > Date.now()
+    ) {
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
 }
