@@ -1,4 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { after } from "next/server";
+import { notifyAdminsOfReport } from "@/lib/safety/report-notify";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -49,12 +51,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
 
-  const { error } = await supabase.from("message_reports").insert({
-    message_id: messageId,
-    reporter_user_id: user.id,
-    reason,
-    notes,
-  });
+  const { data: inserted, error } = await supabase
+    .from("message_reports")
+    .insert({
+      message_id: messageId,
+      reporter_user_id: user.id,
+      reason,
+      notes,
+    })
+    .select("id")
+    .single<{ id: string }>();
 
   if (error) {
     // RLS violation reads as 42501 — surface a clean 403 so the client
@@ -63,6 +69,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "not_your_message" }, { status: 403 });
     }
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // Email the admin allowlist in after() so the client's submit never
+  // waits on Resend. Cuts moderation-queue review latency to inbox
+  // time. Never throws.
+  if (inserted?.id) {
+    after(async () => {
+      await notifyAdminsOfReport({
+        reportId: inserted.id,
+        messageId,
+        reporterUserId: user.id,
+        reason,
+        notes,
+      });
+    });
   }
 
   return NextResponse.json({ ok: true });
