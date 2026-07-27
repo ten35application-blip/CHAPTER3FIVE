@@ -147,8 +147,9 @@ export default async function AdminOverviewPage() {
   const staleCrons = cronJobList.filter((job) => {
     const row = latestByJob.get(job);
     if (!row) return true;
-    // 48h grace applies to most; check-in cron is hourly.
-    const graceMs = (job === "check-in" ? 3 : 48) * 60 * 60 * 1000;
+    // Vercel Hobby caps at once-per-day so all crons are daily-
+    // invoked. 48h grace = 2× cadence.
+    const graceMs = 48 * 60 * 60 * 1000;
     return Date.now() - new Date(row.created_at).getTime() > graceMs;
   });
   const erroredCrons = cronJobList.filter(

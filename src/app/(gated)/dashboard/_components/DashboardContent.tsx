@@ -63,8 +63,16 @@ export function DashboardContent({
     if (!welcomed) return;
     if (typeof window === "undefined") return;
     const url = new URL(window.location.href);
+    let touched = false;
     if (url.searchParams.has("welcomed")) {
       url.searchParams.delete("welcomed");
+      touched = true;
+    }
+    if (url.searchParams.has("claimed")) {
+      url.searchParams.delete("claimed");
+      touched = true;
+    }
+    if (touched) {
       window.history.replaceState(null, "", url.pathname + url.search);
     }
   }, [welcomed]);

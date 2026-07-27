@@ -156,13 +156,19 @@ export async function POST(request: NextRequest) {
     // Record a spend-ledger row so the rate-limiter above has
     // something to count against, and so /admin/revenue eventually
     // sees whisper cost per user. Estimated cents ≈ file bytes /
-    // ~180KB/min at typical opus → $0.006/min. Best-effort.
-    void admin.from("chat_spend_events").insert({
-      user_id: user.id,
-      cents: Math.max(1, Math.ceil((blob.size / 180_000) * 0.6)),
-      model: "whisper-1",
-      route: "whisper",
-    });
+    // ~180KB/min at typical opus → $0.006/min. Best-effort — must
+    // await (supabase-js builders are lazy thenables; `void expr`
+    // without await never fires the request).
+    try {
+      await admin.from("chat_spend_events").insert({
+        user_id: user.id,
+        cents: Math.max(1, Math.ceil((blob.size / 180_000) * 0.6)),
+        model: "whisper-1",
+        route: "whisper",
+      });
+    } catch (err) {
+      console.error("[whisper] spend ledger insert failed:", err);
+    }
     return NextResponse.json({ text });
   } catch (err) {
     console.error("whisper exception:", err);

@@ -195,7 +195,11 @@ export async function createIdentityFromPhoto(
   }
 
   // ---- 5. Insert + avatar upload ----------------------------------------
-  const { data: inserted, error: insertError } = await supabase
+  // Insert via admin client — 0067 rejects ALL user-role oracle
+  // inserts. Also sets creation_source='photo' which the 0091
+  // guard blocks on user INSERTs but allows via service_role.
+  const admin = createAdminClient();
+  const { data: inserted, error: insertError } = await admin
     .from("oracles")
     .insert({
       user_id: user.id,
@@ -233,8 +237,8 @@ export async function createIdentityFromPhoto(
 
   // Uploads go through the service role (bypasses storage RLS — same as
   // generated faces; see 0058/0060 notes). The user's photo IS the
-  // avatar: this path never calls Replicate.
-  const admin = createAdminClient();
+  // avatar: this path never calls Replicate. The `admin` client above
+  // is reused.
   const storagePath = `user-uploaded/${oracleId}.png`;
   const { error: uploadError } = await admin.storage
     .from("avatars")

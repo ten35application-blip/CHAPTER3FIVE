@@ -11,6 +11,7 @@ import {
   SynthesisError,
 } from "@/lib/identity/synthesize";
 import { canCreateOracle, claimFreeIdentitySlot } from "@/lib/subscription";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 const MAX_FINGERPRINT_REROLLS = 5;
@@ -112,8 +113,12 @@ export async function createIdentity(): Promise<void> {
     );
   }
 
-  // Insert the row. RLS's write policy scopes to auth.uid() = user_id.
-  const { data: inserted, error: insertError } = await supabase
+  // Insert via the admin client — 0067 (oracles_protect_backend_columns)
+  // rejects ALL user-role INSERTs on this table by design; identity
+  // creation is meant to route through server actions that use
+  // service_role. Ownership (user_id) is set explicitly here.
+  const admin = createAdminClient();
+  const { data: inserted, error: insertError } = await admin
     .from("oracles")
     .insert({
       user_id: user.id,
@@ -132,6 +137,7 @@ export async function createIdentity(): Promise<void> {
       text_burst_style: traits.textBurstStyle ?? null,
       chronotype: traits.chronotype ?? null,
       voice_examples: persona.voice_examples,
+      creation_source: "randomize",
     })
     .select("id")
     .single();

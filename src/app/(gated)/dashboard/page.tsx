@@ -36,9 +36,9 @@ export const dynamic = "force-dynamic";
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ welcomed?: string }>;
+  searchParams: Promise<{ welcomed?: string; claimed?: string }>;
 }) {
-  const { welcomed: welcomedId } = await searchParams;
+  const { welcomed: welcomedId, claimed: claimedFlag } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -235,6 +235,23 @@ export default async function DashboardPage({
     const match = contacts.find((c) => c.id === welcomedId);
     if (match) {
       welcomed = { oracleId: match.id, name: match.name };
+    }
+  } else if (claimedFlag === "1") {
+    // /legacy/[token] claim just landed. Grants were inserted for
+    // every is_legacy oracle the deceased owner built; pick the
+    // most recently created legacy oracle NOT owned by the caller
+    // (i.e. one they just inherited) as the welcome-banner target.
+    // If they inherited multiple, the rest still appear in Contacts.
+    const inheritedLegacy = (contactsRaw ?? [])
+      .filter((r) => r.is_legacy && r.user_id !== user.id)
+      .sort((a, b) =>
+        (a.created_at as string) < (b.created_at as string) ? 1 : -1,
+      )[0];
+    if (inheritedLegacy) {
+      welcomed = {
+        oracleId: inheritedLegacy.id as string,
+        name: (inheritedLegacy.name as string | null) ?? "your inherited identity",
+      };
     }
   }
 

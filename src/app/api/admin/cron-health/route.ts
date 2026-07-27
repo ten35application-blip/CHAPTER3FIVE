@@ -26,7 +26,11 @@ const JOBS: Record<string, { cadenceHours: number; graceHours: number }> = {
   reflect:             { cadenceHours: 24 * 7, graceHours: 24 * 9 },
   anniversaries:       { cadenceHours: 24, graceHours: 48 },
   "daily-question":    { cadenceHours: 24, graceHours: 48 },
-  "check-in":          { cadenceHours: 1, graceHours: 3 },
+  // vercel.json runs check-in daily at 16:00 UTC (Vercel Hobby's
+  // once-per-day cron limit). It's HOURLY-shaped internally
+  // (walks chat_blocks whose cooldown expired) but its INVOCATION
+  // is daily; the readout tracks invocation cadence.
+  "check-in":          { cadenceHours: 24, graceHours: 48 },
   "persona-outreach":  { cadenceHours: 24, graceHours: 48 },
   passing:             { cadenceHours: 24, graceHours: 48 },
 };
