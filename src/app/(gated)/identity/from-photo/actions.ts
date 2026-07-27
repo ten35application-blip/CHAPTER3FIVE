@@ -18,7 +18,7 @@ import {
   VisionAnalysisError,
   type SupportedImageMediaType,
 } from "@/lib/identity/vision";
-import { claimFreeIdentitySlot } from "@/lib/subscription";
+import { canCreateOracle, claimFreeIdentitySlot } from "@/lib/subscription";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -58,6 +58,31 @@ export async function createIdentityFromPhoto(
   } = await supabase.auth.getUser();
   if (!user) {
     redirect("/auth/signin");
+  }
+
+  // ---- 0. Quota gate ----------------------------------------------------
+  // Vision analysis + Replicate face-gen is expensive; refuse BEFORE
+  // paying for either. Free tier: 1 identity via free_identity_id.
+  // Pro: PRICING.totalIdentitiesPerPlan + extra_oracle_credits.
+  {
+    const gate = await canCreateOracle(user.id);
+    if (!gate.ok) {
+      if (gate.reason === "upgrade_required") {
+        redirect(
+          `/upgrade?next=${encodeURIComponent("/identity/from-photo")}&reason=identity`,
+        );
+      }
+      if (gate.reason === "quota_reached") {
+        redirectWithError(
+          ERROR_PATH,
+          `You're at ${gate.currentCount ?? "your"} of ${gate.quota ?? "the"} identities. Add an extra slot from Settings to make another.`,
+        );
+      }
+      redirectWithError(
+        ERROR_PATH,
+        "Couldn't check your plan. Try again in a moment.",
+      );
+    }
   }
 
   // ---- 1. Validate the upload -------------------------------------------

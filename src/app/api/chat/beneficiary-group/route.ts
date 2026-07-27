@@ -1,6 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { requireTermsAccepted } from "@/lib/legal/gate";
+import { isPro } from "@/lib/subscription";
+import { isTrialOnly, overFreeCap } from "@/lib/spendGovernor";
 import {
   generateBeneficiaryReply,
   type BeneficiaryRoomTurn,
@@ -32,6 +35,31 @@ export async function POST(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+
+  const legal = await requireTermsAccepted(supabase, user.id);
+  if (!legal.ok) return legal.response;
+
+  {
+    const requesterIsPro = await isPro(supabase);
+    const requesterTrialOnly = requesterIsPro
+      ? await isTrialOnly(user.id)
+      : false;
+    const spend = await overFreeCap(
+      user.id,
+      requesterIsPro,
+      requesterTrialOnly,
+    );
+    if (spend.over) {
+      return NextResponse.json(
+        {
+          error: "free_month_spend_cap",
+          current_cents: spend.current,
+          limit_cents: spend.limit,
+        },
+        { status: 402 },
+      );
+    }
+  }
 
   const roomId = String(body.room_id ?? "").trim();
   const message = String(body.message ?? "").trim();

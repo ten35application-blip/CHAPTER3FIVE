@@ -1,6 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { requireTermsAccepted } from "@/lib/legal/gate";
+import { isPro } from "@/lib/subscription";
+import { isTrialOnly, overFreeCap } from "@/lib/spendGovernor";
 import {
   judgeUrge,
   generateGroupReply,
@@ -48,6 +51,37 @@ export async function POST(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+
+  // Legal gate — mirrors /api/chat.
+  const legal = await requireTermsAccepted(supabase, user.id);
+  if (!legal.ok) return legal.response;
+
+  // Spend gate — group chat fans out to N Sonnet calls per request
+  // (urge + reply + cross-talk + farewell). Previously ungated: a
+  // trial user could burn the whole trial budget on one loud room.
+  // Applies to Free and trial-only; real subscribers + admin
+  // comped pass through.
+  {
+    const requesterIsPro = await isPro(supabase);
+    const requesterTrialOnly = requesterIsPro
+      ? await isTrialOnly(user.id)
+      : false;
+    const spend = await overFreeCap(
+      user.id,
+      requesterIsPro,
+      requesterTrialOnly,
+    );
+    if (spend.over) {
+      return NextResponse.json(
+        {
+          error: "free_month_spend_cap",
+          current_cents: spend.current,
+          limit_cents: spend.limit,
+        },
+        { status: 402 },
+      );
+    }
+  }
 
   const roomId = String(body.room_id ?? "").trim();
   const message = String(body.message ?? "").trim();

@@ -58,6 +58,25 @@ export async function POST(request: NextRequest) {
   const legal = await requireTermsAccepted(supabase, user.id);
   if (!legal.ok) return legal.response;
 
+  // Simple rate limit — 60 transcriptions per user per hour. Prevents
+  // a stuck client from re-transcribing the same 25 MB clip in a loop.
+  const admin = createAdminClient();
+  {
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const { count: recentCount } = await admin
+      .from("chat_spend_events")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("route", "whisper")
+      .gte("created_at", oneHourAgo);
+    if ((recentCount ?? 0) >= 60) {
+      return NextResponse.json(
+        { error: "rate_limited" },
+        { status: 429 },
+      );
+    }
+  }
+
   // Look up the answer row + storage path. RLS-respecting via the user
   // client — only the owner can read it.
   const { data: row } = await supabase
@@ -76,7 +95,6 @@ export async function POST(request: NextRequest) {
 
   // Download the audio bytes from storage. Use service-role to avoid
   // signed-URL expiry edge cases.
-  const admin = createAdminClient();
   const { data: blob, error: dlErr } = await admin.storage
     .from("archive-audio")
     .download(row.audio_storage_path);
@@ -84,6 +102,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { error: dlErr?.message ?? "Could not load audio" },
       { status: 500 },
+    );
+  }
+
+  // Belt-and-suspenders size check on the downloaded blob. 0092 caps
+  // the upload at 10 MB but Storage may have pre-0092 files that
+  // exceed it; refuse those too rather than pay OpenAI to eat them.
+  const MAX_TRANSCRIPTION_BYTES = 10 * 1024 * 1024;
+  if (blob.size > MAX_TRANSCRIPTION_BYTES) {
+    return NextResponse.json(
+      { error: "audio_too_large" },
+      { status: 413 },
     );
   }
 
@@ -124,6 +153,16 @@ export async function POST(request: NextRequest) {
         { status: 500 },
       );
     }
+    // Record a spend-ledger row so the rate-limiter above has
+    // something to count against, and so /admin/revenue eventually
+    // sees whisper cost per user. Estimated cents ≈ file bytes /
+    // ~180KB/min at typical opus → $0.006/min. Best-effort.
+    void admin.from("chat_spend_events").insert({
+      user_id: user.id,
+      cents: Math.max(1, Math.ceil((blob.size / 180_000) * 0.6)),
+      model: "whisper-1",
+      route: "whisper",
+    });
     return NextResponse.json({ text });
   } catch (err) {
     console.error("whisper exception:", err);

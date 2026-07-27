@@ -183,6 +183,94 @@ export async function claimFreeIdentitySlot(
 }
 
 /**
+ * Guard for identity creation ("can this user create another
+ * oracle right now?"). Applies to formula + photo flows; legacy
+ * has its own Pro gate at requirePro.
+ *
+ * Rules:
+ *   - Free tier: allowed only if they don't have their free
+ *     identity yet (profiles.free_identity_id is null).
+ *   - Pro / trial / admin: allowed up to
+ *     PRICING.totalIdentitiesPerPlan + extra_oracle_credits.
+ *     extra_oracle_credits is bumped by successful Stripe
+ *     'oracle' purchases (webhook writes via service role).
+ *
+ * Never throws. Fail-CLOSED on any error so a broken profile
+ * read doesn't accidentally let a user farm identities.
+ */
+export async function canCreateOracle(
+  userId: string,
+): Promise<
+  | { ok: true }
+  | {
+      ok: false;
+      reason: "upgrade_required" | "quota_reached" | "unknown";
+      currentCount?: number;
+      quota?: number;
+    }
+> {
+  try {
+    const admin = createAdminClient();
+    const [{ data: profile }, { count }] = await Promise.all([
+      admin
+        .from("profiles")
+        .select(
+          "email, pro_until, trial_ends_at, plan_source, free_identity_id, extra_oracle_credits",
+        )
+        .eq("id", userId)
+        .maybeSingle<{
+          email: string | null;
+          pro_until: string | null;
+          trial_ends_at: string | null;
+          plan_source: string | null;
+          free_identity_id: string | null;
+          extra_oracle_credits: number | null;
+        }>(),
+      admin
+        .from("oracles")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .is("deleted_at", null),
+    ]);
+
+    if (!profile) return { ok: false, reason: "unknown" };
+
+    const now = Date.now();
+    const isProUser =
+      isAdmin(profile.email) ||
+      (profile.pro_until && new Date(profile.pro_until).getTime() > now) ||
+      (profile.trial_ends_at &&
+        new Date(profile.trial_ends_at).getTime() > now);
+
+    const currentCount = count ?? 0;
+
+    if (!isProUser) {
+      // Free tier — one identity, ever. Once free_identity_id is
+      // set (via claimFreeIdentitySlot), they need Pro to make more.
+      if (profile.free_identity_id) {
+        return { ok: false, reason: "upgrade_required", currentCount, quota: 1 };
+      }
+      return { ok: true };
+    }
+
+    const quota =
+      PRICING.totalIdentitiesPerPlan + (profile.extra_oracle_credits ?? 0);
+    if (currentCount >= quota) {
+      return {
+        ok: false,
+        reason: "quota_reached",
+        currentCount,
+        quota,
+      };
+    }
+    return { ok: true };
+  } catch (err) {
+    console.error("[subscription] canCreateOracle failed:", err);
+    return { ok: false, reason: "unknown" };
+  }
+}
+
+/**
  * Free-tier monthly message cap check. Counts USER messages sent
  * this calendar month (in the caller's timezone-agnostic UTC month
  * bucket) against PRICING.freeMessagesPerMonth. Pro/admin/trial users

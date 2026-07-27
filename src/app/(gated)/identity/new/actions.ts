@@ -10,7 +10,7 @@ import {
   synthesizePersona,
   SynthesisError,
 } from "@/lib/identity/synthesize";
-import { claimFreeIdentitySlot } from "@/lib/subscription";
+import { canCreateOracle, claimFreeIdentitySlot } from "@/lib/subscription";
 import { createClient } from "@/lib/supabase/server";
 
 const MAX_FINGERPRINT_REROLLS = 5;
@@ -35,6 +35,28 @@ export async function createIdentity(): Promise<void> {
 
   if (!user) {
     redirect("/auth/signin");
+  }
+
+  // Quota gate. Free tier: 1 identity via free_identity_id. Pro:
+  // PRICING.totalIdentitiesPerPlan + extra_oracle_credits (bumped
+  // by Stripe 'oracle' purchases). Fail-closed on unknown.
+  const gate = await canCreateOracle(user.id);
+  if (!gate.ok) {
+    if (gate.reason === "upgrade_required") {
+      redirect(
+        `/upgrade?next=${encodeURIComponent("/identity/new")}&reason=identity`,
+      );
+    }
+    if (gate.reason === "quota_reached") {
+      redirectWithError(
+        "/identity/new",
+        `You're at ${gate.currentCount ?? "your"} of ${gate.quota ?? "the"} identities. Add an extra slot from Settings to make another.`,
+      );
+    }
+    redirectWithError(
+      "/identity/new",
+      "Couldn't check your plan. Try again in a moment.",
+    );
   }
 
   // Roll + fingerprint, retrying only on unique-constraint collisions.
