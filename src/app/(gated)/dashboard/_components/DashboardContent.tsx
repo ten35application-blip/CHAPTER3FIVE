@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { SwipeRow } from "./SwipeRow";
 import {
   archiveIdentity,
@@ -54,6 +54,20 @@ export function DashboardContent({
 }: Props) {
   const [query, setQuery] = useState("");
   const [dismissedWelcome, setDismissedWelcome] = useState(false);
+
+  // Strip ?welcomed= from the URL after first render so a refresh hours
+  // later doesn't re-fire the "X is now in your contacts" banner. The
+  // server-computed welcomed prop still drives the initial render; the
+  // history swap is display-only cleanup.
+  useEffect(() => {
+    if (!welcomed) return;
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.has("welcomed")) {
+      url.searchParams.delete("welcomed");
+      window.history.replaceState(null, "", url.pathname + url.search);
+    }
+  }, [welcomed]);
 
   const isLocked = (id: string) => !isPro && id !== freeIdentityId;
 

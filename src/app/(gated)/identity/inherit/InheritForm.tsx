@@ -15,6 +15,11 @@ import { redeemInheritCode } from "./actions";
  * what they're about to add to their contacts.
  */
 export function InheritForm() {
+  // Two distinct states: `checked` is the checkbox itself, `agreed` is
+  // the deliberate confirmation that unlocks the code form. Splitting
+  // them keeps the Continue button load-bearing — otherwise the box tap
+  // alone advances and the button is dead chrome.
+  const [checked, setChecked] = useState(false);
   const [agreed, setAgreed] = useState(false);
   const [code, setCode] = useState("");
   const [pending, startTransition] = useTransition();
@@ -51,8 +56,8 @@ export function InheritForm() {
         <label className="flex cursor-pointer items-start gap-3 rounded-xl bg-warm-700/30 px-4 py-3 text-sm text-warm-100 hover:bg-warm-700/40">
           <input
             type="checkbox"
-            checked={agreed}
-            onChange={(e) => setAgreed(e.target.checked)}
+            checked={checked}
+            onChange={(e) => setChecked(e.target.checked)}
             className="mt-0.5 h-4 w-4 accent-coral"
           />
           <span className="leading-relaxed">
@@ -84,7 +89,7 @@ export function InheritForm() {
         <button
           type="button"
           onClick={() => setAgreed(true)}
-          disabled={!agreed}
+          disabled={!checked}
           className="bg-gradient-cta flex h-13 w-full items-center justify-center rounded-full text-base font-semibold text-white shadow-[0_10px_28px_-10px_rgba(217,115,89,0.5)] transition-all hover:-translate-y-px active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40"
         >
           Continue
