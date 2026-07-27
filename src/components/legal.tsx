@@ -39,11 +39,12 @@ export function LegalShell({
   contactEmail: string;
   contactNote: string;
   /** Route of the current page, so the footer links skip it. */
-  currentPath: "/terms" | "/privacy" | "/guidelines";
+  currentPath: "/terms" | "/eula" | "/privacy" | "/guidelines";
 }) {
   const otherPages = (
     [
       { href: "/terms", label: "Terms of Service" },
+      { href: "/eula", label: "End-User License Agreement" },
       { href: "/privacy", label: "Privacy Policy" },
       { href: "/guidelines", label: "Community Guidelines" },
     ] as const

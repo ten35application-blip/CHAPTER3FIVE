@@ -80,9 +80,33 @@ export async function POST(request: NextRequest) {
     // it in the webhook.
     const { data: profile } = await admin
       .from("profiles")
-      .select("stripe_customer_id")
+      .select(
+        "stripe_customer_id, stripe_subscription_id, subscription_status",
+      )
       .eq("id", user.id)
-      .maybeSingle<{ stripe_customer_id: string | null }>();
+      .maybeSingle<{
+        stripe_customer_id: string | null;
+        stripe_subscription_id: string | null;
+        subscription_status: string | null;
+      }>();
+
+    // Already-subscribed guard. Without this, a crafted second POST
+    // (or a client that races the redirect) creates a second Stripe
+    // subscription for the same user and orphans the first when
+    // stripe_subscription_id gets overwritten by the second webhook.
+    // The 409 tells the client to send the user to the billing portal
+    // (Manage subscription) instead of starting a new one.
+    if (
+      profile?.stripe_subscription_id &&
+      profile.subscription_status &&
+      profile.subscription_status !== "canceled" &&
+      profile.subscription_status !== "incomplete_expired"
+    ) {
+      return NextResponse.json(
+        { error: "already_subscribed" },
+        { status: 409 },
+      );
+    }
 
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",

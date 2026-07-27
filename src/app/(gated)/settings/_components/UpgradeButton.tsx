@@ -48,6 +48,15 @@ export function UpgradeButton({
                 body: JSON.stringify({ purpose: "pro_monthly" }),
               });
               if (!res.ok) {
+                const body = (await res.json().catch(() => null)) as
+                  | { error?: string }
+                  | null;
+                if (body?.error === "already_subscribed") {
+                  setError(
+                    "You already have an active subscription. Head to Settings → Manage subscription.",
+                  );
+                  return;
+                }
                 setError("Couldn't start checkout. Try again.");
                 return;
               }

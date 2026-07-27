@@ -9,6 +9,7 @@ import {
   MONTHLY_PRICE_LABEL,
   PRICING,
 } from "@/lib/pricing";
+import { DataExportButton } from "./_components/DataExportButton";
 import { ManageSubscriptionButton } from "./_components/ManageSubscriptionButton";
 import { NameField } from "./_components/NameField";
 import { PhotoUploader } from "./_components/PhotoUploader";
@@ -69,7 +70,7 @@ export default async function SettingsPage({
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "avatar_url, full_name, stripe_customer_id, current_period_end, cancel_at_period_end, plan_source",
+      "avatar_url, full_name, stripe_customer_id, current_period_end, cancel_at_period_end, plan_source, trial_ends_at",
     )
     .eq("id", user.id)
     .maybeSingle();
@@ -93,23 +94,29 @@ export default async function SettingsPage({
     (profile?.current_period_end as string | null) ?? null;
   const cancelAtPeriodEnd = Boolean(profile?.cancel_at_period_end);
   const planSource = (profile?.plan_source as string | null) ?? "none";
+  const trialEndsAt = (profile?.trial_ends_at as string | null) ?? null;
+  const trialActive =
+    trialEndsAt !== null && new Date(trialEndsAt).getTime() > Date.now();
   // Only offer the Stripe Checkout button when Wilson has wired the
   // price env. Absent env → the Upgrade button falls through to /upgrade
   // which still has the mailto flow.
   const checkoutEnabled = Boolean(process.env.STRIPE_PRICE_ID_PRO_MONTHLY);
 
   const planName = pro
-    ? planSource === "admin_grant"
-      ? "Pro (comped)"
-      : "Pro plan"
+    ? trialActive && !stripeCustomerId
+      ? "Trial (free)"
+      : planSource === "admin_grant" && !stripeCustomerId
+        ? "Pro (comped)"
+        : "Pro plan"
     : "Free plan";
-  const periodEndLabel = currentPeriodEnd
-    ? new Date(currentPeriodEnd).toLocaleDateString(undefined, {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      })
-    : null;
+  const dateLabel = (iso: string) =>
+    new Date(iso).toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  const periodEndLabel = currentPeriodEnd ? dateLabel(currentPeriodEnd) : null;
+  const trialEndLabel = trialActive && trialEndsAt ? dateLabel(trialEndsAt) : null;
 
   return (
     <main className="min-h-dvh flex-1 pb-16">
@@ -172,13 +179,22 @@ export default async function SettingsPage({
             left and at least one identity exists. */}
         <Section label="Plan" accent="chapter3five+" icon={<SparkIcon />}>
           <IconRow icon={<StarIcon />} label="Plan" value={planName} />
-          {pro && periodEndLabel ? (
+          {pro && periodEndLabel && stripeCustomerId ? (
             <>
               <Divider />
               <IconRow
                 icon={<StarIcon />}
                 label={cancelAtPeriodEnd ? "Cancels on" : "Renews on"}
                 value={periodEndLabel}
+              />
+            </>
+          ) : pro && trialActive && trialEndLabel && !stripeCustomerId ? (
+            <>
+              <Divider />
+              <IconRow
+                icon={<StarIcon />}
+                label="Trial ends"
+                value={trialEndLabel}
               />
             </>
           ) : null}
@@ -193,8 +209,20 @@ export default async function SettingsPage({
                   in the Stripe billing portal.
                 </p>
               </>
+            ) : pro && trialActive ? (
+              <>
+                <UpgradeButton
+                  checkoutEnabled={checkoutEnabled}
+                  fallbackHref="/upgrade"
+                  label="Convert to Pro"
+                />
+                <p className="mt-3 text-center text-xs text-warm-300">
+                  Start Pro now to keep everything past{" "}
+                  {trialEndLabel ?? "your trial end"}. Same {MONTHLY_PRICE_LABEL}/month, cancel any time.
+                </p>
+              </>
             ) : pro ? (
-              // Admin-granted or trial Pro — no Stripe customer to manage.
+              // Admin-granted Pro — no Stripe customer, no trial.
               <p className="text-center text-xs text-warm-300">
                 You&rsquo;re on Pro. No card on file — enjoy.
               </p>
@@ -286,6 +314,13 @@ export default async function SettingsPage({
               />
               <Divider />
               <IconNavRow
+                href="/eula"
+                icon={<ShieldIcon />}
+                label="End-User License Agreement"
+                value="Read"
+              />
+              <Divider />
+              <IconNavRow
                 href="/privacy"
                 icon={<LockIcon />}
                 label="Privacy Policy"
@@ -305,6 +340,13 @@ export default async function SettingsPage({
                 label="Data deletion"
                 value="How it works"
               />
+            </FinePrintGroup>
+            {/* "Your data" — GDPR / CCPA / Play Data Safety portability
+                lives here. The delete-account row still sits below the
+                fine print in a red block, so this group is intentionally
+                the read/export-only path. */}
+            <FinePrintGroup label="Your data">
+              <DataExportButton />
             </FinePrintGroup>
             <FinePrintGroup label="Support">
               <IconNavRow

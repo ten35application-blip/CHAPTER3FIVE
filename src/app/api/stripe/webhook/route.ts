@@ -308,8 +308,14 @@ async function handleInvoicePaid(event: Stripe.Event, admin: AdminClient) {
   // math has something to sum. The initial checkout also writes a
   // paid row via handleProMonthlyCheckout; skip on the first invoice
   // (billing_reason='subscription_create') so we don't double-book.
+  // Idempotency: 0085 adds a partial unique index on
+  // payments.stripe_event_id so a concurrent duplicate delivery of
+  // the same invoice.paid collides on 23505 and the losing insert
+  // becomes a no-op. amount_cents mirrors invoice.amount_paid so
+  // coupon-discounted renewals ledger the true charged amount rather
+  // than the sticker price.
   if (invoice.billing_reason !== "subscription_create") {
-    await admin.from("payments").insert({
+    const { error: ledgerErr } = await admin.from("payments").insert({
       user_id: profile.id,
       stripe_payment_intent_id: invoicePaymentIntentId(invoice),
       amount_cents: invoice.amount_paid ?? 0,
@@ -319,6 +325,12 @@ async function handleInvoicePaid(event: Stripe.Event, admin: AdminClient) {
       stripe_event_id: event.id,
       paid_at: new Date().toISOString(),
     });
+    if (ledgerErr && ledgerErr.code !== "23505") {
+      console.error(
+        "[stripe/webhook] renewal ledger insert failed:",
+        ledgerErr,
+      );
+    }
   }
 
   await recordEvent(event, admin, profile.id);
@@ -407,14 +419,17 @@ async function handleSubscriptionDeleted(
 
   // Do NOT clear pro_until — the user paid for the period. They
   // keep Pro until pro_until (= last period end) passes naturally.
-  // Just clear the subscription id + mark cancelled so we don't
-  // try to renew a dead subscription.
+  // Clear the subscription id + status + period mirror fields so
+  // Settings stops rendering "Renews on X" (or "Cancels on X") for
+  // a dead sub. pro_until still drives the isPro check; the mirror
+  // columns are display-only.
   await admin
     .from("profiles")
     .update({
       stripe_subscription_id: null,
       subscription_status: sub.status,
-      cancel_at_period_end: false,
+      cancel_at_period_end: null,
+      current_period_end: null,
     })
     .eq("id", profile.id);
 
@@ -434,6 +449,13 @@ function subPeriodEndIso(sub: Stripe.Subscription): string {
     (item as unknown as { current_period_end?: number } | undefined)
       ?.current_period_end ?? null;
   if (typeof unix !== "number") {
+    // Loud on purpose. A silent fallback would silently de-Pro the
+    // user in 60s. Logging here surfaces in Vercel + Stripe's failing-
+    // webhook alerts so Wilson notices when the shape moves again.
+    console.error(
+      "[stripe/webhook] subPeriodEndIso: items[0].current_period_end missing on sub",
+      sub.id,
+    );
     return new Date(Date.now() + 60_000).toISOString();
   }
   return new Date(unix * 1000).toISOString();
