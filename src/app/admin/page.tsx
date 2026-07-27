@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { isAdmin } from "@/lib/admin/allowlist";
 import {
   createAdminClient,
   daysAgo,
@@ -93,10 +94,15 @@ export default async function AdminOverviewPage() {
   // trial_ends_at in future = trialer, plan_source='admin_grant'
   // = comped, everything else = free. Also count cancellations
   // (subscription_status='canceled' or cancel_at_period_end=true).
+  // Allowlisted admins are checked FIRST (same ordering rule as the
+  // settings plan label): they're Pro-forever via isAdmin, and many
+  // carry a stale trial_ends_at from before they were allowlisted —
+  // without this they'd inflate "On trial" (and drag the conversion
+  // rate) or pad "Free".
   const { data: planRows } = await supabase
     .from("profiles")
     .select(
-      "pro_until, trial_ends_at, plan_source, stripe_subscription_id, subscription_status, cancel_at_period_end, deleted_at",
+      "email, pro_until, trial_ends_at, plan_source, stripe_subscription_id, subscription_status, cancel_at_period_end, deleted_at",
     );
   const nowMs = Date.now();
   let paidPro = 0;
@@ -116,7 +122,9 @@ export default async function AdminOverviewPage() {
     const trialActive =
       row.trial_ends_at &&
       new Date(row.trial_ends_at as string).getTime() > nowMs;
-    if (row.plan_source === "admin_grant" && proActive) {
+    if (isAdmin(row.email as string | null)) {
+      comped += 1;
+    } else if (row.plan_source === "admin_grant" && proActive) {
       comped += 1;
     } else if (row.stripe_subscription_id && proActive) {
       paidPro += 1;
@@ -317,7 +325,11 @@ export default async function AdminOverviewPage() {
           label="Comped (admin)"
           value={comped.toLocaleString()}
           href="/admin/users?plan=comped"
-          hint={comped > 0 ? "admin_grant plan_source" : "no comped accounts"}
+          hint={
+            comped > 0
+              ? "allowlist admins + admin_grant"
+              : "no comped accounts"
+          }
         />
         <MetricCard
           label="Free"

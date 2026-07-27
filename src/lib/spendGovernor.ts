@@ -19,6 +19,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { PRICING } from "@/lib/pricing";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isAdmin } from "@/lib/admin/allowlist";
 
 /** Anthropic list-price snapshot as of 2026-07. Cents per MILLION
  *  tokens. Cache-read tokens are ~10% of input rate; cache-creation
@@ -193,14 +194,21 @@ export async function isTrialOnly(userId: string): Promise<boolean> {
     const admin = createAdminClient();
     const { data, error } = await admin
       .from("profiles")
-      .select("pro_until, trial_ends_at, plan_source")
+      .select("email, pro_until, trial_ends_at, plan_source")
       .eq("id", userId)
       .maybeSingle<{
+        email: string | null;
         pro_until: string | null;
         trial_ends_at: string | null;
         plan_source: string | null;
       }>();
     if (error || !data) return false;
+    // Allowlisted admins are Pro via isAdmin regardless of what's in
+    // their profile row. A stale trial_ends_at from before they were
+    // allowlisted must NOT flag them trial-only, or the Free-tier
+    // spend cap starts throttling Wilson's own account. Same ordering
+    // rule as the settings plan label: admin wins before trial.
+    if (isAdmin(data.email)) return false;
     if (data.plan_source === "admin_grant") return false;
     if (data.pro_until && new Date(data.pro_until).getTime() > Date.now()) {
       return false;

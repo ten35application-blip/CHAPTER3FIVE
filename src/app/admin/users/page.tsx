@@ -122,13 +122,22 @@ export default async function AdminUsersPage({
   const profileById = new Map(profiles.map((p) => [p.id, p]));
   const termsByUser = new Map(profiles.map((p) => [p.id, p.terms_accepted_at]));
 
-  // Resolve subscription state per user: paid / trial / comped /
-  // cancelling / free. Mirrors the aggregate breakdown on /admin.
+  // Resolve subscription state per user: admin / paid / trial /
+  // comped / cancelling / free. Mirrors the aggregate breakdown on
+  // /admin. Allowlisted admins resolve FIRST (same ordering rule as
+  // the settings plan label) — they're Pro-forever via isAdmin, and a
+  // stale trial_ends_at from before allowlisting must not read as
+  // "Trial" (or "Free" once it lapses). Tone "comped" keeps them in
+  // the same cohort the /admin "Comped (admin)" card counts.
   const nowMs = Date.now();
-  function planLabel(userId: string): {
+  function planLabel(
+    userId: string,
+    email: string | null | undefined,
+  ): {
     label: string;
     tone: PlanTone;
   } {
+    if (isAdmin(email)) return { label: "Admin", tone: "comped" };
     const p = profileById.get(userId);
     if (!p) return { label: "Free", tone: "free" };
     const proActive =
@@ -179,7 +188,9 @@ export default async function AdminUsersPage({
   const needle = q.trim().toLowerCase();
   const filtered = users
     .filter((u) => !needle || (u.email ?? "").toLowerCase().includes(needle))
-    .filter((u) => !activeFilter || planLabel(u.id).tone === activeFilter)
+    .filter(
+      (u) => !activeFilter || planLabel(u.id, u.email).tone === activeFilter,
+    )
     .filter(
       (u) => sinceMs === null || new Date(u.created_at).getTime() >= sinceMs,
     )
@@ -361,7 +372,7 @@ export default async function AdminUsersPage({
                 })()}
               </span>
               {(() => {
-                const plan = planLabel(u.id);
+                const plan = planLabel(u.id, u.email);
                 return (
                   <span
                     className={`hidden sm:block ${planToneClass[plan.tone]}`}
