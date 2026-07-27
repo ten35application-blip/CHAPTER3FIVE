@@ -61,6 +61,14 @@ export default function PrivacyPage() {
             authentication data (a hashed password or sign-in tokens).
           </li>
           <li>
+            <strong>Date of birth</strong> — captured once at signup so
+            we can verify you&rsquo;re 18 or older. We store the date
+            you gave us (not your government-issued ID) and use it to
+            gate access to the app; we don&rsquo;t use it for
+            marketing, birthday emails, or anywhere outside age
+            verification.
+          </li>
+          <li>
             <strong>Your answers</strong> — the responses you write to
             identity questions, including legacy answers you record for
             someone to inherit.

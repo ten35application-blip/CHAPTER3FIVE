@@ -18,7 +18,7 @@ const toc: TocItem[] = [
   { id: "license", label: "The license we grant you" },
   { id: "restrictions", label: "What you can't do with that license" },
   { id: "content", label: "Ownership of the content" },
-  { id: "ios", label: "iOS App Store terms" },
+  { id: "mobile", label: "Mobile application terms" },
   { id: "termination", label: "When this license ends" },
   { id: "warranty-liability", label: "Warranty and liability" },
   { id: "governing-law", label: "Governing law" },
@@ -146,11 +146,21 @@ export default function EulaPage() {
         </p>
       </LegalSection>
 
-      <LegalSection id="ios" number={5} title="iOS App Store terms">
+      <LegalSection id="mobile" number={5} title="Mobile application terms">
         <p>
-          If you obtained chapter3five through Apple&rsquo;s App Store,
-          the following additional terms apply and, where they conflict
-          with anything else in this document, take precedence:
+          If you obtained chapter3five through a mobile application
+          store &mdash; whether Apple&rsquo;s App Store, Google Play,
+          or any other store we distribute through &mdash; the
+          following additional terms apply and, where they conflict
+          with anything else in this document, take precedence.
+        </p>
+        <p>
+          These terms are drafted to satisfy Apple&rsquo;s
+          &ldquo;Instructions for Minimum Terms of Developer&rsquo;s
+          EULA&rdquo; where Apple is named explicitly. When you obtain
+          the application from a different store, the same substantive
+          rules apply and any references to Apple should be read as
+          referring to the operator of the store you downloaded from.
         </p>
         <ul>
           <li>

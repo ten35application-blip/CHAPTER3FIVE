@@ -3,17 +3,33 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { redirectWithError } from "@/lib/action-errors";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const metadata = {
   title: "Make an account · chapter3five",
 };
+
+/**
+ * Whole-year age at reference-date. Uses month/day comparison rather
+ * than a divide by 365.25 so someone whose 18th birthday is today is
+ * exactly 18 and passes.
+ */
+function ageOnDate(dob: Date, on: Date): number {
+  let age = on.getUTCFullYear() - dob.getUTCFullYear();
+  const beforeBirthday =
+    on.getUTCMonth() < dob.getUTCMonth() ||
+    (on.getUTCMonth() === dob.getUTCMonth() &&
+      on.getUTCDate() < dob.getUTCDate());
+  if (beforeBirthday) age -= 1;
+  return age;
+}
 
 async function signUp(formData: FormData) {
   "use server";
 
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
-  const eighteen = formData.get("eighteen");
+  const dobRaw = String(formData.get("date_of_birth") ?? "").trim();
 
   if (!email || !password) {
     redirectWithError("/auth/signup", "Enter your email and password.");
@@ -21,12 +37,37 @@ async function signUp(formData: FormData) {
   if (password.length < 8) {
     redirectWithError("/auth/signup", "Password needs at least 8 characters.");
   }
-  if (!eighteen) {
-    redirectWithError("/auth/signup", "You have to be 18 or older.");
+  if (!dobRaw || !/^\d{4}-\d{2}-\d{2}$/.test(dobRaw)) {
+    redirectWithError("/auth/signup", "Please enter your date of birth.");
+  }
+  const dob = new Date(`${dobRaw}T00:00:00Z`);
+  if (Number.isNaN(dob.getTime())) {
+    redirectWithError("/auth/signup", "That date of birth doesn't look right.");
+  }
+  // Sanity cap: reject obviously bogus dates (future / >120y ago). No
+  // one has a legitimate signup with a birthday in the future.
+  const now = new Date();
+  if (dob > now) {
+    redirectWithError("/auth/signup", "Date of birth can't be in the future.");
+  }
+  const age = ageOnDate(dob, now);
+  if (age < 18) {
+    // Explicit copy: chapter3five is 18+ and we don't want to be
+    // ambiguous with under-18 visitors.
+    redirectWithError(
+      "/auth/signup",
+      "You have to be 18 or older to use chapter3five.",
+    );
+  }
+  if (age > 120) {
+    redirectWithError("/auth/signup", "That date of birth doesn't look right.");
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signUp({ email, password });
+  const { data: signUpData, error } = await supabase.auth.signUp({
+    email,
+    password,
+  });
 
   if (error) {
     const msg = error.message.toLowerCase();
@@ -51,6 +92,27 @@ async function signUp(formData: FormData) {
     );
   }
 
+  // Persist DOB via the admin client — 0090 puts date_of_birth in the
+  // protect_billing_columns denylist so a user can't PATCH it later
+  // via the anon key to change the age they registered as. Best-
+  // effort: signup succeeded, we don't want to bounce the user if
+  // the DOB write hits a transient error; log for follow-up.
+  const newUserId = signUpData?.user?.id;
+  if (newUserId) {
+    try {
+      const admin = createAdminClient();
+      const { error: dobErr } = await admin
+        .from("profiles")
+        .update({ date_of_birth: dobRaw })
+        .eq("id", newUserId);
+      if (dobErr) {
+        console.error("[signup] date_of_birth write failed:", dobErr);
+      }
+    } catch (err) {
+      console.error("[signup] date_of_birth admin client threw:", err);
+    }
+  }
+
   // Straight to the acceptance gate — the (gated) layout would bounce
   // them there from /dashboard anyway, but going direct skips a hop.
   redirect("/onboarding");
@@ -62,6 +124,12 @@ export default async function SignupPage({
   searchParams: Promise<{ error?: string }>;
 }) {
   const { error } = await searchParams;
+  // Client-side max hint: the date-of-birth input caps at today - 18
+  // years, so the native date picker won't let someone even select
+  // an under-18 date. Server-side check still validates on submit.
+  const maxDobDate = new Date();
+  maxDobDate.setUTCFullYear(maxDobDate.getUTCFullYear() - 18);
+  const maxDob = maxDobDate.toISOString().slice(0, 10);
 
   return (
     <main className="flex min-h-dvh flex-1 flex-col items-center justify-center px-6 py-12">
@@ -126,14 +194,21 @@ export default async function SignupPage({
             />
           </label>
 
-          <label className="mt-2 flex cursor-pointer items-start gap-3 text-sm text-warm-200">
+          <label className="flex flex-col gap-1.5">
+            <span className="text-sm font-medium text-warm-200">
+              Date of birth
+            </span>
             <input
-              type="checkbox"
-              name="eighteen"
+              type="date"
+              name="date_of_birth"
+              autoComplete="bday"
               required
-              className="mt-0.5 h-5 w-5 accent-coral"
+              max={maxDob}
+              className="h-12 rounded-2xl bg-ink-soft px-4 text-base text-warm-50 outline-none ring-1 ring-warm-700 placeholder:text-warm-400 focus:ring-2 focus:ring-coral"
             />
-            <span>I&apos;m 18 or older.</span>
+            <span className="text-xs text-warm-400">
+              You must be 18 or older to use chapter3five.
+            </span>
           </label>
 
           <button

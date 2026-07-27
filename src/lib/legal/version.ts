@@ -17,8 +17,12 @@
  *                 (Moderation + Embeddings + Whisper) with corrected
  *                 zero-retention scope; effective-date banner now
  *                 driven from this constant so consent + display match.
+ *   2026-07-27c — added Replicate + Expo subprocessors; EULA §5
+ *                 rewritten to cover mobile applications (Apple + Play)
+ *                 instead of iOS specifically; privacy: DOB now
+ *                 collected at signup for age verification.
  */
-export const CURRENT_TERMS_VERSION = "2026-07-27b";
+export const CURRENT_TERMS_VERSION = "2026-07-27c";
 
 /**
  * True only if the profile has accepted exactly the current version.
