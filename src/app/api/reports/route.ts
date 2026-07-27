@@ -68,6 +68,13 @@ export async function POST(request: NextRequest) {
     if (error.code === "42501") {
       return NextResponse.json({ error: "not_your_message" }, { status: 403 });
     }
+    // 0082 partial-unique index: one PENDING report per (message,
+    // reporter). Duplicate submissions land here — surface 409 so the
+    // client renders "already reported" instead of firing a second
+    // admin email.
+    if (error.code === "23505") {
+      return NextResponse.json({ error: "already_reported" }, { status: 409 });
+    }
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 

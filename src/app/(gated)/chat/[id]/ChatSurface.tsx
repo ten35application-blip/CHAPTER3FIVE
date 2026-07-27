@@ -648,7 +648,14 @@ export default function ChatSurface({
       });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
-        throw new Error(body?.error ?? "Report failed. Try again.");
+        const code = body?.error;
+        if (code === "already_reported") {
+          throw new Error("You've already reported this message.");
+        }
+        if (code === "not_your_message") {
+          throw new Error("You can only report messages in your own chats.");
+        }
+        throw new Error("Report failed. Try again.");
       }
     },
     [],

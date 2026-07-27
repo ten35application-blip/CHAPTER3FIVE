@@ -27,7 +27,9 @@ export async function notifyAdminsOfReport(args: {
     // Hydrate context: the reported message + its persona + the
     // reporter's email. All best-effort — email still ships even if
     // one lookup fails.
-    const [{ data: msg }, { data: reporter }] = await Promise.all([
+    // allSettled — either hydration rejecting shouldn't kill the email;
+    // we degrade to placeholder text instead.
+    const [msgRes, reporterRes] = await Promise.allSettled([
       admin
         .from("messages")
         .select("role, content, oracle_id, created_at")
@@ -40,6 +42,10 @@ export async function notifyAdminsOfReport(args: {
         }>(),
       admin.auth.admin.getUserById(args.reporterUserId),
     ]);
+    const msg =
+      msgRes.status === "fulfilled" ? msgRes.value.data : null;
+    const reporter =
+      reporterRes.status === "fulfilled" ? reporterRes.value.data : null;
 
     let oracleName = "unknown persona";
     if (msg?.oracle_id) {
@@ -50,6 +56,12 @@ export async function notifyAdminsOfReport(args: {
         .maybeSingle<{ name: string }>();
       if (oracle?.name) oracleName = oracle.name;
     }
+    // Oracle names are user-authored — strip newlines + cap so a
+    // crafted name can't break Resend's subject line.
+    const safeOracleName = oracleName
+      .replace(/[\r\n]+/g, " ")
+      .trim()
+      .slice(0, 80) || "unknown persona";
 
     const reporterEmail = reporter?.user?.email ?? "unknown reporter";
     const excerpt = (msg?.content ?? "")
@@ -57,18 +69,18 @@ export async function notifyAdminsOfReport(args: {
       .replace(/\s+/g, " ")
       .slice(0, 500);
 
-    const subject = `[chapter3five reports] ${args.reason} — ${oracleName}`;
+    const base =
+      process.env.NEXT_PUBLIC_APP_URL ?? "https://chapter3five.app";
+    const subject = `[chapter3five reports] ${args.reason} — ${safeOracleName}`;
     const body = [
       `A new user report just landed.`,
       ``,
       `Reason: ${args.reason}`,
       `Reporter: ${reporterEmail}`,
-      `Persona: ${oracleName}`,
+      `Persona: ${safeOracleName}`,
       `Message role: ${msg?.role ?? "unknown"}`,
       `Message id: ${args.messageId}`,
-      msg?.created_at
-        ? `Message sent: ${new Date(msg.created_at).toLocaleString()}`
-        : ``,
+      msg?.created_at ? `Message sent (UTC): ${msg.created_at}` : ``,
       ``,
       `Reported content:`,
       `"""`,
@@ -78,7 +90,7 @@ export async function notifyAdminsOfReport(args: {
       args.notes ? `Reporter notes:\n${args.notes}` : ``,
       ``,
       `Review + resolve in the admin queue:`,
-      `https://chapter3five.app/admin/reports`,
+      `${base}/admin/reports`,
     ]
       .filter(Boolean)
       .join("\n");
