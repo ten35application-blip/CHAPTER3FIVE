@@ -276,6 +276,39 @@ export default function ChatSurface({
     bottomRef.current?.scrollIntoView({ block: "end" });
   }, [messages, streamText, isStreaming]);
 
+  // Empty-thread welcome — POST to /api/chat/welcome so the persona
+  // sends the first message rather than leaving the heir/user staring
+  // at a blank thread. Idempotent on the server side (skips if any
+  // messages exist), so a race between mount and re-render doesn't
+  // double-send. When it succeeds, refresh the RSC layer to pull the
+  // newly-inserted assistant message into `messages`.
+  const welcomeTriedRef = useRef(false);
+  useEffect(() => {
+    if (welcomeTriedRef.current) return;
+    if (initialMessages.length > 0) return;
+    if (isStreaming) return;
+    welcomeTriedRef.current = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/chat/welcome", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ oracle_id: oracleId }),
+        });
+        if (!res.ok) return;
+        const body = (await res.json().catch(() => null)) as
+          | { sent?: boolean }
+          | null;
+        if (body?.sent) {
+          // Force the RSC segment to re-fetch the messages list.
+          window.location.reload();
+        }
+      } catch {
+        // Silent — the empty-thread state is still fine as a fallback.
+      }
+    })();
+  }, [initialMessages.length, isStreaming, oracleId]);
+
   /** Core send/stream loop. `text === null` means retry: regenerate
    *  the reply for the already-persisted last user message. */
   const runStream = useCallback(

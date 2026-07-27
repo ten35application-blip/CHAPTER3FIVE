@@ -56,6 +56,10 @@ export default async function LegacyNewPage({
     relationship: draft?.subject?.relationship ?? "",
     era: draft?.subject?.era ?? "",
     heritage: draft?.subject?.heritage ?? "",
+    // photoUrl is required (saveLegacyDraft persists it, canContinue
+    // gates on it). Dropping it here on resume left users with 30
+    // answers stuck on Step 0 until they re-uploaded.
+    photoUrl: draft?.subject?.photoUrl ?? undefined,
   };
 
   // The questions bank is server-only paid content — it reaches the

@@ -69,14 +69,26 @@ export async function POST(request: NextRequest) {
     }
 
     if (oracle.user_id !== user.id) {
-      // Verify the caller has a grant on this oracle.
-      const { data: grant } = await admin
-        .from("archive_grants")
-        .select("oracle_id")
-        .eq("oracle_id", oracleId)
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (!grant) {
+      // Verify the caller has access on this oracle via either path:
+      //   - archive_grants: family/invite share (0014)
+      //   - oracle_shares:  inherit-code redemption (0055)
+      //   - beneficiary claim (post-mortem) also lands in archive_grants
+      //     via /app/legacy/[token]/actions.ts.
+      const [{ data: grant }, { data: share }] = await Promise.all([
+        admin
+          .from("archive_grants")
+          .select("oracle_id")
+          .eq("oracle_id", oracleId)
+          .eq("user_id", user.id)
+          .maybeSingle(),
+        admin
+          .from("oracle_shares")
+          .select("oracle_id")
+          .eq("oracle_id", oracleId)
+          .eq("user_id", user.id)
+          .maybeSingle(),
+      ]);
+      if (!grant && !share) {
         return NextResponse.json({ skipped: "no_grant" });
       }
       isBeneficiary = true;
