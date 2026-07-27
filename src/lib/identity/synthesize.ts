@@ -722,10 +722,16 @@ function isSynthesizedPersona(v: unknown): v is SynthesizedPersona {
     o.persona_prompt.includes("Sample texts I might send") &&
     // Formula v5: pet_name is required in the schema but may be null
     // (no-pet trait, or grand-dog / fish tank shape). Non-null values
-    // must look like a real short name, not a phrase.
+    // must look like a real short name, not a phrase, AND pass a
+    // charset check: pet_name is LLM output that flows into a
+    // post-cache-breakpoint prompt block ("Your pet's name is X").
+    // Without a charset guard, quotes/newlines/prompt-injection
+    // fragments could ride in via a hostile trait roll. Real pet
+    // names are letters + a small set of allowed punctuation.
     (o.pet_name === null ||
       (typeof o.pet_name === "string" &&
         o.pet_name.length >= 1 &&
-        o.pet_name.length <= 40))
+        o.pet_name.length <= 40 &&
+        /^[\p{L}\d' .-]+$/u.test(o.pet_name)))
   );
 }
