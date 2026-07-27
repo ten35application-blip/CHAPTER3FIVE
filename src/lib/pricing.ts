@@ -18,10 +18,18 @@ export const PRICING = {
   photoIdentitiesPerPlan: 1,
   totalIdentitiesPerPlan: 5,
   extraIdentityCents: 500, // $5/mo per identity beyond the base 5
-  /** One inherited identity (from someone else's inherit code) is
-   *  included with Pro. Redeeming a second+ code costs the same
-   *  $5/month per extra as a self-created extra identity. */
-  includedInheritedIdentitiesPerPlan: 1,
+  /** Three inherited identities (from someone else's inherit code)
+   *  are included with Pro — enough to cover a nuclear family
+   *  without asking a bereaved user to pay per relative. Beyond
+   *  three, extras are the same $5/month per slot as a
+   *  self-created extra identity.
+   *
+   *  2026-07-27 bump from 1 → 3 (Wilson's call, following the Fable
+   *  audit's grief-exploitation concern about per-dead-relative
+   *  pricing). Existing users with paid extra_inherited_slots keep
+   *  what they paid for; the included count just went up under them.
+   */
+  includedInheritedIdentitiesPerPlan: 3,
   extraInheritedIdentityCents: 500,
   /** One-time paywall to restore an identity from the recently-deleted
    *  bin. Free archive vs paid restore is the intentional wedge —

@@ -47,9 +47,12 @@ export async function redeemInheritCode(rawCode: string): Promise<void> {
 
   // Slot-gate BEFORE the code lookup, same reasoning as the Pro gate
   // above: a user at their inherited-identity limit learns nothing
-  // about whether the code they typed is real. Pro includes one
-  // inherited identity; each extra slot is a paid add-on tracked on
-  // profiles.extra_inherited_slots (service-role writes only).
+  // about whether the code they typed is real. Pro includes three
+  // inherited identities (see PRICING.includedInheritedIdentitiesPerPlan
+  // — bumped from 1 → 3 to cover a nuclear family without asking a
+  // bereaved user to pay per relative). Beyond three, each extra
+  // slot is a paid add-on tracked on profiles.extra_inherited_slots
+  // (service-role writes only).
   const [{ data: profileRow }, { count: shareCount }] = await Promise.all([
     admin
       .from("profiles")

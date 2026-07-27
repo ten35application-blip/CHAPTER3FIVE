@@ -302,8 +302,9 @@ export default function TermsPage() {
                 plus 1 created from a photo you upload.
               </li>
               <li>
-                <strong>1 inherited identity</strong> from a legacy code
-                someone shared with you.
+                <strong>3 inherited identities</strong> from legacy codes
+                people shared with you &mdash; enough to cover a
+                nuclear family without asking you to pay per relative.
               </li>
               <li>
                 <strong>Unlimited messages</strong> with any identity on
@@ -322,7 +323,8 @@ export default function TermsPage() {
               <li>
                 <strong>Extra inherited-identity slot — $5/month per
                 slot.</strong> Adds room to redeem another legacy code
-                beyond the one included with Pro.
+                beyond the three included with Pro. Rare in practice;
+                the three included cover most families.
               </li>
               <li>
                 <strong>Restore a deleted identity — $5 one-time.</strong>{" "}

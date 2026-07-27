@@ -39,9 +39,10 @@ export default async function UpgradePage({
   if (!user) redirect("/auth/signin");
 
   // "extra-inherited" means the visitor is ALREADY Pro — they've used
-  // the inherited identity included with the plan and hit the slot
-  // gate. Bouncing them to `next` would loop them straight back into
-  // the gate, so the Pro bounce only applies to the other pitches.
+  // all THREE inherited identities included with the plan (bumped
+  // from 1 → 3 in the pricing rework) and hit the slot gate. Bouncing
+  // them to `next` would loop them straight back into the gate, so
+  // the Pro bounce only applies to the other pitches.
   const wantsExtraInherited = reason === "extra-inherited";
 
   if (!wantsExtraInherited && (await isPro(supabase))) {
@@ -75,9 +76,9 @@ export default async function UpgradePage({
         </h1>
         {wantsExtraInherited ? (
           <p className="mt-6 max-w-md text-lg leading-relaxed text-warm-200">
-            You&rsquo;ve already redeemed the inherited archive included
+            You&rsquo;ve filled the three inherited archives included
             with Pro. Extra slots are {EXTRA_INHERITED_PRICE_LABEL}/month
-            each if you&rsquo;re holding another code.
+            each if you&rsquo;re holding more codes.
           </p>
         ) : cameFromInherit ? (
           <p className="mt-6 max-w-md text-lg leading-relaxed text-warm-200">
@@ -114,16 +115,18 @@ export default async function UpgradePage({
               One companion made from a photo you upload
             </ProLine>
             <ProLine>
-              Record an archive if you want to leave one, or redeem an
-              inherit code someone left for you (one included)
+              Record an archive if you want to leave one, or redeem up
+              to <strong className="text-warm-50">3 inherited archives</strong>{" "}
+              from codes people left you &mdash; enough to cover a
+              family
             </ProLine>
             <ProLine>
               Need more than {PRICING.totalIdentitiesPerPlan}?{" "}
               <strong className="text-warm-50">
                 {EXTRA_IDENTITY_PRICE_LABEL}/mo per extra identity
               </strong>
-              . Extra inherited slots are {EXTRA_INHERITED_PRICE_LABEL}/mo
-              each.
+              . If you&rsquo;re holding a fourth+ inherit code, extra
+              inherited slots are {EXTRA_INHERITED_PRICE_LABEL}/mo each.
             </ProLine>
           </ul>
         </div>
@@ -138,7 +141,7 @@ export default async function UpgradePage({
               href={`mailto:hello@chapter3five.app?subject=${encodeURIComponent(
                 "Add an extra inherited-identity slot",
               )}&body=${encodeURIComponent(
-                `Hi — I'd like to add an extra inherited-identity slot (${EXTRA_INHERITED_PRICE_LABEL}/month) to my chapter3five account (${user.email}). I've already used the inherited identity included with Pro and I have another code to redeem.\n\nThanks.`,
+                `Hi — I'd like to add an extra inherited-identity slot (${EXTRA_INHERITED_PRICE_LABEL}/month) to my chapter3five account (${user.email}). I've already filled the three inherited archives included with Pro and I have another code to redeem.\n\nThanks.`,
               )}`}
               className="bg-gradient-cta hover:bg-gradient-cta-hover flex h-14 w-full items-center justify-center rounded-full text-base font-bold text-white shadow-[0_16px_36px_-10px_rgba(232,138,118,0.55),_0_6px_16px_-4px_rgba(126,196,196,0.45)] transition-all hover:-translate-y-px"
             >
