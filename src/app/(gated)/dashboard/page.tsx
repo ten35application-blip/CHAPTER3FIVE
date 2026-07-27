@@ -1,7 +1,9 @@
+import { after } from "next/server";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isAdmin } from "@/lib/admin/allowlist";
 import { getFreeIdentityId, isPro } from "@/lib/subscription";
+import { ensureAdrianAvatar } from "@/lib/faces/adrian";
 import { HubSheet } from "./_components/HubSheet";
 import { DashboardContent, type Identity } from "./_components/DashboardContent";
 import { PushOptIn } from "./_components/PushOptIn";
@@ -47,6 +49,17 @@ export default async function DashboardPage({
   if (!user) {
     redirect("/auth/signin");
   }
+
+  // Lazy-generate Adrian's avatar the first time anyone lands here
+  // post-deploy. Idempotent (ensureAdrianAvatar short-circuits when
+  // avatar_url is already set), fire-and-forget via after() so this
+  // never blocks page render. First dashboard load after a fresh deploy
+  // fires the ~15-30s Flux call in the background; the next refresh
+  // has the image. Errors are swallowed inside the helper -- worst
+  // case, Adrian keeps the letter fallback and we try again next load.
+  after(async () => {
+    await ensureAdrianAvatar();
+  });
 
   // RLS restricts to auth.uid() = user_id; still filter soft-deleted.
   // NOTE: no conversation_archived_at filter here — per Wilson,
