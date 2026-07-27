@@ -18,10 +18,15 @@ const PAGE_SIZE = 50;
 export default async function AdminUsersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; page?: string }>;
+  searchParams: Promise<{ q?: string; page?: string; plan?: string }>;
 }) {
-  const { q = "", page: pageParam } = await searchParams;
+  const { q = "", page: pageParam, plan: planFilter } = await searchParams;
   const page = Math.max(1, Number.parseInt(pageParam ?? "1", 10) || 1);
+  const activeFilter = ["pro", "trial", "comped", "cancel", "free"].includes(
+    planFilter ?? "",
+  )
+    ? (planFilter as "pro" | "trial" | "comped" | "cancel" | "free")
+    : null;
 
   const supabase = createAdminClient();
 
@@ -33,10 +38,19 @@ export default async function AdminUsersPage({
       "user_id, updated_at",
       (query) => query.is("deleted_at", null),
     ),
-    safeSelect<{ id: string; terms_accepted_at: string | null }>(
+    safeSelect<{
+      id: string;
+      terms_accepted_at: string | null;
+      pro_until: string | null;
+      trial_ends_at: string | null;
+      plan_source: string | null;
+      stripe_subscription_id: string | null;
+      cancel_at_period_end: boolean | null;
+      subscription_status: string | null;
+    }>(
       supabase,
       "profiles",
-      "id, terms_accepted_at",
+      "id, terms_accepted_at, pro_until, trial_ends_at, plan_source, stripe_subscription_id, cancel_at_period_end, subscription_status",
     ),
   ]);
 
@@ -44,11 +58,51 @@ export default async function AdminUsersPage({
   for (const o of oracles) {
     identityCounts.set(o.user_id, (identityCounts.get(o.user_id) ?? 0) + 1);
   }
+  const profileById = new Map(profiles.map((p) => [p.id, p]));
   const termsByUser = new Map(profiles.map((p) => [p.id, p.terms_accepted_at]));
+
+  // Resolve subscription state per user: paid / trial / comped /
+  // cancelling / free. Mirrors the aggregate breakdown on /admin.
+  const nowMs = Date.now();
+  function planLabel(userId: string): {
+    label: string;
+    tone: "pro" | "trial" | "comped" | "cancel" | "free";
+  } {
+    const p = profileById.get(userId);
+    if (!p) return { label: "Free", tone: "free" };
+    const proActive =
+      p.pro_until && new Date(p.pro_until).getTime() > nowMs;
+    const trialActive =
+      p.trial_ends_at && new Date(p.trial_ends_at).getTime() > nowMs;
+    if (p.plan_source === "admin_grant" && proActive) {
+      return { label: "Comped", tone: "comped" };
+    }
+    if (p.stripe_subscription_id && proActive) {
+      if (p.cancel_at_period_end) {
+        return { label: "Cancelling", tone: "cancel" };
+      }
+      return { label: "Paid Pro", tone: "pro" };
+    }
+    if (trialActive && !p.stripe_subscription_id) {
+      return { label: "Trial", tone: "trial" };
+    }
+    return { label: "Free", tone: "free" };
+  }
+  const planToneClass: Record<
+    "pro" | "trial" | "comped" | "cancel" | "free",
+    string
+  > = {
+    pro: "text-teal-strong font-semibold",
+    trial: "text-warm-100",
+    comped: "text-coral-strong font-semibold",
+    cancel: "text-warm-300 italic",
+    free: "text-warm-400",
+  };
 
   const needle = q.trim().toLowerCase();
   const filtered = users
     .filter((u) => !needle || (u.email ?? "").toLowerCase().includes(needle))
+    .filter((u) => !activeFilter || planLabel(u.id).tone === activeFilter)
     .sort(
       (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
     );
@@ -60,9 +114,29 @@ export default async function AdminUsersPage({
   const pageHref = (p: number) => {
     const params = new URLSearchParams();
     if (needle) params.set("q", q.trim());
+    if (activeFilter) params.set("plan", activeFilter);
     if (p > 1) params.set("page", String(p));
     return `/admin/users${params.size ? `?${params}` : ""}`;
   };
+  const filterHref = (
+    plan: "pro" | "trial" | "comped" | "cancel" | "free" | null,
+  ) => {
+    const params = new URLSearchParams();
+    if (needle) params.set("q", q.trim());
+    if (plan) params.set("plan", plan);
+    return `/admin/users${params.size ? `?${params}` : ""}`;
+  };
+  const filterOptions: Array<{
+    key: "pro" | "trial" | "comped" | "cancel" | "free" | null;
+    label: string;
+  }> = [
+    { key: null, label: "All" },
+    { key: "pro", label: "Paid Pro" },
+    { key: "trial", label: "Trial" },
+    { key: "comped", label: "Comped" },
+    { key: "cancel", label: "Cancelling" },
+    { key: "free", label: "Free" },
+  ];
 
   return (
     <div className="flex flex-col gap-6">
@@ -77,6 +151,28 @@ export default async function AdminUsersPage({
       </header>
 
       <SearchBox />
+
+      {/* Plan-tone filter chips. Server-rendered links so no client
+          component overhead; each preserves the current search
+          needle. */}
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        {filterOptions.map((opt) => {
+          const active = activeFilter === opt.key;
+          return (
+            <Link
+              key={opt.key ?? "all"}
+              href={filterHref(opt.key)}
+              className={
+                active
+                  ? "rounded-full bg-coral/15 px-3 py-1.5 font-semibold text-coral-strong ring-1 ring-coral/40"
+                  : "rounded-full bg-ink-soft px-3 py-1.5 font-medium text-warm-300 ring-1 ring-warm-700 transition-colors hover:text-warm-100 hover:ring-warm-500"
+              }
+            >
+              {opt.label}
+            </Link>
+          );
+        })}
+      </div>
 
       {/* Link-per-row grid instead of <table> so the whole row is
           clickable without a client component. */}
@@ -133,9 +229,16 @@ export default async function AdminUsersPage({
                   ? new Date(u.last_sign_in_at).toLocaleDateString()
                   : "—"}
               </span>
-              {/* TODO: read real subscription status once Stripe billing
-                  lands ($5/mo Pro plan — see src/lib/pricing.ts). Everyone is Free today. */}
-              <span className="hidden text-warm-400 sm:block">Free</span>
+              {(() => {
+                const plan = planLabel(u.id);
+                return (
+                  <span
+                    className={`hidden sm:block ${planToneClass[plan.tone]}`}
+                  >
+                    {plan.label}
+                  </span>
+                );
+              })()}
             </Link>
           ))
         )}

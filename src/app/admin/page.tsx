@@ -89,6 +89,89 @@ export default async function AdminOverviewPage() {
     fetchPaidPayments(supabase),
   ]);
 
+  // Subscription breakdown — pro_until in future = paid Pro,
+  // trial_ends_at in future = trialer, plan_source='admin_grant'
+  // = comped, everything else = free. Also count cancellations
+  // (subscription_status='canceled' or cancel_at_period_end=true).
+  const { data: planRows } = await supabase
+    .from("profiles")
+    .select(
+      "pro_until, trial_ends_at, plan_source, stripe_subscription_id, subscription_status, cancel_at_period_end, deleted_at",
+    );
+  const nowMs = Date.now();
+  let paidPro = 0;
+  let trialers = 0;
+  let comped = 0;
+  let freeUsers = 0;
+  let softDeleted = 0;
+  let canceledPending = 0;
+  let canceledLapsed = 0;
+  for (const row of planRows ?? []) {
+    if (row.deleted_at) {
+      softDeleted += 1;
+      continue;
+    }
+    const proActive =
+      row.pro_until && new Date(row.pro_until as string).getTime() > nowMs;
+    const trialActive =
+      row.trial_ends_at &&
+      new Date(row.trial_ends_at as string).getTime() > nowMs;
+    if (row.plan_source === "admin_grant" && proActive) {
+      comped += 1;
+    } else if (row.stripe_subscription_id && proActive) {
+      paidPro += 1;
+      if (row.cancel_at_period_end) canceledPending += 1;
+    } else if (trialActive && !row.stripe_subscription_id) {
+      trialers += 1;
+    } else {
+      freeUsers += 1;
+    }
+    if (row.subscription_status === "canceled" && !proActive) {
+      canceledLapsed += 1;
+    }
+  }
+  const conversionRate =
+    trialers + paidPro > 0
+      ? Math.round((paidPro / (paidPro + trialers)) * 100)
+      : 0;
+
+  // Activity cohorts — DAU/WAU/MAU by distinct message-sending user.
+  const dayAgoIso = daysAgo(1).toISOString();
+  const monthAgoIso = daysAgo(30).toISOString();
+  const [{ data: dauRows }, { data: wauRows }, { data: mauRows }] =
+    await Promise.all([
+      supabase
+        .from("messages")
+        .select("user_id")
+        .eq("role", "user")
+        .gte("created_at", dayAgoIso),
+      supabase
+        .from("messages")
+        .select("user_id")
+        .eq("role", "user")
+        .gte("created_at", week),
+      supabase
+        .from("messages")
+        .select("user_id")
+        .eq("role", "user")
+        .gte("created_at", monthAgoIso),
+    ]);
+  const dau = new Set(
+    (dauRows ?? []).map((r) => r.user_id as string).filter(Boolean),
+  ).size;
+  const wau = new Set(
+    (wauRows ?? []).map((r) => r.user_id as string).filter(Boolean),
+  ).size;
+  const mau = new Set(
+    (mauRows ?? []).map((r) => r.user_id as string).filter(Boolean),
+  ).size;
+  const dauMau = mau > 0 ? Math.round((dau / mau) * 100) : 0;
+
+  // Moderation queue — pending reports awaiting admin action.
+  const pendingReports = await safeCount(supabase, "message_reports", (q) =>
+    q.eq("status", "pending"),
+  );
+
   // COGS: what Anthropic + OpenAI cost us this month, per the
   // chat_spend_events ledger (0081). Zero rows before Batch A/B/D/E
   // extended the recorders; real numbers show once traffic lands.
@@ -197,6 +280,86 @@ export default async function AdminOverviewPage() {
             totalUsers > 0
               ? `${Math.round((acceptedTerms / totalUsers) * 100)}% of all users`
               : undefined
+          }
+        />
+      </MetricSection>
+
+      {/* Subscription health — the "who's paying, who's on trial,
+          who cancelled" story. Wilson's one-stop-shop ask. */}
+      <MetricSection title="Subscriptions">
+        <MetricCard
+          label="Paid Pro"
+          value={paidPro.toLocaleString()}
+          hint={
+            canceledPending > 0
+              ? `${canceledPending.toLocaleString()} cancelling at period end`
+              : undefined
+          }
+        />
+        <MetricCard
+          label="On trial"
+          value={trialers.toLocaleString()}
+          hint={`Conversion so far: ${conversionRate}%`}
+        />
+        <MetricCard
+          label="Comped (admin)"
+          value={comped.toLocaleString()}
+          hint={comped > 0 ? "admin_grant plan_source" : undefined}
+        />
+        <MetricCard
+          label="Free"
+          value={freeUsers.toLocaleString()}
+          hint={
+            softDeleted > 0
+              ? `${softDeleted.toLocaleString()} soft-deleted excluded`
+              : undefined
+          }
+        />
+        <MetricCard
+          label="Cancelled (lapsed)"
+          value={canceledLapsed.toLocaleString()}
+          hint="pro_until in past, no active sub"
+        />
+        <MetricCard
+          label="Cancelled (pending)"
+          value={canceledPending.toLocaleString()}
+          hint="Still in period, sub set to cancel"
+        />
+      </MetricSection>
+
+      {/* Activity — the shape of engagement past the vanity count. */}
+      <MetricSection title="Activity">
+        <MetricCard
+          label="Daily active"
+          value={dau.toLocaleString()}
+          hint="users who sent a message today"
+        />
+        <MetricCard
+          label="Weekly active"
+          value={wau.toLocaleString()}
+          hint="last 7 days"
+        />
+        <MetricCard
+          label="Monthly active"
+          value={mau.toLocaleString()}
+          hint="last 30 days"
+        />
+        <MetricCard
+          label="DAU / MAU"
+          value={`${dauMau}%`}
+          hint="stickiness — 20%+ is very good for a companion app"
+        />
+      </MetricSection>
+
+      {/* Moderation surface — anything waiting on Wilson. */}
+      <MetricSection title="Needs attention">
+        <MetricCard
+          label="Reports pending"
+          value={pendingReports.toLocaleString()}
+          hint={
+            pendingReports > 0
+              ? "review at /admin/reports"
+              : "queue is empty"
           }
         />
       </MetricSection>
