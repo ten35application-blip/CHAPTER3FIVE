@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { redirectWithError } from "@/lib/action-errors";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { DobField } from "./DobField";
 
 export const metadata = {
   title: "Make an account · chapter3five",
@@ -134,12 +135,14 @@ export default async function SignupPage({
   searchParams: Promise<{ error?: string }>;
 }) {
   const { error } = await searchParams;
-  // Client-side max hint: the date-of-birth input caps at today - 18
-  // years, so the native date picker won't let someone even select
-  // an under-18 date. Server-side check still validates on submit.
-  const maxDobDate = new Date();
-  maxDobDate.setUTCFullYear(maxDobDate.getUTCFullYear() - 18);
-  const maxDob = maxDobDate.toISOString().slice(0, 10);
+  // Client-side year bounds for the DOB pickers: newest year is
+  // today - 18 (someone born in that year could already be 18), oldest
+  // is today - 120. Server-side checks still validate the exact date
+  // on submit — these bounds just keep obviously-invalid years out of
+  // the dropdown.
+  const currentYear = new Date().getUTCFullYear();
+  const maxDobYear = currentYear - 18;
+  const minDobYear = currentYear - 120;
 
   return (
     <main className="flex min-h-dvh flex-1 flex-col items-center justify-center px-6 py-12">
@@ -204,22 +207,7 @@ export default async function SignupPage({
             />
           </label>
 
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-warm-200">
-              Date of birth
-            </span>
-            <input
-              type="date"
-              name="date_of_birth"
-              autoComplete="bday"
-              required
-              max={maxDob}
-              className="h-12 rounded-2xl bg-ink-soft px-4 text-base text-warm-50 outline-none ring-1 ring-warm-700 placeholder:text-warm-400 focus:ring-2 focus:ring-coral"
-            />
-            <span className="text-xs text-warm-400">
-              You must be 18 or older to use chapter3five.
-            </span>
-          </label>
+          <DobField maxYear={maxDobYear} minYear={minDobYear} />
 
           <button
             type="submit"
