@@ -81,6 +81,7 @@ export async function GET(request: NextRequest) {
 
   let sent = 0;
   const nowIso = now.toISOString();
+  const sixHoursAgo = new Date(startedAt - 6 * HOUR).toISOString();
   const fortyEightAgo = new Date(startedAt - 48 * HOUR).toISOString();
   const twentyFourAgo = new Date(startedAt - 24 * HOUR).toISOString();
 
@@ -89,15 +90,49 @@ export async function GET(request: NextRequest) {
       // Local-time gate.
       if (!withinLocalWindow(now, profile.timezone as string | null)) continue;
 
-      // User-recency gate.
-      const { count: recentUserMsgCount } = await admin
+      // User-recency gate. Fable humanization #2 opened the window:
+      // the fresh-memory-callback pathway wants users whose last
+      // message was 6-48h ago (recent enough for a callback to feel
+      // natural, quiet enough not to interrupt an active chat). So
+      // we skip only if user chatted in the LAST 6 HOURS. Long-
+      // silence outreach still fires for users who've been quiet
+      // for days — the eligibility scoring below sorts both pathways
+      // into one queue and picks the best-fitting oracle.
+      const { count: veryRecentUserMsgCount } = await admin
         .from("messages")
         .select("id", { count: "exact", head: true })
         .eq("user_id", profile.id)
         .eq("role", "user")
         .is("deleted_at", null)
-        .gte("created_at", fortyEightAgo);
-      if ((recentUserMsgCount ?? 0) > 0) continue;
+        .gte("created_at", sixHoursAgo);
+      if ((veryRecentUserMsgCount ?? 0) > 0) continue;
+
+      // Fresh-callback window: the user's most recent USER message
+      // 6-48h old. If present, this drives a persona to say "earlier
+      // when you said…" — much more human than a cold "hey stranger."
+      // Empty for users who've been silent longer than 48h; those
+      // still qualify for the long-silence pathway below.
+      const { data: freshTurn } = await admin
+        .from("messages")
+        .select("id, oracle_id, content, created_at")
+        .eq("user_id", profile.id)
+        .eq("role", "user")
+        .is("deleted_at", null)
+        .gte("created_at", fortyEightAgo)
+        .lte("created_at", sixHoursAgo)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const freshCallback =
+        freshTurn &&
+        typeof freshTurn.oracle_id === "string" &&
+        typeof freshTurn.content === "string" &&
+        freshTurn.content.trim().length >= 40 // skip greetings / "ok" / etc
+          ? {
+              oracleId: freshTurn.oracle_id as string,
+              text: freshTurn.content as string,
+            }
+          : null;
 
       // Any-persona-24h gate.
       const { count: recentOutreachCount } = await admin
@@ -205,9 +240,48 @@ export async function GET(request: NextRequest) {
         });
       }
 
+      // Fresh-callback augmentation: an oracle with a recent (6-48h)
+      // callback-worthy user turn qualifies EVEN IF long-silence
+      // scoring would have excluded it. Add as its own candidate
+      // marked with overshootDays=999 so it wins the sort below and
+      // beats any long-silence pick.
+      let callbackText: string | null = null;
+      if (freshCallback) {
+        const existing = eligible.find(
+          (e) => e.oracleId === freshCallback.oracleId,
+        );
+        // Also gate on the 24h same-oracle throttle so a callback
+        // can't re-fire on the same oracle repeatedly.
+        const lastOutreach = latestOutreachByOracle.get(freshCallback.oracleId);
+        const withinOracle24h =
+          lastOutreach &&
+          (startedAt - Date.parse(lastOutreach)) / HOUR < 24;
+        const callbackOracle = oracles.find(
+          (o) => o.id === freshCallback.oracleId,
+        );
+        if (callbackOracle && !withinOracle24h) {
+          callbackText = freshCallback.text;
+          if (!existing) {
+            eligible.push({
+              oracleId: freshCallback.oracleId,
+              overshootDays: 999,
+              oracle: callbackOracle,
+            });
+          } else {
+            existing.overshootDays = Math.max(existing.overshootDays, 999);
+          }
+        }
+      }
+
       if (eligible.length === 0) continue;
       eligible.sort((a, b) => b.overshootDays - a.overshootDays);
       const pick = eligible[0];
+      // Only carry the callback text if the picked oracle actually
+      // matches the freshCallback source. Any other winner falls back
+      // to the plain long-silence framing.
+      if (callbackText && pick.oracleId !== freshCallback?.oracleId) {
+        callbackText = null;
+      }
 
       // Compose the opener. Persona prompt is the authoritative voice
       // — we tag it with the outreach framing so Claude writes an
@@ -234,7 +308,14 @@ export async function GET(request: NextRequest) {
       );
       const moodBlock = moodToPromptBlock(outreachMood) ?? "";
 
-      const systemPrompt = `${pick.oracle.persona_prompt}\n\n---\n\nCONTEXT: You are texting FIRST. The user hasn't messaged you in a while and something small made you think of them — a memory, a moment, a passing thought. Write ONE short opener as this character (one sentence is ideal, never more than two). Hook a specific detail from what you already know about them when possible; if there's nothing specific to grab, a warm "hey stranger — how you holding up?" is fine. Do NOT explain that you're reaching out proactively. Do NOT announce that you're an AI. Do NOT ask how their day is in a generic way. Match the character's texting rules exactly (no emojis, tone, cadence). ${langInstruction}\n\n${anchorsBlock}${moodBlock ? `\n\n${moodBlock}` : ""}`;
+      // Fresh-callback vs long-silence framing. Callback references the
+      // user's actual recent message so it lands as "I've been thinking
+      // about what you said" rather than a generic reach-out.
+      const contextBlock = callbackText
+        ? `CONTEXT: You are texting FIRST — a short follow-up about something the user said a few hours ago that stayed with you. Their exact recent message:\n\n"""\n${callbackText}\n"""\n\nWrite ONE short message as this character reacting to that specific thing — a question, a thought, a small offering. One sentence ideal, never more than two. Do NOT quote their message back verbatim. Do NOT explain that you're following up. Do NOT announce you're an AI. Match the character's texting rules exactly (no emojis, tone, cadence). ${langInstruction}`
+        : `CONTEXT: You are texting FIRST. The user hasn't messaged you in a while and something small made you think of them — a memory, a moment, a passing thought. Write ONE short opener as this character (one sentence is ideal, never more than two). Hook a specific detail from what you already know about them when possible; if there's nothing specific to grab, a warm "hey stranger — how you holding up?" is fine. Do NOT explain that you're reaching out proactively. Do NOT announce that you're an AI. Do NOT ask how their day is in a generic way. Match the character's texting rules exactly (no emojis, tone, cadence). ${langInstruction}`;
+
+      const systemPrompt = `${pick.oracle.persona_prompt}\n\n---\n\n${contextBlock}\n\n${anchorsBlock}${moodBlock ? `\n\n${moodBlock}` : ""}`;
 
       const response = await anthropic.messages.create({
         model: ANTHROPIC_MODEL,
