@@ -478,7 +478,13 @@ export async function POST(
           const rawHook =
             typeof s.one_line_hook === "string" ? s.one_line_hook : "";
           const hook = rawHook.replace(/[=_*#`]{2,}/g, " ").trim();
-          const name = typeof s.name === "string" ? s.name : "";
+          const rawName = typeof s.name === "string" ? s.name : "";
+          // Scrub the NAME too, not just the hook. No rename UI today
+          // but the legacy path lets the user supply subject.name which
+          // feeds into Claude's persona.name; a crafted input could in
+          // principle round-trip into oracles.name. Defense-in-depth
+          // matches the residue.ts / retrieve.ts pattern.
+          const name = rawName.replace(/[=_*#`]{2,}/g, " ").trim();
           if (!name) return "";
           return hook ? `- ${name} — ${hook}` : `- ${name}`;
         })
@@ -500,12 +506,28 @@ export async function POST(
   // occasionally text as if they saw the message earlier and are
   // just now getting back — the phrasing carries the delay-feel
   // without the actual delay. Let the persona's own voice decide
-  // whether to use it: some naturally will ("sorry, was on the
-  // train"), some never do. Never on emotionally heavy turns.
-  system.push({
-    type: "text",
-    text: `== Delayed-reply feel (optional) ==\nEvery so often — roughly 1 in 10 messages when it FITS your character and the moment isn't heavy — you may text as if you saw the user's earlier message and are just now getting back to it. Openers like "sorry, saw this earlier — meeting ran long", "just had a sec, was making dinner", "wanted to write earlier — kids were up all night". This is a voice quirk, not a real time gap. Some characters do this constantly (busy, distracted, jugglers); some never do (present, focused, always available). Your voice decides. Never on heavy replies. Never as the FIRST message of a new session (no one buys "sorry for the delay" as an opener to a brand-new conversation).`,
-  });
+  // whether to use it.
+  //
+  // GATED: only inject when the pretend-delay CAN'T obviously
+  // contradict reality. Fable audit caught the gaslighting failure:
+  // "sorry, saw this earlier — meeting ran long" when the user
+  // sent 30 seconds ago is a lie the user will catch. So we skip
+  // when:
+  //   - hoursSinceLastUser < 0.25 (user is actively chatting)
+  //   - history.length === 0 (first message of the thread — no
+  //     "sorry for the delay" opener to a brand-new conversation)
+  //   - isRetry (persona re-answering; can't have just seen it)
+  const canPretendDelayed =
+    !isRetry &&
+    history.length > 0 &&
+    hoursSinceLastUser !== null &&
+    hoursSinceLastUser >= 0.25;
+  if (canPretendDelayed) {
+    system.push({
+      type: "text",
+      text: `== Delayed-reply feel (optional) ==\nEvery so often — roughly 1 in 10 messages when it FITS your character and the moment isn't heavy — you may text as if you saw the user's earlier message and are just now getting back to it. Openers like "sorry, saw this earlier — meeting ran long", "just had a sec, was making dinner", "wanted to write earlier — kids were up all night". This is a voice quirk, not a real time gap. Some characters do this constantly (busy, distracted, jugglers); some never do (present, focused, always available). Your voice decides. Never on heavy replies.`,
+    });
+  }
 
   // Fable humanization #4 — physical anchoring. Universal cue that
   // GIVES the persona permission to open a reply with a small sensory
