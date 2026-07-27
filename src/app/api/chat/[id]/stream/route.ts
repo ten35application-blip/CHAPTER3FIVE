@@ -750,7 +750,11 @@ export async function POST(
 
         const claudeStream = anthropic.messages.stream({
           model: ANTHROPIC_MODEL,
-          max_tokens: 2048,
+          // Concierge (Adrian) gets a hard cost ceiling: 400 tokens is
+          // enough for a detailed feature explanation but prevents
+          // runaway essays on every free-user chat. Belt-and-suspenders
+          // with the 0099 persona_prompt's 1-3 sentence default.
+          max_tokens: isConciergeOracle ? 400 : 2048,
           system,
           messages: claudeMessages,
         });
