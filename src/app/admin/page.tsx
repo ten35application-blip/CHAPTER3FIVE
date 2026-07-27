@@ -89,6 +89,72 @@ export default async function AdminOverviewPage() {
     fetchPaidPayments(supabase),
   ]);
 
+  // COGS: what Anthropic + OpenAI cost us this month, per the
+  // chat_spend_events ledger (0081). Zero rows before Batch A/B/D/E
+  // extended the recorders; real numbers show once traffic lands.
+  const monthStartIso = startOfMonth().toISOString();
+  const { data: spendRows } = await supabase
+    .from("chat_spend_events")
+    .select("cents, route, user_id")
+    .gte("created_at", monthStartIso);
+  const spendMonthCents = (spendRows ?? []).reduce(
+    (sum, r) => sum + (typeof r.cents === "number" ? r.cents : 0),
+    0,
+  );
+  const spendByRoute = new Map<string, number>();
+  const spendByUser = new Map<string, number>();
+  for (const r of spendRows ?? []) {
+    const c = typeof r.cents === "number" ? r.cents : 0;
+    if (r.route) {
+      spendByRoute.set(r.route, (spendByRoute.get(r.route) ?? 0) + c);
+    }
+    if (r.user_id) {
+      spendByUser.set(r.user_id, (spendByUser.get(r.user_id) ?? 0) + c);
+    }
+  }
+  const topSpendRoutes = [...spendByRoute.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+  const topSpendUserCents = [...spendByUser.values()].sort((a, b) => b - a)[0] ?? 0;
+
+  // Cron heartbeat: last row per configured job.
+  const { data: cronRows } = await supabase
+    .from("cron_runs")
+    .select("job, status, created_at, error")
+    .order("created_at", { ascending: false })
+    .limit(200);
+  type CronRow = {
+    job: string;
+    status: string | null;
+    created_at: string;
+    error: string | null;
+  };
+  const latestByJob = new Map<string, CronRow>();
+  for (const row of (cronRows ?? []) as CronRow[]) {
+    if (!latestByJob.has(row.job)) latestByJob.set(row.job, row);
+  }
+  const cronJobList = [
+    "outreach",
+    "proactive",
+    "purge",
+    "reflect",
+    "anniversaries",
+    "daily-question",
+    "check-in",
+    "persona-outreach",
+    "passing",
+  ];
+  const staleCrons = cronJobList.filter((job) => {
+    const row = latestByJob.get(job);
+    if (!row) return true;
+    // 48h grace applies to most; check-in cron is hourly.
+    const graceMs = (job === "check-in" ? 3 : 48) * 60 * 60 * 1000;
+    return Date.now() - new Date(row.created_at).getTime() > graceMs;
+  });
+  const erroredCrons = cronJobList.filter(
+    (job) => latestByJob.get(job)?.status === "error",
+  );
+
   // Randomized = everything that isn't explicitly legacy (is_legacy is
   // false OR null for pre-0055 rows).
   const randomizedIdentities = totalIdentities - legacyIdentities;
@@ -203,6 +269,49 @@ export default async function AdminOverviewPage() {
           label="Messages this week"
           value={messagesThisWeek.toLocaleString()}
           delta={messagesThisWeek - messagesPrevWeek}
+        />
+      </MetricSection>
+
+      {/* COGS — Anthropic + OpenAI spend this month, per the
+          chat_spend_events ledger. Populated by /api/chat/[id]/stream,
+          the crons that were wired in Batch E, and the whisper route. */}
+      <MetricSection title="COGS (this month)">
+        <MetricCard
+          label="Spend this month"
+          value={formatUsd(spendMonthCents)}
+          hint={`${(spendRows ?? []).length.toLocaleString()} ledgered calls`}
+        />
+        <MetricCard
+          label="Top user this month"
+          value={formatUsd(topSpendUserCents)}
+          hint={`${spendByUser.size} distinct spenders`}
+        />
+        <MetricCard
+          label="Top route this month"
+          value={topSpendRoutes[0] ? topSpendRoutes[0][0] : "—"}
+          hint={
+            topSpendRoutes[0]
+              ? formatUsd(topSpendRoutes[0][1])
+              : "no traffic yet"
+          }
+        />
+      </MetricSection>
+
+      {/* Cron heartbeat. Stale = last run older than 2× cadence. */}
+      <MetricSection title="Cron health">
+        <MetricCard
+          label="Configured jobs"
+          value={cronJobList.length.toString()}
+        />
+        <MetricCard
+          label="Stale"
+          value={staleCrons.length.toString()}
+          hint={staleCrons.length > 0 ? staleCrons.join(", ") : "all fresh"}
+        />
+        <MetricCard
+          label="Errored (last run)"
+          value={erroredCrons.length.toString()}
+          hint={erroredCrons.length > 0 ? erroredCrons.join(", ") : "all clean"}
         />
       </MetricSection>
 

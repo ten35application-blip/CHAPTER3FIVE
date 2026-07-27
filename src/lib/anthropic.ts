@@ -15,7 +15,16 @@ let cached: Anthropic | null = null;
 
 function getAnthropic(): Anthropic {
   if (cached) return cached;
-  cached = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  cached = new Anthropic({
+    apiKey: process.env.ANTHROPIC_API_KEY,
+    // The SDK's default is 2 retries. Bump to 4 so a transient 529
+    // overload (Anthropic capacity spike) doesn't fail the user's
+    // turn — Fable audit flagged /api/chat/[id]/stream mapping any
+    // Anthropic exception to a single "stream_failed" that read as
+    // a bug. The SDK backs off with jitter between retries; total
+    // added latency is ~2–8s worst case before we surface an error.
+    maxRetries: 4,
+  });
   return cached;
 }
 
