@@ -5,8 +5,9 @@ import { isAdmin } from "@/lib/admin/allowlist";
 import { getConciergeId } from "@/lib/identity/concierge";
 import { PRICING } from "@/lib/pricing";
 
-/** Early-access cap: only the first N users receive the signup trial. */
-const TRIAL_SEAT_CAP = 1000;
+// Early-access trial cap removed in the 0096 pricing rework -- new
+// signups no longer get a trial at all. Existing trialers keep theirs
+// until expiry.
 
 /**
  * The single source of truth for "is this user Pro?".
@@ -397,22 +398,8 @@ export async function canSendImageForMonthCap(
   return { ok: true, current: count, limit };
 }
 
-/**
- * How many of the 1000 early-access trial seats are still open.
- * Service-role count (RLS hides other rows from user clients).
- * Display-only — the authoritative gate lives in handle_new_user.
- * Never throws; errors read as 0 remaining.
- */
-export async function trialSpotsRemaining(): Promise<number> {
-  try {
-    const admin = createAdminClient();
-    const { count, error } = await admin
-      .from("profiles")
-      .select("id", { count: "exact", head: true })
-      .eq("plan_source", "trial");
-    if (error || count === null) return 0;
-    return Math.max(0, TRIAL_SEAT_CAP - count);
-  } catch {
-    return 0;
-  }
-}
+// trialSpotsRemaining removed in the 0096 pricing rework -- handle_new_user
+// no longer hands out trials on new signups, so the "N of 1000 seats
+// remaining" surface is meaningless. Existing trialers keep theirs until
+// expiry via the isPro trial_ends_at check; admin reporting reads
+// trial_ends_at directly.
