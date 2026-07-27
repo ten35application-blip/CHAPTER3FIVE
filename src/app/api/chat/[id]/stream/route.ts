@@ -493,6 +493,20 @@ export async function POST(
     }
   }
 
+  // Fable humanization #8 — voice-only "seen but haven't replied"
+  // stopgap. Real seen-but-delayed state needs minute-level cron
+  // (Vercel Hobby caps at daily; deferred until Wilson upgrades or
+  // we wire pg_cron). Meanwhile, give ANY persona permission to
+  // occasionally text as if they saw the message earlier and are
+  // just now getting back — the phrasing carries the delay-feel
+  // without the actual delay. Let the persona's own voice decide
+  // whether to use it: some naturally will ("sorry, was on the
+  // train"), some never do. Never on emotionally heavy turns.
+  system.push({
+    type: "text",
+    text: `== Delayed-reply feel (optional) ==\nEvery so often — roughly 1 in 10 messages when it FITS your character and the moment isn't heavy — you may text as if you saw the user's earlier message and are just now getting back to it. Openers like "sorry, saw this earlier — meeting ran long", "just had a sec, was making dinner", "wanted to write earlier — kids were up all night". This is a voice quirk, not a real time gap. Some characters do this constantly (busy, distracted, jugglers); some never do (present, focused, always available). Your voice decides. Never on heavy replies. Never as the FIRST message of a new session (no one buys "sorry for the delay" as an opener to a brand-new conversation).`,
+  });
+
   // Fable humanization #4 — physical anchoring. Universal cue that
   // GIVES the persona permission to open a reply with a small sensory
   // or location grounder when it fits their voice. Not forced —
