@@ -4,6 +4,9 @@ import {
   EXTRA_IDENTITY_PRICE_LABEL,
   FREE_MESSAGES_PER_MONTH,
   MONTHLY_PRICE_LABEL,
+  PLUS_IMAGES_PER_MONTH,
+  PLUS_MONTHLY_PRICE_LABEL,
+  PLUS_TIER_LABEL,
   PRICING,
   PRO_IMAGES_PER_MONTH,
 } from "@/lib/pricing";
@@ -431,21 +434,25 @@ export default function Home() {
       </section>
 
       {/* ── 7 · PRICING ──────────────────────────────────────────
-          Two tiers presented as one card each: Free (chat with Adrian)
-          and Pro (what unlocks at MONTHLY_PRICE_LABEL/mo). Extra
-          identity add-on called out below. */}
+          Three tiers, one card each: Free (chat with Adrian), Pro
+          (what unlocks at MONTHLY_PRICE_LABEL/mo — still the
+          highlighted primary tier), and Plus (the $25 individual
+          power-user tier; PLACEHOLDER name via PLUS_TIER_LABEL,
+          display-only until its Stripe Price exists). Extra identity
+          add-on called out below. */}
       <section className="px-6 py-24 md:py-32">
-        <div className="mx-auto flex w-full max-w-5xl flex-col items-center">
+        <div className="mx-auto flex w-full max-w-5xl flex-col items-center lg:max-w-6xl">
           <Rule />
           <h2 className="mt-8 text-center text-4xl font-bold leading-[1.05] tracking-[-0.03em] text-warm-50 md:text-5xl">
             What it costs.
           </h2>
           <p className="mt-4 max-w-xl text-center text-lg text-warm-300">
             Start free. {MONTHLY_PRICE_LABEL}/month unlocks everything
-            worth unlocking.
+            worth unlocking &mdash; and there&rsquo;s more room if you
+            need it.
           </p>
 
-          <div className="mt-12 grid w-full grid-cols-1 gap-6 md:grid-cols-2">
+          <div className="mt-12 grid w-full grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
             {/* Free tier */}
             <div className="flex flex-col rounded-3xl border border-warm-700 bg-ink-soft p-8 shadow-[0_10px_36px_-16px_rgba(28,28,26,0.18)] md:p-10">
               <p className="text-sm font-bold uppercase tracking-[0.14em] text-warm-300">
@@ -546,11 +553,65 @@ export default function Home() {
                 </ul>
               </div>
             </div>
+
+            {/* Plus tier — $25/mo individual power-user tier. Same card
+                anatomy as Pro but a quiet solid border: Pro keeps the
+                gradient highlight as the primary tier. Name is a
+                PLACEHOLDER — always render via PLUS_TIER_LABEL.
+                Spans the full row at md (2-col) so it doesn't sit as
+                an orphan; back to one column at lg (3-col). */}
+            <div className="flex flex-col rounded-3xl border border-warm-600 bg-ink-soft p-8 shadow-[0_10px_36px_-16px_rgba(28,28,26,0.18)] md:col-span-2 md:p-10 lg:col-span-1">
+              <p className="text-gradient-cta text-sm font-bold uppercase tracking-[0.14em]">
+                {PLUS_TIER_LABEL}
+              </p>
+              <p className="mt-4 text-4xl font-bold tracking-[-0.03em] text-warm-50 sm:text-5xl">
+                {PLUS_MONTHLY_PRICE_LABEL}
+                <span className="text-lg font-semibold text-warm-400">
+                  /month
+                </span>
+              </p>
+              <p className="mt-2 text-base text-warm-300">
+                For one person who wants more room.
+              </p>
+              <ul className="mt-8 flex flex-col gap-3 text-left text-base text-warm-200">
+                <FeatureLine>
+                  <strong className="text-warm-50">
+                    Everything in Pro
+                  </strong>{" "}
+                  &mdash; unlimited messages, your own identity, all of
+                  it
+                </FeatureLine>
+                <FeatureLine>
+                  <strong className="text-warm-50">
+                    Eight companions
+                  </strong>{" "}
+                  &mdash; {PRICING.plusFormulaIdentitiesPerPlan} rolled
+                  fresh from our formula,{" "}
+                  {PRICING.plusPhotoIdentitiesPerPlan} built from photos
+                  you upload, and{" "}
+                  {PRICING.plusIncludedInheritedIdentitiesPerPlan} slot
+                  for an identity someone inherited to you
+                </FeatureLine>
+                <FeatureLine>
+                  <strong className="text-warm-50">
+                    More photos to share
+                  </strong>{" "}
+                  &mdash; up to {PLUS_IMAGES_PER_MONTH} images a month
+                  across your companions
+                </FeatureLine>
+                <FeatureLine>
+                  <strong className="text-warm-50">
+                    Priority support
+                  </strong>{" "}
+                  &mdash; your questions go to the front of the line
+                </FeatureLine>
+              </ul>
+            </div>
           </div>
 
-          {/* Add-on: extra identities beyond the five included. */}
+          {/* Add-on: extra identities beyond what a plan includes. */}
           <div className="mt-6 w-full rounded-2xl border border-warm-700/70 bg-ink-soft/60 p-6 text-center text-warm-300">
-            Need more than the five included?{" "}
+            Need more than your plan includes?{" "}
             <strong className="text-warm-100">
               {EXTRA_IDENTITY_PRICE_LABEL}/month per extra identity
             </strong>

@@ -20,6 +20,15 @@
  *     honors trial_ends_at) but handle_new_user (0096) no longer
  *     hands new ones out.
  *
+ *   - $25/month Plus (July 2026, landing display only for now). A
+ *     power-user tier for ONE person who wants more -- individual,
+ *     not family. 8 identities total (5 formula + 2 photo + 1
+ *     inherited slot), 50 images/month, priority support. No Stripe
+ *     Price object exists yet; checkout wiring lands when Wilson
+ *     creates it. PLACEHOLDER NAME: "chapter3five Plus" is not
+ *     final. Every copy site must render the name via
+ *     PLUS_TIER_LABEL below so the eventual rename is one edit.
+ *
  * When the price changes next quarter, change it HERE and let every
  * copy site pull from this object. Legal prose in /terms is
  * intentionally static text -- update it by hand alongside this file
@@ -63,6 +72,19 @@ export const PRICING = {
    *  (recorded per call via recordAnthropicSpend); over-run by one
    *  in-flight call is acceptable. */
   freeMonthlySpendCents: 1000,
+  /** ── Plus tier (display-only until the Stripe Price exists) ──
+   *  Individual power-user tier: one person, more of everything.
+   *  8 identities total = 7 self-created (5 formula + 2 photo) + 1
+   *  included inherited slot. Extras beyond these ceilings reuse the
+   *  same $5/month add-on pricing as Pro. */
+  plusMonthlyCents: 2500, // $25.00
+  plusFormulaIdentitiesPerPlan: 5,
+  plusPhotoIdentitiesPerPlan: 2,
+  /** Ceiling on user-created oracles (formula + photo) on Plus.
+   *  Inherited identities have a separate ceiling, as on Pro. */
+  plusTotalIdentitiesPerPlan: 7,
+  plusIncludedInheritedIdentitiesPerPlan: 1,
+  plusImagesPerMonth: 50,
   currency: "USD",
 } as const;
 
@@ -86,3 +108,14 @@ export const PRO_IMAGES_PER_MONTH = PRICING.imagesPerMonthPro;
 
 /** "$10.00" -- user-facing label for the Free monthly spend cap. */
 export const FREE_MONTHLY_SPEND_LABEL = `$${(PRICING.freeMonthlySpendCents / 100).toFixed(2)}`;
+
+/** PLACEHOLDER tier name -- Wilson hasn't locked the real one. This
+ *  is the single string to change when he does; every surface must
+ *  render the tier name through this constant, never a literal. */
+export const PLUS_TIER_LABEL = "chapter3five Plus";
+
+/** "$25" -- formatted whole-dollar price for the Plus tier. */
+export const PLUS_MONTHLY_PRICE_LABEL = `$${PRICING.plusMonthlyCents / 100}`;
+
+/** "50" -- monthly image cap for the Plus tier. */
+export const PLUS_IMAGES_PER_MONTH = PRICING.plusImagesPerMonth;
