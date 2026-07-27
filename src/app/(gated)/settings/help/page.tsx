@@ -71,9 +71,9 @@ export default async function HelpPage() {
           </h2>
           <div className="flex flex-col gap-4">
             <ContactCard
-              address="hello@chapter3five.app"
+              address="safety@chapter3five.app"
               label="Safety"
-              blurb="Report a user, a persona, or something that made you feel unsafe. Read every day. (Same inbox as hello@ while our dedicated safety address is being set up.)"
+              blurb="Report a user, a persona, or something that made you feel unsafe. Read every day."
             />
             <ContactCard
               address="privacy@chapter3five.app"

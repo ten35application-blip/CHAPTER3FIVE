@@ -33,7 +33,7 @@ export default function GuidelinesPage() {
       title="Community Guidelines"
       tagline="chapter3five is a warm, safe space — built so gently that a child who lost a parent could find their way through it. Keeping it that way requires a few hard lines. These are them."
       toc={toc}
-      contactEmail="hello@chapter3five.app"
+      contactEmail="safety@chapter3five.app"
       contactNote="See something that breaks these guidelines? Tell us. Every report is read by a person."
     >
       <LegalSection id="short-version" number={1} title="The short version">
@@ -223,10 +223,10 @@ export default function GuidelinesPage() {
           If you encounter anything that breaks these guidelines — or
           anything that just feels wrong — email{" "}
           <a
-            href="mailto:hello@chapter3five.app"
+            href="mailto:safety@chapter3five.app"
             className="font-semibold underline underline-offset-4"
           >
-            hello@chapter3five.app
+            safety@chapter3five.app
           </a>
           . A person reads every report. Reports are confidential, and
           reporting in good faith will never get you in trouble, even if

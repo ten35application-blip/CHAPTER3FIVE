@@ -47,16 +47,14 @@ export async function handleCrisis({
   }
 
   // 2) Notify admins. Fire in parallel; one bad address doesn't stop
-  //    the others. Sender must be a verified domain in Resend. We use
-  //    hello@ (already verified via the delete-account email path)
-  //    rather than safety@ — Wilson's mail service has the alias
-  //    misspelled as saftey@ so any FROM address of safety@ bounces.
-  //    The From display name still carries the safety framing so an
-  //    admin's inbox threads by intent, not sender.
+  //    the others. Sender is safety@ — the domain is verified in
+  //    Resend and the alias now resolves (Wilson corrected the
+  //    inbox typo on 2026-07-27). From-address routing lets admins
+  //    filter safety mail into its own thread.
   await Promise.allSettled(
     ADMIN_EMAILS.map((to) =>
       resend.emails.send({
-        from: "chapter3five safety <hello@chapter3five.app>",
+        from: "chapter3five safety <safety@chapter3five.app>",
         to,
         subject: `[chapter3five safety] Possible crisis — ${userEmail}`,
         text: buildEmailBody({
