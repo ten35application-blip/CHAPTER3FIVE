@@ -315,7 +315,20 @@ export async function POST(
   // What this persona remembers about this user (formula v4). Changes
   // whenever the extractor lands a new fact, so it must live AFTER the
   // cache breakpoint. Empty string when no memories exist yet.
-  const memoriesBlock = await fetchMemoriesForContext(oracleId, user.id);
+  let memoriesBlock = await fetchMemoriesForContext(oracleId, user.id);
+
+  // Fable humanization #3 — memory imperfection. If the persona was
+  // rolled with warm_foggy or conflator memory_style at synthesis
+  // (0078), append a small hedging cue so the model occasionally
+  // fumbles a detail in-character ("wait, was that Tuesday?"). Never
+  // fired for sharp / null personas — those keep perfect recall.
+  // Added HERE (not in fetchMemoriesForContext) so the retrieval layer
+  // stays focused on retrieval; humanization is a stream-time concern.
+  if (memoriesBlock && oracle.memory_style === "warm_foggy") {
+    memoriesBlock += `\n\nMemory-style note: you're warm-foggy on details. About once every 4-5 replies, in-character, hedge ONE small detail from what you remember about them — "wait, was it Tuesday or Wednesday you had that thing?" or "remind me — was your sister's name Sara or Sarah?". Never in the same reply as a call-back to something heavy. It should feel like a friend, not a bug.`;
+  } else if (memoriesBlock && oracle.memory_style === "conflator") {
+    memoriesBlock += `\n\nMemory-style note: you sometimes conflate two similar things. About once every 4-5 replies, in-character, merge two similar past details — "didn't your sister already have this problem?" (when it was actually a cousin). Self-correct warmly when they push back. Never do this on anything emotionally heavy or crisis-adjacent.`;
+  }
 
   // User display-name cue. profiles.full_name is what the user typed
   // into /settings; when set, the persona addresses them by it warmly
