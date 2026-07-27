@@ -265,7 +265,7 @@ export default async function AdminOverviewPage() {
         </p>
       </header>
 
-      <MetricSection title="People">
+      <MetricSection title="People" collapsibleKey="admin.overview.people">
         <MetricCard
           label="Total users"
           value={totalUsers.toLocaleString()}
@@ -296,7 +296,7 @@ export default async function AdminOverviewPage() {
       {/* Subscription health — the "who's paying, who's on trial,
           who cancelled" story. Every card links to the filtered
           /admin/users view for that cohort. */}
-      <MetricSection title="Subscriptions">
+      <MetricSection title="Subscriptions" collapsibleKey="admin.overview.subscriptions">
         <MetricCard
           label="Paid Pro"
           value={paidPro.toLocaleString()}
@@ -344,7 +344,7 @@ export default async function AdminOverviewPage() {
       </MetricSection>
 
       {/* Activity — the shape of engagement past the vanity count. */}
-      <MetricSection title="Activity">
+      <MetricSection title="Activity" collapsibleKey="admin.overview.activity">
         <MetricCard
           label="Daily active"
           value={dau.toLocaleString()}
@@ -368,7 +368,7 @@ export default async function AdminOverviewPage() {
       </MetricSection>
 
       {/* Moderation surface — anything waiting on Wilson. */}
-      <MetricSection title="Needs attention">
+      <MetricSection title="Needs attention" collapsibleKey="admin.overview.attention">
         <MetricCard
           label="Reports pending"
           value={pendingReports.toLocaleString()}
@@ -379,7 +379,7 @@ export default async function AdminOverviewPage() {
         />
       </MetricSection>
 
-      <MetricSection title="Identities">
+      <MetricSection title="Identities" collapsibleKey="admin.overview.identities">
         <MetricCard
           label="Total identities"
           value={totalIdentities.toLocaleString()}
@@ -405,7 +405,7 @@ export default async function AdminOverviewPage() {
         />
       </MetricSection>
 
-      <MetricSection title="Money">
+      <MetricSection title="Money" collapsibleKey="admin.overview.money">
         {hasAnyRevenue ? (
           <>
             <MetricCard
@@ -438,7 +438,7 @@ export default async function AdminOverviewPage() {
         )}
       </MetricSection>
 
-      <MetricSection title="Engagement">
+      <MetricSection title="Engagement" collapsibleKey="admin.overview.engagement">
         <MetricCard
           label="Chats active this week"
           value={activeChats.toLocaleString()}
@@ -454,7 +454,7 @@ export default async function AdminOverviewPage() {
       {/* COGS — Anthropic + OpenAI spend this month, per the
           chat_spend_events ledger. Populated by /api/chat/[id]/stream,
           the crons that were wired in Batch E, and the whisper route. */}
-      <MetricSection title="COGS (this month)">
+      <MetricSection title="COGS (this month)" collapsibleKey="admin.overview.cogs">
         <MetricCard
           label="Spend this month"
           value={formatUsd(spendMonthCents)}
@@ -477,7 +477,7 @@ export default async function AdminOverviewPage() {
       </MetricSection>
 
       {/* Cron heartbeat. Stale = last run older than 2× cadence. */}
-      <MetricSection title="Cron health">
+      <MetricSection title="Cron health" collapsibleKey="admin.overview.cron">
         <MetricCard
           label="Configured jobs"
           value={cronJobList.length.toString()}

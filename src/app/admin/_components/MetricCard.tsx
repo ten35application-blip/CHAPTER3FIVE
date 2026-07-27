@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CollapsibleSection } from "@/components/collapsible-section";
 
 /**
  * Dashboard metric card — big number, small label, optional delta chip
@@ -68,22 +69,53 @@ export function MetricCard({
   return <div className={baseClass}>{body}</div>;
 }
 
-/** Section wrapper for a titled grid of metric cards. */
+/**
+ * Section wrapper for a titled grid of metric cards.
+ *
+ * When `collapsibleKey` is passed, the whole section becomes a
+ * chevron-toggle whose open/closed state persists across the
+ * session under that key. Server component either way — the
+ * collapsibility comes from the shared CollapsibleSection client
+ * component. Wilson's ask: hide/show each admin section on
+ * demand.
+ */
 export function MetricSection({
   title,
   children,
+  collapsibleKey,
+  defaultOpen = true,
 }: {
   title: string;
   children: React.ReactNode;
+  /** Enables the chevron toggle. Unique per section on a page. */
+  collapsibleKey?: string;
+  /** Default state before sessionStorage restores. */
+  defaultOpen?: boolean;
 }) {
+  const grid = (
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      {children}
+    </div>
+  );
+
+  if (collapsibleKey) {
+    return (
+      <CollapsibleSection
+        storageKey={collapsibleKey}
+        label={title}
+        defaultOpen={defaultOpen}
+      >
+        <div className="mt-3">{grid}</div>
+      </CollapsibleSection>
+    );
+  }
+
   return (
     <section className="flex flex-col gap-3">
       <h2 className="text-sm font-semibold uppercase tracking-wider text-warm-300">
         {title}
       </h2>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {children}
-      </div>
+      {grid}
     </section>
   );
 }
