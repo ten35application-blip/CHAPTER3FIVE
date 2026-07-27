@@ -20,7 +20,11 @@ import { shouldPersonaBlock } from "@/lib/safety/block-detector";
 import { handleBlockDecision } from "@/lib/safety/block-notify";
 import { checkForCrisis } from "@/lib/safety/crisis-detector";
 import { handleCrisis } from "@/lib/safety/crisis-notify";
-import { canChatWithOracle, canSendMessageForFreeCap } from "@/lib/subscription";
+import {
+  canChatWithOracle,
+  canSendMessageForFreeCap,
+  isPro,
+} from "@/lib/subscription";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -448,6 +452,45 @@ export async function POST(
   // overrides the day's mood tone.
   if (distressed) {
     system.push({ type: "text", text: DISTRESS_TONE_BLOCK });
+  }
+
+  // Fable humanization #7 [Pro] — cross-persona awareness. The
+  // persona knows the NAMES of the user's OTHER identities (with a
+  // one-line description each) so they can casually reference them
+  // when relevant. Mimics how a real friend knows your other friends'
+  // names without knowing them personally. Pro-only: this is a
+  // "your world is populated" feel that only pays off across multiple
+  // identities; Free tier has one chattable identity anyway. Never
+  // reveals other-persona MEMORIES or messages — just names and
+  // hooks. RLS on oracles scopes to auth.uid = user_id already.
+  if (await isPro(supabase)) {
+    const { data: sibs } = await supabase
+      .from("oracles")
+      .select("id, name, one_line_hook")
+      .eq("user_id", user.id)
+      .neq("id", oracleId)
+      .is("deleted_at", null)
+      .is("conversation_archived_at", null)
+      .limit(10);
+    if (sibs && sibs.length > 0) {
+      const siblingLines = sibs
+        .map((s) => {
+          const rawHook =
+            typeof s.one_line_hook === "string" ? s.one_line_hook : "";
+          const hook = rawHook.replace(/[=_*#`]{2,}/g, " ").trim();
+          const name = typeof s.name === "string" ? s.name : "";
+          if (!name) return "";
+          return hook ? `- ${name} — ${hook}` : `- ${name}`;
+        })
+        .filter(Boolean)
+        .join("\n");
+      if (siblingLines) {
+        system.push({
+          type: "text",
+          text: `== Who else is in their world ==\nThey also talk to these people (whom you know EXIST but you don't know personally — you know their names because your user has mentioned them):\n\n${siblingLines}\n\nIf the user brings one up, react naturally — you can ask about them, be curious, remember they exist. Do NOT invent details about them. Do NOT quote things they'd say. If the user hasn't brought them up, don't force it — this is background awareness, not a talking point.`,
+        });
+      }
+    }
   }
 
   // Fable humanization #4 — physical anchoring. Universal cue that
