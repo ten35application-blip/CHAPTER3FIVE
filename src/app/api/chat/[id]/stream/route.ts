@@ -28,6 +28,7 @@ import { checkForCrisis } from "@/lib/safety/crisis-detector";
 import { handleCrisis } from "@/lib/safety/crisis-notify";
 import {
   canChatWithOracle,
+  canSendImageForMonthCap,
   canSendMessageForFreeCap,
   isPro,
 } from "@/lib/subscription";
@@ -198,10 +199,11 @@ export async function POST(
   // Retries still count against last month's actual send (they're
   // just re-rolls), so the same gate applies.
   //
-  // Applies to trial users too — a 30-day full-Pro trial fires on
-  // every new signup, so without this a scripted signup fleet can
-  // burn ~$10+/account before the cap engages. Paying subscribers
-  // and admin-comped accounts remain uncapped.
+  // Still applies to any remaining trial users -- 0096 killed the
+  // 30-day trial on new signups, but existing trialers keep theirs
+  // until it expires. The cap protects against a scripted fleet of
+  // legacy trial accounts and any admin-comped Pro whose spend runs
+  // wild. Paying Stripe subscribers remain uncapped.
   {
     const requesterTrialOnly = requesterIsPro
       ? await isTrialOnly(user.id)
@@ -289,10 +291,27 @@ export async function POST(
   // this turn's Anthropic call). The bucket is private and user-scoped;
   // signing goes through the USER's client so storage RLS is the
   // authorization (belt: reject paths outside the caller's own folder).
+  //
+  // Monthly image cap is enforced BEFORE URL signing so a capped user
+  // never pays the sign round-trip. Free tier is imagesPerMonthFree=0
+  // and short-circuits inside canSendImageForMonthCap without a count
+  // query. Retries never re-consume the cap (that image already counted
+  // when the original turn shipped).
   let signedImageUrl: string | null = null;
   if (imageStoragePath && !isRetry) {
     if (!imageStoragePath.startsWith(`${user.id}/`)) {
       return NextResponse.json({ error: "Invalid image path" }, { status: 403 });
+    }
+    const imageCap = await canSendImageForMonthCap(supabase, requesterIsPro);
+    if (!imageCap.ok) {
+      return NextResponse.json(
+        {
+          error: "image_month_cap",
+          current: imageCap.current,
+          limit: imageCap.limit,
+        },
+        { status: 402 },
+      );
     }
     const { data: signed, error: signErr } = await supabase.storage
       .from("chat-uploads")

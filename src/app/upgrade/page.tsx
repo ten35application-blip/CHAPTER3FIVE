@@ -8,6 +8,7 @@ import {
   FREE_MESSAGES_PER_MONTH,
   MONTHLY_PRICE_LABEL,
   PRICING,
+  PRO_IMAGES_PER_MONTH,
 } from "@/lib/pricing";
 import { UpgradeButton } from "@/app/(gated)/settings/_components/UpgradeButton";
 
@@ -39,10 +40,9 @@ export default async function UpgradePage({
   if (!user) redirect("/auth/signin");
 
   // "extra-inherited" means the visitor is ALREADY Pro — they've used
-  // all THREE inherited identities included with the plan (bumped
-  // from 1 → 3 in the pricing rework) and hit the slot gate. Bouncing
-  // them to `next` would loop them straight back into the gate, so
-  // the Pro bounce only applies to the other pitches.
+  // the ONE inherited slot included with the plan and hit the gate.
+  // Bouncing them to `next` would loop them straight back into the
+  // gate, so the Pro bounce only applies to the other pitches.
   const wantsExtraInherited = reason === "extra-inherited";
 
   if (!wantsExtraInherited && (await isPro(supabase))) {
@@ -76,9 +76,9 @@ export default async function UpgradePage({
         </h1>
         {wantsExtraInherited ? (
           <p className="mt-6 max-w-md text-lg leading-relaxed text-warm-200">
-            You&rsquo;ve filled the three inherited archives included
-            with Pro. Extra slots are {EXTRA_INHERITED_PRICE_LABEL}/month
-            each if you&rsquo;re holding more codes.
+            You&rsquo;ve used the inherited slot included with Pro. Extra
+            slots are {EXTRA_INHERITED_PRICE_LABEL}/month each if
+            you&rsquo;re holding more codes.
           </p>
         ) : cameFromInherit ? (
           <p className="mt-6 max-w-md text-lg leading-relaxed text-warm-200">
@@ -88,9 +88,9 @@ export default async function UpgradePage({
           </p>
         ) : (
           <p className="mt-6 max-w-md text-lg leading-relaxed text-warm-200">
-            Unlimited messages, up to five identities you build, and
-            &mdash; when you want it &mdash; the ability to record an
-            archive or redeem one someone left you.
+            Unlimited messages, five identities you build, photos you can
+            share, and &mdash; when you want it &mdash; the ability to
+            record an archive or redeem one someone left you.
           </p>
         )}
 
@@ -105,7 +105,8 @@ export default async function UpgradePage({
             <ProLine>
               <strong className="text-warm-50">Unlimited messages</strong>{" "}
               — no monthly cap, no meters. Free tier is limited to{" "}
-              {FREE_MESSAGES_PER_MONTH} messages a month.
+              {FREE_MESSAGES_PER_MONTH} messages a month with Chapter
+              (our guide).
             </ProLine>
             <ProLine>
               Up to {PRICING.formulaIdentitiesPerPlan} companions from our
@@ -115,18 +116,23 @@ export default async function UpgradePage({
               One companion made from a photo you upload
             </ProLine>
             <ProLine>
-              Record an archive if you want to leave one, or redeem up
-              to <strong className="text-warm-50">3 inherited archives</strong>{" "}
-              from codes people left you &mdash; enough to cover a
-              family
+              Record an archive if you want to leave one, or open{" "}
+              <strong className="text-warm-50">one inherited archive</strong>{" "}
+              from a code someone left you
             </ProLine>
             <ProLine>
-              Need more than {PRICING.totalIdentitiesPerPlan}?{" "}
+              <strong className="text-warm-50">
+                {PRO_IMAGES_PER_MONTH} photos a month
+              </strong>{" "}
+              you can send to any of your companions
+            </ProLine>
+            <ProLine>
+              Need more?{" "}
               <strong className="text-warm-50">
                 {EXTRA_IDENTITY_PRICE_LABEL}/mo per extra identity
               </strong>
-              . If you&rsquo;re holding a fourth+ inherit code, extra
-              inherited slots are {EXTRA_INHERITED_PRICE_LABEL}/mo each.
+              . Holding a second inherit code? Extra inherited slots are{" "}
+              {EXTRA_INHERITED_PRICE_LABEL}/mo each.
             </ProLine>
           </ul>
         </div>

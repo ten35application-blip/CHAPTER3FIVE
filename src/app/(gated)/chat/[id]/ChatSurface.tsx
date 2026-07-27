@@ -226,6 +226,7 @@ export default function ChatSurface({
   const [capHit, setCapHit] = useState<
     | { kind: "messages"; current: number; limit: number }
     | { kind: "spend"; current: number; limit: number }
+    | { kind: "images"; current: number; limit: number }
     | null
   >(null);
   // Tapback + report popover target — set on a bubble long-press,
@@ -407,6 +408,12 @@ export default function ChatSurface({
                 kind: "spend",
                 current: body?.current_cents ?? 0,
                 limit: body?.limit_cents ?? 0,
+              });
+            } else if (body?.error === "image_month_cap") {
+              setCapHit({
+                kind: "images",
+                current: body?.current ?? 0,
+                limit: body?.limit ?? 0,
               });
             } else {
               setCapHit({
@@ -950,6 +957,21 @@ export default function ChatSurface({
                     the conversations going, or come back at the start of
                     next month.
                   </>
+                ) : capHit.kind === "images" ? (
+                  capHit.limit === 0 ? (
+                    <>
+                      Photos are a Pro thing. Upgrade to send images to{" "}
+                      {name} &mdash; or keep going with just text.
+                    </>
+                  ) : (
+                    <>
+                      You&apos;ve used all{" "}
+                      <strong className="text-warm-50">{capHit.limit}</strong>
+                      {" "}
+                      of this month&apos;s photo sends. Text still works, and
+                      the counter resets at the start of next month.
+                    </>
+                  )
                 ) : (
                   <>
                     You&apos;ve used all{" "}

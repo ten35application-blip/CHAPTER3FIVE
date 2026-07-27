@@ -2,10 +2,10 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   EXTRA_IDENTITY_PRICE_LABEL,
-  EXTRA_INHERITED_PRICE_LABEL,
   FREE_MESSAGES_PER_MONTH,
   MONTHLY_PRICE_LABEL,
   PRICING,
+  PRO_IMAGES_PER_MONTH,
 } from "@/lib/pricing";
 
 // Force dynamic to bypass the CDN cache issue that stuck this page
@@ -459,41 +459,26 @@ export default function Home() {
                 </span>
               </p>
               <p className="mt-2 text-base text-warm-300">
-                For getting a taste of what this is.
+                For finding your footing here.
               </p>
               <ul className="mt-8 flex flex-col gap-3 text-left text-base text-warm-200">
-                <FeatureLine>One companion, formula-generated</FeatureLine>
+                <FeatureLine>
+                  <strong className="text-warm-50">Chat with Chapter</strong>{" "}
+                  &mdash; our guide. Warm, plain-spoken, knows the app
+                  inside out. Ask them anything.
+                </FeatureLine>
                 <FeatureLine>
                   <strong className="text-warm-50">
                     {FREE_MESSAGES_PER_MONTH} messages a month
                   </strong>{" "}
-                  &mdash; enough to keep the room from feeling too quiet
+                  &mdash; enough to figure out if this is the place for
+                  you
                 </FeatureLine>
                 <FeatureLine>
-                  Chat with memory, images, mic-to-text, receipts
+                  When you&rsquo;re ready to build your own, upgrade in
+                  a tap
                 </FeatureLine>
               </ul>
-
-              {/* Trial callout — lives INSIDE the Free card so anyone
-                  pricing-shopping reads "free forever" and "starts as
-                  full Pro" in the same breath. */}
-              <div className="mt-8 rounded-2xl border border-warm-700/70 p-5 text-left">
-                <p className="text-gradient-cta text-sm font-bold uppercase tracking-[0.14em]">
-                  Your first month is on us.
-                </p>
-                <p className="mt-2 text-base leading-relaxed text-warm-300">
-                  No card, no catch. The first 1,000 people to join get
-                  thirty days of everything &mdash; all five companions, the
-                  legacy path, the whole app.
-                </p>
-                <p className="mt-3 text-base leading-relaxed text-warm-300">
-                  When the month ends, one companion stays with you,
-                  free. The rest wait right where you left them
-                  &mdash; nothing is deleted, no conversation is lost
-                  &mdash; behind a {MONTHLY_PRICE_LABEL}/month plan you
-                  can cancel any time.
-                </p>
-              </div>
             </div>
 
             {/* Pro tier — highlighted with the brand gradient border */}
@@ -532,11 +517,20 @@ export default function Home() {
                   </FeatureLine>
                   <FeatureLine>
                     <strong className="text-warm-50">
-                      {PRICING.totalIdentitiesPerPlan} companions total
+                      Five companions
                     </strong>{" "}
                     &mdash; {PRICING.formulaIdentitiesPerPlan} rolled fresh
                     from our formula, {PRICING.photoIdentitiesPerPlan} built
-                    from a photo you upload
+                    from a photo you upload, and{" "}
+                    {PRICING.includedInheritedIdentitiesPerPlan} slot for
+                    an identity someone inherited to you
+                  </FeatureLine>
+                  <FeatureLine>
+                    <strong className="text-warm-50">
+                      Share photos, too
+                    </strong>{" "}
+                    &mdash; up to {PRO_IMAGES_PER_MONTH} images a month you
+                    can send to any companion
                   </FeatureLine>
                   <FeatureLine>
                     <strong className="text-warm-50">
@@ -547,24 +541,16 @@ export default function Home() {
                     can still talk to you.
                   </FeatureLine>
                   <FeatureLine>
-                    <strong className="text-warm-50">
-                      Inherit family identities
-                    </strong>{" "}
-                    &mdash; codes from loved ones only redeem on Pro. One
-                    included; extras are {EXTRA_INHERITED_PRICE_LABEL}
-                    /month each.
-                  </FeatureLine>
-                  <FeatureLine>
-                    Everything in Free, plus everything above
+                    Cancel any time. No refunds mid-month.
                   </FeatureLine>
                 </ul>
               </div>
             </div>
           </div>
 
-          {/* Add-on: extra identities beyond the 5. */}
+          {/* Add-on: extra identities beyond the five included. */}
           <div className="mt-6 w-full rounded-2xl border border-warm-700/70 bg-ink-soft/60 p-6 text-center text-warm-300">
-            Need more than {PRICING.totalIdentitiesPerPlan}?{" "}
+            Need more than the five included?{" "}
             <strong className="text-warm-100">
               {EXTRA_IDENTITY_PRICE_LABEL}/month per extra identity
             </strong>

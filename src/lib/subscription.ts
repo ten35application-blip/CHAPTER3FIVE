@@ -330,6 +330,65 @@ export async function canSendMessageForFreeCap(
 }
 
 /**
+ * Monthly image-attachment cap. Free tier (0/mo) is a hard block;
+ * Pro gets PRICING.imagesPerMonthPro per calendar month across all
+ * conversations. Counted on messages.image_storage_path so a purely
+ * text send doesn't touch it.
+ *
+ * Fail-CLOSED on any error -- can't count → deny. Matches the
+ * canSendMessageForFreeCap shape so gate sites look consistent.
+ *
+ * Returns:
+ *   { ok: true, current: N, limit: L }                   -- allowed
+ *   { ok: false, current: N, limit: L }                  -- cap hit
+ */
+export async function canSendImageForMonthCap(
+  supabase?: SupabaseClient,
+  precomputedIsPro?: boolean,
+): Promise<
+  | { ok: true; current: number; limit: number }
+  | { ok: false; current: number; limit: number }
+> {
+  const client = supabase ?? (await createClient());
+  const {
+    data: { user },
+  } = await client.auth.getUser();
+  const pro =
+    precomputedIsPro !== undefined
+      ? precomputedIsPro
+      : await isPro(client);
+  const limit = pro
+    ? PRICING.imagesPerMonthPro
+    : PRICING.imagesPerMonthFree;
+
+  if (!user) return { ok: false, current: 0, limit };
+  // Zero-cap tiers short-circuit before the DB read -- no reason to
+  // count if the answer is decided.
+  if (limit === 0) return { ok: false, current: 0, limit };
+
+  const monthStart = new Date();
+  monthStart.setUTCHours(0, 0, 0, 0);
+  monthStart.setUTCDate(1);
+
+  const { count, error } = await client
+    .from("messages")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .eq("role", "user")
+    .not("image_storage_path", "is", null)
+    .gte("created_at", monthStart.toISOString());
+
+  if (error || count === null) {
+    return { ok: false, current: 0, limit };
+  }
+
+  if (count >= limit) {
+    return { ok: false, current: count, limit };
+  }
+  return { ok: true, current: count, limit };
+}
+
+/**
  * How many of the 1000 early-access trial seats are still open.
  * Service-role count (RLS hides other rows from user clients).
  * Display-only — the authoritative gate lives in handle_new_user.
