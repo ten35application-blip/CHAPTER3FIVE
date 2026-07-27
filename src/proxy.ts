@@ -6,20 +6,23 @@ import { isAdmin } from "@/lib/admin";
 const ADMIN_PATH_RE = /^\/admin(\/|$)/;
 
 // Pages a soft-deleted user IS allowed to reach (so they can restore,
-// view legal docs, sign out, or read their own about/landing). Everything
-// else for a soft-deleted user redirects to /restore.
+// view legal docs, export their data, sign out, or read the
+// public marketing pages). Everything else for a soft-deleted user
+// redirects to /restore.
 const SOFT_DELETED_ALLOWED = [
   "/restore",
   "/account-deleted",
   "/auth",
   "/api/stripe",
   "/api/user/export",
+  "/api/user/delete-account",
   "/terms",
+  "/eula",
   "/privacy",
-  "/cookies",
+  "/guidelines",
+  "/data-deletion",
   "/about",
-  "/support",
-  "/how",
+  "/advertise",
   "/sample",
   "/api/sample-chat",
 ];

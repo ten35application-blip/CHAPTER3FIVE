@@ -170,9 +170,25 @@ export default async function UpgradePage({
             </a>
           )}
           <p className="mt-3 text-center text-xs text-warm-400">
-            {checkoutEnabled && !wantsExtraInherited
-              ? `Auto-renews monthly at ${MONTHLY_PRICE_LABEL} until you cancel. Cancel any time in Settings.`
-              : "We’re turning on self-serve checkout soon. Until then, drop us a note and we’ll flip your account on within a day."}
+            {checkoutEnabled && !wantsExtraInherited ? (
+              <>
+                Auto-renews monthly at {MONTHLY_PRICE_LABEL} until you
+                cancel. Cancel any time in Settings. See our{" "}
+                <Link
+                  href="/terms#billing"
+                  className="text-warm-300 underline underline-offset-2 hover:text-coral-strong"
+                >
+                  billing and refund policy
+                </Link>
+                .
+              </>
+            ) : (
+              <>
+                We&rsquo;re turning on self-serve checkout soon. Until
+                then, drop us a note and we&rsquo;ll flip your account on
+                within a day.
+              </>
+            )}
           </p>
         </div>
 

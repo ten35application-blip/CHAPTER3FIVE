@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createClient as createPlainClient } from "@supabase/supabase-js";
 import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { createClient } from "@/lib/supabase/server";
+import { requireTermsAccepted } from "@/lib/legal/gate";
 import { questions } from "@/content/questions";
 import {
   PERSONALITY_DESCRIPTIONS,
@@ -206,6 +207,12 @@ export async function POST(request: NextRequest) {
   if (!user) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
+
+  // Legal gate — must match the (gated) layout so Bearer-authed
+  // mobile clients can't bypass the acceptance flow. 428 with a
+  // machine-readable code the client can catch.
+  const legal = await requireTermsAccepted(supabase, user.id);
+  if (!legal.ok) return legal.response;
 
   const { data: profile } = await supabase
     .from("profiles")

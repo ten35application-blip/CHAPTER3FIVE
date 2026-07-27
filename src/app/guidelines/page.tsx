@@ -31,7 +31,7 @@ export default function GuidelinesPage() {
       currentPath="/guidelines"
       kicker="The lines"
       title="Community Guidelines"
-      tagline="chapter3five is a warm, safe space — built so gently that a child who lost a parent could find their way through it. Keeping it that way requires a few hard lines. These are them."
+      tagline="chapter3five is a warm, safe space for adults navigating grief, loneliness, and the memory of the people who mattered most. Keeping it that way requires a few hard lines. These are them."
       toc={toc}
       contactEmail="safety@chapter3five.app"
       contactNote="See something that breaks these guidelines? Tell us. Every report is read by a person."

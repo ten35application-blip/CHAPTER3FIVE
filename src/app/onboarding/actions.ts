@@ -1,8 +1,10 @@
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { redirectWithError } from "@/lib/action-errors";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { CURRENT_TERMS_VERSION } from "@/lib/legal/version";
 import { isAdmin } from "@/lib/admin/allowlist";
 
@@ -10,7 +12,13 @@ import { isAdmin } from "@/lib/admin/allowlist";
  * Record acceptance of the current Terms/EULA/Privacy/Guidelines bundle
  * on the caller's profile row, then let them into the app. The (gated)
  * layout reads terms_version_accepted on every authed page, so this
- * write is the single source of truth for the gate.
+ * write is the single source of truth for the fast-path gate.
+ *
+ * Also appends to public.terms_acceptances (0086) — the source of
+ * truth for legal disputes. Every re-consent adds a new row rather
+ * than overwriting; captures IP + user agent + email so the record
+ * has enough context if it ever needs defending. The ledger row
+ * survives account deletion (FK is on delete set null, not cascade).
  */
 export async function acceptTerms(formData: FormData) {
   // Belt-and-suspenders: the checkbox is required client-side, but a
@@ -45,6 +53,41 @@ export async function acceptTerms(formData: FormData) {
       diagnose(error, isAdmin(user.email)),
       error,
     );
+  }
+
+  // Append the ledger row via the admin client (RLS forbids user
+  // writes — the record is server-side only so it can't be tampered).
+  // Best-effort: a failure here should NOT bounce the user back to
+  // /onboarding since the profile column already carries the gate
+  // signal. Logged for follow-up.
+  try {
+    const h = await headers();
+    // Vercel: x-forwarded-for = "client-ip, proxy1, proxy2". First
+    // entry is the client. Falls back to x-real-ip if the header set
+    // is different in another host.
+    const forwarded = h.get("x-forwarded-for");
+    const ip = forwarded
+      ? forwarded.split(",")[0].trim()
+      : (h.get("x-real-ip") ?? null);
+    const userAgent = h.get("user-agent");
+    const admin = createAdminClient();
+    const { error: ledgerErr } = await admin
+      .from("terms_acceptances")
+      .insert({
+        user_id: user.id,
+        user_email: user.email ?? null,
+        terms_version: CURRENT_TERMS_VERSION,
+        ip_address: ip,
+        user_agent: userAgent,
+      });
+    if (ledgerErr) {
+      console.error(
+        "[onboarding] terms_acceptances ledger insert failed:",
+        ledgerErr,
+      );
+    }
+  } catch (err) {
+    console.error("[onboarding] terms_acceptances ledger threw:", err);
   }
 
   redirect("/dashboard");

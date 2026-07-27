@@ -26,6 +26,7 @@ import {
   canSendMessageForFreeCap,
   isPro,
 } from "@/lib/subscription";
+import { requireTermsAccepted } from "@/lib/legal/gate";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -103,6 +104,12 @@ export async function POST(
   if (!user) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
+
+  // Legal gate — mirrors the (gated) layout so Bearer-authed mobile
+  // clients can't bypass acceptance. 428 with a code the client can
+  // catch and route the user to the in-app acceptance surface.
+  const legal = await requireTermsAccepted(supabase, user.id);
+  if (!legal.ok) return legal.response;
 
   // Ownership check rides on RLS: the select policies from 0002 (owner)
   // and 0055 (oracle_shares) decide visibility — a row coming back IS

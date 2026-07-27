@@ -135,10 +135,9 @@ export default function EulaPage() {
           You own the personal content you contribute — your questions,
           your uploaded photos, the identities you build. The content
           the service generates on your behalf (persona responses,
-          synthesized voices, generated images) is licensed to you for
-          the same personal, non-commercial use as the software itself.
-          You may keep and export copies of your data at any time from
-          Settings.
+          generated images) is licensed to you for the same personal,
+          non-commercial use as the software itself. You may keep and
+          export copies of your data at any time from Settings.
         </p>
         <p>
           You agree that generated content is a computed response, not

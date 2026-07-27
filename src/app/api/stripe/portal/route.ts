@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { getStripe } from "@/lib/stripe";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { requireTermsAccepted } from "@/lib/legal/gate";
 
 /**
  * Create a Stripe Billing Portal session for the current user and
@@ -28,6 +29,9 @@ export async function POST(request: NextRequest) {
   if (!user) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
+
+  const legal = await requireTermsAccepted(supabase, user.id);
+  if (!legal.ok) return legal.response;
 
   const admin = createAdminClient();
   const { data: profile } = await admin

@@ -112,11 +112,9 @@ export default async function OnboardingPage({
         <p className="mt-4 max-w-sm text-base leading-relaxed text-warm-300">
           {isReconsent ? (
             <>
-              We&rsquo;ve added a dedicated End-User License Agreement
-              so the store versions of the app have the specific
-              license text they need. Nothing about how chapter3five
-              works has changed &mdash; please take a look and
-              re-confirm.
+              We&rsquo;ve updated our legal bundle. Please take a look
+              at what changed and re-confirm to keep going. Nothing
+              about your account or content has changed.
             </>
           ) : (
             <>

@@ -4,6 +4,7 @@ import { getStripe, RANDOMIZE_PRICE_USD_CENTS } from "@/lib/stripe";
 import { PRICING } from "@/lib/pricing";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { requireTermsAccepted } from "@/lib/legal/gate";
 
 /**
  * Create a Stripe Checkout session for a $5 credit. The `purpose` query/body
@@ -52,6 +53,9 @@ export async function POST(request: NextRequest) {
   if (!user) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
+
+  const legal = await requireTermsAccepted(supabase, user.id);
+  if (!legal.ok) return legal.response;
 
   const headerList = await headers();
   const host = headerList.get("host") ?? "chapter3five.app";

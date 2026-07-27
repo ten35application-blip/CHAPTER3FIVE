@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { requireTermsAccepted } from "@/lib/legal/gate";
 
 /**
  * Toggle a user's tapback reaction on a message.
@@ -52,6 +53,9 @@ export async function POST(request: NextRequest) {
   if (!user) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
+
+  const legal = await requireTermsAccepted(supabase, user.id);
+  if (!legal.ok) return legal.response;
 
   // Read the existing reaction (if any) so we know whether this tap is
   // a delete (same kind) or a replace (different kind). One round-trip

@@ -155,9 +155,33 @@ export default function PrivacyPage() {
             Stores your account, answers, and chat history.
           </li>
           <li>
-            <strong>Anthropic</strong> — our AI provider. Receives chat
-            content to generate companion replies (see Section 6 — this one
-            deserves its own section).
+            <strong>Anthropic</strong> — our primary AI provider. Receives
+            chat content to generate companion replies (see Section 6 — this
+            one deserves its own section).
+          </li>
+          <li>
+            <strong>OpenAI</strong> — narrow supporting uses only, each
+            covered in more detail in Section 6:
+            <ul>
+              <li>
+                Content moderation on messages you send and photos you
+                upload (their &ldquo;Moderations&rdquo; endpoint — checks
+                for CSAM, graphic violence, self-harm, hate).
+              </li>
+              <li>
+                Embeddings that power the semantic-memory search inside
+                your identities (numerical vectors of short memory notes).
+              </li>
+              <li>
+                Whisper transcription of the audio you record while
+                answering identity questions, so we can save the text
+                alongside the audio.
+              </li>
+            </ul>
+            OpenAI processes these under its API terms, which by default
+            allow up to 30 days of retention for abuse-monitoring purposes.
+            Content sent via the API is not used to train OpenAI models
+            unless you opt in — we do not opt in.
           </li>
           <li>
             <strong>Stripe</strong> — payments. Handles your card and billing
@@ -193,7 +217,7 @@ export default function PrivacyPage() {
         </p>
         <LegalCallout>
           <p>
-            Chat content is sent to Anthropic under a{" "}
+            Chat content sent to Anthropic runs under a{" "}
             <strong>zero-data-retention configuration</strong>: Anthropic
             processes it to generate the reply and does not retain it
             afterward, and your messages are{" "}
@@ -201,10 +225,11 @@ export default function PrivacyPage() {
           </p>
         </LegalCallout>
         <p>
-          The same applies to photos. A photo you upload to create a
-          photo-based identity, or send in a chat conversation, is stored in
-          Supabase Storage as content you own, and is processed by
-          Anthropic&rsquo;s vision capability under the{" "}
+          The same applies to photos <em>sent to Anthropic&rsquo;s vision
+          capability</em>. A photo you upload to create a photo-based
+          identity, or send in a chat conversation, is stored in Supabase
+          Storage as content you own, and when it&rsquo;s sent to Anthropic
+          for vision inference it runs under the{" "}
           <strong>same zero-data-retention terms as your chat text</strong>:
           used to generate the response or the identity, retained by
           Anthropic no longer than that, and never used to train AI models.
@@ -212,6 +237,44 @@ export default function PrivacyPage() {
         <p>
           Your conversations are stored only in our own database (Supabase),
           under your account, where you can delete them.
+        </p>
+        <h3 className="mt-8 text-xl font-semibold text-warm-100">
+          What OpenAI actually receives
+        </h3>
+        <p>
+          OpenAI does <strong>not</strong> generate your companion&rsquo;s
+          replies. Its use is limited to three narrow supporting jobs, each
+          on a separate endpoint:
+        </p>
+        <ul>
+          <li>
+            <strong>Moderation.</strong> Text messages and any photo you
+            upload are checked against OpenAI&rsquo;s Moderations endpoint
+            for CSAM, graphic violence, self-harm, and hate. This is a
+            required App Store surface and it&rsquo;s how we keep the
+            product safe.
+          </li>
+          <li>
+            <strong>Embeddings.</strong> Short memory notes we store about
+            your identities (e.g. &ldquo;prefers being called Grandpa,&rdquo;
+            &ldquo;grew up in Detroit&rdquo;) are sent to OpenAI&rsquo;s
+            embeddings endpoint to produce numerical vectors that power
+            semantic search. The embedding is a hash-like number, not the
+            text.
+          </li>
+          <li>
+            <strong>Whisper transcription.</strong> When you record an audio
+            answer to an identity question, that audio clip is sent to
+            OpenAI&rsquo;s Whisper endpoint to produce the text
+            transcription that&rsquo;s saved alongside it.
+          </li>
+        </ul>
+        <p>
+          Unlike our Anthropic path, we are not on an OpenAI zero-retention
+          agreement — their API default allows retention for up to 30 days
+          for abuse-monitoring purposes, after which the data is deleted.
+          API traffic is not used to train OpenAI models unless the
+          developer opts in; we do not opt in.
         </p>
       </LegalSection>
 

@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { CURRENT_TERMS_VERSION } from "@/lib/legal/version";
 
 /**
  * Shared chrome for the three legal pages (/terms, /privacy,
@@ -84,7 +85,8 @@ export function LegalShell({
           {tagline}
         </p>
         <p className="mt-7 rounded-full border border-warm-700 bg-ink-soft px-5 py-2 text-sm font-semibold text-warm-300">
-          Effective July 25, 2026 &middot; Last updated July 25, 2026
+          Effective {formatVersionDate(CURRENT_TERMS_VERSION)} &middot;
+          Last updated {formatVersionDate(CURRENT_TERMS_VERSION)}
         </p>
       </header>
 
@@ -141,6 +143,31 @@ export function LegalShell({
       </footer>
     </main>
   );
+}
+
+/**
+ * Turn a "YYYY-MM-DD" (or "YYYY-MM-DDx" — sequence-suffixed same-day
+ * bumps) version tag into the human display used in the effective-date
+ * banner. Same format across all four legal pages so users see a
+ * single date + the recorded consent version matches.
+ */
+function formatVersionDate(version: string): string {
+  const parts = version.split("-");
+  const y = Number(parts[0]);
+  const m = Number(parts[1]);
+  // Strip a trailing suffix like "27b" -> 27 so intraday version bumps
+  // still render a readable date.
+  const dStr = (parts[2] ?? "").replace(/[^0-9]+.*$/, "");
+  const d = Number(dStr);
+  if (!y || !m || !d) return version;
+  const parsed = new Date(Date.UTC(y, m - 1, d));
+  if (Number.isNaN(parsed.getTime())) return version;
+  return parsed.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
 }
 
 /**

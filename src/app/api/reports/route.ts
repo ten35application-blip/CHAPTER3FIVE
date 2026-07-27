@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { after } from "next/server";
 import { notifyAdminsOfReport } from "@/lib/safety/report-notify";
 import { createClient } from "@/lib/supabase/server";
+import { requireTermsAccepted } from "@/lib/legal/gate";
 
 /**
  * User reports a message from their own thread. Lands in the moderation
@@ -50,6 +51,9 @@ export async function POST(request: NextRequest) {
   if (!user) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
+
+  const legal = await requireTermsAccepted(supabase, user.id);
+  if (!legal.ok) return legal.response;
 
   const { data: inserted, error } = await supabase
     .from("message_reports")
