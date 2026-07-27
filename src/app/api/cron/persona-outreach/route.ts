@@ -6,6 +6,7 @@ import {
   coerceTextFirstFrequency,
   DEFAULT_TEXT_FIRST_FREQUENCY,
 } from "@/lib/identity/formula";
+import { detectCrisis } from "@/lib/crisis";
 import { moderateText } from "@/lib/moderation";
 import { moodOfTheDay, moodToPromptBlock } from "@/lib/identity/mood";
 import { sendWebPushToUser } from "@/lib/webPush";
@@ -123,14 +124,24 @@ export async function GET(request: NextRequest) {
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
+      // If the source turn tripped our crisis detector, DO NOT frame
+      // a chirpy "earlier when you said…" callback around it. A
+      // callback would re-surface a crisis moment in casual-chat
+      // framing, which is exactly what we don't want. Falling back to
+      // null lets the outreach either use long-silence framing on a
+      // different oracle or skip this user entirely for the day —
+      // both are safer than a warm-toned callback to a crisis line.
+      // Also cap the injected payload at 500 chars so a prompt-
+      // injection attempt in the source can't dominate the prompt.
       const freshCallback =
         freshTurn &&
         typeof freshTurn.oracle_id === "string" &&
         typeof freshTurn.content === "string" &&
-        freshTurn.content.trim().length >= 40 // skip greetings / "ok" / etc
+        freshTurn.content.trim().length >= 40 &&
+        !detectCrisis(freshTurn.content).triggered
           ? {
               oracleId: freshTurn.oracle_id as string,
-              text: freshTurn.content as string,
+              text: freshTurn.content.slice(0, 500),
             }
           : null;
 
