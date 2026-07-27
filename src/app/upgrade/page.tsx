@@ -106,7 +106,7 @@ export default async function UpgradePage({
             <ProLine>
               <strong className="text-warm-50">Unlimited messages</strong>{" "}
               — no monthly cap, no meters. Free tier is limited to{" "}
-              {FREE_MESSAGES_PER_MONTH} messages a month with Chapter
+              {FREE_MESSAGES_PER_MONTH} messages a month with Adrian
               (our guide).
             </ProLine>
             <ProLine>

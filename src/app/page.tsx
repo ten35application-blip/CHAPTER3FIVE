@@ -463,7 +463,7 @@ export default function Home() {
               </p>
               <ul className="mt-8 flex flex-col gap-3 text-left text-base text-warm-200">
                 <FeatureLine>
-                  <strong className="text-warm-50">Chat with Chapter</strong>{" "}
+                  <strong className="text-warm-50">Chat with Adrian</strong>{" "}
                   &mdash; our guide. Warm, plain-spoken, knows the app
                   inside out. Ask them anything.
                 </FeatureLine>

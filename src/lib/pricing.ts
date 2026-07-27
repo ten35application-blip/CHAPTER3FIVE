@@ -4,9 +4,10 @@
  * Wilson's pricing (July 2026 rework):
  *   - $10/month Pro. Doubled from $5 to move the tier out of the
  *     "too-cheap-to-be-sustainable" zone as launch approaches. Free
- *     tier now chats with the shared "Chapter" concierge (oracles.
- *     is_concierge = true), so cost per free user drops to fractions
- *     of a cent instead of a per-user synthesis + per-user cache.
+ *     tier now chats with the shared "Adrian" concierge (oracles.
+ *     is_concierge = true; renamed from "Chapter" in 0097), so cost
+ *     per free user drops to fractions of a cent instead of a per-user
+ *     synthesis + per-user cache.
  *   - Pro slots: 3 formula-rolled + 1 photo-derived + 1 inherited = 5
  *     total. Inherited is a distinct slot rather than a countable
  *     resource (the old "up to 3 inherited on top of 5 self-created"

@@ -79,14 +79,11 @@ export default async function OnboardingPage({
       ?.stripe_customer_id,
   );
 
-  // Distinguish first-time consent from re-consent (existing user hit
-  // by a legal-version bump). A non-null terms_version_accepted means
-  // they've been through here before — the copy shifts to explain WHY
-  // they're back rather than reading like a first-run gate.
-  const isReconsent =
-    profile !== null &&
-    profile.terms_version_accepted !== null &&
-    !hasAcceptedCurrentTerms(profile);
+  // Re-consent (existing user hit by a legal-version bump) uses the
+  // same copy as first-time consent -- Wilson's call, to keep the
+  // "welcome" tone consistent whether it's the first time or a Terms
+  // update. The routing decision (whether to land here at all) still
+  // rides on hasAcceptedCurrentTerms upstream.
 
   return (
     <main className="flex min-h-dvh flex-1 flex-col items-center px-6 py-12">
@@ -106,33 +103,14 @@ export default async function OnboardingPage({
         </div>
 
         <p className="text-gradient-cta mt-8 text-sm font-bold uppercase tracking-[0.14em]">
-          {isReconsent ? "One quick thing" : "One more thing"}
+          One more thing
         </p>
         <h1 className="mt-3 text-4xl font-bold leading-[1.05] tracking-[-0.02em] text-warm-50 sm:text-5xl">
-          {isReconsent ? (
-            <>
-              A small <span className="text-gradient-cta">update.</span>
-            </>
-          ) : (
-            <>
-              Before we <span className="text-gradient-cta">begin.</span>
-            </>
-          )}
+          Before we <span className="text-gradient-cta">begin.</span>
         </h1>
         <p className="mt-4 max-w-sm text-base leading-relaxed text-warm-300">
-          {isReconsent ? (
-            <>
-              We&rsquo;ve updated our legal bundle. Please take a look
-              at what changed and re-confirm to keep going. Nothing
-              about your account or content has changed.
-            </>
-          ) : (
-            <>
-              chapter3five holds real weight &mdash; people&apos;s
-              voices, memories, and legacy. A quick agreement, then
-              you&apos;re in.
-            </>
-          )}
+          chapter3five holds real weight &mdash; people&apos;s voices,
+          memories, and legacy. A quick agreement, then you&apos;re in.
         </p>
 
         {error ? (
