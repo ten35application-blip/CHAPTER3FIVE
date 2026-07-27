@@ -448,11 +448,16 @@ export async function POST(
         // typing. Chronotype × mood × hour × jitter. Server hour is
         // used because we don't store the persona's timezone yet —
         // the chronotype effect washes out cleanly at that granularity.
-        const replyGapMs = computeReplyGapMs({
-          chronotype: coerceChronotype(oracle.chronotype),
-          mood: todayMood,
-          hourOfDay: new Date().getHours(),
-        });
+        // Skip the delay on retry — the persona already "read" this
+        // turn once; making them pause again to re-read reads as
+        // "network broken," not "took a beat."
+        const replyGapMs = isRetry
+          ? 0
+          : computeReplyGapMs({
+              chronotype: coerceChronotype(oracle.chronotype),
+              mood: todayMood,
+              hourOfDay: new Date().getHours(),
+            });
         if (replyGapMs > 0) {
           await new Promise((resolve) => setTimeout(resolve, replyGapMs));
         }
