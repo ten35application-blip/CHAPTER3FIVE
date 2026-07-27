@@ -187,6 +187,7 @@ export async function createIdentityFromPhoto(
       punctuation_habit: traits.punctuationHabit ?? null,
       memory_style: traits.memoryStyle ?? null,
       text_burst_style: traits.textBurstStyle ?? null,
+      chronotype: traits.chronotype ?? null,
       voice_examples: persona.voice_examples,
     })
     .select("id")

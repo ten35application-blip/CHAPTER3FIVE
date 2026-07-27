@@ -3,8 +3,9 @@ import { after } from "next/server";
 import type Anthropic from "@anthropic-ai/sdk";
 import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { backfillVoiceExamples } from "@/lib/identity/backfillVoiceExamples";
-import { ageFromBirthday } from "@/lib/identity/formula";
+import { ageFromBirthday, coerceChronotype } from "@/lib/identity/formula";
 import { moodOfTheDay, moodToPromptBlock } from "@/lib/identity/mood";
+import { computeReplyGapMs } from "@/lib/identity/replyGap";
 import { extractMemoriesFromMessage } from "@/lib/memory/extract";
 import { fetchMemoriesForContext } from "@/lib/memory/retrieve";
 import { shouldPersonaBlock } from "@/lib/safety/block-detector";
@@ -89,7 +90,7 @@ export async function POST(
   // the authorization.
   const { data: oracle } = await supabase
     .from("oracles")
-    .select("id, name, manually_unread, blocked_at, block_reason, traits, memory_style, text_burst_style, voice_examples")
+    .select("id, name, manually_unread, blocked_at, block_reason, traits, memory_style, text_burst_style, voice_examples, chronotype")
     .eq("id", oracleId)
     .is("deleted_at", null)
     .maybeSingle();
@@ -440,6 +441,22 @@ export async function POST(
       });
 
       try {
+        // Fable humanization #1 — pre-stream reply-gap. The typing
+        // indicator is already visible on the client; this pause lets
+        // it sit for a heartbeat before Claude's first token arrives,
+        // matching how a real friend takes a moment to read + start
+        // typing. Chronotype × mood × hour × jitter. Server hour is
+        // used because we don't store the persona's timezone yet —
+        // the chronotype effect washes out cleanly at that granularity.
+        const replyGapMs = computeReplyGapMs({
+          chronotype: coerceChronotype(oracle.chronotype),
+          mood: todayMood,
+          hourOfDay: new Date().getHours(),
+        });
+        if (replyGapMs > 0) {
+          await new Promise((resolve) => setTimeout(resolve, replyGapMs));
+        }
+
         const claudeStream = anthropic.messages.stream({
           model: ANTHROPIC_MODEL,
           max_tokens: 2048,

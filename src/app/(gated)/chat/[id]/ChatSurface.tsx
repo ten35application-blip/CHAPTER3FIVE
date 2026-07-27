@@ -415,7 +415,12 @@ export default function ChatSurface({
             // sequence, not all at once.
             if (evt.parts && evt.parts.length > 1) {
               // First part appears immediately (replaces the streaming
-              // typing indicator), the rest cascade in.
+              // typing indicator), the rest cascade in. Fable
+              // humanization #1: keep isStreaming true through the
+              // cascade and blank streamText between bubbles so the
+              // TypingDots indicator shows during each pause — the
+              // "they're typing the next one" beat every real burst
+              // reader looks for.
               const parts = evt.parts;
               const nowIso = new Date().toISOString();
               setMessages((prev) => [
@@ -432,17 +437,14 @@ export default function ChatSurface({
                   theirReaction: null,
                 },
               ]);
-              setIsStreaming(false);
+              // Clear the streamed text bubble; isStreaming stays true
+              // until the LAST part lands so TypingDots continue to
+              // render between each staggered bubble.
               setStreamText("");
-              // Stagger the remaining parts via setTimeout so each pops
-              // with the message-in animation. Timers accumulate an
-              // offset so #2 appears at 650ms, #3 at 1300ms, etc.
-              // Track the ids so a new user turn (or unmount) can
-              // clear them and prevent late bubbles from landing out of
-              // order with the user's next message.
               for (let i = 1; i < parts.length; i++) {
                 const offset = i * BURST_STAGGER_MS;
                 const part = parts[i];
+                const isLast = i === parts.length - 1;
                 const timerId = window.setTimeout(() => {
                   setMessages((prev) => [
                     ...prev,
@@ -458,6 +460,7 @@ export default function ChatSurface({
                       theirReaction: null,
                     },
                   ]);
+                  if (isLast) setIsStreaming(false);
                 }, offset);
                 burstTimersRef.current.push(timerId);
               }

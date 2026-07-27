@@ -2946,6 +2946,7 @@ export type Traits = {
   punctuationHabit?: PunctuationHabit | null;
   memoryStyle?: MemoryStyle | null;
   textBurstStyle?: TextBurstStyle | null;
+  chronotype?: Chronotype | null;
 };
 
 /** Fallback used when a stored Traits blob predates textFirstFrequency. */
@@ -3009,6 +3010,9 @@ export type MemoryStyle = (typeof MEMORY_STYLES)[number];
 export const TEXT_BURST_STYLES = ["one_liner", "two_part", "three_burst"] as const;
 export type TextBurstStyle = (typeof TEXT_BURST_STYLES)[number];
 
+export const CHRONOTYPES = ["morning_person", "night_owl", "steady"] as const;
+export type Chronotype = (typeof CHRONOTYPES)[number];
+
 /** Per-dimension probability of ROLLING a value vs leaving null.
  *  Kept as named constants so a designer can tune the mix without
  *  hunting through code. */
@@ -3018,6 +3022,7 @@ const HUMANIZATION_ROLL_PROB = {
   punctuationHabit: 0.4, // 40% — rarer because visual quirks stand out
   memoryStyle: 0.5,
   textBurstStyle: 0.55,
+  chronotype: 0.5, // 50% — half the population is a morning/night type
 } as const;
 
 function maybeRoll<T>(prob: number, roller: () => T): T | null {
@@ -3053,6 +3058,10 @@ export function rollTextBurstStyle(): TextBurstStyle {
   ];
 }
 
+export function rollChronotype(): Chronotype {
+  return CHRONOTYPES[Math.floor(Math.random() * CHRONOTYPES.length)];
+}
+
 /** All humanization rolls in one call. Returns a bag of nullable
  *  values so the caller can spread it into Traits at roll time. */
 export function rollHumanization(): {
@@ -3061,6 +3070,7 @@ export function rollHumanization(): {
   punctuationHabit: PunctuationHabit | null;
   memoryStyle: MemoryStyle | null;
   textBurstStyle: TextBurstStyle | null;
+  chronotype: Chronotype | null;
 } {
   return {
     disclosurePace: maybeRoll(HUMANIZATION_ROLL_PROB.disclosurePace, rollDisclosurePace),
@@ -3074,6 +3084,7 @@ export function rollHumanization(): {
       HUMANIZATION_ROLL_PROB.textBurstStyle,
       rollTextBurstStyle,
     ),
+    chronotype: maybeRoll(HUMANIZATION_ROLL_PROB.chronotype, rollChronotype),
   };
 }
 
@@ -3096,6 +3107,11 @@ export function coerceMemoryStyle(v: unknown): MemoryStyle | null {
 export function coerceTextBurstStyle(v: unknown): TextBurstStyle | null {
   return typeof v === "string" && (TEXT_BURST_STYLES as readonly string[]).includes(v)
     ? (v as TextBurstStyle)
+    : null;
+}
+export function coerceChronotype(v: unknown): Chronotype | null {
+  return typeof v === "string" && (CHRONOTYPES as readonly string[]).includes(v)
+    ? (v as Chronotype)
     : null;
 }
 export function coerceDisclosurePace(v: unknown): number | null {
