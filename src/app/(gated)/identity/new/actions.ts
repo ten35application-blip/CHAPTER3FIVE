@@ -137,6 +137,11 @@ export async function createIdentity(): Promise<void> {
       text_burst_style: traits.textBurstStyle ?? null,
       chronotype: traits.chronotype ?? null,
       voice_examples: persona.voice_examples,
+      // Formula v5 additions (0094) — texting_fluency lives on the
+      // row so replyGap can read it; pet_name lives here so
+      // openers/outreach can reference it consistently.
+      texting_fluency: traits.textingFluency ?? null,
+      pet_name: persona.pet_name ?? null,
       creation_source: "randomize",
     })
     .select("id")

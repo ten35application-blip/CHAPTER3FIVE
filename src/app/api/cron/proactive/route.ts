@@ -3,6 +3,7 @@ import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { recordAnthropicSpend } from "@/lib/spendGovernor";
 import { openerVarietyBlock } from "@/lib/identity/opener";
+import { arcToPromptBlock, currentArc } from "@/lib/identity/arc";
 import { questions } from "@/content/questions";
 import { sendPushToUser } from "@/lib/push";
 
@@ -120,7 +121,37 @@ export async function GET(request: NextRequest) {
         : "";
 
       const variety = openerVarietyBlock(profile.active_oracle_id as string);
-      const systemPrompt = `You are ${profile.oracle_name ?? "a identity"}. The user has been quiet for a while. Send them a short, in-character text — the way a real person who cares would. Keep it brief — usually one sentence. Do NOT explain that you're proactively reaching out. Do NOT mention being an AI or archive. Just text them like a friend would. ${langInstruction}${stylePart}\n\nARCHIVE (reach for concrete specifics — a place, a name, a habit — not just tone):\n${archiveBlock}\n${variety}`;
+
+      // Formula v5 — pull the persona's ongoing-arc + pet_name so an
+      // unsolicited text can be about something HAPPENING to them
+      // ("wedding's Saturday and my sister has lost her whole mind")
+      // rather than generic warmth. Tiny extra read; huge payoff on
+      // the exact surface where the persona feels most alive.
+      const { data: oracleRow } = await admin
+        .from("oracles")
+        .select("traits, created_at, pet_name")
+        .eq("id", profile.active_oracle_id)
+        .maybeSingle<{
+          traits: { ongoingArcTemplate?: string | null } | null;
+          created_at: string;
+          pet_name: string | null;
+        }>();
+      const arcTemplate = oracleRow?.traits?.ongoingArcTemplate;
+      const arcBlock =
+        arcTemplate && oracleRow?.created_at
+          ? arcToPromptBlock(
+              currentArc(
+                arcTemplate as Parameters<typeof currentArc>[0],
+                profile.active_oracle_id as string,
+                oracleRow.created_at,
+              ),
+            )
+          : "";
+      const petLine = oracleRow?.pet_name
+        ? `\n\nYour pet's name is ${oracleRow.pet_name} — reference by name when they come up.`
+        : "";
+
+      const systemPrompt = `You are ${profile.oracle_name ?? "a identity"}. The user has been quiet for a while. Send them a short, in-character text — the way a real person who cares would. Keep it brief — usually one sentence. Do NOT explain that you're proactively reaching out. Do NOT mention being an AI or archive. Just text them like a friend would. ${langInstruction}${stylePart}${petLine}\n\nARCHIVE (reach for concrete specifics — a place, a name, a habit — not just tone):\n${archiveBlock}\n${variety}\n${arcBlock}`;
 
       const response = await anthropic.messages.create({
         model: ANTHROPIC_MODEL,

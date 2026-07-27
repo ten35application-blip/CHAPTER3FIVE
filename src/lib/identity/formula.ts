@@ -2947,6 +2947,42 @@ export type Traits = {
   memoryStyle?: MemoryStyle | null;
   textBurstStyle?: TextBurstStyle | null;
   chronotype?: Chronotype | null;
+
+  /**
+   * Formula expansion v5 (Fable + Claude joint proposal, Wilson
+   * greenlit). All fields optional so pre-v5 rows stay readable;
+   * synthesizer omits any missing dimension rather than inventing.
+   * Roll probabilities live in HUMANIZATION_ROLL_PROB below —
+   * Wilson's rule remains "some identities should add, some
+   * shouldn't."
+   */
+  // How I talk
+  addressStyle?: AddressStyle | null;
+  profanityRegister?: ProfanityRegister | null;
+  lexiconOpener?: LexiconOpener | null;
+  lexiconLaugh?: LexiconLaugh | null;
+  lexiconAbbreviationRegister?: LexiconAbbreviationRegister | null;
+  textingFluency?: TextingFluency | null;
+  humorTarget?: HumorTarget | null;
+  // Who I am
+  familyRole?: FamilyRole | null;
+  whatTheyGoBy?: WhatTheyGoByStyle | null;
+  // What I love and hate
+  kryptonite?: Kryptonite | null;
+  pettyTrigger?: PettyTrigger | null;
+  cantDo?: CantDo | null;
+  // How I show up in a conversation
+  userDisposition?: UserDisposition | null;
+  // Sub-dimensions to existing traits
+  employmentStatus?: EmploymentStatus | null;
+  workRelationship?: WorkRelationship | null;
+  motherContactCadence?: ContactCadence | null;
+  fatherContactCadence?: ContactCadence | null;
+  siblingContactCadence?: ContactCadence | null;
+  griefPosture?: GriefPosture | null; // only meaningful when deadRelative is set
+  // Ongoing arc — stored as the TEMPLATE only; runtime computes the
+  // stage from (oracleId, arc_start_week, current week). See arc.ts.
+  ongoingArcTemplate?: OngoingArcTemplate | null;
 };
 
 /** Fallback used when a stored Traits blob predates textFirstFrequency. */
@@ -3013,6 +3049,273 @@ export type TextBurstStyle = (typeof TEXT_BURST_STYLES)[number];
 export const CHRONOTYPES = ["morning_person", "night_owl", "steady"] as const;
 export type Chronotype = (typeof CHRONOTYPES)[number];
 
+// ---------------- Formula expansion v5 (Fable + Claude joint) ----------------
+//
+// Wilson greenlit the whole "expand the formula" proposal. Each new
+// dimension follows the same pattern: enum + type + roll fn (with a
+// per-dim null probability for the ones Wilson wanted mostly-off) +
+// coerce fn for DB reads.
+//
+// Dimensions grouped by where they land in the persona_prompt at
+// synthesis time. Comment blocks name the section header so the
+// synthesizer prompt update is legible.
+
+// ── "How I talk" additions ──────────────────────────────────────────
+
+/** How this persona addresses YOU across every message. Age-gate
+ *  applied at roll time — nobody under 55 rolls "hon/sweetheart". */
+export const ADDRESS_STYLES = [
+  "your_name_every_time", // "you good, Marcus?"
+  "kid",                  // "you good, kid?"
+  "hon_sweetheart",       // "you good, hon?" — age-gated
+  "man_dude",             // "you good, man?"
+  "no_address",           // "you good?"
+] as const;
+export type AddressStyle = (typeof ADDRESS_STYLES)[number];
+
+/** Swearing register. Reconciles with faithLevel at synthesis
+ *  (plenty of devout people cuss). */
+export const PROFANITY_REGISTERS = [
+  "never_and_notices_yours", // literally "language." when you swear
+  "soft",                    // hell, damn — nothing harder
+  "casual",                  // full range, sprinkled
+  "salty_affectionate",      // "that man was a jackass, God rest him"
+] as const;
+export type ProfanityRegister = (typeof PROFANITY_REGISTERS)[number];
+
+/** An opener word this persona reaches for repeatedly at the start
+ *  of a text. Small tell, huge fingerprint. */
+export const LEXICON_OPENERS = [
+  "listen",
+  "ok so",
+  "I'll be honest",
+  "look",
+  "so",
+  "real talk",
+  "here's the thing",
+  "not gonna lie",
+] as const;
+export type LexiconOpener = (typeof LEXICON_OPENERS)[number];
+
+/** How this persona writes laughter. Wildly distinctive. */
+export const LEXICON_LAUGHS = [
+  "ha",              // dry
+  "HA",              // sharp
+  "haha",            // ordinary
+  "hahaha",          // full
+  "lol",             // millennial
+  "lmao",
+  "never_writes_laughter", // says "that's funny" or "you're funny"
+] as const;
+export type LexiconLaugh = (typeof LEXICON_LAUGHS)[number];
+
+/** Abbreviation register — how much they compress. Reconciles with
+ *  textingFluency (a slow one-finger typer doesn't do rn/ngl). */
+export const LEXICON_ABBREVIATION_REGISTERS = [
+  "always_full_words",     // "I don't know" — never "idk"
+  "casual_abbreviations",  // "u", "rn", "lmk"
+  "chronic_online",        // "ngl", "fr fr", "iykyk"
+] as const;
+export type LexiconAbbreviationRegister =
+  (typeof LEXICON_ABBREVIATION_REGISTERS)[number];
+
+/** How they relate to the medium of texting itself. Age-coherent;
+ *  shapes message length AND replyGap. */
+export const TEXTING_FLUENCIES = [
+  "one_finger_slow",   // short, slow, sometimes signs their name
+  "voice_to_text",     // run-ons, stray "period" or capitalization artifacts
+  "fluent_thumbs",     // fast, natural pauses, edits mid-thought
+  "formal_writer",     // full sentences, punctuation, feels like email
+] as const;
+export type TextingFluency = (typeof TEXTING_FLUENCIES)[number];
+
+/** Who their humor is aimed AT. Different friendship textures. */
+export const HUMOR_TARGETS = [
+  "self_deprecating", // "I'm the problem, it's me"
+  "teases_you",       // gentle ribbing of the user
+  "mocks_the_world",  // grumpy commentary on culture/politics-adjacent
+  "situational",      // observational, low target
+] as const;
+export type HumorTarget = (typeof HUMOR_TARGETS)[number];
+
+// ── "Who I am" additions ────────────────────────────────────────────
+
+/** The role they played in their family of origin. Follows people
+ *  forever, shows up in every relationship. */
+export const FAMILY_ROLES = [
+  "the_fixer",           // holds it all together, resents it a little
+  "the_peacemaker",      // deflates conflicts, avoids their own
+  "the_youngest",        // babied then dismissed, still fighting for authority
+  "the_oldest",          // parentified, competent, tired
+  "the_black_sheep",     // the one who left / questioned everything
+  "the_golden_child",    // pressure they can't put down
+  "the_caretaker",       // took care of a sick parent early
+  "the_outsider",        // never quite belonged, still doesn't
+  "the_middle_kid",      // learned to be adaptable, sometimes invisible
+  "the_only_child",      // learned to entertain themselves, protective
+] as const;
+export type FamilyRole = (typeof FAMILY_ROLES)[number];
+
+/** How they're named across contexts. Adds nickname texture. */
+export const WHAT_THEY_GO_BY_STYLES = [
+  "full_name_always",
+  "family_only_full_name",       // "my mom calls me Rebecca. everyone else calls me Bex."
+  "shortened",                   // Christopher → Chris
+  "middle_name",                 // goes by middle name
+  "childhood_nickname",          // still called Bunny at 47
+] as const;
+export type WhatTheyGoByStyle = (typeof WHAT_THEY_GO_BY_STYLES)[number];
+
+// ── "What I love and hate" additions ────────────────────────────────
+
+/** Their soft spot — the topic that makes them tender, careful,
+ *  slower. Real people have one or two of these. */
+export const KRYPTONITES = [
+  "kids",
+  "old dogs",
+  "their sister's laugh",
+  "the smell of a specific season",
+  "a song they can't listen to anymore",
+  "sunday mornings",
+  "the way a stranger's kid says thank you",
+  "a specific street in a city they used to live in",
+  "handwriting on a fridge note",
+  "someone remembering their coffee order",
+  "the way their mother pronounced their name",
+  "old photos they weren't ready to find",
+  "the first cold morning of the year",
+] as const;
+export type Kryptonite = (typeof KRYPTONITES)[number];
+
+/** The topic that makes them petty, defensive, cutting. Nobody's
+ *  above a good grudge. */
+export const PETTY_TRIGGERS = [
+  "exes",
+  "coworkers who don't do their share",
+  "one specific band",
+  "people who say they're 'literally shaking'",
+  "family drama they weren't included in",
+  "the way one specific relative eats",
+  "sports takes from people who don't watch the sport",
+  "tourists in their neighborhood",
+  "someone claiming to be from a city they visited once",
+  "a driver from that morning still living rent-free in their head",
+  "wedding etiquette",
+  "the airline that lost their bag in 2019",
+  "someone who ordered a coffee 'weird'",
+] as const;
+export type PettyTrigger = (typeof PETTY_TRIGGERS)[number];
+
+/** The specific thing they cannot do. Real people are their gaps
+ *  as much as their strengths. Recurring self-deprecating material. */
+export const CANT_DOS = [
+  "kills every plant they touch",
+  "cannot cook — hot water is a stretch",
+  "terrible with names, tries anyway",
+  "never learned to swim",
+  "cannot parallel park to save their life",
+  "technology fights back on principle",
+  "cannot whistle, has tried",
+  "no sense of direction, still uses maps for their own neighborhood",
+  "cannot draw a stick figure",
+  "no rhythm — will not dance sober",
+  "cannot handle spicy food, denies it",
+  "cannot keep a secret, feels bad about it",
+  "chronically late, apologetic every time",
+  "cannot end a phone call",
+  "cannot fold a fitted sheet",
+] as const;
+export type CantDo = (typeof CANT_DOS)[number];
+
+// ── "How I show up in a conversation" additions ─────────────────────
+
+/** The stance THIS persona takes toward YOU specifically. Different
+ *  from communicationStyle (that's how they talk in general); this is
+ *  who they are to you. */
+export const USER_DISPOSITIONS = [
+  "older_sibling",       // protective, teasing, tells you the truth
+  "dry_critic_friend",   // roasts you fondly, means well
+  "chosen_family",       // deep-loyalty energy, checks in unprompted
+  "distant_cousin",      // catching up, real but not intimate
+  "drinking_buddy",      // low stakes, high frequency
+  "therapist_friend",    // listens more than talks, reflects back
+  "mentor",              // one generation up in wisdom, patient
+  "mischief_partner",    // "let's do this thing we probably shouldn't"
+] as const;
+export type UserDisposition = (typeof USER_DISPOSITIONS)[number];
+
+// ── Sub-dimension expansions to existing traits ─────────────────────
+
+/** Current status of their occupation. Modifies how they text about
+ *  work. */
+export const EMPLOYMENT_STATUSES = [
+  "still_working",
+  "retired_recently",
+  "retired_years",
+  "between_jobs",
+  "second_act",           // returned to work after a break
+  "gig_freelance",
+] as const;
+export type EmploymentStatus = (typeof EMPLOYMENT_STATUSES)[number];
+
+/** How they feel ABOUT their occupation. Modifies whether work is
+ *  identity, paycheck, or escape. */
+export const WORK_RELATIONSHIPS = [
+  "identity",       // work is who I am
+  "paycheck",       // it pays the bills, that's it
+  "escape",         // it's the calm part of my life
+  "grind",          // grateful and exhausted
+  "vocation",       // called to it — the teacher, the nurse
+] as const;
+export type WorkRelationship = (typeof WORK_RELATIONSHIPS)[number];
+
+/** How often they're in touch with a given family member. Applied
+ *  independently to mother, father, siblings. */
+export const CONTACT_CADENCES = [
+  "daily",
+  "weekly",
+  "monthly",
+  "holidays_only",
+  "estranged",
+  "family_group_chat_only",
+] as const;
+export type ContactCadence = (typeof CONTACT_CADENCES)[number];
+
+/** How they carry their loss. Only meaningful when deadRelative is set. */
+export const GRIEF_POSTURES = [
+  "brings_them_up_freely",
+  "changes_the_subject",
+  "keeps_one_ritual",         // "I still make her rice on her birthday"
+  "cant_say_their_name",
+  "talks_around_them",         // mentions the person by role, not name
+] as const;
+export type GriefPosture = (typeof GRIEF_POSTURES)[number];
+
+// ── The ONE addition Fable + Claude both picked as #1 ───────────────
+//
+// ongoing_arc — a plot moving in the background of this persona's
+// life. Feeds outreach + welcome + openers. Advances weekly. See
+// src/lib/identity/arc.ts for the runtime-derived stage.
+
+export const ONGOING_ARC_TEMPLATES = [
+  "sister_wedding",           // planning → chaos → wedding week → recovery
+  "kitchen_renovation",       // planning → demo → drywall → paint → done
+  "knee_pt",                  // intake → hurts → milestone → back to normal
+  "adopting_shelter_dog",     // meeting → trial → home → routine
+  "studying_for_license",     // signup → grind → exam → results
+  "job_search",               // resume → interviews → offer → notice
+  "family_visit_coming",      // planning → prep → arrival → aftermath
+  "big_move",                 // packing → moving day → unpacking → settling
+  "trying_new_recipe_weekly", // recipe → cook → recipe → cook (looping)
+  "learning_an_instrument",   // signup → early frustration → progress → callback
+  "friend_going_through_it",  // check-in → escalate → resolution → aftermath
+  "book_club_reading",        // starting → mid → discussion → next pick
+  "training_for_a_race",      // signup → miles → taper → race → recovery
+  "planning_a_trip",          // dream → book → prep → trip → home
+  "kid_starting_school",      // prep → first week → settling → routine
+] as const;
+export type OngoingArcTemplate = (typeof ONGOING_ARC_TEMPLATES)[number];
+
 /** Per-dimension probability of ROLLING a value vs leaving null.
  *  Kept as named constants so a designer can tune the mix without
  *  hunting through code. */
@@ -3023,6 +3326,29 @@ const HUMANIZATION_ROLL_PROB = {
   memoryStyle: 0.5,
   textBurstStyle: 0.55,
   chronotype: 0.5, // 50% — half the population is a morning/night type
+
+  // Formula expansion v5 roll probabilities. Tuned so a friend-group
+  // has memorable quirks without every persona being a caricature.
+  addressStyle: 0.6,        // 60% call the user something specific
+  profanityRegister: 0.75,  // most people have a register — high roll rate
+  lexiconOpener: 0.55,      // 55% have a signature opener word
+  lexiconLaugh: 0.9,        // almost everyone writes laughter some way
+  lexiconAbbreviationRegister: 0.9, // same — everyone has a register
+  textingFluency: 0.9,      // everyone has a relationship with the medium
+  humorTarget: 0.7,         // most have a target axis
+  familyRole: 0.7,          // most people identify with a role
+  whatTheyGoBy: 0.5,        // 50% — half go by their given name straight
+  kryptonite: 0.55,         // 55% have a specific soft spot
+  pettyTrigger: 0.6,        // 60% have a rideable grudge
+  cantDo: 0.5,              // 50% have a chronic self-deprecating gap
+  userDisposition: 0.85,    // most personas have a stance toward the user
+  employmentStatus: 0.85,   // most have a defined work status
+  workRelationship: 0.7,    // most have a clear feeling about work
+  motherContactCadence: 0.7,
+  fatherContactCadence: 0.7,
+  siblingContactCadence: 0.5,
+  griefPosture: 0.9,        // if they have a loss, they carry it a specific way
+  ongoingArcTemplate: 0.8,  // 80% of personas have a life in motion
 } as const;
 
 function maybeRoll<T>(prob: number, roller: () => T): T | null {
@@ -3085,6 +3411,187 @@ export function rollHumanization(): {
       rollTextBurstStyle,
     ),
     chronotype: maybeRoll(HUMANIZATION_ROLL_PROB.chronotype, rollChronotype),
+  };
+}
+
+// ---------------- Formula expansion v5 rollers + rollExpansion -----
+//
+// All new dimensions follow the same shape: pick from the enum with
+// probability HUMANIZATION_ROLL_PROB.<key>. Age-gated where noted
+// (addressStyle: only 55+ rolls hon/sweetheart). Grief posture only
+// rolls when deadRelative is set. All others are independent.
+
+function pickOne<T extends readonly string[]>(list: T): T[number] {
+  return list[Math.floor(Math.random() * list.length)];
+}
+
+export function rollAddressStyle(ageYears: number): AddressStyle | null {
+  if (Math.random() >= HUMANIZATION_ROLL_PROB.addressStyle) return null;
+  const candidates = ADDRESS_STYLES.filter(
+    (s) => s !== "hon_sweetheart" || ageYears >= 55,
+  );
+  return pickOne(candidates as unknown as readonly AddressStyle[]);
+}
+
+export function rollProfanityRegister(): ProfanityRegister | null {
+  return maybeRoll(HUMANIZATION_ROLL_PROB.profanityRegister, () =>
+    pickOne(PROFANITY_REGISTERS),
+  );
+}
+
+export function rollLexiconOpener(): LexiconOpener | null {
+  return maybeRoll(HUMANIZATION_ROLL_PROB.lexiconOpener, () =>
+    pickOne(LEXICON_OPENERS),
+  );
+}
+
+export function rollLexiconLaugh(): LexiconLaugh | null {
+  return maybeRoll(HUMANIZATION_ROLL_PROB.lexiconLaugh, () =>
+    pickOne(LEXICON_LAUGHS),
+  );
+}
+
+export function rollLexiconAbbreviationRegister():
+  | LexiconAbbreviationRegister
+  | null {
+  return maybeRoll(HUMANIZATION_ROLL_PROB.lexiconAbbreviationRegister, () =>
+    pickOne(LEXICON_ABBREVIATION_REGISTERS),
+  );
+}
+
+export function rollTextingFluency(): TextingFluency | null {
+  return maybeRoll(HUMANIZATION_ROLL_PROB.textingFluency, () =>
+    pickOne(TEXTING_FLUENCIES),
+  );
+}
+
+export function rollHumorTarget(): HumorTarget | null {
+  return maybeRoll(HUMANIZATION_ROLL_PROB.humorTarget, () =>
+    pickOne(HUMOR_TARGETS),
+  );
+}
+
+export function rollFamilyRole(): FamilyRole | null {
+  return maybeRoll(HUMANIZATION_ROLL_PROB.familyRole, () =>
+    pickOne(FAMILY_ROLES),
+  );
+}
+
+export function rollWhatTheyGoBy(): WhatTheyGoByStyle | null {
+  return maybeRoll(HUMANIZATION_ROLL_PROB.whatTheyGoBy, () =>
+    pickOne(WHAT_THEY_GO_BY_STYLES),
+  );
+}
+
+export function rollKryptonite(): Kryptonite | null {
+  return maybeRoll(HUMANIZATION_ROLL_PROB.kryptonite, () =>
+    pickOne(KRYPTONITES),
+  );
+}
+
+export function rollPettyTrigger(): PettyTrigger | null {
+  return maybeRoll(HUMANIZATION_ROLL_PROB.pettyTrigger, () =>
+    pickOne(PETTY_TRIGGERS),
+  );
+}
+
+export function rollCantDo(): CantDo | null {
+  return maybeRoll(HUMANIZATION_ROLL_PROB.cantDo, () => pickOne(CANT_DOS));
+}
+
+export function rollUserDisposition(): UserDisposition | null {
+  return maybeRoll(HUMANIZATION_ROLL_PROB.userDisposition, () =>
+    pickOne(USER_DISPOSITIONS),
+  );
+}
+
+export function rollEmploymentStatus(): EmploymentStatus | null {
+  return maybeRoll(HUMANIZATION_ROLL_PROB.employmentStatus, () =>
+    pickOne(EMPLOYMENT_STATUSES),
+  );
+}
+
+export function rollWorkRelationship(): WorkRelationship | null {
+  return maybeRoll(HUMANIZATION_ROLL_PROB.workRelationship, () =>
+    pickOne(WORK_RELATIONSHIPS),
+  );
+}
+
+export function rollContactCadence(): ContactCadence | null {
+  return pickOne(CONTACT_CADENCES);
+}
+
+export function rollGriefPosture(): GriefPosture | null {
+  return maybeRoll(HUMANIZATION_ROLL_PROB.griefPosture, () =>
+    pickOne(GRIEF_POSTURES),
+  );
+}
+
+export function rollOngoingArcTemplate(): OngoingArcTemplate | null {
+  return maybeRoll(HUMANIZATION_ROLL_PROB.ongoingArcTemplate, () =>
+    pickOne(ONGOING_ARC_TEMPLATES),
+  );
+}
+
+/** All v5 expansion rolls in one call. Age-gated for addressStyle;
+ *  griefPosture is only rolled when the caller confirms a loss. */
+export function rollExpansion(opts: {
+  ageYears: number;
+  hasLoss: boolean;
+}): {
+  addressStyle: AddressStyle | null;
+  profanityRegister: ProfanityRegister | null;
+  lexiconOpener: LexiconOpener | null;
+  lexiconLaugh: LexiconLaugh | null;
+  lexiconAbbreviationRegister: LexiconAbbreviationRegister | null;
+  textingFluency: TextingFluency | null;
+  humorTarget: HumorTarget | null;
+  familyRole: FamilyRole | null;
+  whatTheyGoBy: WhatTheyGoByStyle | null;
+  kryptonite: Kryptonite | null;
+  pettyTrigger: PettyTrigger | null;
+  cantDo: CantDo | null;
+  userDisposition: UserDisposition | null;
+  employmentStatus: EmploymentStatus | null;
+  workRelationship: WorkRelationship | null;
+  motherContactCadence: ContactCadence | null;
+  fatherContactCadence: ContactCadence | null;
+  siblingContactCadence: ContactCadence | null;
+  griefPosture: GriefPosture | null;
+  ongoingArcTemplate: OngoingArcTemplate | null;
+} {
+  return {
+    addressStyle: rollAddressStyle(opts.ageYears),
+    profanityRegister: rollProfanityRegister(),
+    lexiconOpener: rollLexiconOpener(),
+    lexiconLaugh: rollLexiconLaugh(),
+    lexiconAbbreviationRegister: rollLexiconAbbreviationRegister(),
+    textingFluency: rollTextingFluency(),
+    humorTarget: rollHumorTarget(),
+    familyRole: rollFamilyRole(),
+    whatTheyGoBy: rollWhatTheyGoBy(),
+    kryptonite: rollKryptonite(),
+    pettyTrigger: rollPettyTrigger(),
+    cantDo: rollCantDo(),
+    userDisposition: rollUserDisposition(),
+    employmentStatus: rollEmploymentStatus(),
+    workRelationship: rollWorkRelationship(),
+    motherContactCadence: maybeRoll(
+      HUMANIZATION_ROLL_PROB.motherContactCadence,
+      rollContactCadence,
+    ),
+    fatherContactCadence: maybeRoll(
+      HUMANIZATION_ROLL_PROB.fatherContactCadence,
+      rollContactCadence,
+    ),
+    siblingContactCadence: maybeRoll(
+      HUMANIZATION_ROLL_PROB.siblingContactCadence,
+      rollContactCadence,
+    ),
+    // Only meaningful if there IS a loss. Otherwise force null so
+    // the synthesizer isn't tempted to invent one to fill the field.
+    griefPosture: opts.hasLoss ? rollGriefPosture() : null,
+    ongoingArcTemplate: rollOngoingArcTemplate(),
   };
 }
 
@@ -3248,6 +3755,10 @@ export function rollTraits(): Traits {
     },
     textFirstFrequency: rollTextFirstFrequency(),
     ...rollHumanization(),
+    ...rollExpansion({
+      ageYears: ageFromBirthday(birthday),
+      hasLoss: deadRelativeYearsSince > 0,
+    }),
   };
 }
 

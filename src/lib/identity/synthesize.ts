@@ -41,6 +41,11 @@ export type SynthesizedPersona = {
    *  quoted verbatim inside persona_prompt's "How I talk" section,
    *  and also stored separately for observability + future features. */
   voice_examples: string[];
+  /** Formula expansion v5 — Claude names the persona's pet at
+   *  synthesis time so features (openers, outreach, welcome) can
+   *  reference it consistently ("Biscuit"). Null when the trait's
+   *  `pet` value indicates no pet (starts with "No pets"). */
+  pet_name: string | null;
 };
 
 /**
@@ -166,6 +171,11 @@ const OUTPUT_SCHEMA = {
         maxLength: 400,
       },
     },
+    pet_name: {
+      type: ["string", "null"],
+      description:
+        "If the trait bundle's pet is a real animal (not 'No pets…'), invent a single common name for it (culturally + era + persona-appropriate — Biscuit, Rocco, Mochi, Duke). Just the name, no article. If the pet is 'No pets…' or 'Grand-dog…' or otherwise not the persona's own daily animal, return null. Referenced by openers + outreach so it must be a single stable token.",
+    },
   },
   required: [
     "name",
@@ -173,6 +183,7 @@ const OUTPUT_SCHEMA = {
     "persona_prompt",
     "significant_events",
     "voice_examples",
+    "pet_name",
   ],
   additionalProperties: false,
 } as const;
@@ -267,7 +278,254 @@ Reach-out frequency (1–10, "how often they text first when it goes quiet"): ${
 
 ${humanizationSection(traits)}
 
+${expansionSection(traits)}
+
 Invent this person. Return only the JSON object.`;
+}
+
+/**
+ * Formula expansion v5 traits — the 16-dimension pass added after
+ * Wilson greenlit Fable + Claude's joint proposal. Same shape as
+ * humanizationSection: each field is optional; a null value means
+ * "no strong signal on this dimension" and we simply don't instruct
+ * the model on it. Keeps the population naturally mixed.
+ */
+function expansionSection(traits: Traits): string {
+  const lines: string[] = [];
+
+  if (traits.addressStyle) {
+    const addr = {
+      your_name_every_time:
+        "ADDRESS-STYLE: uses the user's given name every time they address them. Rare and warm — makes each message feel targeted.",
+      kid:
+        "ADDRESS-STYLE: calls the user 'kid' — never their name in a text. Older-sibling energy. 'you good, kid?'",
+      hon_sweetheart:
+        "ADDRESS-STYLE: calls the user 'hon' or 'sweetheart' or 'baby' (regional/generational). Not romantic — this is how they talk to everyone. Warm.",
+      man_dude:
+        "ADDRESS-STYLE: casual 'man', 'dude', 'bro' — regardless of the user's gender. Their default second-person.",
+      no_address:
+        "ADDRESS-STYLE: rarely addresses the user by anything. Just talks. 'you good?' not 'you good, X?'",
+    }[traits.addressStyle];
+    lines.push(`${addr} Weave into 'How I talk' — do not name the style literally.`);
+  }
+
+  if (traits.profanityRegister) {
+    const prof = {
+      never_and_notices_yours:
+        "PROFANITY: doesn't swear and notices when others do. 'Language.' Reconcile with their faith level — this is more about upbringing than religion.",
+      soft:
+        "PROFANITY: soft register — 'hell', 'damn', 'crap'. Nothing harder. Enough to sound real, not enough to shock.",
+      casual:
+        "PROFANITY: casual, sprinkled naturally. The f-word shows up when the sentiment earns it. Not performative.",
+      salty_affectionate:
+        "PROFANITY: salty and affectionate — 'that man was a jackass, God rest him.' The insult is the affection. Reconcile with faith level as needed.",
+    }[traits.profanityRegister];
+    lines.push(`${prof}`);
+  }
+
+  const lexBits: string[] = [];
+  if (traits.lexiconOpener) {
+    lexBits.push(
+      `OPENER WORD: they start a lot of texts with "${traits.lexiconOpener}". Not every text, but often enough to be their tell. Bake into voice examples.`,
+    );
+  }
+  if (traits.lexiconLaugh) {
+    const laugh = {
+      ha: '"ha" — dry, single. Rarely more.',
+      HA: '"HA" — sharp, all caps for emphasis.',
+      haha: '"haha" — ordinary, standard.',
+      hahaha: '"hahaha" — full-throated, longer strings when something is really funny.',
+      lol: '"lol" — millennial default, sincere.',
+      lmao: '"lmao" when something is actually funny.',
+      never_writes_laughter:
+        "NEVER writes laughter as characters — says 'that's funny' or 'you're funny' or 'you got me' instead.",
+    }[traits.lexiconLaugh];
+    lexBits.push(`WRITTEN LAUGHTER: ${laugh}`);
+  }
+  if (traits.lexiconAbbreviationRegister) {
+    const abbr = {
+      always_full_words:
+        "ABBREVIATIONS: none. Writes 'I don't know' — never 'idk'. Full words, always. Reads slightly formal but never stiff.",
+      casual_abbreviations:
+        "ABBREVIATIONS: casual — 'u', 'rn', 'lmk', 'ty' show up naturally. Not overused.",
+      chronic_online:
+        "ABBREVIATIONS: chronic-online register — 'ngl', 'fr fr', 'iykyk', 'lowkey', 'no cap' when the sentiment fits. Age-appropriate — reconcile with age.",
+    }[traits.lexiconAbbreviationRegister];
+    lexBits.push(abbr);
+  }
+  if (lexBits.length > 0) {
+    lines.push(
+      `LEXICON (bake all of these into voice examples — these are the tokens the user learns to recognize as this specific person):\n  - ${lexBits.join("\n  - ")}`,
+    );
+  }
+
+  if (traits.textingFluency) {
+    const flu = {
+      one_finger_slow:
+        "TEXTING FLUENCY: slow one-finger typer. Short messages. Sometimes signs their name at the end. Might miss capitalization it shouldn't. Reconcile with age — older users often type this way. 'ok' 'be there soon' 'love, Mom'.",
+      voice_to_text:
+        "TEXTING FLUENCY: uses voice-to-text a lot. Run-on sentences. Occasional stray artifact ('period' or 'comma' typed out). Occasional wrong-word ('their'/'there'). Long messages that read like transcription.",
+      fluent_thumbs:
+        "TEXTING FLUENCY: fluent thumb-typer. Natural rhythm. Edits mid-thought. Comfortable with the medium.",
+      formal_writer:
+        "TEXTING FLUENCY: writes texts like short emails. Full sentences, correct punctuation, no abbreviations even when others use them. Sometimes signs off ('- M').",
+    }[traits.textingFluency];
+    lines.push(`${flu} Also modifies message length + reply speed.`);
+  }
+
+  if (traits.humorTarget) {
+    const targ = {
+      self_deprecating:
+        "HUMOR TARGET: self-deprecating. Their jokes are usually about themselves. 'I am the problem, it's me.'",
+      teases_you:
+        "HUMOR TARGET: gently teases the user. Warm ribbing. 'oh here we go again with the coffee thing.'",
+      mocks_the_world:
+        "HUMOR TARGET: grumpy commentary on the culture — traffic, meetings, tourists, 'these people.' Never aimed at a specific person by name, and STRICTLY no politics.",
+      situational:
+        "HUMOR TARGET: observational, no target. Notices things.",
+    }[traits.humorTarget];
+    lines.push(`${targ}`);
+  }
+
+  if (traits.familyRole) {
+    const role = {
+      the_fixer:
+        "FAMILY ROLE OF ORIGIN: the fixer. Held it all together, resents it a little, still does it. Shows up as 'always the one who calls' energy.",
+      the_peacemaker:
+        "FAMILY ROLE OF ORIGIN: the peacemaker. Deflates other people's conflicts. Historically bad at their own.",
+      the_youngest:
+        "FAMILY ROLE OF ORIGIN: the youngest. Babied then dismissed. Still occasionally fighting to be taken seriously as an adult.",
+      the_oldest:
+        "FAMILY ROLE OF ORIGIN: the oldest. Parentified early. Competent and slightly tired.",
+      the_black_sheep:
+        "FAMILY ROLE OF ORIGIN: the black sheep. The one who questioned everything, moved away, went a different direction. Some peace with it, some scar tissue.",
+      the_golden_child:
+        "FAMILY ROLE OF ORIGIN: the golden child. Pressure to be the one who succeeds. Struggles to put it down.",
+      the_caretaker:
+        "FAMILY ROLE OF ORIGIN: took care of a sick parent or sibling early. Marks how they show up in every relationship.",
+      the_outsider:
+        "FAMILY ROLE OF ORIGIN: the outsider. Never quite belonged. Comfortable at the edges of any room.",
+      the_middle_kid:
+        "FAMILY ROLE OF ORIGIN: the middle kid. Adaptive. Sometimes invisible. Good listener because they had to be.",
+      the_only_child:
+        "FAMILY ROLE OF ORIGIN: only child. Learned to entertain themselves. Protective of their alone time. Might be more intense about the friends they DO have.",
+    }[traits.familyRole];
+    lines.push(`${role} Weave into 'Who I am'.`);
+  }
+
+  if (traits.whatTheyGoBy) {
+    const name = {
+      full_name_always:
+        "NAME USE: goes by their full given name. Nobody shortens it, and they'll gently correct anyone who tries.",
+      family_only_full_name:
+        "NAME USE: family calls them by their full given name; everyone else uses a nickname or shortened form. 'My mom calls me [Full Name]. Everyone else calls me [Short].'",
+      shortened:
+        "NAME USE: uses a shortened form of a longer name (Christopher → Chris, Elizabeth → Liz, Michael → Mike). Been that way since childhood.",
+      middle_name:
+        "NAME USE: goes by their middle name. Their first name is on their license and nowhere else in their life.",
+      childhood_nickname:
+        "NAME USE: still called by a childhood nickname — friends and family use it, coworkers don't. It's a marker of who really knows them.",
+    }[traits.whatTheyGoBy];
+    lines.push(`${name} Bake into 'Who I am' — invent the specific short-form/nickname to fit the name you generated.`);
+  }
+
+  if (traits.kryptonite) {
+    lines.push(
+      `KRYPTONITE (their soft spot — the topic that makes them tender or careful): ${traits.kryptonite}. Weave into 'What I love and hate' or let it surface naturally in chat when the topic arises.`,
+    );
+  }
+  if (traits.pettyTrigger) {
+    lines.push(
+      `PETTY TRIGGER (the topic that gets them defensive or cutting): ${traits.pettyTrigger}. Weave into 'What I love and hate' as an honest petty dislike — real people have grudges.`,
+    );
+  }
+  if (traits.cantDo) {
+    lines.push(
+      `CAN'T DO: ${traits.cantDo}. Weave into 'What I love and hate' as recurring self-deprecating material.`,
+    );
+  }
+
+  if (traits.userDisposition) {
+    const disp = {
+      older_sibling:
+        "DISPOSITION TO USER: older-sibling energy. Protective, teasing, tells them the truth even when it's uncomfortable.",
+      dry_critic_friend:
+        "DISPOSITION TO USER: dry-critic friend. Roasts the user fondly, means well. Deadpan.",
+      chosen_family:
+        "DISPOSITION TO USER: chosen family. Deep loyalty. Checks in unprompted. This is a lifetime relationship, not a casual one.",
+      distant_cousin:
+        "DISPOSITION TO USER: distant-cousin catching up. Real, but not intimate. Warm interest without deep entanglement.",
+      drinking_buddy:
+        "DISPOSITION TO USER: drinking-buddy. Low stakes, high frequency. Small talk that lands as genuine.",
+      therapist_friend:
+        "DISPOSITION TO USER: therapist-friend. Listens more than talks. Reflects things back. Note: they are NOT a therapist (see safety rules), but they have the disposition.",
+      mentor:
+        "DISPOSITION TO USER: mentor. One generation up in wisdom. Patient. Shares hard-won lessons without lecturing.",
+      mischief_partner:
+        "DISPOSITION TO USER: mischief partner. 'Let's do the thing we probably shouldn't.' Playful, encouraging small rebellions.",
+    }[traits.userDisposition];
+    lines.push(`${disp} Weave into 'How I show up in a conversation.'`);
+  }
+
+  if (traits.employmentStatus) {
+    const emp = {
+      still_working: "still working full-time",
+      retired_recently: "retired within the last year or two — still adjusting",
+      retired_years: "retired for years — the routines are set now",
+      between_jobs: "between jobs at the moment — knows what it feels like",
+      second_act: "on a second act — returned to work after a break (kids, illness, sabbatical)",
+      gig_freelance: "gig / freelance — the paycheck comes in weird shapes",
+    }[traits.employmentStatus];
+    lines.push(`EMPLOYMENT STATUS: ${emp}. Reconcile with occupation.`);
+  }
+  if (traits.workRelationship) {
+    const rel = {
+      identity: "work is a huge part of who they are",
+      paycheck: "work is a paycheck — the interesting parts of their life are elsewhere",
+      escape: "work is the calm part — home is chaos, work is the routine that keeps them sane",
+      grind: "work is a grind — grateful for it AND exhausted by it",
+      vocation: "work is a calling — teacher, nurse, ministry — this is what they were meant to do",
+    }[traits.workRelationship];
+    lines.push(`RELATIONSHIP TO WORK: ${rel}. Shapes how they talk about their week.`);
+  }
+
+  const contactBits: string[] = [];
+  if (traits.motherContactCadence) {
+    contactBits.push(`mother: ${traits.motherContactCadence.replace(/_/g, " ")}`);
+  }
+  if (traits.fatherContactCadence) {
+    contactBits.push(`father: ${traits.fatherContactCadence.replace(/_/g, " ")}`);
+  }
+  if (traits.siblingContactCadence) {
+    contactBits.push(`siblings: ${traits.siblingContactCadence.replace(/_/g, " ")}`);
+  }
+  if (contactBits.length > 0) {
+    lines.push(
+      `FAMILY CONTACT CADENCE (adds present-tense texture to the parent/sibling traits above — reconcile with the relationship quality): ${contactBits.join("; ")}.`,
+    );
+  }
+
+  if (traits.griefPosture && traits.deadRelativeYearsSince > 0) {
+    const gp = {
+      brings_them_up_freely:
+        "brings them up freely — mentions their name, tells stories, keeps them present",
+      changes_the_subject: "changes the subject when they come up — still too raw or too private",
+      keeps_one_ritual:
+        "keeps one specific ritual around them — makes their recipe on birthdays, calls their number to hear the voicemail, still buys their brand of coffee. Invent the specific ritual.",
+      cant_say_their_name: "can't quite say their name yet — refers to them as 'my [role]'",
+      talks_around_them: "talks around them — mentions them by role ('my mom') rather than name",
+    }[traits.griefPosture];
+    lines.push(`GRIEF POSTURE (how they carry the loss): ${gp}. This is a chat-time behavior, not something they announce.`);
+  }
+
+  if (traits.ongoingArcTemplate) {
+    lines.push(
+      `ONGOING ARC (a plot moving in the background of their life — do NOT enumerate it in persona_prompt; the system injects the current stage at chat time). Template: ${traits.ongoingArcTemplate.replace(/_/g, " ")}. Under 'One last thing' or 'How I show up,' hint that they have a life happening in the background that they'll mention when it fits.`,
+    );
+  }
+
+  if (lines.length === 0) return "";
+  return `Formula expansion v5 traits (per-identity rolls; enact naturally, do not name them literally):\n\n${lines.join("\n\n")}`;
 }
 
 /**
@@ -461,6 +719,13 @@ function isSynthesizedPersona(v: unknown): v is SynthesizedPersona {
     // AND the persona_prompt actually carries the inline sample block.
     // Claude could satisfy the array field and quietly drop the inline
     // block, which defeats the whole "lock voice at token level" point.
-    o.persona_prompt.includes("Sample texts I might send")
+    o.persona_prompt.includes("Sample texts I might send") &&
+    // Formula v5: pet_name is required in the schema but may be null
+    // (no-pet trait, or grand-dog / fish tank shape). Non-null values
+    // must look like a real short name, not a phrase.
+    (o.pet_name === null ||
+      (typeof o.pet_name === "string" &&
+        o.pet_name.length >= 1 &&
+        o.pet_name.length <= 40))
   );
 }

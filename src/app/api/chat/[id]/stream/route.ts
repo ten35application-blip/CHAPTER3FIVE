@@ -5,6 +5,7 @@ import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { backfillVoiceExamples } from "@/lib/identity/backfillVoiceExamples";
 import { ageFromBirthday, coerceChronotype } from "@/lib/identity/formula";
 import { moodOfTheDay, moodToPromptBlock } from "@/lib/identity/mood";
+import { arcToPromptBlock, currentArc } from "@/lib/identity/arc";
 import { computeReplyGapMs } from "@/lib/identity/replyGap";
 import {
   extractAndSaveResidue,
@@ -120,7 +121,7 @@ export async function POST(
   // the authorization.
   const { data: oracle } = await supabase
     .from("oracles")
-    .select("id, name, manually_unread, blocked_at, block_reason, traits, memory_style, text_burst_style, voice_examples, chronotype")
+    .select("id, name, manually_unread, blocked_at, block_reason, traits, memory_style, text_burst_style, voice_examples, chronotype, created_at, pet_name, texting_fluency")
     .eq("id", oracleId)
     .is("deleted_at", null)
     .maybeSingle();
@@ -496,6 +497,28 @@ export async function POST(
   const moodBlock = moodToPromptBlock(todayMood);
   if (moodBlock) {
     system.push({ type: "text", text: moodBlock });
+  }
+
+  // Formula v5 — ongoing arc. The persona's life keeps moving in
+  // the background between sessions. Template is stored in the
+  // traits JSONB blob at synthesis (traits.ongoingArcTemplate);
+  // stage is derived here from (oracleId, weeks-since-created)
+  // via src/lib/identity/arc.ts. Same post-cache-breakpoint injection
+  // shape as mood so it varies week-to-week without invalidating
+  // the cached persona_prompt prefix.
+  const arcTemplate = (
+    oracle.traits as { ongoingArcTemplate?: string | null } | null
+  )?.ongoingArcTemplate;
+  if (arcTemplate && oracle.created_at) {
+    const arc = currentArc(
+      arcTemplate as Parameters<typeof currentArc>[0],
+      oracleId,
+      oracle.created_at as string,
+    );
+    const arcBlock = arcToPromptBlock(arc);
+    if (arcBlock) {
+      system.push({ type: "text", text: arcBlock });
+    }
   }
 
   // Fable humanization #6 — bad-day tone shift. `distressed` was

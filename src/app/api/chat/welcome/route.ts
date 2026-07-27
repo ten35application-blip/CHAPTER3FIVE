@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireTermsAccepted } from "@/lib/legal/gate";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
+import { arcToPromptBlock, currentArc } from "@/lib/identity/arc";
 import { moodOfTheDay, moodToPromptBlock } from "@/lib/identity/mood";
 import { openerVarietyBlock } from "@/lib/identity/opener";
 import { questions } from "@/content/questions";
@@ -260,6 +261,34 @@ ${archiveSnippet || "(no answers recorded — keep the welcome short and present
     const welcomeMoodBlock = moodToPromptBlock(welcomeMood);
     if (welcomeMoodBlock) {
       systemPrompt = `${systemPrompt}\n\n${welcomeMoodBlock}`;
+    }
+
+    // Formula v5 — ongoing arc on the welcome message too. The
+    // persona references their in-motion life if it fits ("about
+    // to head to PT," "sister's wedding this weekend"). Traits
+    // + created_at loaded lazily below because the welcome route
+    // resolves the oracle inside multiple branches; a small extra
+    // read is cheap on a rare route. Skip on the memorial branch —
+    // the dead don't have arcs and it would be gross.
+    const { data: arcRow } = await admin
+      .from("oracles")
+      .select("traits, created_at")
+      .eq("id", oracleId)
+      .maybeSingle<{
+        traits: { ongoingArcTemplate?: string | null } | null;
+        created_at: string;
+      }>();
+    const arcTemplate = arcRow?.traits?.ongoingArcTemplate;
+    if (arcTemplate && arcRow?.created_at) {
+      const arc = currentArc(
+        arcTemplate as Parameters<typeof currentArc>[0],
+        oracleId,
+        arcRow.created_at,
+      );
+      const arcBlock = arcToPromptBlock(arc);
+      if (arcBlock) {
+        systemPrompt = `${systemPrompt}\n\n${arcBlock}`;
+      }
     }
   }
 

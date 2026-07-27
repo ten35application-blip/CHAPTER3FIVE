@@ -218,6 +218,9 @@ export async function createIdentityFromPhoto(
       text_burst_style: traits.textBurstStyle ?? null,
       chronotype: traits.chronotype ?? null,
       voice_examples: persona.voice_examples,
+      // Formula v5 additions (0094).
+      texting_fluency: traits.textingFluency ?? null,
+      pet_name: persona.pet_name ?? null,
     })
     .select("id")
     .single();
