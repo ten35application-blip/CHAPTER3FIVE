@@ -121,7 +121,7 @@ export async function POST(
   // the authorization.
   const { data: oracle } = await supabase
     .from("oracles")
-    .select("id, name, manually_unread, blocked_at, block_reason, traits, memory_style, text_burst_style, voice_examples, chronotype, created_at, pet_name, texting_fluency")
+    .select("id, name, manually_unread, blocked_at, block_reason, traits, memory_style, text_burst_style, voice_examples, chronotype, created_at, pet_name")
     .eq("id", oracleId)
     .is("deleted_at", null)
     .maybeSingle();

@@ -156,6 +156,17 @@ export async function createIdentityFromPhoto(
       vision.perceivedAgeMin,
       vision.perceivedAgeMax,
     );
+    // Formula v5 age-gate re-apply: rollExpansion already ran against
+    // rollTraits's random pre-photo birthday, so an old-pre-roll +
+    // young-photo can survive with addressStyle="hon_sweetheart" on a
+    // 28-year-old. Re-enforce the same 55+ gate rollAddressStyle uses,
+    // without re-rolling (which would shift the overall probability).
+    if (
+      candidate.addressStyle === "hon_sweetheart" &&
+      ageFromBirthday(candidate.birthday) < 55
+    ) {
+      candidate.addressStyle = null;
+    }
     const candidateFingerprint = fingerprintTraits(candidate);
     const { data: existing } = await supabase
       .from("oracles")

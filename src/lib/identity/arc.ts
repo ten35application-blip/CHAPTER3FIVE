@@ -164,6 +164,13 @@ export function currentArc(
   oracleCreatedAtIso: string,
   nowIso?: string,
 ): OngoingArc | null {
+  // Template comes in cast from traits JSONB in three call sites — a
+  // renamed/removed template or a backfill typo would otherwise
+  // `undefined.length` inside the loop and 500 every chat/welcome/cron
+  // touch of that oracle. Fail closed to "no arc this turn."
+  if (!(ONGOING_ARC_TEMPLATES as readonly string[]).includes(template)) {
+    return null;
+  }
   const startMs = new Date(oracleCreatedAtIso).getTime();
   const nowMs = nowIso ? new Date(nowIso).getTime() : Date.now();
   if (!Number.isFinite(startMs) || nowMs < startMs) return null;
