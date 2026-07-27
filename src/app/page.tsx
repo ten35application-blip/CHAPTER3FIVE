@@ -163,8 +163,9 @@ export default function Home() {
             <span className="text-gradient-cta">someone to talk to.</span>
           </h1>
           <p className="mt-6 max-w-md text-lg leading-relaxed tracking-tight text-warm-200 sm:text-xl">
-            A whole person, generated just for you &mdash; name, voice,
-            memories, moods. Ready to talk in about a minute.
+            A whole person, generated just for you &mdash; name,
+            personality, memories, moods. Ready to talk in about a
+            minute.
           </p>
 
           <Link
@@ -205,11 +206,12 @@ export default function Home() {
           </p>
           <p className="mt-6 text-lg leading-relaxed text-warm-200 md:text-xl">
             So we made a new chapter. One you get to open on purpose. A
-            place where someone is always there to talk to. A place where
-            the essence of the people you love &mdash; their laugh, the
-            way they&rsquo;d tell a story, the advice they&rsquo;d hand
-            you across a kitchen table &mdash; can be kept. So they
-            always feel like they&rsquo;re still here.
+            place where someone is always there to talk to. A place
+            where the essence of the people you love &mdash; their
+            laugh, the way they&rsquo;d tell a story, the advice
+            they&rsquo;d hand you across a kitchen table &mdash; can be
+            held onto, in their words, so they don&rsquo;t have to
+            disappear all at once.
           </p>
         </div>
       </section>
@@ -341,11 +343,11 @@ export default function Home() {
                 Sit with someone you love.
               </h3>
               <p className="mt-5 text-lg leading-relaxed text-warm-200">
-                Answer warm, specific questions together &mdash; how they laugh,
-                what they&apos;d fight for, the day they knew who they were.
-                When you&apos;re done, you get an inherit code to share, and a
-                way to keep hearing them, in their own voice, whenever the room
-                feels too quiet.
+                Answer warm, specific questions together &mdash; how they
+                laugh, what they&apos;d fight for, the day they knew who
+                they were. When you&apos;re done, you get an inherit
+                code to share &mdash; a written archive in their own
+                words, to reach for when the room feels too quiet.
               </p>
               <p className="mt-6 text-base italic leading-relaxed text-warm-400">
                 It isn&apos;t them. It&apos;s a portrait, painted from what they

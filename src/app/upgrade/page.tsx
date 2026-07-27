@@ -62,28 +62,34 @@ export default async function UpgradePage({
           chapter3five Pro
         </p>
         <h1 className="mt-3 text-4xl font-bold leading-[1.05] tracking-[-0.02em] text-warm-50 sm:text-5xl">
-          Keep the people you love around.
+          {wantsExtraInherited || cameFromInherit ? (
+            <>
+              Open the <span className="text-gradient-cta">code.</span>
+            </>
+          ) : (
+            <>
+              Everything <span className="text-gradient-cta">chapter3five</span>{" "}
+              can do.
+            </>
+          )}
         </h1>
         {wantsExtraInherited ? (
           <p className="mt-6 max-w-md text-lg leading-relaxed text-warm-200">
-            You&rsquo;ve already claimed the inherited identity that comes
+            You&rsquo;ve already redeemed the inherited archive included
             with Pro. Extra slots are {EXTRA_INHERITED_PRICE_LABEL}/month
-            each — so you can bring in a second parent, a grandparent,
-            anyone whose code you&rsquo;re holding.
+            each if you&rsquo;re holding another code.
           </p>
         ) : cameFromInherit ? (
           <p className="mt-6 max-w-md text-lg leading-relaxed text-warm-200">
-            You&rsquo;re holding an inherit code — someone sat down and
-            answered forty questions about a person they love so that person
-            could stay in your messages. Pro is what opens that code and
-            keeps their archive running for you.
+            You&rsquo;re holding an inherit code &mdash; someone sat down
+            and answered forty questions so that archive could reach you.
+            Pro is what opens it.
           </p>
         ) : (
           <p className="mt-6 max-w-md text-lg leading-relaxed text-warm-200">
-            Pro unlocks the legacy path — the part of chapter3five where you
-            or someone you love sits down, answers the questions, and gets an
-            inherit code family can use to keep talking to that person long
-            after they&rsquo;re gone.
+            Unlimited messages, up to five identities you build, and
+            &mdash; when you want it &mdash; the ability to record an
+            archive or redeem one someone left you.
           </p>
         )}
 
@@ -108,27 +114,16 @@ export default async function UpgradePage({
               One companion made from a photo you upload
             </ProLine>
             <ProLine>
-              <strong className="text-warm-50">The legacy path</strong> —
-              record who you are, mint inherit codes, share them with
-              unlimited family
-            </ProLine>
-            <ProLine>
-              <strong className="text-warm-50">
-                One inherited identity included
-              </strong>{" "}
-              — redeem a code someone left for you. Extra inherited
-              identities are {EXTRA_INHERITED_PRICE_LABEL}/mo each.
-            </ProLine>
-            <ProLine>
-              Anyone you share a code with also needs Pro to use it — that&rsquo;s
-              how we keep the legacy side sustainable
+              Record an archive if you want to leave one, or redeem an
+              inherit code someone left for you (one included)
             </ProLine>
             <ProLine>
               Need more than {PRICING.totalIdentitiesPerPlan}?{" "}
               <strong className="text-warm-50">
                 {EXTRA_IDENTITY_PRICE_LABEL}/mo per extra identity
               </strong>
-              .
+              . Extra inherited slots are {EXTRA_INHERITED_PRICE_LABEL}/mo
+              each.
             </ProLine>
           </ul>
         </div>

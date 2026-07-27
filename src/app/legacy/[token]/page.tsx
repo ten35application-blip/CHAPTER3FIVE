@@ -142,7 +142,22 @@ export default async function ClaimPage({
           </div>
         )}
 
-        <p className="mt-10 max-w-xs text-xs leading-relaxed text-warm-400">
+        {isPostMortem ? (
+          <p className="mt-8 max-w-xs text-xs leading-relaxed text-warm-400">
+            If you&rsquo;re struggling right now, you don&rsquo;t have to
+            open this alone. In the US you can text or call{" "}
+            <a
+              href="tel:988"
+              className="font-semibold text-coral-strong hover:underline"
+            >
+              988
+            </a>{" "}
+            to talk to a real person about grief or crisis. Outside the
+            US, your local emergency line.
+          </p>
+        ) : null}
+
+        <p className="mt-8 max-w-xs text-xs leading-relaxed text-warm-400">
           chapter3five is 18+. By continuing you agree to our{" "}
           <Link href="/terms" className="underline underline-offset-2 hover:text-coral-strong">
             Terms

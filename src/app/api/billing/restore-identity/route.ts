@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
   // already active.
   const { data: oracle } = await supabase
     .from("oracles")
-    .select("id, name, deleted_at, restore_price_cents")
+    .select("id, name, deleted_at, restore_price_cents, is_legacy")
     .eq("id", oracleId)
     .not("deleted_at", "is", null)
     .maybeSingle();
@@ -55,6 +55,25 @@ export async function POST(request: NextRequest) {
       { error: "That identity is not in the trash." },
       { status: 400 },
     );
+  }
+
+  // Legacy identities are always free to restore. Someone deleting
+  // a mother's archive during acute grief and being asked to pay to
+  // get it back is a line we don't cross. Terms §8 documents this.
+  // Restore via admin client (0067 blocks user-role writes) and
+  // return a done payload — the client shows a "back" toast.
+  if (oracle.is_legacy) {
+    const admin = createAdminClient();
+    await admin
+      .from("oracles")
+      .update({ deleted_at: null, scheduled_purge_at: null })
+      .eq("id", oracleId)
+      .eq("user_id", user.id);
+    return NextResponse.json({
+      restored: true,
+      free: true,
+      reason: "legacy_identities_are_never_paywalled",
+    });
   }
 
   const priceCents =

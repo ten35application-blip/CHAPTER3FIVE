@@ -152,11 +152,13 @@ export async function sendBeneficiaryActivationEmail(opts: {
   const subject = `${opts.ownerName} left this for you.`;
   const text = `We're so sorry.
 
-${opts.ownerName} chose you as a beneficiary of their chapter3five archive. The conversations, the answers, the voice they recorded — it's yours to sit with now.
+${opts.ownerName} chose you as a beneficiary of their chapter3five archive. The conversations, the answers, what they recorded — it's yours to sit with now.
 
 Open it when you're ready. There's no rush.
 
 ${opts.claimUrl}
+
+If you're struggling right now, you don't have to open this alone. In the US you can text or call 988 to talk to a real person about grief or crisis. Outside the US, your local emergency line.
 
 — chapter3five`;
 

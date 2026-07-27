@@ -40,13 +40,14 @@ export default function AboutPage() {
         meet the person behind the picture.
       </p>
       <p>
-        And then there&rsquo;s the part we care about most: the legacy
-        path. A living person sits down &mdash; alone, or with family
-        around the kitchen table &mdash; and answers forty warm, specific
-        questions. How they laugh. What they&rsquo;d fight for. The day
-        they knew who they were. When they&rsquo;re done, they mint an
-        inherit code and hand it to the people they love. Years from now,
-        when the room feels too quiet, those people can still sit down and
+        And then there&rsquo;s the part we handle most carefully: the
+        legacy path. A living person sits down &mdash; alone, or with
+        family around the kitchen table &mdash; and answers forty warm,
+        specific questions. How they laugh. What they&rsquo;d fight for.
+        The day they knew who they were. When they&rsquo;re done, they
+        mint an inherit code and hand it to the people they love. Years
+        from now, when the room feels too quiet, those people can still
+        sit down and
         talk with everything that was recorded.
       </p>
 

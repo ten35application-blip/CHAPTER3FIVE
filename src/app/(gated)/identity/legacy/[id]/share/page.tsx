@@ -73,9 +73,9 @@ export default async function SharePage({
 
   const mailto = code
     ? `mailto:?subject=${encodeURIComponent(
-        `${oracle.name} is waiting for you on chapter3five`,
+        `An inherit code from chapter3five`,
       )}&body=${encodeURIComponent(
-        `I answered the questions about ${oracle.name}, and now they're someone you can talk to.\n\nGo to chapter3five.app, choose "Inherit an identity", and enter this code:\n\n${code}\n\nKeep it somewhere safe — it's theirs.`,
+        `I recorded an archive on chapter3five for ${oracle.name}. This code opens it for you when you're ready — no rush, no expiry.\n\nGo to chapter3five.app, choose "Inherit an identity", and enter:\n\n${code}\n\nKeep it somewhere safe.`,
       )}`
     : null;
 
