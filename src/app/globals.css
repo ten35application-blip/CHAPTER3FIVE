@@ -102,6 +102,13 @@
  * touch the middle vertical band where content lives. */
 html,
 body {
+  /* No elastic rubber-band on the document itself. Most pages
+   * (dashboard included) are exactly min-h-dvh tall, so a scroll
+   * gesture on iPad has nowhere to go and just drags the whole page
+   * and snaps it back — reads as broken "overscroll". Inner scrollers
+   * (chat log, sheets) keep their own momentum scrolling; this only
+   * stops the viewport-level bounce and scroll chaining out of them. */
+  overscroll-behavior-y: none;
   background:
     radial-gradient(ellipse 90% 60% at 50% -10%, rgba(232, 138, 118, 0.14), transparent 62%),
     radial-gradient(ellipse 75% 55% at 100% 100%, rgba(126, 196, 196, 0.12), transparent 60%),
