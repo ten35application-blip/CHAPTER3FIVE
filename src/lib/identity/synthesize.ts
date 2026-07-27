@@ -154,15 +154,17 @@ const OUTPUT_SCHEMA = {
     },
     voice_examples: {
       type: "array",
+      // Anthropic's structured-output validator rejects minItems /
+      // maxItems > 1. The 4-8 count is enforced in code after parsing
+      // (see the callsite). Description keeps the range hint so the
+      // model still targets it.
       description:
-        "4–6 concrete example texts THIS SPECIFIC persona would send. Match their punctuation habit, sentence length, humor style, attachment style. Diverse: greeting, deflection, warm/vulnerable, dry/funny, unsure. Minimum 8 characters each — a two-word 'hey' isn't a voice sample. THESE ARE THE SAME EXAMPLES quoted inside persona_prompt's 'Sample texts I might send:' block — the array is the extracted form for observability.",
+        "4–8 concrete example texts THIS SPECIFIC persona would send. Match their punctuation habit, sentence length, humor style, attachment style. Diverse: greeting, deflection, warm/vulnerable, dry/funny, unsure. Minimum 8 characters each — a two-word 'hey' isn't a voice sample. THESE ARE THE SAME EXAMPLES quoted inside persona_prompt's 'Sample texts I might send:' block — the array is the extracted form for observability. Return between 4 and 8 items.",
       items: {
         type: "string",
         minLength: 8,
         maxLength: 400,
       },
-      minItems: 4,
-      maxItems: 8,
     },
   },
   required: [

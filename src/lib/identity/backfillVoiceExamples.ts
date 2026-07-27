@@ -31,16 +31,19 @@ import { createAdminClient } from "@/lib/supabase/admin";
  *  in one spot so a bump touches one line. */
 const BACKFILL_MODEL = "claude-haiku-4-5-20251001";
 
+// Anthropic's structured-output schema validator only accepts
+// `minItems` / `maxItems` values of 0 or 1 (rejects anything higher
+// with a 400 "not supported" error). The 4-6 count is enforced in
+// code after parsing (see the examples.length check below).
+// Description carries the intended range so Haiku still targets it.
 const OUTPUT_SCHEMA = {
   type: "object",
   properties: {
     voice_examples: {
       type: "array",
       description:
-        "4–6 concrete example texts THIS persona would send, matching their existing voice from persona_prompt exactly. Cover a diverse spread: one greeting, one deflection, one warm/vulnerable, one dry/funny, one when they don't know what to say. Real iMessages, not marketing copy. Each example 8–400 chars.",
+        "4–6 concrete example texts THIS persona would send, matching their existing voice from persona_prompt exactly. Cover a diverse spread: one greeting, one deflection, one warm/vulnerable, one dry/funny, one when they don't know what to say. Real iMessages, not marketing copy. Each example 8–400 chars. Return between 4 and 6 items.",
       items: { type: "string", minLength: 8, maxLength: 400 },
-      minItems: 4,
-      maxItems: 6,
     },
   },
   required: ["voice_examples"],
