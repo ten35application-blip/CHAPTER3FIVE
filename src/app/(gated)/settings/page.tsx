@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CollapsibleSection } from "@/components/collapsible-section";
 import { createClient } from "@/lib/supabase/server";
+import { isAdmin } from "@/lib/admin/allowlist";
 import { isPro } from "@/lib/subscription";
 import {
   EXTRA_IDENTITY_PRICE_LABEL,
@@ -104,13 +105,23 @@ export default async function SettingsPage({
   // which still has the mailto flow.
   const checkoutEnabled = Boolean(process.env.STRIPE_PRICE_ID_PRO_MONTHLY);
 
-  const planName = pro
-    ? trialActive && !stripeCustomerId
-      ? "Trial (free)"
-      : planSource === "admin_grant" && !stripeCustomerId
-        ? "Pro (comped)"
-        : "Pro plan"
-    : "Free plan";
+  // Admin allowlist wins BEFORE the trial check. Allowlisted admins
+  // are Pro forever via isPro's isAdmin short-circuit, but many also
+  // carry a stale trial_ends_at from before they were allowlisted —
+  // without this ordering they'd see "Trial (free)" plus a Convert
+  // pitch for a plan they can never fall off of.
+  const admin = isAdmin(email);
+  const planName = admin
+    ? "Pro (admin)"
+    : pro
+      ? stripeCustomerId
+        ? "Pro plan"
+        : planSource === "admin_grant"
+          ? "Pro (comped)"
+          : trialActive
+            ? "Trial (free)"
+            : "Pro plan"
+      : "Free plan";
   const dateLabel = (iso: string) =>
     new Date(iso).toLocaleDateString(undefined, {
       month: "short",
@@ -190,7 +201,7 @@ export default async function SettingsPage({
                 value={periodEndLabel}
               />
             </>
-          ) : pro && trialActive && trialEndLabel && !stripeCustomerId ? (
+          ) : pro && !admin && trialActive && trialEndLabel && !stripeCustomerId ? (
             <>
               <Divider />
               <IconRow
@@ -211,7 +222,7 @@ export default async function SettingsPage({
                   in the Stripe billing portal.
                 </p>
               </>
-            ) : pro && trialActive ? (
+            ) : pro && !admin && trialActive ? (
               <>
                 <UpgradeButton
                   checkoutEnabled={checkoutEnabled}
@@ -224,7 +235,8 @@ export default async function SettingsPage({
                 </p>
               </>
             ) : pro ? (
-              // Admin-granted Pro — no Stripe customer, no trial.
+              // Allowlist admins + admin-granted Pro — no Stripe
+              // customer, permanent Pro. No upsell to render.
               <p className="text-center text-xs text-warm-300">
                 You&rsquo;re on Pro. No card on file — enjoy.
               </p>
