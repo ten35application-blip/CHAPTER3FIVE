@@ -20,6 +20,11 @@ export type LegacySubject = {
   relationship: string; // "My mother", "Myself", "Our grandfather"
   era: string; // "Born 1952, raised in the Bronx"
   heritage: string; // "Dominican; Catholic household"
+  /** Public URL for the photo the creator uploaded at step 0.
+   *  Required at completion — the persona's face travels with the
+   *  inherit code so whoever redeems it sees the same photo. Optional
+   *  on the type only so pre-migration drafts still parse. */
+  photoUrl?: string;
 };
 
 export type LegacyTraits = {

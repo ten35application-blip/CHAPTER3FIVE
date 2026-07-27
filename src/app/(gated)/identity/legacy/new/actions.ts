@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import sharp from "sharp";
 import { redirectWithError } from "@/lib/action-errors";
 import { claimFreeIdentitySlot, isPro } from "@/lib/subscription";
 import { SynthesisError } from "@/lib/identity/synthesize";
@@ -33,12 +34,106 @@ type DraftPayload = {
 function sanitizeSubject(subject: LegacySubject): LegacySubject {
   const clean = (v: unknown) =>
     typeof v === "string" ? v.trim().slice(0, MAX_SUBJECT_FIELD_CHARS) : "";
+  // photoUrl must be a URL we actually minted from Supabase Storage —
+  // trust nothing that came off the client. If it doesn't match the
+  // shape supabase-storage/…/avatars/legacy/… we drop it so a malicious
+  // client can't inject an arbitrary URL into the oracle's avatar_url.
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+  const raw = typeof subject?.photoUrl === "string" ? subject.photoUrl : "";
+  const photoUrl =
+    supabaseUrl &&
+    raw.startsWith(`${supabaseUrl}/storage/v1/object/public/avatars/legacy/`)
+      ? raw
+      : undefined;
   return {
     name: clean(subject?.name),
     relationship: clean(subject?.relationship),
     era: clean(subject?.era),
     heritage: clean(subject?.heritage),
+    ...(photoUrl ? { photoUrl } : {}),
   };
+}
+
+const ACCEPTED_LEGACY_PHOTO_MIMES: readonly string[] = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/heic",
+  "image/heif",
+];
+const MAX_LEGACY_PHOTO_BYTES = 8 * 1024 * 1024;
+
+/**
+ * Step-0 photo upload for the legacy flow. The creator must pick a
+ * photo BEFORE answering any questions — that photo IS the identity's
+ * face and travels with the inherit code so whoever redeems it sees
+ * the same person.
+ *
+ * Uploads to `avatars/legacy/{user_id}/{ts}.jpg` via the admin client
+ * (storage RLS on `avatars` doesn't allow direct user writes; same
+ * pattern as identity/from-photo). Returns the public URL, which the
+ * client saves on subject.photoUrl → autosaved into the draft.
+ *
+ * On completion, that URL becomes oracles.avatar_url as-is.
+ */
+export async function uploadLegacyPhoto(
+  formData: FormData,
+): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Not signed in." };
+
+  // Pro-gate here too — a lapsed user shouldn't be able to upload a
+  // photo they'll never be able to complete an identity with.
+  if (!(await isPro(supabase))) {
+    return { ok: false, error: "Premium plan required to keep an identity." };
+  }
+
+  const file = formData.get("photo");
+  if (!(file instanceof File) || file.size === 0) {
+    return { ok: false, error: "Pick a photo first." };
+  }
+  if (file.size > MAX_LEGACY_PHOTO_BYTES) {
+    return { ok: false, error: "That photo is over 8 MB — try a smaller one." };
+  }
+  if (!ACCEPTED_LEGACY_PHOTO_MIMES.includes(file.type)) {
+    return { ok: false, error: "Use a JPEG, PNG, WebP, or HEIC image." };
+  }
+
+  const inputBytes = Buffer.from(await file.arrayBuffer());
+  let processed: Buffer;
+  try {
+    processed = await sharp(inputBytes)
+      .rotate()
+      .resize(1024, 1024, { fit: "cover", position: "attention" })
+      .jpeg({ quality: 85, mozjpeg: true })
+      .toBuffer();
+  } catch (err) {
+    console.error("[legacy-photo] sharp failed:", err);
+    return { ok: false, error: "Couldn't read that image. Try a different one." };
+  }
+
+  const admin = createAdminClient();
+  const storagePath = `legacy/${user.id}/${Date.now()}.jpg`;
+  const { error: uploadError } = await admin.storage
+    .from("avatars")
+    // Blob wrap forces storage-js's multipart branch — Next 16's patched
+    // fetch corrupts raw Buffer bodies. Same fix as 0078-era
+    // profile-avatars upload (e2911d4).
+    .upload(storagePath, new Blob([new Uint8Array(processed)]), {
+      contentType: "image/jpeg",
+      upsert: false,
+    });
+  if (uploadError) {
+    console.error("[legacy-photo] upload failed:", uploadError);
+    return { ok: false, error: "Couldn't save that photo. Try again." };
+  }
+  const { data: pub } = admin.storage
+    .from("avatars")
+    .getPublicUrl(storagePath);
+  return { ok: true, url: `${pub.publicUrl}?v=${Date.now()}` };
 }
 
 function sanitizeAnswers(
@@ -123,6 +218,12 @@ export async function completeLegacyIdentity(payload: {
       "Give them their name first — it's on the first page.",
     );
   }
+  if (!subject.photoUrl) {
+    redirectWithError(
+      "/identity/legacy/new",
+      "Add their photo on the first page — it travels with the code.",
+    );
+  }
   if (Object.keys(answers).length < MIN_ANSWERS) {
     redirectWithError(
       "/identity/legacy/new",
@@ -162,6 +263,10 @@ export async function completeLegacyIdentity(payload: {
       name: persona.name,
       one_line_hook: persona.one_line_hook,
       persona_prompt: persona.persona_prompt,
+      // The photo the creator uploaded at Step 0 becomes the identity's
+      // face on redeem. Public URL from `avatars/legacy/...` — matches
+      // the shape sanitizeSubject already validated.
+      avatar_url: subject.photoUrl,
     })
     .select("id")
     .single();

@@ -8,7 +8,11 @@ import type {
   LegacyQuestion,
 } from "@/lib/legacy/questions";
 import type { LegacySubject } from "@/lib/legacy/synthesize";
-import { completeLegacyIdentity, saveLegacyDraft } from "./actions";
+import {
+  completeLegacyIdentity,
+  saveLegacyDraft,
+  uploadLegacyPhoto,
+} from "./actions";
 
 /**
  * The 40-question legacy flow.
@@ -166,7 +170,11 @@ function SubjectScreen({
   onChange: (s: LegacySubject) => void;
   onNext: () => void;
 }) {
-  const canContinue = subject.name.trim().length > 0;
+  // Wilson's rule: photo BEFORE questions. The face travels with the
+  // inherit code — whoever redeems sees the same person you're about
+  // to write down. Name AND photo both required to advance.
+  const canContinue =
+    subject.name.trim().length > 0 && !!subject.photoUrl;
   return (
     <div className="flex flex-1 flex-col">
       <p className="text-sm font-semibold uppercase tracking-wider">
@@ -180,6 +188,13 @@ function SubjectScreen({
         table. If this is about you, answer in your own voice. Everything
         saves as you go, so take days if you need them.
       </p>
+
+      <PhotoPicker
+        photoUrl={subject.photoUrl ?? null}
+        onChange={(photoUrl) =>
+          onChange({ ...subject, photoUrl: photoUrl ?? undefined })
+        }
+      />
 
       {/* Texting-style note — the single most important guidance for
           fidelity. Their real texting rhythm (lowercase, no periods,
@@ -241,6 +256,116 @@ function SubjectScreen({
         Back
       </Link>
     </div>
+  );
+}
+
+function PhotoPicker({
+  photoUrl,
+  onChange,
+}: {
+  photoUrl: string | null;
+  onChange: (url: string | null) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const [pending, setPending] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function onPick(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setErr(null);
+    setPending(true);
+    try {
+      const fd = new FormData();
+      fd.append("photo", file);
+      const result = await uploadLegacyPhoto(fd);
+      if (result.ok) {
+        onChange(result.url);
+      } else {
+        setErr(result.error);
+      }
+    } finally {
+      setPending(false);
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  }
+
+  return (
+    <div className="mt-6 flex flex-col items-center gap-3 rounded-2xl bg-ink-soft/60 p-5 ring-1 ring-warm-700/60">
+      <p className="text-center text-sm font-semibold text-warm-100">
+        Their photo
+      </p>
+      <p className="text-center text-xs leading-relaxed text-warm-400">
+        Whoever inherits the code will see this face when they open the
+        chat. Pick the one that feels most like them.
+      </p>
+      <div className="relative">
+        {photoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={photoUrl}
+            alt=""
+            className="h-32 w-32 rounded-full object-cover shadow-[0_12px_28px_-6px_rgba(232,138,118,0.4)] ring-2 ring-coral/30"
+          />
+        ) : (
+          <span
+            aria-hidden
+            className="flex h-32 w-32 items-center justify-center rounded-full bg-warm-700/40 text-warm-400 ring-2 ring-warm-700/60"
+          >
+            <PhotoPlaceholderIcon />
+          </span>
+        )}
+        {pending ? (
+          <span
+            aria-hidden
+            className="absolute inset-0 flex items-center justify-center rounded-full bg-warm-50/40 backdrop-blur-sm"
+          >
+            <span className="h-6 w-6 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+          </span>
+        ) : null}
+      </div>
+      <button
+        type="button"
+        disabled={pending}
+        onClick={() => inputRef.current?.click()}
+        className="bg-gradient-cta rounded-full px-5 py-2 text-sm font-semibold text-white shadow-[0_6px_16px_-4px_rgba(232,138,118,0.4)] transition-all hover:-translate-y-px active:scale-95 disabled:opacity-60"
+      >
+        {pending ? "Uploading…" : photoUrl ? "Change photo" : "Add photo"}
+      </button>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+        onChange={onPick}
+        className="sr-only"
+        aria-label="Choose their photo"
+      />
+      {err ? (
+        <p role="alert" className="text-center text-xs text-coral-strong">
+          {err}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function PhotoPlaceholderIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="36"
+      height="36"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <rect x="3" y="5" width="18" height="14" rx="2.5" />
+      <circle cx="12" cy="12" r="3.5" />
+      <path d="M17 8.5h.01" />
+    </svg>
   );
 }
 
