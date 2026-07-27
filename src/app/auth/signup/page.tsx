@@ -144,7 +144,9 @@ export default async function SignupPage({
           </button>
 
           {/* Standard cover — the real, recorded acceptance happens at
-              /onboarding after signup. */}
+              /onboarding after signup. EULA linked separately because
+              Apple App Store Review Guidelines § 3.2.1(vii) require an
+              EULA-specific URL. */}
           <p className="mt-3 text-center text-xs leading-relaxed text-warm-400">
             By continuing, you agree to our{" "}
             <Link
@@ -152,8 +154,15 @@ export default async function SignupPage({
               className="font-semibold text-warm-300 underline-offset-2 transition-colors hover:text-coral-strong hover:underline"
             >
               Terms
-            </Link>{" "}
-            and{" "}
+            </Link>
+            ,{" "}
+            <Link
+              href="/eula"
+              className="font-semibold text-warm-300 underline-offset-2 transition-colors hover:text-coral-strong hover:underline"
+            >
+              EULA
+            </Link>
+            , and{" "}
             <Link
               href="/privacy"
               className="font-semibold text-warm-300 underline-offset-2 transition-colors hover:text-coral-strong hover:underline"

@@ -18,6 +18,12 @@ const DOCS = [
       "How chapter3five works, what you're agreeing to, and how we handle disputes.",
   },
   {
+    href: "/eula",
+    label: "End-User License Agreement",
+    summary:
+      "The license we grant you to use the software, plus extra terms for the iOS app.",
+  },
+  {
     href: "/privacy",
     label: "Privacy Policy",
     summary:
@@ -100,7 +106,7 @@ export default async function OnboardingPage({
           </p>
         ) : null}
 
-        {/* The three documents — each opens in a new tab so this page
+        {/* The four documents — each opens in a new tab so this page
             (and the checkbox) stays put while you read. */}
         <ul className="mt-8 flex w-full flex-col gap-3">
           {DOCS.map((doc) => (

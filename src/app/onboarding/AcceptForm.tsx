@@ -23,8 +23,8 @@ export function AcceptForm() {
           className="mt-0.5 h-5 w-5 shrink-0 accent-coral"
         />
         <span className="text-sm leading-relaxed text-warm-100">
-          I&apos;ve read and agree to the Terms, Privacy Policy, and
-          Community Guidelines.
+          I&apos;ve read and agree to the Terms, End-User License
+          Agreement, Privacy Policy, and Community Guidelines.
         </span>
       </label>
 

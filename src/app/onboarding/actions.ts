@@ -7,8 +7,8 @@ import { CURRENT_TERMS_VERSION } from "@/lib/legal/version";
 import { isAdmin } from "@/lib/admin/allowlist";
 
 /**
- * Record acceptance of the current Terms/Privacy/Guidelines bundle on
- * the caller's profile row, then let them into the app. The (gated)
+ * Record acceptance of the current Terms/EULA/Privacy/Guidelines bundle
+ * on the caller's profile row, then let them into the app. The (gated)
  * layout reads terms_version_accepted on every authed page, so this
  * write is the single source of truth for the gate.
  */
