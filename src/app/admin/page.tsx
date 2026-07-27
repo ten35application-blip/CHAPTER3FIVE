@@ -266,12 +266,21 @@ export default async function AdminOverviewPage() {
       </header>
 
       <MetricSection title="People">
-        <MetricCard label="Total users" value={totalUsers.toLocaleString()} />
-        <MetricCard label="Signed up today" value={usersToday.toLocaleString()} />
+        <MetricCard
+          label="Total users"
+          value={totalUsers.toLocaleString()}
+          href="/admin/users"
+        />
+        <MetricCard
+          label="Signed up today"
+          value={usersToday.toLocaleString()}
+          href="/admin/users?since=today"
+        />
         <MetricCard
           label="Signed up this week"
           value={usersThisWeek.toLocaleString()}
           delta={usersThisWeek - usersPrevWeek}
+          href="/admin/users?since=week"
         />
         <MetricCard
           label="Accepted terms"
@@ -285,44 +294,51 @@ export default async function AdminOverviewPage() {
       </MetricSection>
 
       {/* Subscription health — the "who's paying, who's on trial,
-          who cancelled" story. Wilson's one-stop-shop ask. */}
+          who cancelled" story. Every card links to the filtered
+          /admin/users view for that cohort. */}
       <MetricSection title="Subscriptions">
         <MetricCard
           label="Paid Pro"
           value={paidPro.toLocaleString()}
+          href="/admin/users?plan=pro"
           hint={
             canceledPending > 0
               ? `${canceledPending.toLocaleString()} cancelling at period end`
-              : undefined
+              : "tap to see emails"
           }
         />
         <MetricCard
           label="On trial"
           value={trialers.toLocaleString()}
+          href="/admin/users?plan=trial"
           hint={`Conversion so far: ${conversionRate}%`}
         />
         <MetricCard
           label="Comped (admin)"
           value={comped.toLocaleString()}
-          hint={comped > 0 ? "admin_grant plan_source" : undefined}
+          href="/admin/users?plan=comped"
+          hint={comped > 0 ? "admin_grant plan_source" : "no comped accounts"}
         />
         <MetricCard
           label="Free"
           value={freeUsers.toLocaleString()}
+          href="/admin/users?plan=free"
           hint={
             softDeleted > 0
               ? `${softDeleted.toLocaleString()} soft-deleted excluded`
-              : undefined
+              : "tap to see emails"
           }
         />
         <MetricCard
           label="Cancelled (lapsed)"
           value={canceledLapsed.toLocaleString()}
+          href="/admin/users?plan=lapsed"
           hint="pro_until in past, no active sub"
         />
         <MetricCard
           label="Cancelled (pending)"
           value={canceledPending.toLocaleString()}
+          href="/admin/users?plan=cancel"
           hint="Still in period, sub set to cancel"
         />
       </MetricSection>
@@ -356,10 +372,9 @@ export default async function AdminOverviewPage() {
         <MetricCard
           label="Reports pending"
           value={pendingReports.toLocaleString()}
+          href={pendingReports > 0 ? "/admin/reports" : undefined}
           hint={
-            pendingReports > 0
-              ? "review at /admin/reports"
-              : "queue is empty"
+            pendingReports > 0 ? "tap to review" : "queue is empty"
           }
         />
       </MetricSection>

@@ -1,6 +1,12 @@
+import Link from "next/link";
+
 /**
  * Dashboard metric card — big number, small label, optional delta chip
  * comparing against the previous period. Server component.
+ *
+ * When `href` is passed the whole card becomes a Link so a cohort
+ * count (e.g. "Paid Pro: 12") is one tap from the filtered user
+ * list.
  */
 export function MetricCard({
   label,
@@ -8,6 +14,7 @@ export function MetricCard({
   delta,
   deltaLabel = "vs last week",
   hint,
+  href,
 }: {
   label: string;
   value: string | number;
@@ -15,9 +22,12 @@ export function MetricCard({
   delta?: number;
   deltaLabel?: string;
   hint?: string;
+  /** Optional drill-down. Renders the card as a Link with a subtle
+   *  hover ring so the user knows it's tappable. */
+  href?: string;
 }) {
-  return (
-    <div className="flex flex-col gap-1 rounded-2xl bg-ink-soft px-5 py-4 shadow-[0_10px_28px_-14px_rgba(28,28,26,0.14)] ring-1 ring-warm-700">
+  const body = (
+    <>
       <p className="text-xs font-semibold uppercase tracking-wider text-warm-400">
         {label}
       </p>
@@ -39,8 +49,23 @@ export function MetricCard({
         </p>
       ) : null}
       {hint ? <p className="text-xs text-warm-400">{hint}</p> : null}
-    </div>
+    </>
   );
+
+  const baseClass =
+    "flex flex-col gap-1 rounded-2xl bg-ink-soft px-5 py-4 shadow-[0_10px_28px_-14px_rgba(28,28,26,0.14)] ring-1 ring-warm-700";
+
+  if (href) {
+    return (
+      <Link
+        href={href}
+        className={`${baseClass} transition-all hover:-translate-y-px hover:ring-coral/40`}
+      >
+        {body}
+      </Link>
+    );
+  }
+  return <div className={baseClass}>{body}</div>;
 }
 
 /** Section wrapper for a titled grid of metric cards. */
