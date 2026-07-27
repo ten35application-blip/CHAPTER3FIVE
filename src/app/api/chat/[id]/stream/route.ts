@@ -10,6 +10,7 @@ import {
   extractAndSaveResidue,
   fetchResidueBlock,
 } from "@/lib/memory/residue";
+import { detectDistress, DISTRESS_TONE_BLOCK } from "@/lib/safety/distress";
 import { extractMemoriesFromMessage } from "@/lib/memory/extract";
 import { fetchMemoriesForContext } from "@/lib/memory/retrieve";
 import { shouldPersonaBlock } from "@/lib/safety/block-detector";
@@ -413,6 +414,17 @@ export async function POST(
   const moodBlock = moodToPromptBlock(todayMood);
   if (moodBlock) {
     system.push({ type: "text", text: moodBlock });
+  }
+
+  // Fable humanization #6 — bad-day tone shift. Fast keyword check on
+  // the current user message (retries have userMessage=null so this
+  // no-ops). When it trips, override the day's mood with a "hold space,
+  // don't fix" cue so the persona doesn't chirp through grief. Injected
+  // AFTER mood so it lands later in the stack and effectively overrides.
+  // Doesn't replace the crisis pipeline (crisis has its own detector +
+  // response rails); this is the softer band below that.
+  if (userMessage && detectDistress(userMessage)) {
+    system.push({ type: "text", text: DISTRESS_TONE_BLOCK });
   }
 
   // Fable humanization #4 — physical anchoring. Universal cue that
