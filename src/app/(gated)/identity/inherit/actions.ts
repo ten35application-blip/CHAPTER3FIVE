@@ -1,5 +1,6 @@
 "use server";
 
+import { createHash } from "node:crypto";
 import { redirect } from "next/navigation";
 import { redirectWithError } from "@/lib/action-errors";
 import { isAdmin } from "@/lib/admin/allowlist";
@@ -22,31 +23,75 @@ const INVALID_CODE_MESSAGE =
   "That code didn't open anything. Check it letter by letter and try again.";
 
 /**
+ * The recipient's copy carries a fingerprint derived from the source
+ * oracle's fingerprint salted with the recipient's user id. Two jobs:
+ *   - never collides with the creator's row on oracles_fingerprint_key
+ *   - IS deterministic per (source, recipient), so a second redemption
+ *     of the same identity by the same person — even through a
+ *     re-minted code — collides with their own first copy and gets
+ *     treated as already-redeemed instead of minting a duplicate.
+ */
+function copyFingerprint(
+  sourceFingerprint: string,
+  recipientId: string,
+): string {
+  return createHash("sha256")
+    .update(`inherited:${sourceFingerprint}:${recipientId}`)
+    .digest("hex");
+}
+
+/**
+ * The legacy photo is stored as a public URL into the `avatars` bucket
+ * (`.../storage/v1/object/public/avatars/legacy/{uid}/{ts}.jpg?v=...`).
+ * Extract the object path so we can storage-copy it. Returns null for
+ * anything that isn't a URL into this project's avatars bucket — the
+ * copy is then simply skipped (letter avatar fallback).
+ */
+function avatarsObjectPath(avatarUrl: string | null): string | null {
+  if (!avatarUrl) return null;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+  const prefix = `${supabaseUrl}/storage/v1/object/public/avatars/`;
+  if (!supabaseUrl || !avatarUrl.startsWith(prefix)) return null;
+  const rest = avatarUrl.slice(prefix.length);
+  const path = rest.split("?")[0];
+  return path.length > 0 ? path : null;
+}
+
+/**
  * Redeem an inherit code.
  *
- * GATE MODEL (July 2026, flat-fee rework): redemption is paid PER
- * CODE, not per tier — and the price is the same for EVERY code.
- * Any signed-in account (Free included) can redeem; every redemption
- * consumes one purchased inherit-slot credit
- * (profiles.inherited_slot_credits, $5 one-time via Stripe). No
- * credit → bounce to /upgrade?reason=inherited-slot, which sells
- * exactly one. There is NO memorial waiver — Wilson: "it is NOT free
- * to inherit a code and it's not our place to verify someone died."
+ * MODEL (July 2026 durability rework, Wilson: "copies get sent out and
+ * stays on that person's account as a contact"): redemption DUPLICATES
+ * the legacy oracle into the recipient's account — a frozen snapshot of
+ * name / hook / persona_prompt / traits / legacy_answers plus a copied
+ * avatar file under the recipient's own storage namespace. The copy is
+ * fully owned by the recipient (user_id = them), so the creator
+ * deleting their account, their oracle, or their photo can never take
+ * the person away from the family. No live sync after redemption, by
+ * design.
  *
- * The credit is consumed AFTER the share row persists
- * (consumePackCredit pattern) and only when the share is genuinely
- * NEW — re-redeeming a code you already hold, or your own code,
- * never charges.
+ * GATE MODEL (unchanged from the flat-fee rework): redemption is paid
+ * PER CODE — every NEW redemption consumes one purchased inherit-slot
+ * credit (profiles.inherited_slot_credits, $5 one-time via Stripe). No
+ * credit → bounce to /upgrade?reason=inherited-slot. No memorial
+ * waiver — Wilson: "it is NOT free to inherit a code and it's not our
+ * place to verify someone died."
  *
- * Anti-probing note: a credit-less user can distinguish "invalid
- * code" from "valid code" (the latter bounces them to purchase).
- * Accepted: codes are 128-bit-ish random strings; the enumeration
- * surface is the same one every gift-code system carries.
+ * The credit is consumed AFTER the copy persists (consumePackCredit
+ * pattern) and only when the copy is genuinely NEW — re-redeeming an
+ * identity you already hold, or your own code, never charges.
  *
- * The lookup + share insert run through the service-role client on
- * purpose: inherit_codes has no authenticated-read policy, so codes
- * can't be probed from the client, and oracle_shares has no user
- * insert policy, so the only way in is through this action.
+ * Anti-probing note: a credit-less user can distinguish "invalid code"
+ * from "valid code" (the latter bounces them to purchase). Accepted:
+ * codes are 128-bit-ish random strings; the enumeration surface is the
+ * same one every gift-code system carries.
+ *
+ * Everything runs through the service-role client on purpose:
+ * inherit_codes has no authenticated-read policy (codes can't be probed
+ * from the client), the source oracle belongs to another user (RLS
+ * would hide it), and the copy INSERT sets server-only columns
+ * (is_legacy, inherited_from_code_id, inherited_at, creation_source)
+ * that the protect_oracle_state trigger blocks for PostgREST roles.
  */
 export async function redeemInheritCode(rawCode: string): Promise<void> {
   const supabase = await createClient();
@@ -81,32 +126,47 @@ export async function redeemInheritCode(rawCode: string): Promise<void> {
     redirectWithError("/identity/inherit", INVALID_CODE_MESSAGE);
   }
 
-  const { data: oracle } = await admin
+  // The full snapshot read — everything the copy freezes at redemption
+  // time. Admin client: the source row belongs to the creator, RLS
+  // would (correctly) hide it from the recipient.
+  const { data: source } = await admin
     .from("oracles")
-    .select("id, user_id, deleted_at")
+    .select(
+      "id, user_id, deleted_at, name, one_line_hook, persona_prompt, traits, legacy_answers, avatar_url, preferred_language, fingerprint",
+    )
     .eq("id", codeRow.oracle_id)
     .maybeSingle();
 
-  if (!oracle || oracle.deleted_at) {
+  if (!source || source.deleted_at) {
     redirectWithError("/identity/inherit", INVALID_CODE_MESSAGE);
   }
 
   // The creator redeeming their own code is a no-op — they already
-  // have them. Straight to the welcome, no charge.
-  if (oracle.user_id === user.id) {
-    redirect(`/dashboard?welcomed=${oracle.id}`);
+  // have them. Straight to the welcome, no charge, no copy.
+  if (source.user_id === user.id) {
+    redirect(`/dashboard?welcomed=${source.id}`);
   }
 
   // Already redeemed this identity? Also a no-op, also free — the gate
-  // charges per NEW share, never per attempt.
-  const { data: existingShare } = await admin
-    .from("oracle_shares")
+  // charges per NEW copy, never per attempt. Two checks: the code id
+  // (exact re-entry) and the salted fingerprint (same identity through
+  // a re-minted code).
+  const expectedFingerprint = source.fingerprint
+    ? copyFingerprint(source.fingerprint, user.id)
+    : null;
+  const priorFilters = expectedFingerprint
+    ? `inherited_from_code_id.eq.${codeRow.id},fingerprint.eq.${expectedFingerprint}`
+    : `inherited_from_code_id.eq.${codeRow.id}`;
+  const { data: priorCopy } = await admin
+    .from("oracles")
     .select("id")
-    .eq("oracle_id", oracle.id)
     .eq("user_id", user.id)
+    .is("deleted_at", null)
+    .or(priorFilters)
+    .limit(1)
     .maybeSingle<{ id: string }>();
-  if (existingShare) {
-    redirect(`/dashboard?welcomed=${oracle.id}`);
+  if (priorCopy) {
+    redirect(`/dashboard?welcomed=${priorCopy.id}`);
   }
 
   // Every NEW redemption requires a purchased credit — flat $5 per
@@ -120,23 +180,82 @@ export async function redeemInheritCode(rawCode: string): Promise<void> {
     );
   }
 
-  const { error: shareError } = await admin.from("oracle_shares").upsert(
-    {
-      oracle_id: oracle.id,
+  // Copy the avatar FILE into the recipient's own namespace so the
+  // creator deleting their storage objects can't blank the face the
+  // family knows. Best-effort: if the source object is already gone
+  // (or the URL never pointed into our bucket), the copy proceeds
+  // with no avatar and the letter fallback takes over — losing the
+  // photo must never block inheriting the person.
+  let newAvatarUrl: string | null = null;
+  const sourcePath = avatarsObjectPath(source.avatar_url);
+  if (sourcePath) {
+    const destPath = `legacy/${user.id}/inherited-${Date.now()}.jpg`;
+    const { error: copyError } = await admin.storage
+      .from("avatars")
+      .copy(sourcePath, destPath);
+    if (!copyError) {
+      const { data: pub } = admin.storage
+        .from("avatars")
+        .getPublicUrl(destPath);
+      newAvatarUrl = `${pub.publicUrl}?v=${Date.now()}`;
+    } else {
+      console.error(
+        "[redeemInheritCode] avatar copy failed (continuing without photo):",
+        copyError,
+      );
+    }
+  }
+
+  // The copy itself. Frozen snapshot — no pointer back to the source
+  // row, so nothing the creator does later can reach it. Server-only
+  // columns (is_legacy, creation_source, inherited_*) pass because
+  // this is the service-role client; the protect_oracle_state trigger
+  // blocks the same insert from any PostgREST role.
+  const { data: inserted, error: insertError } = await admin
+    .from("oracles")
+    .insert({
       user_id: user.id,
-      code_id: codeRow.id,
-    },
-    { onConflict: "oracle_id,user_id", ignoreDuplicates: true },
-  );
-  if (shareError) {
+      created_by: user.id,
+      is_legacy: true,
+      creation_source: "inherited",
+      inherited_from_code_id: codeRow.id,
+      inherited_at: new Date().toISOString(),
+      name: source.name,
+      one_line_hook: source.one_line_hook,
+      persona_prompt: source.persona_prompt,
+      traits: source.traits,
+      legacy_answers: source.legacy_answers,
+      preferred_language: source.preferred_language ?? "en",
+      avatar_url: newAvatarUrl,
+      fingerprint: expectedFingerprint,
+    })
+    .select("id")
+    .single<{ id: string }>();
+
+  if (insertError || !inserted) {
+    if (insertError?.code === "23505") {
+      // Concurrent double-submit: the other request's copy won the
+      // fingerprint index. Find it and welcome them to it — no charge.
+      const { data: racedCopy } = await admin
+        .from("oracles")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("inherited_from_code_id", codeRow.id)
+        .is("deleted_at", null)
+        .limit(1)
+        .maybeSingle<{ id: string }>();
+      if (racedCopy) {
+        redirect(`/dashboard?welcomed=${racedCopy.id}`);
+      }
+    }
     redirectWithError(
       "/identity/inherit",
       "Couldn't bring them in. Try again in a moment.",
-      shareError,
+      insertError,
     );
   }
 
-  // Consume the credit AFTER the share persisted — a failed insert
+  // Consume the credit AFTER the copy persisted — a failed insert
   // must never eat a paid credit (same post-persist contract as the
   // message/image pack credits). Best-effort, never throws.
   if (usingCredit) {
@@ -147,5 +266,5 @@ export async function redeemInheritCode(rawCode: string): Promise<void> {
   // dashboard renders a "X is now in your contacts" banner with a
   // "Say hi" CTA — Wilson's spec. Landing in the chat mid-motion skips
   // that beat and the redeem feels transactional instead of warm.
-  redirect(`/dashboard?welcomed=${oracle.id}`);
+  redirect(`/dashboard?welcomed=${inserted.id}`);
 }

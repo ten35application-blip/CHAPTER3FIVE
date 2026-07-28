@@ -106,10 +106,15 @@ export default async function SettingsPage({
   // ("self" | "other"), stamped by completeLegacyIdentity when a code
   // is minted. Selecting the jsonb column is cheap here — a user has
   // at most a small handful of legacy oracles.
+  // inherited_at filter (0111): a REDEEMED copy is owned + is_legacy
+  // too, but its code isn't the user's to reshare — inherit_codes RLS
+  // (creator-only reads) already keeps the code invisible; this filter
+  // makes the intent explicit and skips the pointless lookup.
   const { data: legacyRows } = await supabase
     .from("oracles")
     .select("id, name, created_at, legacy_answers")
     .eq("is_legacy", true)
+    .is("inherited_at", null)
     .is("deleted_at", null)
     .order("created_at", { ascending: false });
   const legacyOracleIds = (legacyRows ?? []).map((r) => r.id as string);

@@ -74,29 +74,23 @@ export async function POST(request: NextRequest) {
     isConcierge = oracle.is_concierge === true;
 
     if (oracle.user_id !== user.id && !isConcierge) {
-      // Verify the caller has access on this oracle via either path:
-      //   - archive_grants: family/invite share (0014)
-      //   - oracle_shares:  inherit-code redemption (0055)
-      //   - beneficiary claim (post-mortem) also lands in archive_grants
-      //     via /app/legacy/[token]/actions.ts.
+      // Verify the caller has access on this oracle:
+      //   - archive_grants: family/invite share (0014); beneficiary
+      //     claim (post-mortem) also lands here via
+      //     /app/legacy/[token]/actions.ts.
+      // Inherit-code redemption no longer creates cross-user access:
+      // since 0111 it duplicates the oracle into the recipient's own
+      // account, so a redeemed identity takes the owner branch above.
       // The concierge is exempt -- its RLS policy makes it universally
       // readable, so any authenticated user can legitimately open a
-      // welcome thread with Chapter without a grant/share row.
-      const [{ data: grant }, { data: share }] = await Promise.all([
-        admin
-          .from("archive_grants")
-          .select("oracle_id")
-          .eq("oracle_id", oracleId)
-          .eq("user_id", user.id)
-          .maybeSingle(),
-        admin
-          .from("oracle_shares")
-          .select("oracle_id")
-          .eq("oracle_id", oracleId)
-          .eq("user_id", user.id)
-          .maybeSingle(),
-      ]);
-      if (!grant && !share) {
+      // welcome thread with Chapter without a grant row.
+      const { data: grant } = await admin
+        .from("archive_grants")
+        .select("oracle_id")
+        .eq("oracle_id", oracleId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (!grant) {
         return NextResponse.json({ skipped: "no_grant" });
       }
       isBeneficiary = true;

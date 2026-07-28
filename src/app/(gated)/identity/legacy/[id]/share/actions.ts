@@ -32,13 +32,16 @@ export async function mintCodeForOracle(oracleId: string): Promise<void> {
     redirect(`/upgrade?next=${encodeURIComponent(sharePath)}`);
   }
 
-  // Ownership check via RLS: only the creator's own legacy oracle resolves.
+  // Ownership check via RLS: only the creator's own legacy oracle
+  // resolves. Inherited copies (0111) are excluded — a redeemed
+  // identity is not the recipient's to mint new codes for.
   const { data: oracle } = await supabase
     .from("oracles")
     .select("id")
     .eq("id", oracleId)
     .eq("user_id", user.id)
     .eq("is_legacy", true)
+    .is("inherited_at", null)
     .is("deleted_at", null)
     .maybeSingle();
   if (!oracle) {

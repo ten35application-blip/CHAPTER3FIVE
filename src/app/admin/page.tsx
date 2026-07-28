@@ -73,7 +73,9 @@ export default async function AdminOverviewPage() {
       q.is("deleted_at", null).gte("created_at", prevWeek).lt("created_at", week),
     ),
     safeCount(supabase, "inherit_codes"),
-    safeCount(supabase, "oracle_shares"),
+    // Redemptions live on oracles since 0111: each redeemed code
+    // stamps an inherited copy with inherited_at.
+    safeCount(supabase, "oracles", (q) => q.not("inherited_at", "is", null)),
 
     // Engagement — messages table exists (0011)
     safeCount(supabase, "messages", (q) => q.gte("created_at", week)),

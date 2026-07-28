@@ -44,10 +44,11 @@ type CodeRow = {
   created_at: string;
 };
 
-type ShareRow = {
+/** Inherited copy (0111): an owned oracle stamped at redemption time. */
+type InheritedRow = {
   id: string;
-  oracle_id: string;
-  created_at: string;
+  name: string | null;
+  inherited_at: string;
 };
 
 /** /admin/users/[id] — everything about one account in one place. */
@@ -93,11 +94,15 @@ export default async function AdminUserDetailPage({
         "id, code, revoked_at, created_at",
         (q) => q.eq("created_by", id).order("created_at", { ascending: false }),
       ),
-      safeSelect<ShareRow>(
+      safeSelect<InheritedRow>(
         supabase,
-        "oracle_shares",
-        "id, oracle_id, created_at",
-        (q) => q.eq("user_id", id).order("created_at", { ascending: false }),
+        "oracles",
+        "id, name, inherited_at",
+        (q) =>
+          q
+            .eq("user_id", id)
+            .not("inherited_at", "is", null)
+            .order("inherited_at", { ascending: false }),
       ),
     ]);
 
@@ -286,16 +291,16 @@ export default async function AdminUserDetailPage({
                 className="flex flex-wrap items-center gap-3 border-b border-warm-700/60 px-4 py-3 last:border-b-0 odd:bg-ink"
               >
                 <span className="flex-1 text-sm text-warm-200">
-                  Redeemed access to{" "}
+                  Redeemed a copy of{" "}
                   <Link
-                    href={`/admin/identities/${s.oracle_id}`}
+                    href={`/admin/identities/${s.id}`}
                     className="font-medium text-warm-50 hover:text-coral-strong"
                   >
-                    an identity
+                    {s.name ?? "an identity"}
                   </Link>
                 </span>
                 <span className="text-xs text-warm-400">
-                  {new Date(s.created_at).toLocaleDateString()}
+                  {new Date(s.inherited_at).toLocaleDateString()}
                 </span>
               </div>
             ))}

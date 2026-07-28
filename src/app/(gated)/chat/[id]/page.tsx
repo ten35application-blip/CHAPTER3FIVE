@@ -12,9 +12,9 @@ import ChatSurface, { type ChatMessage } from "./ChatSurface";
  * string never leaves the server. The stream route fetches it fresh
  * on every send.
  *
- * Ownership is enforced by RLS (owner via 0002, shared via
- * oracle_shares in 0055): if the select returns no row, this chat
- * isn't the caller's to see → notFound().
+ * Ownership is enforced by RLS (owner via 0002; inherited copies are
+ * owned rows since 0111, beneficiary grants via 0014): if the select
+ * returns no row, this chat isn't the caller's to see → notFound().
  */
 export default async function ChatPage({
   params,

@@ -72,7 +72,7 @@ export default async function DashboardPage({
   const { data: contactsRaw } = await supabase
     .from("oracles")
     .select(
-      "id, name, avatar_url, is_starred, manually_unread, created_at, conversation_archived_at, is_legacy, user_id",
+      "id, name, avatar_url, is_starred, manually_unread, created_at, conversation_archived_at, is_legacy, user_id, inherited_at",
     )
     .is("deleted_at", null)
     .order("is_starred", { ascending: false })
@@ -83,8 +83,11 @@ export default async function DashboardPage({
   // just loaded. Wilson's rule: the code should be findable from the
   // dashboard so a creator can share it without hunting through
   // sub-pages.
+  // Inherited copies (0111) are owned + is_legacy too, but they were
+  // REDEEMED, not minted — no code of theirs exists and none should be
+  // hunted for.
   const ownedLegacyIds = (contactsRaw ?? [])
-    .filter((r) => r.is_legacy && r.user_id === user.id)
+    .filter((r) => r.is_legacy && r.user_id === user.id && !r.inherited_at)
     .map((r) => r.id as string);
   const codesByOracle = new Map<string, string>();
   if (ownedLegacyIds.length > 0) {
@@ -242,7 +245,8 @@ export default async function DashboardPage({
   // /dashboard?welcomed={oracleId}, resolve the name here so
   // DashboardContent can render "X is now in your contacts" with a
   // "Say hi" CTA. RLS gates visibility — if the oracle isn't the
-  // caller's (via ownership or oracle_shares) we silently omit.
+  // caller's own row (inherited copies are owned rows since 0111) we
+  // silently omit.
   let welcomed: { oracleId: string; name: string } | null = null;
   if (welcomedId) {
     const match = contacts.find((c) => c.id === welcomedId);

@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
       // row was already gone and every cascade-dependent table
       // still holding data (chat_spend_events, message_reactions,
       // conversation_state, persona_memories, chat_blocks,
-      // oracle_shares, archive_grants, legacy_drafts, etc.) had no
+      // archive_grants, legacy_drafts, etc.) had no
       // owner to hang off — silent orphans until the next full
       // audit.
       //

@@ -147,13 +147,13 @@ export async function getFreeIdentityId(
  *     whose free_identity_id points at a personal oracle and against
  *     Pro users who want to ask a product question.
  *   - Free tier + assigned free_identity_id: yes (their designated one).
- *   - Free tier + inherited identity (they have an oracle_shares row):
- *     yes. Post-0107 inherited redemption is per-code-priced and
- *     tier-agnostic (flat $5 one-time per code), so a Free user CAN
- *     redeem a code -- and needs to be able to chat with it too.
- *     This branch closes the gap Fable flagged: without it, someone
- *     could pay to redeem a code and be locked out of the
- *     conversation, which is the opposite of what the app is for.
+ *   - Free tier + inherited identity (an owned oracle row carrying
+ *     inherited_at, 0111): yes. Inherited redemption is per-code-priced
+ *     and tier-agnostic (flat $5 one-time per code), so a Free user CAN
+ *     redeem a code -- and needs to be able to chat with the copy too.
+ *     Without this branch, someone could pay to redeem a code and be
+ *     locked out of the conversation, which is the opposite of what
+ *     the app is for.
  * Never throws -- any failure reads as "no" (fail-closed).
  */
 export async function canChatWithOracle(
@@ -172,11 +172,9 @@ export async function canChatWithOracle(
     if (conciergeId && oracleId === conciergeId) return true;
 
     // Resolve the user once, then use it for both the free_identity_id
-    // read and the oracle_shares fallback. Previously getFreeIdentityId
-    // did its own auth.getUser and the shares branch did a second one,
-    // adding an extra Supabase round-trip per non-Pro chat load. RLS
-    // on both tables scopes to auth.uid(), so a plain SELECT with the
-    // explicit .eq('user_id', user.id) belt is the authorization.
+    // read and the inherited-copy fallback. RLS on both tables scopes
+    // to auth.uid(), so a plain SELECT with the explicit
+    // .eq('user_id', user.id) belt is the authorization.
     const {
       data: { user },
     } = await client.auth.getUser();
@@ -189,13 +187,21 @@ export async function canChatWithOracle(
       .maybeSingle<{ free_identity_id: string | null }>();
     if (profile?.free_identity_id === oracleId) return true;
 
-    const { data: share } = await client
-      .from("oracle_shares")
-      .select("oracle_id")
-      .eq("oracle_id", oracleId)
+    // Inherited copies (0111) are owned rows stamped with inherited_at
+    // at redemption. Redemption was paid ($5 flat per code), so the
+    // copy stays chattable on every tier -- including Free accounts
+    // whose free_identity_id points elsewhere. Keyed on inherited_at,
+    // not the code FK: the marker survives the creator deleting their
+    // account (which cascades inherit_codes away).
+    const { data: inherited } = await client
+      .from("oracles")
+      .select("id")
+      .eq("id", oracleId)
       .eq("user_id", user.id)
+      .not("inherited_at", "is", null)
+      .is("deleted_at", null)
       .maybeSingle();
-    return share !== null;
+    return inherited !== null;
   } catch {
     return false;
   }
@@ -284,6 +290,10 @@ export async function canCreateOracle(
         .select("id", { count: "exact", head: true })
         .eq("user_id", userId)
         .eq("is_concierge", false)
+        // Inherited copies (0111) were paid for separately at
+        // redemption and must never eat the user's self-creation
+        // quota.
+        .is("inherited_at", null)
         .is("deleted_at", null),
     ]);
 
@@ -520,9 +530,9 @@ export async function getInheritedSlotCredits(
 
 /**
  * Consume ONE inherit-slot credit after a SUCCESSFUL redemption —
- * called post-persist (after the oracle_shares row actually landed),
- * never at gate-check time, so a failed redemption can't eat a paid
- * credit. Same best-effort/never-throws contract and race model as
+ * called post-persist (after the inherited oracle copy actually
+ * landed), never at gate-check time, so a failed redemption can't eat
+ * a paid credit. Same best-effort/never-throws contract and race model as
  * consumePackCredit: increment_profile_counter floors at 0, so the
  * worst concurrent-redeem case is one un-paid-for redemption.
  */

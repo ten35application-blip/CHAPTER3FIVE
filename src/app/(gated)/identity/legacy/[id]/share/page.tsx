@@ -45,14 +45,18 @@ export default async function SharePage({
     redirect("/auth/signin");
   }
 
-  // Creator-only view. RLS scopes reads; the explicit user_id check keeps
-  // redeemers (who can also read the oracle) off the creator's share screen.
+  // Creator-only view. RLS scopes reads; the explicit user_id check
+  // keeps other accounts off the creator's share screen, and the
+  // inherited_at filter keeps REDEEMED copies (0111 — owned rows too)
+  // out: an inherited identity is not the recipient's to reshare, so
+  // this page (and its mint fallback) must never resolve for one.
   const { data: oracle } = await supabase
     .from("oracles")
     .select("id, name, one_line_hook")
     .eq("id", id)
     .eq("user_id", user.id)
     .eq("is_legacy", true)
+    .is("inherited_at", null)
     .is("deleted_at", null)
     .maybeSingle<OracleRow>();
 

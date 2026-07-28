@@ -59,8 +59,9 @@ export async function revokeInheritCodeAction(
   const admin = await requireAdmin();
 
   // Full implementation: audit row, then set inherit_codes.revoked_at =
-  // now() via the service-role client. Existing oracle_shares rows stay —
-  // revocation stops NEW redemptions only (matches the consumer model).
+  // now() via the service-role client. Already-redeemed copies stay with
+  // their owners — revocation stops NEW redemptions only (matches the
+  // consumer model).
   console.log(
     `[admin] ${admin.email} requested REVOKE INHERIT CODE ${codeId} (stub — no-op)`,
   );

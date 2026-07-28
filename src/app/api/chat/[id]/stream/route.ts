@@ -126,9 +126,9 @@ export async function POST(
   const legal = await requireTermsAccepted(supabase, user.id);
   if (!legal.ok) return legal.response;
 
-  // Ownership check rides on RLS: the select policies from 0002 (owner)
-  // and 0055 (oracle_shares) decide visibility — a row coming back IS
-  // the authorization.
+  // Ownership check rides on RLS: the select policies from 0002
+  // (owner — inherited copies are owned rows since 0111) decide
+  // visibility — a row coming back IS the authorization.
   const { data: oracle } = await supabase
     .from("oracles")
     .select("id, name, manually_unread, blocked_at, block_reason, traits, memory_style, text_burst_style, voice_examples, chronotype, created_at, pet_name")
