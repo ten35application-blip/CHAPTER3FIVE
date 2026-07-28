@@ -11,6 +11,7 @@ import {
   PRO_IMAGES_PER_MONTH,
   PRO_MESSAGES_PER_MONTH,
 } from "@/lib/pricing";
+import { ManageSubscriptionButton } from "@/app/(gated)/settings/_components/ManageSubscriptionButton";
 import { UpgradeButton } from "@/app/(gated)/settings/_components/UpgradeButton";
 
 /**
@@ -28,7 +29,14 @@ import { UpgradeButton } from "@/app/(gated)/settings/_components/UpgradeButton"
  * the primary tier. Both end in an Enroll button:
  *   - Pro: Stripe checkout when `checkoutEnabled` (env is set), mailto
  *     fallback otherwise.
- *   - Basic: always mailto (no Stripe Price exists for Basic yet).
+ *   - Basic: Stripe checkout when `basicCheckoutEnabled`
+ *     (STRIPE_PRICE_ID_BASIC_MONTHLY is set), mailto fallback
+ *     otherwise.
+ *
+ * A Basic SUBSCRIBER (currentTier="basic") sees their card marked
+ * "Your current plan" and the Pro card as the upgrade CTA — which
+ * routes through the Stripe billing portal, not a fresh Checkout,
+ * because /api/stripe/checkout 409s on an already-subscribed user.
  *
  * Below the grid: a one-line nudge pointing at the add-on packs on
  * /upgrade#packs (packs are one-time message/image top-ups; the full
@@ -45,11 +53,19 @@ import { UpgradeButton } from "@/app/(gated)/settings/_components/UpgradeButton"
 export function PlanCards({
   email,
   checkoutEnabled,
+  basicCheckoutEnabled = false,
+  currentTier = null,
   nextHref,
   variant = "full",
 }: {
   email: string;
   checkoutEnabled: boolean;
+  /** True when STRIPE_PRICE_ID_BASIC_MONTHLY is set — Basic's Enroll
+   *  goes to Stripe Checkout instead of the mailto fallback. */
+  basicCheckoutEnabled?: boolean;
+  /** The viewer's resolved paid tier. "basic" flips the cards into
+   *  current-plan / upgrade mode; "pro" | null render the pitch. */
+  currentTier?: "basic" | "pro" | null;
   nextHref?: string | null;
   variant?: "full" | "compact";
 }) {
@@ -125,26 +141,60 @@ export function PlanCards({
               </FeatureLine>
             </ul>
             <div className="mt-6">
-              <a
-                href={`mailto:hello@chapter3five.app?subject=${encodeURIComponent(
-                  `Enroll me in ${BASIC_TIER_LABEL}`,
-                )}&body=${encodeURIComponent(
-                  `Hi — I'd like to enroll in ${BASIC_TIER_LABEL} (${BASIC_MONTHLY_PRICE_LABEL}/month) for my chapter3five account (${email}). Please send a checkout link when it's ready.\n\nThanks.`,
-                )}`}
-                className="flex h-14 w-full items-center justify-center rounded-full px-6 text-base font-bold text-white transition-all hover:-translate-y-px"
-                style={{
-                  background:
-                    "linear-gradient(135deg, var(--color-teal) 0%, var(--color-teal-strong) 100%)",
-                  boxShadow:
-                    "0 14px 32px -10px rgba(126,196,196,0.5), 0 4px 12px -4px rgba(126,196,196,0.3)",
-                }}
-              >
-                Enroll
-              </a>
-              <p className="mt-3 text-center text-xs text-warm-400">
-                Enrollment opens soon &mdash; this emails us and
-                we&rsquo;ll flip your account on within a day.
-              </p>
+              {currentTier === "basic" ? (
+                <>
+                  <div className="flex h-14 w-full items-center justify-center rounded-full border-2 border-teal-strong/60 text-base font-bold text-teal-strong">
+                    Your current plan
+                  </div>
+                  <p className="mt-3 text-center text-xs text-warm-400">
+                    Manage or cancel any time from Settings.
+                  </p>
+                </>
+              ) : basicCheckoutEnabled ? (
+                <>
+                  <UpgradeButton
+                    checkoutEnabled
+                    purpose="basic_monthly"
+                    tone="teal"
+                    fallbackHref="/upgrade"
+                    label="Enroll"
+                  />
+                  <p className="mt-3 text-center text-xs text-warm-400">
+                    Auto-renews monthly at {BASIC_MONTHLY_PRICE_LABEL}{" "}
+                    until you cancel. See our{" "}
+                    <Link
+                      href="/terms#billing"
+                      className="text-warm-300 underline underline-offset-2 hover:text-teal-strong"
+                    >
+                      billing and refund policy
+                    </Link>
+                    .
+                  </p>
+                </>
+              ) : (
+                <>
+                  <a
+                    href={`mailto:hello@chapter3five.app?subject=${encodeURIComponent(
+                      `Enroll me in ${BASIC_TIER_LABEL}`,
+                    )}&body=${encodeURIComponent(
+                      `Hi — I'd like to enroll in ${BASIC_TIER_LABEL} (${BASIC_MONTHLY_PRICE_LABEL}/month) for my chapter3five account (${email}). Please send a checkout link when it's ready.\n\nThanks.`,
+                    )}`}
+                    className="flex h-14 w-full items-center justify-center rounded-full px-6 text-base font-bold text-white transition-all hover:-translate-y-px"
+                    style={{
+                      background:
+                        "linear-gradient(135deg, var(--color-teal) 0%, var(--color-teal-strong) 100%)",
+                      boxShadow:
+                        "0 14px 32px -10px rgba(126,196,196,0.5), 0 4px 12px -4px rgba(126,196,196,0.3)",
+                    }}
+                  >
+                    Enroll
+                  </a>
+                  <p className="mt-3 text-center text-xs text-warm-400">
+                    Enrollment opens soon &mdash; this emails us and
+                    we&rsquo;ll flip your account on within a day.
+                  </p>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -211,7 +261,18 @@ export function PlanCards({
               </FeatureLine>
             </ul>
             <div className="mt-6">
-              {checkoutEnabled ? (
+              {currentTier === "basic" ? (
+                <>
+                  <ManageSubscriptionButton
+                    label="Upgrade to Pro"
+                    variant="cta"
+                  />
+                  <p className="mt-3 text-center text-xs text-warm-400">
+                    Plan changes happen in the Stripe billing portal
+                    and take effect right away.
+                  </p>
+                </>
+              ) : checkoutEnabled ? (
                 <UpgradeButton
                   checkoutEnabled
                   fallbackHref="/upgrade"
@@ -231,27 +292,29 @@ export function PlanCards({
                   Enroll
                 </a>
               )}
-              <p className="mt-3 text-center text-xs text-warm-400">
-                {checkoutEnabled ? (
-                  <>
-                    Auto-renews monthly at {MONTHLY_PRICE_LABEL} until you
-                    cancel. See our{" "}
-                    <Link
-                      href="/terms#billing"
-                      className="text-warm-300 underline underline-offset-2 hover:text-coral-strong"
-                    >
-                      billing and refund policy
-                    </Link>
-                    .
-                  </>
-                ) : (
-                  <>
-                    Self-serve checkout is coming online &mdash; this
-                    emails us and we&rsquo;ll flip your account on within a
-                    day.
-                  </>
-                )}
-              </p>
+              {currentTier === "basic" ? null : (
+                <p className="mt-3 text-center text-xs text-warm-400">
+                  {checkoutEnabled ? (
+                    <>
+                      Auto-renews monthly at {MONTHLY_PRICE_LABEL} until you
+                      cancel. See our{" "}
+                      <Link
+                        href="/terms#billing"
+                        className="text-warm-300 underline underline-offset-2 hover:text-coral-strong"
+                      >
+                        billing and refund policy
+                      </Link>
+                      .
+                    </>
+                  ) : (
+                    <>
+                      Self-serve checkout is coming online &mdash; this
+                      emails us and we&rsquo;ll flip your account on within a
+                      day.
+                    </>
+                  )}
+                </p>
+              )}
             </div>
           </div>
         </div>

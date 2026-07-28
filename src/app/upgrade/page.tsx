@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { isPro } from "@/lib/subscription";
+import { getPlanTier } from "@/lib/subscription";
 import {
   BASIC_MONTHLY_PRICE_LABEL,
   BASIC_TIER_LABEL,
@@ -27,16 +27,15 @@ export const metadata = {
  *
  *   - Pro enroll: Stripe Checkout when STRIPE_PRICE_ID_PRO_MONTHLY is
  *     configured, mailto fallback otherwise.
- *   - Basic enroll + pack reserve: ALWAYS mailto for now — no Stripe
- *     Prices exist for Basic or the packs yet, so the copy frames it
- *     as "we'll flip it on" rather than pretending a checkout is
- *     behind the button.
+ *   - Basic enroll: Stripe Checkout when STRIPE_PRICE_ID_BASIC_MONTHLY
+ *     is configured, mailto fallback otherwise.
+ *   - Pack reserve: per-pack Stripe Checkout when the matching
+ *     STRIPE_PRICE_ID_PACK_* is configured, mailto fallback otherwise.
  *
- * When Basic becomes grantable (subscription_tier lands with the
- * Stripe wiring), a Basic subscriber hitting a Pro-gated action
- * should land here with Basic marked "your current plan" and Pro as
- * the upgrade CTA — today no Basic subscriber can exist, so isPro's
- * free-or-pro split still covers every visitor.
+ * Tier-aware since the Stripe wiring landed: a Basic subscriber
+ *  (getPlanTier → "basic") lands here with Basic marked "your current
+ * plan" and Pro as the upgrade CTA (routed through the billing
+ * portal). Only full-Pro visitors bounce away.
  *
  * Special copy paths preserved from the one-card era:
  *   - ?reason=extra-inherited — visitor is ALREADY Pro and hit the
@@ -64,13 +63,26 @@ export default async function UpgradePage({
 
   const wantsExtraInherited = reason === "extra-inherited";
 
-  if (!wantsExtraInherited && (await isPro(supabase))) {
+  // Tier-aware gate: Pro (incl. admin/trial) bounces to its target as
+  // before; a BASIC subscriber stays — this page doubles as their
+  // upgrade surface with Basic marked "current."
+  const plan = await getPlanTier(supabase);
+  if (!wantsExtraInherited && plan.tier === "pro") {
     redirect(safeNext(next));
   }
+  const isBasicSubscriber = plan.tier === "basic";
 
   const target = safeNext(next);
   const cameFromInherit = target.startsWith("/identity/inherit");
   const checkoutEnabled = Boolean(process.env.STRIPE_PRICE_ID_PRO_MONTHLY);
+  const basicCheckoutEnabled = Boolean(
+    process.env.STRIPE_PRICE_ID_BASIC_MONTHLY,
+  );
+  const packCheckoutEnabled = {
+    small: Boolean(process.env.STRIPE_PRICE_ID_PACK_SMALL),
+    medium: Boolean(process.env.STRIPE_PRICE_ID_PACK_MEDIUM),
+    large: Boolean(process.env.STRIPE_PRICE_ID_PACK_LARGE),
+  };
   const email = user.email ?? "";
 
   /* ── Extra-inherited-slot pitch (already-Pro visitor) ─────────── */
@@ -122,12 +134,14 @@ export default async function UpgradePage({
     );
   }
 
-  /* ── Free-tier visitor: both plans, landing-card language ─────── */
+  /* ── Free-tier or Basic visitor: both plans, landing-card language ── */
   return (
     <main className="flex min-h-dvh flex-1 items-center justify-center px-6 py-16">
       <div className="flex w-full max-w-4xl flex-col items-center text-center">
         <p className="text-gradient-cta text-xs font-bold uppercase tracking-[0.14em]">
-          You&rsquo;re on the Free tier
+          {isBasicSubscriber
+            ? `You're on ${BASIC_TIER_LABEL}`
+            : "You're on the Free tier"}
         </p>
         <h1 className="mt-3 text-4xl font-bold leading-[1.05] tracking-[-0.02em] text-warm-50 sm:text-5xl">
           {cameFromInherit ? (
@@ -147,6 +161,12 @@ export default async function UpgradePage({
             and answered forty questions so that archive could reach you.
             The Pro plan below opens it.
           </p>
+        ) : isBasicSubscriber ? (
+          <p className="mt-6 max-w-md text-lg leading-relaxed text-warm-200">
+            Step up to Pro for a bigger cast, the inherited slot, and
+            your own legacy archive &mdash; or grab an add-on pack when
+            a month runs long.
+          </p>
         ) : (
           <p className="mt-6 max-w-md text-lg leading-relaxed text-warm-200">
             Free gets you {FREE_MESSAGES_PER_MONTH} messages a month with
@@ -165,13 +185,16 @@ export default async function UpgradePage({
           <PlanCards
             email={email}
             checkoutEnabled={checkoutEnabled}
+            basicCheckoutEnabled={basicCheckoutEnabled}
+            currentTier={isBasicSubscriber ? "basic" : null}
             nextHref={next ? target : null}
           />
         </div>
 
         {/* Add-on packs — one-time message/image top-ups. Anchored so
             the chat cap-hit CTA ("Grab a pack →") lands right here.
-            Mailto reserve flow until the Stripe Prices exist. */}
+            Stripe checkout per pack when its Price env exists; mailto
+            reserve fallback otherwise. */}
         <div id="packs" className="mt-14 w-full scroll-mt-24">
           <h2 className="text-2xl font-bold tracking-[-0.02em] text-warm-50">
             Add-on packs
@@ -181,7 +204,7 @@ export default async function UpgradePage({
             plan. Pick extra messages or extra images per pack.
           </p>
           <div className="mt-6">
-            <PackOptions email={email} />
+            <PackOptions email={email} checkoutEnabled={packCheckoutEnabled} />
           </div>
         </div>
 

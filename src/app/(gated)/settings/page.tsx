@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isAdmin } from "@/lib/admin/allowlist";
-import { isPro } from "@/lib/subscription";
+import { getPlanTier, isPro } from "@/lib/subscription";
 import {
   MONTHLY_PRICE_LABEL,
   PRICING,
@@ -88,6 +88,10 @@ export default async function SettingsPage({
   const fullName = (profile?.full_name as string | null) ?? null;
 
   const pro = await isPro(supabase);
+  // Tier split (Basic vs Pro) for the plan label + identity quota.
+  // isPro stays the paid/free gate; the tier refines the copy.
+  const plan = await getPlanTier(supabase);
+  const isBasicTier = plan.tier === "basic";
   const stripeCustomerId =
     (profile?.stripe_customer_id as string | null) ?? null;
   const currentPeriodEnd =
@@ -112,7 +116,9 @@ export default async function SettingsPage({
     ? "Pro (admin)"
     : pro
       ? stripeCustomerId
-        ? "Pro plan"
+        ? isBasicTier
+          ? "Basic plan"
+          : "Pro plan"
         : planSource === "admin_grant"
           ? "Pro (comped)"
           : trialActive
@@ -215,7 +221,13 @@ export default async function SettingsPage({
             </>
           ) : null}
           <Divider />
-          <IdentityCountRow count={count} quota={PLAN_QUOTA} pro={pro} />
+          <IdentityCountRow
+            count={count}
+            quota={
+              isBasicTier ? PRICING.basicTotalIdentitiesPerPlan : PLAN_QUOTA
+            }
+            pro={pro}
+          />
           <div className="px-4 py-4">
             {pro && stripeCustomerId ? (
               <>
@@ -252,6 +264,9 @@ export default async function SettingsPage({
               <PlanCards
                 email={email}
                 checkoutEnabled={checkoutEnabled}
+                basicCheckoutEnabled={Boolean(
+                  process.env.STRIPE_PRICE_ID_BASIC_MONTHLY,
+                )}
                 variant="compact"
               />
             )}
