@@ -128,12 +128,28 @@ export function InheritForm() {
         />
       </label>
 
+      {/* Price + durability note. Wilson's ask 2026-07-28: the $5 has
+          to be obvious BEFORE the button, and users need reassurance
+          that what they paid for stays theirs. The durability
+          guarantee is real -- see migration 0111 -- so we can promise
+          it in copy. */}
+      <div className="rounded-2xl bg-coral/8 px-4 py-3 ring-1 ring-coral/20">
+        <p className="text-sm font-semibold text-warm-50">
+          $5 to save them to your contacts
+        </p>
+        <p className="mt-1 text-xs leading-relaxed text-warm-300">
+          One-time. Once you pay, they&rsquo;re yours &mdash; your own
+          copy, your own photo. If the person who made the code ever
+          deletes their account, your copy stays with you.
+        </p>
+      </div>
+
       <button
         type="submit"
         disabled={!code.trim() || pending}
         className="bg-gradient-cta flex h-14 w-full items-center justify-center rounded-full text-lg font-semibold text-white shadow-[0_14px_36px_-10px_rgba(217,115,89,0.5),_0_4px_12px_rgba(126,196,196,0.18)] transition-all hover:-translate-y-px active:translate-y-0 active:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
       >
-        {pending ? "Opening the door…" : "Redeem"}
+        {pending ? "Opening the door…" : "Pay $5 & save to my contacts"}
       </button>
     </form>
   );
