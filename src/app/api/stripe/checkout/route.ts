@@ -19,6 +19,13 @@ import { requireTermsAccepted } from "@/lib/legal/gate";
  *     (messages or images) in the UI before hitting checkout; it
  *     arrives as `pack_type` in the body/query and rides into the
  *     session metadata so the webhook credits the right column.
+ *   - "inherited_slot_purchase" — one-time $5 inherit-slot credit
+ *     (STRIPE_PRICE_ID_INHERITED_SLOT). On payment the webhook adds
+ *     1 to profiles.inherited_slot_credits; the /identity/inherit
+ *     redeem action consumes 1 per living-minter code (deceased-
+ *     minter codes are free — the memorial waiver). success_url
+ *     lands the buyer back on /identity/inherit so they can enter
+ *     the code they were holding when the gate stopped them.
  */
 export async function POST(request: NextRequest) {
   type Purpose =
@@ -31,7 +38,8 @@ export async function POST(request: NextRequest) {
     | "basic_monthly"
     | "pack_small"
     | "pack_medium"
-    | "pack_large";
+    | "pack_large"
+    | "inherited_slot_purchase";
   let purpose: Purpose = "randomize";
   let restoreOracleId: string | null = null;
   let packType: "message" | "image" = "message";
@@ -45,7 +53,8 @@ export async function POST(request: NextRequest) {
     v === "basic_monthly" ||
     v === "pack_small" ||
     v === "pack_medium" ||
-    v === "pack_large";
+    v === "pack_large" ||
+    v === "inherited_slot_purchase";
   const isPackType = (v: unknown): v is "message" | "image" =>
     v === "message" || v === "image";
   try {
@@ -234,6 +243,49 @@ export async function POST(request: NextRequest) {
       user_id: user.id,
       stripe_session_id: session.id,
       amount_cents: amountCents,
+      currency: "usd",
+      purpose,
+      status: "pending",
+    });
+
+    return NextResponse.json({ url: session.url });
+  }
+
+  // One-time inherit-slot credit. Real Stripe Price (like the packs)
+  // so the dashboard shows clean per-SKU revenue; feature-flagged on
+  // the env so the surface can ship first (absent env → the upgrade
+  // page keeps its mailto fallback for this SKU).
+  if (purpose === "inherited_slot_purchase") {
+    const priceId = process.env.STRIPE_PRICE_ID_INHERITED_SLOT;
+    if (!priceId) {
+      return NextResponse.json(
+        { error: "inherited_slot_checkout_not_configured" },
+        { status: 503 },
+      );
+    }
+
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      payment_method_types: ["card"],
+      customer_email: user.email ?? undefined,
+      line_items: [{ price: priceId, quantity: 1 }],
+      metadata: {
+        user_id: user.id,
+        purpose,
+        purchase_kind: "inherited_slot",
+      },
+      // Back to the redeem screen — the buyer was holding a code when
+      // the gate sent them to buy; the webhook grants the credit while
+      // they land, and the redeem action consumes it.
+      success_url: `${origin}/identity/inherit?purchased=1`,
+      cancel_url: `${origin}/upgrade?cancelled=1&reason=inherited-slot`,
+    });
+
+    const admin = createAdminClient();
+    await admin.from("payments").insert({
+      user_id: user.id,
+      stripe_session_id: session.id,
+      amount_cents: PRICING.inheritedSlotPurchaseCents,
       currency: "usd",
       purpose,
       status: "pending",

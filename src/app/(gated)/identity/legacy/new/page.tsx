@@ -38,10 +38,13 @@ export default async function LegacyNewPage({
     redirect("/auth/signin");
   }
 
-  // Legacy path is Pro-only for the creator side. Recipient side is
-  // gated separately in /identity/inherit/actions.ts. Admin allowlist
-  // bypasses. The draft is autosaved even during a lapsed state, so
-  // an in-progress draft survives a subscription hiccup.
+  // Creator side needs ANY active paid plan — Basic or Pro — since
+  // the July 2026 second rework (was Pro-only; requirePro despite
+  // its name passes any paid window, trial, or admin). Free users
+  // bounce to /upgrade. Recipient side is gated separately (per-code
+  // payment + memorial waiver) in /identity/inherit/actions.ts. The
+  // draft is autosaved even during a lapsed state, so an in-progress
+  // draft survives a subscription hiccup.
   const gate = await requirePro("/identity/legacy/new");
   if (!gate.ok) redirect(gate.redirectTo);
 

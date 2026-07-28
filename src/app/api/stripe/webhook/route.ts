@@ -16,7 +16,9 @@ export const runtime = "nodejs";
  * Handles:
  *   checkout.session.completed        → mark payment paid + grant credit
  *                                        (incl. add-on packs → message/
- *                                        image_credits) OR (subscription
+ *                                        image_credits; inherit-slot
+ *                                        purchases → inherited_slot_credits)
+ *                                        OR (subscription
  *                                        mode) bind customer/subscription
  *                                        + paid window + subscription_tier
  *   charge.refunded                   → mark refunded + revert credit
@@ -119,7 +121,8 @@ async function handleCheckoutCompleted(
       purpose !== "basic_monthly" &&
       purpose !== "pack_small" &&
       purpose !== "pack_medium" &&
-      purpose !== "pack_large")
+      purpose !== "pack_large" &&
+      purpose !== "inherited_slot_purchase")
   ) {
     await recordEvent(event, admin, userId);
     return;
@@ -278,6 +281,45 @@ async function handleCheckoutCompleted(
       console.error(
         "[stripe/webhook] pack purchase with unrecognized pack_kind:",
         session.metadata?.pack_kind,
+        session.id,
+      );
+    }
+
+    await recordEvent(event, admin, userId);
+    return;
+  }
+
+  // Inherit-slot purchase: one-time $5 credit toward redeeming one
+  // inherit code (mode=payment; purchase_kind rides in metadata from
+  // the checkout route). Same two-layer idempotency as the packs:
+  // stripe_events dedupe + the pending→paid payments claim above.
+  if (purpose === "inherited_slot_purchase") {
+    if (
+      session.mode === "payment" &&
+      session.metadata?.purchase_kind === "inherited_slot"
+    ) {
+      const { error: grantErr } = await admin.rpc(
+        "increment_profile_counter",
+        {
+          target_user_id: userId,
+          counter_name: "inherited_slot_credits",
+          delta: 1,
+        },
+      );
+      if (grantErr) {
+        // Loud: the user PAID and the grant failed. The payments row
+        // is already claimed paid, so a Stripe retry short-circuits —
+        // this log is the signal for a manual re-grant.
+        console.error(
+          "[stripe/webhook] inherit-slot credit grant failed:",
+          grantErr,
+        );
+      }
+    } else {
+      console.error(
+        "[stripe/webhook] inherited_slot_purchase with unexpected mode/metadata:",
+        session.mode,
+        session.metadata?.purchase_kind,
         session.id,
       );
     }
@@ -656,18 +698,22 @@ async function handleChargeRefunded(event: Stripe.Event, admin: AdminClient) {
   }
 
   // Revert the credit. greatest(0, ...) in the SQL function prevents going
-  // negative if the user already spent it.
+  // negative if the user already spent it — an already-redeemed inherit
+  // slot simply floors at zero (the share itself is not clawed back).
   if (
     payment.purpose === "randomize" ||
     payment.purpose === "oracle" ||
-    payment.purpose === "beneficiary_slot"
+    payment.purpose === "beneficiary_slot" ||
+    payment.purpose === "inherited_slot_purchase"
   ) {
     const column =
       payment.purpose === "oracle"
         ? "extra_oracle_credits"
         : payment.purpose === "beneficiary_slot"
           ? "paid_beneficiary_slots"
-          : "randomize_credits";
+          : payment.purpose === "inherited_slot_purchase"
+            ? "inherited_slot_credits"
+            : "randomize_credits";
 
     await admin.rpc("increment_profile_counter", {
       target_user_id: payment.user_id,

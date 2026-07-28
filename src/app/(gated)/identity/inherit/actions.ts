@@ -2,14 +2,17 @@
 
 import { redirect } from "next/navigation";
 import { redirectWithError } from "@/lib/action-errors";
+import { isAdmin } from "@/lib/admin/allowlist";
 import {
   isInheritCodeShaped,
   normalizeInheritCode,
 } from "@/lib/legacy/code-format";
-import { PRICING } from "@/lib/pricing";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { isPro } from "@/lib/subscription";
+import {
+  consumeInheritedSlotCredit,
+  getInheritedSlotCredits,
+} from "@/lib/subscription";
 
 /**
  * One friendly message for every invalid outcome — wrong shape, unknown
@@ -21,10 +24,35 @@ const INVALID_CODE_MESSAGE =
 /**
  * Redeem an inherit code.
  *
- * The lookup + share insert run through the service-role client on purpose:
- * inherit_codes has no authenticated-read policy, so codes can't be probed
- * from the client, and oracle_shares has no user insert policy, so the only
- * way in is through this action.
+ * GATE MODEL (July 2026 second rework): redemption is paid PER CODE,
+ * not per tier. The old Pro-only gate + included/extra slot math is
+ * gone — any signed-in account (Free included) can redeem, and what
+ * decides whether it costs anything is the code's MINTER:
+ *
+ *   1. Minter deceased (profiles.deceased_at set — a passing report
+ *      was confirmed, 0045) → MEMORIAL WAIVER. The redemption is
+ *      free and no credit is consumed. Grief is not a paywall moment.
+ *   2. Minter living (alive-preparing, friend-gift, playful) → the
+ *      redeemer needs a purchased inherit-slot credit
+ *      (profiles.inherited_slot_credits, $5 one-time via Stripe).
+ *      No credit → bounce to /upgrade?reason=inherited-slot, which
+ *      sells exactly one. The credit is consumed AFTER the share
+ *      row persists (consumePackCredit pattern) and only when the
+ *      share is genuinely NEW — re-redeeming a code you already
+ *      hold, or your own code, never charges.
+ *
+ * Anti-probing note: the old flow gated before the code lookup so a
+ * non-Pro user couldn't test whether codes were real. The waiver
+ * makes that ordering impossible — we must resolve the minter before
+ * we know the price — so a credit-less user can now distinguish
+ * "invalid code" from "valid living-minter code" (they're bounced to
+ * purchase). Accepted: codes are 128-bit-ish random strings; the
+ * enumeration surface is the same one every gift-code system carries.
+ *
+ * The lookup + share insert run through the service-role client on
+ * purpose: inherit_codes has no authenticated-read policy, so codes
+ * can't be probed from the client, and oracle_shares has no user
+ * insert policy, so the only way in is through this action.
  */
 export async function redeemInheritCode(rawCode: string): Promise<void> {
   const supabase = await createClient();
@@ -35,49 +63,12 @@ export async function redeemInheritCode(rawCode: string): Promise<void> {
     redirect("/auth/signin");
   }
 
-  // Pro-gate the redeem action BEFORE the code lookup so we never
-  // reveal to a non-Pro user whether the code they typed is real.
-  // The upgrade page lets them come back to /identity/inherit with
-  // the code still in hand once they're on Pro.
-  if (!(await isPro(supabase))) {
-    redirect(`/upgrade?next=${encodeURIComponent("/identity/inherit")}`);
-  }
-
-  const admin = createAdminClient();
-
-  // Slot-gate BEFORE the code lookup, same reasoning as the Pro gate
-  // above: a user at their inherited-identity limit learns nothing
-  // about whether the code they typed is real. Pro includes three
-  // inherited identities (see PRICING.includedInheritedIdentitiesPerPlan
-  // — bumped from 1 → 3 to cover a nuclear family without asking a
-  // bereaved user to pay per relative). Beyond three, each extra
-  // slot is a paid add-on tracked on profiles.extra_inherited_slots
-  // (service-role writes only).
-  const [{ data: profileRow }, { count: shareCount }] = await Promise.all([
-    admin
-      .from("profiles")
-      .select("extra_inherited_slots")
-      .eq("id", user.id)
-      .maybeSingle<{ extra_inherited_slots: number | null }>(),
-    admin
-      .from("oracle_shares")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", user.id),
-  ]);
-
-  const allowedSlots =
-    PRICING.includedInheritedIdentitiesPerPlan +
-    (profileRow?.extra_inherited_slots ?? 0);
-  if ((shareCount ?? 0) >= allowedSlots) {
-    redirect(
-      `/upgrade?next=${encodeURIComponent("/identity/inherit")}&reason=extra-inherited`,
-    );
-  }
-
   const code = normalizeInheritCode(rawCode ?? "");
   if (!isInheritCodeShaped(code)) {
     redirectWithError("/identity/inherit", INVALID_CODE_MESSAGE);
   }
+
+  const admin = createAdminClient();
 
   const { data: codeRow, error: lookupError } = await admin
     .from("inherit_codes")
@@ -106,23 +97,67 @@ export async function redeemInheritCode(rawCode: string): Promise<void> {
     redirectWithError("/identity/inherit", INVALID_CODE_MESSAGE);
   }
 
-  // The creator redeeming their own code is a no-op — they already have them.
-  if (oracle.user_id !== user.id) {
-    const { error: shareError } = await admin.from("oracle_shares").upsert(
-      {
-        oracle_id: oracle.id,
-        user_id: user.id,
-        code_id: codeRow.id,
-      },
-      { onConflict: "oracle_id,user_id", ignoreDuplicates: true },
+  // The creator redeeming their own code is a no-op — they already
+  // have them. Straight to the welcome, no charge.
+  if (oracle.user_id === user.id) {
+    redirect(`/dashboard?welcomed=${oracle.id}`);
+  }
+
+  // Already redeemed this identity? Also a no-op, also free — the gate
+  // charges per NEW share, never per attempt.
+  const { data: existingShare } = await admin
+    .from("oracle_shares")
+    .select("id")
+    .eq("oracle_id", oracle.id)
+    .eq("user_id", user.id)
+    .maybeSingle<{ id: string }>();
+  if (existingShare) {
+    redirect(`/dashboard?welcomed=${oracle.id}`);
+  }
+
+  // Resolve the price: the code → oracle → minter's profile. The
+  // minter is oracles.user_id (the creator who answered the questions
+  // and minted the code); deceased_at is stamped by a confirmed
+  // passing report (0045). Set → memorial waiver, free redemption.
+  const { data: minter } = await admin
+    .from("profiles")
+    .select("deceased_at")
+    .eq("id", oracle.user_id)
+    .maybeSingle<{ deceased_at: string | null }>();
+  const memorialWaiver = Boolean(minter?.deceased_at);
+
+  // Living minter → a purchased credit is required (admins skip the
+  // till, as everywhere else). Fail-closed: an unreadable balance
+  // reads as 0 and bounces to purchase rather than minting a free
+  // redemption.
+  const usingCredit = !memorialWaiver && !isAdmin(user.email);
+  if (usingCredit && (await getInheritedSlotCredits(user.id)) < 1) {
+    redirect(
+      `/upgrade?next=${encodeURIComponent("/identity/inherit")}&reason=inherited-slot`,
     );
-    if (shareError) {
-      redirectWithError(
-        "/identity/inherit",
-        "Couldn't bring them in. Try again in a moment.",
-        shareError,
-      );
-    }
+  }
+
+  const { error: shareError } = await admin.from("oracle_shares").upsert(
+    {
+      oracle_id: oracle.id,
+      user_id: user.id,
+      code_id: codeRow.id,
+    },
+    { onConflict: "oracle_id,user_id", ignoreDuplicates: true },
+  );
+  if (shareError) {
+    redirectWithError(
+      "/identity/inherit",
+      "Couldn't bring them in. Try again in a moment.",
+      shareError,
+    );
+  }
+
+  // Consume the credit AFTER the share persisted — a failed insert
+  // must never eat a paid credit (same post-persist contract as the
+  // message/image pack credits). Best-effort, never throws.
+  if (usingCredit) {
+    await consumeInheritedSlotCredit(user.id);
   }
 
   // Redirect BACK to the dashboard, not straight into the chat. The

@@ -85,8 +85,9 @@ export async function uploadLegacyPhoto(
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Not signed in." };
 
-  // Pro-gate here too — a lapsed user shouldn't be able to upload a
-  // photo they'll never be able to complete an identity with.
+  // Paid-gate here too (Basic or Pro — isPro passes any active paid
+  // window) — a lapsed user shouldn't be able to upload a photo
+  // they'll never be able to complete an identity with.
   if (!(await isPro(supabase))) {
     return { ok: false, error: "Premium plan required to keep an identity." };
   }
@@ -201,10 +202,11 @@ export async function completeLegacyIdentity(payload: {
     redirect("/auth/signin");
   }
 
-  // Pro-gate the completion action itself — a user could have started
-  // the draft while Pro, then lapsed. The draft stays autosaved; we
-  // just refuse to publish it (mint the inherit code) until they're
-  // Pro again. Message is warm — this is their memory, not just a form.
+  // Paid-gate the completion action itself (Basic or Pro — isPro
+  // passes any active paid window) — a user could have started the
+  // draft while subscribed, then lapsed. The draft stays autosaved;
+  // we just refuse to publish it (mint the inherit code) until they
+  // re-subscribe. Message is warm — this is their memory, not a form.
   if (!(await isPro(supabase))) {
     redirect(`/upgrade?next=${encodeURIComponent("/identity/legacy/new")}`);
   }
@@ -293,7 +295,7 @@ export async function completeLegacyIdentity(payload: {
 
   // Best-effort: if minting somehow fails, the share page offers a retry.
   // Service-role client on purpose: 0065 dropped the user-side insert
-  // policy on inherit_codes, so the Pro-gated actions are the only way
+  // policy on inherit_codes, so the paid-gated actions are the only way
   // a code comes to exist. We just inserted this oracle for user.id, so
   // ownership is already established.
   await mintInheritCode(createAdminClient(), inserted.id, user.id);

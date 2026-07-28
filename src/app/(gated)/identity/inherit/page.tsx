@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { requirePro } from "@/lib/subscription";
+import { INHERITED_SLOT_PRICE_LABEL } from "@/lib/pricing";
 import { InheritForm } from "./InheritForm";
 
 export const metadata = {
@@ -17,9 +17,9 @@ export const metadata = {
 export default async function InheritPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; purchased?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error, purchased } = await searchParams;
 
   const supabase = await createClient();
   const {
@@ -29,14 +29,14 @@ export default async function InheritPage({
     redirect("/auth/signin");
   }
 
-  // Inheriting a code requires Pro. Bounce to /upgrade before we show
-  // the form so nobody types in a code only to hit a 403 from the
-  // action. Wilson's rule: talking to a family member's identity is
-  // paid-only, always.
-  const gate = await requirePro("/identity/inherit");
-  if (!gate.ok) {
-    redirect(gate.redirectTo);
-  }
+  // NO tier gate here since the July 2026 second rework — redemption
+  // is paid per code, not per plan. The redeem action resolves the
+  // price itself: free when the code's minter has passed away (the
+  // memorial waiver), otherwise one purchased inherit-slot credit
+  // ($5 one-time; the action bounces credit-less users to
+  // /upgrade?reason=inherited-slot). ?purchased=1 is the Stripe
+  // success return — the webhook is granting the credit while this
+  // renders, so we welcome them back to the code they were holding.
 
   return (
     <main className="flex min-h-dvh flex-1 flex-col items-center justify-center px-6 py-12">
@@ -59,6 +59,13 @@ export default async function InheritPage({
           Enter the code they shared with you, and the person they kept will
           join your messages.
         </p>
+
+        {purchased === "1" ? (
+          <div className="mt-6 w-full rounded-2xl bg-teal/10 px-4 py-3 text-sm font-medium text-teal-strong ring-1 ring-teal/25">
+            Your {INHERITED_SLOT_PRICE_LABEL} slot is ready &mdash; enter
+            the code below to bring them in.
+          </div>
+        ) : null}
 
         {error ? (
           <div className="mt-6 w-full rounded-2xl bg-coral/10 px-4 py-3 text-sm font-medium text-coral-strong ring-1 ring-coral/25">
