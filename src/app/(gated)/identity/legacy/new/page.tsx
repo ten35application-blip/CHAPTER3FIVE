@@ -58,6 +58,10 @@ export default async function LegacyNewPage({
     .eq("user_id", user.id)
     .maybeSingle<DraftRow>();
 
+  // Mode defaults to "other" for backward compat (drafts written
+  // before the mode toggle shipped). Enum-narrow via the guard so a
+  // corrupted draft can't leak an arbitrary string through.
+  const rawMode = draft?.subject?.mode;
   const subject: LegacySubject = {
     name: draft?.subject?.name ?? "",
     relationship: draft?.subject?.relationship ?? "",
@@ -67,6 +71,7 @@ export default async function LegacyNewPage({
     // gates on it). Dropping it here on resume left users with 30
     // answers stuck on Step 0 until they re-uploaded.
     photoUrl: draft?.subject?.photoUrl ?? undefined,
+    mode: rawMode === "self" || rawMode === "other" ? rawMode : "other",
   };
 
   // The questions bank is server-only content — it reaches the

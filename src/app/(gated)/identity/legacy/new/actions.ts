@@ -45,11 +45,20 @@ function sanitizeSubject(subject: LegacySubject): LegacySubject {
     raw.startsWith(`${supabaseUrl}/storage/v1/object/public/avatars/legacy/`)
       ? raw
       : undefined;
+  // Mode: enum-narrow to the two allowed strings; anything else
+  // (including undefined from pre-mode drafts) falls back to "other"
+  // so old drafts keep working after this rollout.
+  const modeRaw = subject?.mode;
+  const mode: "self" | "other" =
+    modeRaw === "self" || modeRaw === "other" ? modeRaw : "other";
   return {
     name: clean(subject?.name),
-    relationship: clean(subject?.relationship),
+    // In self mode we drop the relationship field from the UI and
+    // never trust whatever might have been sitting in a stale draft.
+    relationship: mode === "self" ? "" : clean(subject?.relationship),
     era: clean(subject?.era),
     heritage: clean(subject?.heritage),
+    mode,
     ...(photoUrl ? { photoUrl } : {}),
   };
 }

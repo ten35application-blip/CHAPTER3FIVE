@@ -16,8 +16,8 @@ import {
 
 /** Who this identity is for — collected on page 1, before the questions. */
 export type LegacySubject = {
-  name: string; // "Rosa", "Grandpa Joe", "Me"
-  relationship: string; // "My mother", "Myself", "Our grandfather"
+  name: string; // "Rosa", "Grandpa Joe", "Wilson"
+  relationship: string; // "My mother", "Our grandfather" (blank in self mode)
   era: string; // "Born 1952, raised in the Bronx"
   heritage: string; // "Dominican; Catholic household"
   /** Public URL for the photo the creator uploaded at step 0.
@@ -25,6 +25,12 @@ export type LegacySubject = {
    *  inherit code so whoever redeems it sees the same photo. Optional
    *  on the type only so pre-migration drafts still parse. */
   photoUrl?: string;
+  /** Who's answering. "self" swaps the flow's copy + question voice
+   *  to second-person ("your era", "who raised you") and hides the
+   *  relationship field. "other" is the classic family-recording-a-
+   *  loved-one flow. Optional in the type so pre-toggle drafts still
+   *  parse; page.tsx defaults to "other" on hydrate. */
+  mode?: "self" | "other";
 };
 
 export type LegacyTraits = {
@@ -118,14 +124,23 @@ function answersToPrompt(
   subject: LegacySubject,
   answers: Record<string, string>,
 ): string {
+  const isSelf = subject.mode === "self";
   const lines: string[] = [
     "Who this is:",
-    `- Name (as the family says it): ${subject.name}`,
-    `- Relationship to the person answering: ${subject.relationship || "not given"}`,
+    `- Name: ${subject.name}`,
+    ...(isSelf
+      ? [
+          "- This person is answering ABOUT THEMSELVES. Their answers are first-person facts about the persona you're weaving.",
+        ]
+      : [
+          `- Relationship to the person answering: ${subject.relationship || "not given"}`,
+        ]),
     `- Era: ${subject.era || "not given"}`,
     `- Cultural heritage: ${subject.heritage || "not given"}`,
     "",
-    "The family's answers, by category:",
+    isSelf
+      ? "Their answers, by category (first-person -- they wrote these about themselves):"
+      : "The family's answers, by category:",
   ];
 
   let currentCategory: LegacyCategory | null = null;
@@ -136,7 +151,10 @@ function answersToPrompt(
       currentCategory = q.category;
       lines.push("", `## ${LEGACY_CATEGORY_LABELS[q.category]}`);
     }
-    lines.push("", `Q: ${q.prompt}`, `A: ${answer}`);
+    // Feed Claude the variant that was actually shown so the answer
+    // matches the question voice.
+    const shownPrompt = isSelf ? q.promptSelf ?? q.prompt : q.prompt;
+    lines.push("", `Q: ${shownPrompt}`, `A: ${answer}`);
   }
 
   lines.push(

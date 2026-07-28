@@ -228,65 +228,92 @@ function SubjectScreen({
   // to write down. Name AND photo both required to advance.
   const canContinue =
     subject.name.trim().length > 0 && !!subject.photoUrl;
+  const mode: "self" | "other" = subject.mode ?? "other";
+  const isSelf = mode === "self";
   return (
     <div className="flex flex-1 flex-col">
       <p className="text-sm font-semibold uppercase tracking-wider">
         <span className="text-gradient-cta">Someone to keep</span>
       </p>
       <h1 className="mt-3 text-3xl font-semibold tracking-tight text-warm-50">
-        Who are we keeping?
+        {isSelf ? "Who are we keeping — you?" : "Who are we keeping?"}
       </h1>
       <p className="mt-3 text-base leading-relaxed text-warm-300">
-        Forty questions, answered by you — or by the whole family around one
-        table. If this is about you, answer in your own voice. Everything
-        saves as you go, so take days if you need them.
+        {isSelf
+          ? "Forty questions, answered in your own voice. Take days if you need them — everything saves as you go."
+          : "Forty questions, answered by you — or by the whole family around one table. Everything saves as you go, so take days if you need them."}
       </p>
+
+      {/* Mode toggle. First decision on the page because everything
+          below (labels, placeholders, question wording) reads
+          differently depending on the answer. Wilson's ask
+          2026-07-28: dual-framed prompts read confused when you're
+          answering about yourself — split the flow up front. */}
+      <ModeToggle
+        mode={mode}
+        onChange={(nextMode) =>
+          onChange({
+            ...subject,
+            mode: nextMode,
+            // Blank the relationship field when switching to self so a
+            // stale "My mother" doesn't sit hidden in the draft.
+            relationship: nextMode === "self" ? "" : subject.relationship,
+          })
+        }
+      />
 
       <PhotoPicker
         photoUrl={subject.photoUrl ?? null}
+        mode={mode}
         onChange={(photoUrl) =>
           onChange({ ...subject, photoUrl: photoUrl ?? undefined })
         }
       />
 
       {/* Texting-style note — the single most important guidance for
-          fidelity. Their real texting rhythm (lowercase, no periods,
-          run-on sentences, whatever) IS part of them. Dictation cleans
-          it up into generic prose and washes that out. */}
+          fidelity. Real texting rhythm (lowercase, no periods,
+          run-on sentences, whatever) IS part of a person. Dictation
+          cleans it up into generic prose and washes that out. */}
       <div className="mt-5 rounded-2xl bg-coral/8 p-4 ring-1 ring-coral/20">
         <p className="text-sm font-semibold text-warm-50">
-          Type how they actually text.
+          {isSelf
+            ? "Type how you actually text."
+            : "Type how they actually text."}
         </p>
         <p className="mt-1.5 text-sm leading-relaxed text-warm-300">
-          The all-lowercase, the missing periods, the ALL CAPS when they&rsquo;re
-          hyped, the way they always start with &ldquo;so&rdquo; — that&rsquo;s
-          them. Don&rsquo;t fix it into clean prose. Don&rsquo;t dictate through
-          a mic; it strips the voice out. Write it the way it would land in a
-          real text from them.
+          {isSelf
+            ? "The all-lowercase, the missing periods, the ALL CAPS when you’re hyped, the way you always start with “so” — that’s you. Don’t fix it into clean prose. Don’t dictate through a mic; it strips the voice out."
+            : "The all-lowercase, the missing periods, the ALL CAPS when they’re hyped, the way they always start with “so” — that’s them. Don’t fix it into clean prose. Don’t dictate through a mic; it strips the voice out."}
         </p>
       </div>
 
       <div className="mt-8 flex flex-col gap-5">
         <Field
-          label="Their name, the way the family says it"
+          label={isSelf ? "Your name" : "Their name, the way the family says it"}
           value={subject.name}
-          placeholder="Grandpa Joe · Rosa · Me"
+          placeholder={isSelf ? "Wilson · Rosa" : "Grandpa Joe · Rosa"}
           onChange={(name) => onChange({ ...subject, name })}
         />
+        {isSelf ? null : (
+          <Field
+            label="Who are they to you?"
+            value={subject.relationship}
+            placeholder="My mother · Our grandfather"
+            onChange={(relationship) =>
+              onChange({ ...subject, relationship })
+            }
+          />
+        )}
         <Field
-          label="Who are they to you?"
-          value={subject.relationship}
-          placeholder="My mother · Our grandfather · Myself"
-          onChange={(relationship) => onChange({ ...subject, relationship })}
-        />
-        <Field
-          label="Their era"
+          label={isSelf ? "Your era" : "Their era"}
           value={subject.era}
-          placeholder="Born 1952, raised in the Bronx"
+          placeholder={
+            isSelf ? "Born 1990, raised in Miami" : "Born 1952, raised in the Bronx"
+          }
           onChange={(era) => onChange({ ...subject, era })}
         />
         <Field
-          label="Their roots"
+          label={isSelf ? "Your roots" : "Their roots"}
           value={subject.heritage}
           placeholder="Dominican · Catholic household · first-generation"
           onChange={(heritage) => onChange({ ...subject, heritage })}
@@ -312,13 +339,71 @@ function SubjectScreen({
   );
 }
 
+/**
+ * Segmented control for "who is this for?" — the first decision on
+ * Step 0. Renders as two side-by-side pills with the active side in
+ * the coral+teal gradient. Keyboard accessible via arrow keys (native
+ * radio behavior) and screen-readers via role="radiogroup".
+ */
+function ModeToggle({
+  mode,
+  onChange,
+}: {
+  mode: "self" | "other";
+  onChange: (next: "self" | "other") => void;
+}) {
+  const options: Array<{ value: "self" | "other"; label: string; sub: string }> = [
+    { value: "self", label: "I'm doing this for myself", sub: "Answered in your own voice." },
+    { value: "other", label: "For someone I love", sub: "Family recording who they are." },
+  ];
+  return (
+    <div
+      role="radiogroup"
+      aria-label="Who are you making this identity for?"
+      className="mt-6 grid grid-cols-1 gap-2 sm:grid-cols-2"
+    >
+      {options.map((opt) => {
+        const active = mode === opt.value;
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            onClick={() => onChange(opt.value)}
+            className={
+              active
+                ? "bg-gradient-cta rounded-2xl px-4 py-3 text-left text-white shadow-[0_10px_24px_-8px_rgba(232,138,118,0.35)]"
+                : "rounded-2xl bg-ink-soft px-4 py-3 text-left text-warm-100 ring-1 ring-warm-700/60 transition-colors hover:bg-warm-700/25"
+            }
+          >
+            <p className="text-sm font-semibold">{opt.label}</p>
+            <p
+              className={
+                active
+                  ? "mt-0.5 text-xs text-white/85"
+                  : "mt-0.5 text-xs text-warm-400"
+              }
+            >
+              {opt.sub}
+            </p>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function PhotoPicker({
   photoUrl,
   onChange,
+  mode,
 }: {
   photoUrl: string | null;
   onChange: (url: string | null) => void;
+  mode: "self" | "other";
 }) {
+  const isSelf = mode === "self";
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [pending, setPending] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -346,11 +431,12 @@ function PhotoPicker({
   return (
     <div className="mt-6 flex flex-col items-center gap-3 rounded-2xl bg-ink-soft/60 p-5 ring-1 ring-warm-700/60">
       <p className="text-center text-sm font-semibold text-warm-100">
-        Their photo
+        {isSelf ? "Your photo" : "Their photo"}
       </p>
       <p className="text-center text-xs leading-relaxed text-warm-400">
-        Whoever inherits the code will see this face when they open the
-        chat. Pick the one that feels most like them.
+        {isSelf
+          ? "Whoever inherits your code will see this face when they open the chat. Pick the one that feels most like you."
+          : "Whoever inherits the code will see this face when they open the chat. Pick the one that feels most like them."}
       </p>
       <div className="relative">
         {photoUrl ? (
