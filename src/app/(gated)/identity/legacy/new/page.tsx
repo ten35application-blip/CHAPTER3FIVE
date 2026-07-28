@@ -35,9 +35,9 @@ type DraftRow = {
 export default async function LegacyNewPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; mode?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error, mode: modeParam } = await searchParams;
 
   const supabase = await createClient();
   const {
@@ -58,10 +58,18 @@ export default async function LegacyNewPage({
     .eq("user_id", user.id)
     .maybeSingle<DraftRow>();
 
-  // Mode defaults to "other" for backward compat (drafts written
-  // before the mode toggle shipped). Enum-narrow via the guard so a
-  // corrupted draft can't leak an arbitrary string through.
-  const rawMode = draft?.subject?.mode;
+  // Mode resolution priority: existing draft wins (don't overwrite
+  // in-progress work), else the ?mode= URL param from the picker
+  // (identity/create), else "other" as a safe default for direct
+  // visits without either signal. Enum-narrow both sources so a
+  // corrupted draft or crafted URL can't leak an arbitrary string.
+  const draftMode = draft?.subject?.mode;
+  const draftModeValid: "self" | "other" | null =
+    draftMode === "self" || draftMode === "other" ? draftMode : null;
+  const urlModeValid: "self" | "other" | null =
+    modeParam === "self" || modeParam === "other" ? modeParam : null;
+  const resolvedMode: "self" | "other" =
+    draftModeValid ?? urlModeValid ?? "other";
   const subject: LegacySubject = {
     name: draft?.subject?.name ?? "",
     relationship: draft?.subject?.relationship ?? "",
@@ -71,7 +79,7 @@ export default async function LegacyNewPage({
     // gates on it). Dropping it here on resume left users with 30
     // answers stuck on Step 0 until they re-uploaded.
     photoUrl: draft?.subject?.photoUrl ?? undefined,
-    mode: rawMode === "self" || rawMode === "other" ? rawMode : "other",
+    mode: resolvedMode,
   };
 
   // The questions bank is server-only content — it reaches the

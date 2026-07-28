@@ -47,7 +47,7 @@ export default async function IdentityCreatePage() {
           Who is this for?
         </h1>
         <p className="mt-2 text-center text-base text-warm-300">
-          Three ways to build an identity you can chat with. Pick the one
+          Four ways to build an identity you can chat with. Pick the one
           that matches why you&rsquo;re here.
         </p>
 
@@ -65,9 +65,15 @@ export default async function IdentityCreatePage() {
             icon={<PhotoIcon />}
           />
           <PathCard
-            href="/identity/legacy/new"
-            title="For someone to keep"
-            subhead="The deep path. Forty warm, specific questions about YOU &mdash; or someone you love. Takes as long as you need, and gives you a code you can share so family can meet the person you&rsquo;re keeping alive."
+            href="/identity/legacy/new?mode=self"
+            title="Yourself, to hand down"
+            subhead="Forty warm, specific questions about YOU, answered in your own voice. Produces a code your family can hold onto so they can talk with you later."
+            icon={<HeartTagIcon />}
+          />
+          <PathCard
+            href="/identity/legacy/new?mode=other"
+            title="Someone you love"
+            subhead="Forty warm, specific questions about a real person &mdash; a parent, a partner, a friend. Produces a code you can share so anyone in the family can meet the person you&rsquo;re keeping alive."
             icon={<HeartTagIcon />}
           />
         </div>

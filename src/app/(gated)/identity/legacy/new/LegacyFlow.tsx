@@ -233,35 +233,23 @@ function SubjectScreen({
   return (
     <div className="flex flex-1 flex-col">
       <p className="text-sm font-semibold uppercase tracking-wider">
-        <span className="text-gradient-cta">Set the scene</span>
+        <span className="text-gradient-cta">
+          {isSelf ? "About you" : "About them"}
+        </span>
       </p>
       <h1 className="mt-3 text-3xl font-semibold tracking-tight text-warm-50">
-        First, who&rsquo;s this for?
+        {isSelf ? "A few basics, first." : "A few basics about them, first."}
       </h1>
       <p className="mt-3 text-base leading-relaxed text-warm-300">
-        Pick one, then a few basics. Forty warm questions come after
-        &mdash; everything saves as you go, so you can stop and pick up
-        anytime.
-      </p>
-
-      {/* Mode toggle. First decision on the page because everything
-          below (labels, placeholders, question wording) reads
-          differently depending on the answer. */}
-      <ModeToggle
-        mode={mode}
-        onChange={(nextMode) =>
-          onChange({
-            ...subject,
-            mode: nextMode,
-            // Blank the relationship field when switching to self so a
-            // stale "My mother" doesn't sit hidden in the draft.
-            relationship: nextMode === "self" ? "" : subject.relationship,
-          })
-        }
-      />
-
-      <p className="mt-8 text-sm font-semibold uppercase tracking-wider text-warm-400">
-        A few basics
+        Forty warm questions come after &mdash; everything saves as you
+        go, so you can stop and pick up anytime. Pick the wrong path?{" "}
+        <Link
+          href="/identity/create"
+          className="text-warm-100 underline underline-offset-2 hover:text-coral"
+        >
+          Go back to the picker
+        </Link>
+        .
       </p>
 
       <PhotoPicker
