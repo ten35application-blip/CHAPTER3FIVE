@@ -14,9 +14,10 @@ import { PRICING } from "@/lib/pricing";
  * plan?". Despite the name, this is NOT Pro-tier-specific: a Basic
  * subscription sets pro_until too, so isPro === "Basic OR Pro OR
  * trial OR admin". Use getPlanTier when the Basic/Pro split matters
- * (caps, quotas); use isPro/requirePro to gate paid-only features —
- * since the July 2026 second rework that includes recording a legacy
- * archive + minting an inherit code (Basic AND Pro; Free cannot).
+ * (caps, quotas); use isPro/requirePro to gate paid-only features.
+ * (Recording a legacy archive + minting an inherit code is NOT one of
+ * them since the July 2026 flat-fee rework — every tier, Free
+ * included, can mint; redemption is a flat $5 per code.)
  *
  * Rules:
  *   - Allowlisted admin emails are ALWAYS Pro (no persistence required).
@@ -148,11 +149,11 @@ export async function getFreeIdentityId(
  *   - Free tier + assigned free_identity_id: yes (their designated one).
  *   - Free tier + inherited identity (they have an oracle_shares row):
  *     yes. Post-0107 inherited redemption is per-code-priced and
- *     tier-agnostic (memorial waiver or $5 one-time), so a grieving
- *     Free user CAN redeem a code -- and needs to be able to chat with
- *     it too. This branch closes the gap Fable flagged: without it, a
- *     widow could pay for a memorial redemption and be locked out of
- *     the conversation, which is the opposite of what the app is for.
+ *     tier-agnostic (flat $5 one-time per code), so a Free user CAN
+ *     redeem a code -- and needs to be able to chat with it too.
+ *     This branch closes the gap Fable flagged: without it, someone
+ *     could pay to redeem a code and be locked out of the
+ *     conversation, which is the opposite of what the app is for.
  * Never throws -- any failure reads as "no" (fail-closed).
  */
 export async function canChatWithOracle(
@@ -487,8 +488,8 @@ export async function consumePackCredit(
 /**
  * Purchased inherit-slot credit balance (profiles.inherited_slot_credits,
  * 0107). One credit = one paid inherit-code redemption ($5 one-time via
- * Stripe purpose 'inherited_slot_purchase'). The memorial waiver
- * (minter deceased) bypasses credits entirely — see
+ * Stripe purpose 'inherited_slot_purchase'). Every NEW redemption
+ * consumes one — flat fee, no waivers — see
  * /identity/inherit/actions.ts. Admin client because the column is
  * billing state; returns 0 on ANY failure (fail-closed — a broken
  * read can't mint a free redemption).

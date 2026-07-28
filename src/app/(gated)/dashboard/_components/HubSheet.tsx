@@ -558,7 +558,6 @@ function CreateMenu({
       <CreateMenuItem
         href="/identity/legacy/new"
         label="Personal identity"
-        pro
         onClick={() => {
           onClose();
           onNavigate();
@@ -579,14 +578,15 @@ function CreateMenu({
 function CreateMenuItem({
   href,
   label,
-  pro,
   onClick,
 }: {
   href: string;
   label: string;
-  pro?: boolean;
   onClick: () => void;
 }) {
+  // No paid badge on any item — every creation path here (including
+  // the legacy "Personal identity" flow) is open to every tier since
+  // the July 2026 flat-fee rework.
   return (
     <Link
       href={href}
@@ -594,14 +594,6 @@ function CreateMenuItem({
       className="flex items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-warm-50 transition-colors hover:bg-coral/5"
     >
       <span>{label}</span>
-      {pro ? (
-        // "Paid" not "Pro" — the legacy path opened to Basic in the
-        // July 2026 second rework; the badge means "needs any paid
-        // plan", and requirePro (any-paid despite the name) enforces.
-        <span className="bg-gradient-cta rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] leading-tight text-white">
-          Paid
-        </span>
-      ) : null}
     </Link>
   );
 }

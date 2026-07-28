@@ -24,30 +24,24 @@ const INVALID_CODE_MESSAGE =
 /**
  * Redeem an inherit code.
  *
- * GATE MODEL (July 2026 second rework): redemption is paid PER CODE,
- * not per tier. The old Pro-only gate + included/extra slot math is
- * gone — any signed-in account (Free included) can redeem, and what
- * decides whether it costs anything is the code's MINTER:
+ * GATE MODEL (July 2026, flat-fee rework): redemption is paid PER
+ * CODE, not per tier — and the price is the same for EVERY code.
+ * Any signed-in account (Free included) can redeem; every redemption
+ * consumes one purchased inherit-slot credit
+ * (profiles.inherited_slot_credits, $5 one-time via Stripe). No
+ * credit → bounce to /upgrade?reason=inherited-slot, which sells
+ * exactly one. There is NO memorial waiver — Wilson: "it is NOT free
+ * to inherit a code and it's not our place to verify someone died."
  *
- *   1. Minter deceased (profiles.deceased_at set — a passing report
- *      was confirmed, 0045) → MEMORIAL WAIVER. The redemption is
- *      free and no credit is consumed. Grief is not a paywall moment.
- *   2. Minter living (alive-preparing, friend-gift, playful) → the
- *      redeemer needs a purchased inherit-slot credit
- *      (profiles.inherited_slot_credits, $5 one-time via Stripe).
- *      No credit → bounce to /upgrade?reason=inherited-slot, which
- *      sells exactly one. The credit is consumed AFTER the share
- *      row persists (consumePackCredit pattern) and only when the
- *      share is genuinely NEW — re-redeeming a code you already
- *      hold, or your own code, never charges.
+ * The credit is consumed AFTER the share row persists
+ * (consumePackCredit pattern) and only when the share is genuinely
+ * NEW — re-redeeming a code you already hold, or your own code,
+ * never charges.
  *
- * Anti-probing note: the old flow gated before the code lookup so a
- * non-Pro user couldn't test whether codes were real. The waiver
- * makes that ordering impossible — we must resolve the minter before
- * we know the price — so a credit-less user can now distinguish
- * "invalid code" from "valid living-minter code" (they're bounced to
- * purchase). Accepted: codes are 128-bit-ish random strings; the
- * enumeration surface is the same one every gift-code system carries.
+ * Anti-probing note: a credit-less user can distinguish "invalid
+ * code" from "valid code" (the latter bounces them to purchase).
+ * Accepted: codes are 128-bit-ish random strings; the enumeration
+ * surface is the same one every gift-code system carries.
  *
  * The lookup + share insert run through the service-role client on
  * purpose: inherit_codes has no authenticated-read policy, so codes
@@ -115,22 +109,11 @@ export async function redeemInheritCode(rawCode: string): Promise<void> {
     redirect(`/dashboard?welcomed=${oracle.id}`);
   }
 
-  // Resolve the price: the code → oracle → minter's profile. The
-  // minter is oracles.user_id (the creator who answered the questions
-  // and minted the code); deceased_at is stamped by a confirmed
-  // passing report (0045). Set → memorial waiver, free redemption.
-  const { data: minter } = await admin
-    .from("profiles")
-    .select("deceased_at")
-    .eq("id", oracle.user_id)
-    .maybeSingle<{ deceased_at: string | null }>();
-  const memorialWaiver = Boolean(minter?.deceased_at);
-
-  // Living minter → a purchased credit is required (admins skip the
-  // till, as everywhere else). Fail-closed: an unreadable balance
-  // reads as 0 and bounces to purchase rather than minting a free
-  // redemption.
-  const usingCredit = !memorialWaiver && !isAdmin(user.email);
+  // Every NEW redemption requires a purchased credit — flat $5 per
+  // code, every tier, no exceptions (admins skip the till, as
+  // everywhere else). Fail-closed: an unreadable balance reads as 0
+  // and bounces to purchase rather than minting a free redemption.
+  const usingCredit = !isAdmin(user.email);
   if (usingCredit && (await getInheritedSlotCredits(user.id)) < 1) {
     redirect(
       `/upgrade?next=${encodeURIComponent("/identity/inherit")}&reason=inherited-slot`,

@@ -28,8 +28,8 @@ import {
  */
 
 type Props = {
-  // The bank arrives as props from the Pro-gated server page — never
-  // import @/lib/legacy/questions here (it's server-only paid content;
+  // The bank arrives as props from the auth-gated server page — never
+  // import @/lib/legacy/questions here (it's server-only content;
   // a client import would ship it in a public JS chunk).
   questions: LegacyQuestion[];
   categoryLabels: Record<LegacyCategory, string>;

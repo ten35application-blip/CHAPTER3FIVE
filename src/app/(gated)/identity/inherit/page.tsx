@@ -30,10 +30,9 @@ export default async function InheritPage({
   }
 
   // NO tier gate here since the July 2026 second rework — redemption
-  // is paid per code, not per plan. The redeem action resolves the
-  // price itself: free when the code's minter has passed away (the
-  // memorial waiver), otherwise one purchased inherit-slot credit
-  // ($5 one-time; the action bounces credit-less users to
+  // is paid per code, not per plan: every new redemption consumes one
+  // purchased inherit-slot credit ($5 one-time, flat, no waivers; the
+  // action bounces credit-less users to
   // /upgrade?reason=inherited-slot). ?purchased=1 is the Stripe
   // success return — the webhook is granting the credit while this
   // renders, so we welcome them back to the code they were holding.

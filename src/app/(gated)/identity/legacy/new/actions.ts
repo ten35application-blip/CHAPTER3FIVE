@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import sharp from "sharp";
 import { redirectWithError } from "@/lib/action-errors";
-import { claimFreeIdentitySlot, isPro } from "@/lib/subscription";
+import { claimFreeIdentitySlot } from "@/lib/subscription";
 import { SynthesisError } from "@/lib/identity/synthesize";
 import { fingerprintLegacyAnswers } from "@/lib/legacy/fingerprint";
 import { mintInheritCode } from "@/lib/legacy/mint";
@@ -85,12 +85,8 @@ export async function uploadLegacyPhoto(
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Not signed in." };
 
-  // Paid-gate here too (Basic or Pro — isPro passes any active paid
-  // window) — a lapsed user shouldn't be able to upload a photo
-  // they'll never be able to complete an identity with.
-  if (!(await isPro(supabase))) {
-    return { ok: false, error: "Premium plan required to keep an identity." };
-  }
+  // NO plan gate — the legacy flow is open to every tier (July 2026
+  // flat-fee rework), so the auth check above is the whole gate.
 
   const file = formData.get("photo");
   if (!(file instanceof File) || file.size === 0) {
@@ -202,14 +198,9 @@ export async function completeLegacyIdentity(payload: {
     redirect("/auth/signin");
   }
 
-  // Paid-gate the completion action itself (Basic or Pro — isPro
-  // passes any active paid window) — a user could have started the
-  // draft while subscribed, then lapsed. The draft stays autosaved;
-  // we just refuse to publish it (mint the inherit code) until they
-  // re-subscribe. Message is warm — this is their memory, not a form.
-  if (!(await isPro(supabase))) {
-    redirect(`/upgrade?next=${encodeURIComponent("/identity/legacy/new")}`);
-  }
+  // NO plan gate — any signed-in account (Free included) can complete
+  // the flow and mint an inherit code (July 2026 flat-fee rework).
+  // The recipient pays $5 per code at redemption instead.
 
   const subject = sanitizeSubject(payload.subject);
   const answers = sanitizeAnswers(payload.answers);

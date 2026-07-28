@@ -5,7 +5,6 @@ import {
 } from "@/lib/legacy/questions";
 import type { LegacySubject } from "@/lib/legacy/synthesize";
 import { createClient } from "@/lib/supabase/server";
-import { requirePro } from "@/lib/subscription";
 import { LegacyFlow } from "./LegacyFlow";
 
 export const metadata = {
@@ -38,15 +37,10 @@ export default async function LegacyNewPage({
     redirect("/auth/signin");
   }
 
-  // Creator side needs ANY active paid plan — Basic or Pro — since
-  // the July 2026 second rework (was Pro-only; requirePro despite
-  // its name passes any paid window, trial, or admin). Free users
-  // bounce to /upgrade. Recipient side is gated separately (per-code
-  // payment + memorial waiver) in /identity/inherit/actions.ts. The
-  // draft is autosaved even during a lapsed state, so an in-progress
-  // draft survives a subscription hiccup.
-  const gate = await requirePro("/identity/legacy/new");
-  if (!gate.ok) redirect(gate.redirectTo);
+  // NO plan gate — since the July 2026 flat-fee rework ANY signed-in
+  // account (Free included) can record a legacy archive and mint an
+  // inherit code. The recipient side is gated separately (flat $5
+  // per code) in /identity/inherit/actions.ts.
 
   const { data: draft } = await supabase
     .from("legacy_drafts")
@@ -65,9 +59,9 @@ export default async function LegacyNewPage({
     photoUrl: draft?.subject?.photoUrl ?? undefined,
   };
 
-  // The questions bank is server-only paid content — it reaches the
-  // client exclusively through these props, behind the requirePro()
-  // gate above, never via a client-side import (see questions.ts).
+  // The questions bank is server-only content — it reaches the
+  // client exclusively through these props, behind the auth gate
+  // above, never via a client-side import (see questions.ts).
   return (
     <LegacyFlow
       questions={LEGACY_QUESTIONS}
