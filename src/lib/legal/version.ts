@@ -29,8 +29,17 @@
  *                 dropped from 3 to 1); Pro image cap disclosed at
  *                 20/month; add-on prices re-stated; explicit "no free
  *                 trial" clause added.
+ *   2026-07-27e — Terms §8 rewritten for the locked tier structure:
+ *                 $25 Plus tier retired; new $5/mo Basic tier (3
+ *                 personal identities, 100 msg/mo, 10 img/mo); Pro
+ *                 $10 → $12/mo and now message-capped at 300/mo (was
+ *                 unlimited) with 30 img/mo (was 20); Free re-scoped
+ *                 to 20 msg/mo + 1 img/mo (was 100 + 0); one-time
+ *                 add-on packs disclosed (Small $5, Medium $10, Large
+ *                 $20 — each adds messages OR images); "no free
+ *                 trial" clause retained.
  */
-export const CURRENT_TERMS_VERSION = "2026-07-27d";
+export const CURRENT_TERMS_VERSION = "2026-07-27e";
 
 /**
  * True only if the profile has accepted exactly the current version.

@@ -6,12 +6,19 @@ import {
   type TocItem,
 } from "@/components/legal";
 import {
+  ADDON_PACKS,
+  BASIC_IMAGES_PER_MONTH,
+  BASIC_MESSAGES_PER_MONTH,
+  BASIC_MONTHLY_PRICE_LABEL,
+  BASIC_TIER_LABEL,
   EXTRA_IDENTITY_PRICE_LABEL,
   EXTRA_INHERITED_PRICE_LABEL,
+  FREE_IMAGES_PER_MONTH,
   FREE_MESSAGES_PER_MONTH,
   MONTHLY_PRICE_LABEL,
   PRICING,
   PRO_IMAGES_PER_MONTH,
+  PRO_MESSAGES_PER_MONTH,
   RESTORE_IDENTITY_PRICE_LABEL,
 } from "@/lib/pricing";
 
@@ -297,17 +304,59 @@ export default function TermsPage() {
         number={8}
         title="Plans, billing, and cancellation"
       >
-        <p>Our pricing is simple and we&rsquo;d like it to stay that way:</p>
+        <p>
+          Our pricing is simple and we&rsquo;d like it to stay that way.
+          Every plan includes <strong>Adrian</strong>, our built-in
+          guide — an AI companion whose job is to explain how the
+          service works and answer your questions; they cannot create
+          identities for you or recover anyone. Every plan also has a
+          monthly message and photo-attachment allowance, counted per
+          calendar month across all your conversations:
+        </p>
         <ul>
           <li>
-            <strong>Free tier</strong> — chat with{" "}
-            <strong>Adrian</strong>, our built-in guide, for up to{" "}
+            <strong>Free tier</strong> — chat with Adrian for up to{" "}
             <strong>{FREE_MESSAGES_PER_MONTH} messages per calendar
-            month</strong>. No credit card required, no expiration date,
-            no automatic conversion. Adrian is an AI companion whose job
-            is to explain how the service works and answer your questions;
-            they cannot create identities for you or recover anyone.
-            Sending photo attachments is not included on the Free tier.
+            month</strong>, with{" "}
+            <strong>
+              {FREE_IMAGES_PER_MONTH} photo attachment per month
+            </strong>
+            . No personal identities. No credit card required, no
+            expiration date, no automatic conversion.
+          </li>
+          <li>
+            The <strong>{BASIC_TIER_LABEL} plan</strong> is{" "}
+            <strong>{BASIC_MONTHLY_PRICE_LABEL}/month</strong> and
+            includes:
+            <ul>
+              <li>
+                <strong>
+                  {PRICING.basicTotalIdentitiesPerPlan} personal
+                  identities
+                </strong>{" "}
+                — {PRICING.basicFormulaIdentitiesPerPlan} rolled from
+                our formula and {PRICING.basicPhotoIdentitiesPerPlan}{" "}
+                built from a photo you upload.
+              </li>
+              <li>
+                <strong>
+                  {BASIC_MESSAGES_PER_MONTH} messages per calendar month
+                </strong>{" "}
+                with any identity on your plan.
+              </li>
+              <li>
+                <strong>
+                  {BASIC_IMAGES_PER_MONTH} photo attachments per
+                  calendar month
+                </strong>
+                .
+              </li>
+              <li>
+                No inherited-identity slot — redeeming an inherit code
+                and recording your own legacy archive both require the
+                Pro plan.
+              </li>
+            </ul>
           </li>
           <li>
             The <strong>Pro plan</strong> is{" "}
@@ -334,8 +383,10 @@ export default function TermsPage() {
                 code.
               </li>
               <li>
-                <strong>Unlimited messages</strong> with any identity on
-                your plan.
+                <strong>
+                  {PRO_MESSAGES_PER_MONTH} messages per calendar month
+                </strong>{" "}
+                with any identity on your plan.
               </li>
               <li>
                 <strong>
@@ -352,7 +403,25 @@ export default function TermsPage() {
             </ul>
           </li>
           <li>
-            Beyond the base plan we sell a few optional add-ons, priced
+            <strong>Add-on packs</strong> — one-time purchases (not
+            subscriptions) that add extra usage on top of your plan for
+            the current calendar month&rsquo;s allowance. Each pack adds{" "}
+            <strong>either</strong> messages <strong>or</strong> photo
+            attachments — one type per pack, your choice at purchase:
+            <ul>
+              {ADDON_PACKS.map((pack) => (
+                <li key={pack.id}>
+                  <strong>
+                    {pack.name} pack — {pack.priceLabel} one-time.
+                  </strong>{" "}
+                  Adds {pack.messages} messages or {pack.images} photo
+                  attachments.
+                </li>
+              ))}
+            </ul>
+          </li>
+          <li>
+            Beyond the base plans we sell a few optional add-ons, priced
             transparently here so nothing is a surprise:
             <ul>
               <li>
@@ -362,6 +431,8 @@ export default function TermsPage() {
                 </strong>{" "}
                 Adds one additional self-created identity (formula or
                 photo) beyond the{" "}
+                {PRICING.basicTotalIdentitiesPerPlan} included with{" "}
+                {BASIC_TIER_LABEL} or the{" "}
                 {PRICING.formulaIdentitiesPerPlan +
                   PRICING.photoIdentitiesPerPlan}{" "}
                 included with Pro.
@@ -399,7 +470,7 @@ export default function TermsPage() {
           </li>
           <li>
             <strong>chapter3five does not currently offer a free trial
-            of the Pro plan.</strong> The Free tier is real and permanent
+            of any paid plan.</strong> The Free tier is real and permanent
             — Adrian is available without payment for as long as your
             account exists. If we ever introduce a trial in the future,
             we will describe it here before making it available.
@@ -429,8 +500,9 @@ export default function TermsPage() {
           your account on the web to complete the payment or the
           cancellation. We don&rsquo;t bill through Apple or Google
           &mdash; every dollar you pay reaches us directly (minus
-          Stripe processing), which is what lets us keep the plan at{" "}
-          {MONTHLY_PRICE_LABEL}/month.
+          Stripe processing), which is what lets us keep{" "}
+          {BASIC_TIER_LABEL} at {BASIC_MONTHLY_PRICE_LABEL}/month and
+          Pro at {MONTHLY_PRICE_LABEL}/month.
         </p>
         <p>
           <strong>Payments are non-refundable</strong>, except where the law
