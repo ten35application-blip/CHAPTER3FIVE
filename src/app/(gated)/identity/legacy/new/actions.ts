@@ -118,11 +118,16 @@ export async function uploadLegacyPhoto(
     .from("avatars")
     // Blob wrap forces storage-js's multipart branch — Next 16's patched
     // fetch corrupts raw Buffer bodies. Same fix as 0078-era
-    // profile-avatars upload (e2911d4).
-    .upload(storagePath, new Blob([new Uint8Array(processed)]), {
-      contentType: "image/jpeg",
-      upsert: false,
-    });
+    // profile-avatars upload (e2911d4). The Blob MUST carry its own
+    // `type`: in the multipart branch storage-js ignores the
+    // `contentType` option and the part's mime comes from the Blob, so
+    // a typeless Blob arrives as application/octet-stream and the
+    // avatars bucket's allowed-mime list rejects it.
+    .upload(
+      storagePath,
+      new Blob([new Uint8Array(processed)], { type: "image/jpeg" }),
+      { contentType: "image/jpeg", upsert: false },
+    );
   if (uploadError) {
     console.error("[legacy-photo] upload failed:", uploadError);
     return { ok: false, error: "Couldn't save that photo. Try again." };

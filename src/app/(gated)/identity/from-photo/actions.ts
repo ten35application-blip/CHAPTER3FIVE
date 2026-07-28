@@ -256,7 +256,16 @@ export async function createIdentityFromPhoto(
   const storagePath = `user-uploaded/${oracleId}.png`;
   const { error: uploadError } = await admin.storage
     .from("avatars")
-    .upload(storagePath, bytes, { contentType: mediaType, upsert: true });
+    // Typed-Blob wrap, not the raw Buffer: storage-js routes a Buffer
+    // through the manual-body branch, which Next 16's patched fetch
+    // UTF-8-corrupts (see settings/actions.ts round-5 note). The Blob's
+    // own `type` is what sets the multipart part's mime — the
+    // contentType option is ignored on that branch.
+    .upload(
+      storagePath,
+      new Blob([new Uint8Array(bytes)], { type: mediaType }),
+      { contentType: mediaType, upsert: true },
+    );
   if (uploadError) {
     // The identity exists but has no face — surface a soft failure and
     // let the reveal show the initial-letter avatar; a re-upload flow
