@@ -58,21 +58,29 @@ export default async function LegacyNewPage({
     .eq("user_id", user.id)
     .maybeSingle<DraftRow>();
 
-  // Mode resolution priority: existing draft wins (don't overwrite
-  // in-progress work), else the ?mode= URL param from the picker
-  // (identity/create), else "other" as a safe default for direct
-  // visits without either signal. Enum-narrow both sources so a
-  // corrupted draft or crafted URL can't leak an arbitrary string.
+  // Mode resolution priority: URL ?mode= param wins (user just clicked
+  // a picker card, honor that intent), else fall back to draft, else
+  // "other" as a safe default for direct visits without either signal.
+  // Enum-narrow both sources so a corrupted draft or crafted URL can't
+  // leak an arbitrary string. Wilson's ask 2026-07-28: clicking either
+  // legacy picker card was landing users on the same-looking page
+  // because the older-wins policy kept a self-mode draft glued to the
+  // self voice even when they clicked "Someone you love".
   const draftMode = draft?.subject?.mode;
   const draftModeValid: "self" | "other" | null =
     draftMode === "self" || draftMode === "other" ? draftMode : null;
   const urlModeValid: "self" | "other" | null =
     modeParam === "self" || modeParam === "other" ? modeParam : null;
   const resolvedMode: "self" | "other" =
-    draftModeValid ?? urlModeValid ?? "other";
+    urlModeValid ?? draftModeValid ?? "other";
   const subject: LegacySubject = {
     name: draft?.subject?.name ?? "",
-    relationship: draft?.subject?.relationship ?? "",
+    // In self mode the relationship field is hidden and the draft
+    // should carry an empty string; mirror sanitizeSubject's invariant
+    // here so a self-picker click over an old other-mode draft doesn't
+    // leave a stale "My mother" hidden in state.
+    relationship:
+      resolvedMode === "self" ? "" : draft?.subject?.relationship ?? "",
     era: draft?.subject?.era ?? "",
     heritage: draft?.subject?.heritage ?? "",
     // photoUrl is required (saveLegacyDraft persists it, canContinue

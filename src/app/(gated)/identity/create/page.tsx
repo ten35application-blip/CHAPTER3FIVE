@@ -67,14 +67,14 @@ export default async function IdentityCreatePage() {
           <PathCard
             href="/identity/legacy/new?mode=self"
             title="Yourself, to hand down"
-            subhead="Forty warm, specific questions about YOU, answered in your own voice. Produces a code your family can hold onto so they can talk with you later."
+            subhead="Forty warm, specific questions about YOU, answered in your own voice. Free. Produces a code your family can hold onto so they can talk with you later."
             icon={<HeartTagIcon />}
           />
           <PathCard
             href="/identity/legacy/new?mode=other"
             title="Someone you love"
-            subhead="Forty warm, specific questions about a real person &mdash; a parent, a partner, a friend. Produces a code you can share so anyone in the family can meet the person you&rsquo;re keeping alive."
-            icon={<HeartTagIcon />}
+            subhead="Forty warm, specific questions about a real person &mdash; a parent, a partner, a friend. $5 when you finish. Lands in your contacts once payment clears; produces a code you can share."
+            icon={<InfinityIcon />}
           />
         </div>
 
@@ -187,6 +187,46 @@ function HeartTagIcon() {
       aria-hidden
     >
       <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+    </svg>
+  );
+}
+
+/**
+ * Infinity mark for the "Someone you love" card. Wilson's ask
+ * 2026-07-28: the coral+teal palette on this one so the two legacy
+ * cards read as a matched pair with the self card's heart-tag mark
+ * (different symbol, same brand weight). The gradient is applied via
+ * a per-instance <linearGradient> keyed to a stable id so multiple
+ * instances on one page don't collide.
+ */
+function InfinityIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="22"
+      height="22"
+      fill="none"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <defs>
+        <linearGradient
+          id="c35-infinity-gradient"
+          x1="0"
+          y1="0"
+          x2="1"
+          y2="1"
+        >
+          <stop offset="0%" stopColor="#e88a76" />
+          <stop offset="100%" stopColor="#7ec4c4" />
+        </linearGradient>
+      </defs>
+      <path
+        d="M6.5 8a4 4 0 0 1 3.11 1.48l4.78 5.04A4 4 0 1 0 17.5 8a4 4 0 0 0-3.11 1.48l-4.78 5.04A4 4 0 1 1 6.5 8z"
+        stroke="url(#c35-infinity-gradient)"
+      />
     </svg>
   );
 }
