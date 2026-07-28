@@ -35,12 +35,14 @@ async function signUp(formData: FormData) {
   if (!email || !password) {
     redirectWithError("/auth/signup", "Enter your email and password.");
   }
-  // Supabase Auth password policy on this project is 12 chars minimum.
-  // Client-side floor must match, or a valid-here / rejected-there
-  // password 8-11 chars long falls through to the generic
-  // "Something went wrong" catch below with no useful message.
-  if (password.length < 12) {
-    redirectWithError("/auth/signup", "Password needs at least 12 characters.");
+  // 8-char floor matches the update-password page and Supabase's own
+  // default minimum. If the project's Auth settings still cap higher
+  // than 8, the resulting error from supabase.auth.signUp below is
+  // surfaced verbatim -- but this app-level check should mirror the
+  // dashboard setting so a caller gets a specific message before the
+  // network round-trip.
+  if (password.length < 8) {
+    redirectWithError("/auth/signup", "Password needs at least 8 characters.");
   }
   if (!dobRaw || !/^\d{4}-\d{2}-\d{2}$/.test(dobRaw)) {
     redirectWithError("/auth/signup", "Please enter your date of birth.");
@@ -204,9 +206,9 @@ export default async function SignupPage({
               name="password"
               autoComplete="new-password"
               required
-              minLength={12}
+              minLength={8}
               className="h-12 rounded-2xl bg-ink-soft px-4 text-base text-warm-50 outline-none ring-1 ring-warm-700 placeholder:text-warm-400 focus:ring-2 focus:ring-coral"
-              placeholder="At least 12 characters"
+              placeholder="At least 8 characters"
             />
           </label>
 
