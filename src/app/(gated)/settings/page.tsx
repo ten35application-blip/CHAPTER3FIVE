@@ -102,9 +102,13 @@ export default async function SettingsPage({
   // surfaces. Same-user RLS scopes the oracles read; the inherit_codes
   // read is filtered to those oracle ids so a stray policy change
   // can't leak someone else's codes here.
+  // legacy_answers carries the subject blob including `mode`
+  // ("self" | "other"), stamped by completeLegacyIdentity when a code
+  // is minted. Selecting the jsonb column is cheap here — a user has
+  // at most a small handful of legacy oracles.
   const { data: legacyRows } = await supabase
     .from("oracles")
-    .select("id, name, created_at")
+    .select("id, name, created_at, legacy_answers")
     .eq("is_legacy", true)
     .is("deleted_at", null)
     .order("created_at", { ascending: false });
@@ -126,13 +130,29 @@ export default async function SettingsPage({
     .map((r) => {
       const code = codeByOracle.get(r.id as string);
       if (!code) return null;
+      // Pull mode out of the jsonb blob defensively — pre-toggle mints
+      // don't carry it, and a corrupted blob shouldn't crash the page.
+      const answers = r.legacy_answers as
+        | { subject?: { mode?: unknown } }
+        | null;
+      const rawMode = answers?.subject?.mode;
+      const mode: "self" | "other" | null =
+        rawMode === "self" || rawMode === "other" ? rawMode : null;
       return {
         oracleId: r.id as string,
         name: (r.name as string | null) ?? "Untitled",
         code,
+        mode,
       };
     })
-    .filter((x): x is { oracleId: string; name: string; code: string } => x !== null);
+    .filter(
+      (x): x is {
+        oracleId: string;
+        name: string;
+        code: string;
+        mode: "self" | "other" | null;
+      } => x !== null,
+    );
 
   // If ?minted matches an identity the user actually owns, resolve
   // its name for the banner. Server-side lookup so we can't be

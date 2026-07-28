@@ -17,11 +17,17 @@ import { useState } from "react";
  * opens directly; falls back to clipboard copy otherwise so the code
  * is still recoverable.
  */
-export function InheritCodesList({
-  items,
-}: {
-  items: Array<{ oracleId: string; name: string; code: string }>;
-}) {
+type CodeItem = {
+  oracleId: string;
+  name: string;
+  code: string;
+  /** "self" = user recorded themselves; "other" = they recorded a
+   *  loved one. Null for codes minted before the mode toggle shipped
+   *  (2026-07-28) — those render without a label. */
+  mode: "self" | "other" | null;
+};
+
+export function InheritCodesList({ items }: { items: Array<CodeItem> }) {
   return (
     <div className="border-t border-warm-700/60 px-4 py-4">
       <p className="mb-3 text-[15px] font-medium text-warm-50">Inherit codes</p>
@@ -53,29 +59,41 @@ function EmptyState() {
   );
 }
 
-function CodesList({
-  items,
-}: {
-  items: Array<{ oracleId: string; name: string; code: string }>;
-}) {
+function CodesList({ items }: { items: Array<CodeItem> }) {
   return (
     <ul className="flex flex-col gap-2.5">
-      {items.map((item) => (
-        <li
-          key={item.oracleId}
-          className="flex items-center justify-between gap-3 rounded-xl bg-warm-700/25 px-3.5 py-2.5 ring-1 ring-warm-700/60"
-        >
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-warm-50">
-              {item.name}
-            </p>
-            <p className="mt-0.5 font-mono text-xs text-warm-300">
-              {item.code}
-            </p>
-          </div>
-          <ShareButton code={item.code} name={item.name} />
-        </li>
-      ))}
+      {items.map((item) => {
+        // Small tag above the name so YOU can tell your own code from
+        // one you made for a loved one at a glance. Pre-mode codes
+        // (mode === null) render nameless so we don't guess wrong.
+        const tag =
+          item.mode === "self"
+            ? "Your code"
+            : item.mode === "other"
+              ? `For ${item.name}`
+              : null;
+        return (
+          <li
+            key={item.oracleId}
+            className="flex items-center justify-between gap-3 rounded-xl bg-warm-700/25 px-3.5 py-2.5 ring-1 ring-warm-700/60"
+          >
+            <div className="min-w-0 flex-1">
+              {tag ? (
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-coral-strong">
+                  {tag}
+                </p>
+              ) : null}
+              <p className="truncate text-sm font-medium text-warm-50">
+                {item.name}
+              </p>
+              <p className="mt-0.5 font-mono text-xs text-warm-300">
+                {item.code}
+              </p>
+            </div>
+            <ShareButton code={item.code} name={item.name} />
+          </li>
+        );
+      })}
     </ul>
   );
 }
