@@ -7,10 +7,18 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requireTermsAccepted } from "@/lib/legal/gate";
 
 /**
- * Create a Stripe Checkout session for a $5 credit. The `purpose` query/body
- * field decides what the credit unlocks:
+ * Create a Stripe Checkout session. The `purpose` query/body field
+ * decides the SKU:
  *   - "randomize" (default) — adds 1 to randomize_credits
- *   - "oracle"             — adds 1 to extra_oracle_credits
+ *   - "oracle"              — adds 1 to extra_oracle_credits
+ *   - "beneficiary_slot" / "restore_account" / "restore_oracle"
+ *   - "pro_monthly" / "basic_monthly" — recurring subscriptions,
+ *     gated on STRIPE_PRICE_ID_PRO_MONTHLY / _BASIC_MONTHLY
+ *   - "pack_small" / "pack_medium" / "pack_large" — one-time add-on
+ *     packs (STRIPE_PRICE_ID_PACK_*). The buyer picks the pack TYPE
+ *     (messages or images) in the UI before hitting checkout; it
+ *     arrives as `pack_type` in the body/query and rides into the
+ *     session metadata so the webhook credits the right column.
  */
 export async function POST(request: NextRequest) {
   type Purpose =
@@ -19,16 +27,27 @@ export async function POST(request: NextRequest) {
     | "beneficiary_slot"
     | "restore_account"
     | "restore_oracle"
-    | "pro_monthly";
+    | "pro_monthly"
+    | "basic_monthly"
+    | "pack_small"
+    | "pack_medium"
+    | "pack_large";
   let purpose: Purpose = "randomize";
   let restoreOracleId: string | null = null;
+  let packType: "message" | "image" = "message";
   const isPurpose = (v: unknown): v is Purpose =>
     v === "randomize" ||
     v === "oracle" ||
     v === "beneficiary_slot" ||
     v === "restore_account" ||
     v === "restore_oracle" ||
-    v === "pro_monthly";
+    v === "pro_monthly" ||
+    v === "basic_monthly" ||
+    v === "pack_small" ||
+    v === "pack_medium" ||
+    v === "pack_large";
+  const isPackType = (v: unknown): v is "message" | "image" =>
+    v === "message" || v === "image";
   try {
     const body = await request.clone().json();
     if (isPurpose(body?.purpose)) {
@@ -37,6 +56,9 @@ export async function POST(request: NextRequest) {
     if (typeof body?.oracle_id === "string") {
       restoreOracleId = body.oracle_id;
     }
+    if (isPackType(body?.pack_type)) {
+      packType = body.pack_type;
+    }
   } catch {
     // body optional
   }
@@ -44,6 +66,10 @@ export async function POST(request: NextRequest) {
   const qp = url.searchParams.get("purpose");
   if (isPurpose(qp)) {
     purpose = qp;
+  }
+  const qpPackType = url.searchParams.get("pack_type");
+  if (isPackType(qpPackType)) {
+    packType = qpPackType;
   }
 
   const supabase = await createClient();
@@ -64,15 +90,18 @@ export async function POST(request: NextRequest) {
 
   const stripe = getStripe();
 
-  // Recurring subscription branch. Feature-flagged on the price env
-  // so the code can ship before Wilson has created the Product/Price
-  // in Stripe. When the env is absent the upgrade page still shows
-  // the mailto fallback.
-  if (purpose === "pro_monthly") {
-    const priceId = process.env.STRIPE_PRICE_ID_PRO_MONTHLY;
+  // Recurring subscription branch (Pro + Basic). Feature-flagged on
+  // the price envs so the code can ship before Wilson has created the
+  // Products/Prices in Stripe. When an env is absent the upgrade page
+  // still shows the mailto fallback for that tier.
+  if (purpose === "pro_monthly" || purpose === "basic_monthly") {
+    const priceId =
+      purpose === "basic_monthly"
+        ? process.env.STRIPE_PRICE_ID_BASIC_MONTHLY
+        : process.env.STRIPE_PRICE_ID_PRO_MONTHLY;
     if (!priceId) {
       return NextResponse.json(
-        { error: "pro_checkout_not_configured" },
+        { error: "subscription_checkout_not_configured" },
         { status: 503 },
       );
     }
@@ -122,11 +151,11 @@ export async function POST(request: NextRequest) {
       // App Store 3.1.2 + auto-renew disclosure: this text is repeated
       // on the /terms page and the upgrade CTA copy.
       subscription_data: {
-        metadata: { user_id: user.id, product: "pro_monthly" },
+        metadata: { user_id: user.id, product: purpose },
       },
       metadata: {
         user_id: user.id,
-        purpose: "pro_monthly",
+        purpose,
       },
       allow_promotion_codes: true,
       success_url: `${origin}/dashboard?upgraded=1`,
@@ -138,9 +167,75 @@ export async function POST(request: NextRequest) {
     await admin.from("payments").insert({
       user_id: user.id,
       stripe_session_id: session.id,
-      amount_cents: PRICING.monthlyCents,
+      amount_cents:
+        purpose === "basic_monthly"
+          ? PRICING.basicMonthlyCents
+          : PRICING.monthlyCents,
       currency: "usd",
-      purpose: "pro_monthly",
+      purpose,
+      status: "pending",
+    });
+
+    return NextResponse.json({ url: session.url });
+  }
+
+  // One-time add-on pack branch. Unlike the legacy one-shot SKUs
+  // below (inline price_data at a flat $5), packs use REAL Stripe
+  // Price objects so the dashboard shows clean per-pack revenue.
+  // pack_type ("message" | "image") was chosen by the buyer in the
+  // UI before checkout and rides into metadata; the webhook reads it
+  // to credit message_credits or image_credits by the pack's size.
+  if (
+    purpose === "pack_small" ||
+    purpose === "pack_medium" ||
+    purpose === "pack_large"
+  ) {
+    const packKind = purpose.replace("pack_", "") as
+      | "small"
+      | "medium"
+      | "large";
+    const priceId =
+      packKind === "small"
+        ? process.env.STRIPE_PRICE_ID_PACK_SMALL
+        : packKind === "medium"
+          ? process.env.STRIPE_PRICE_ID_PACK_MEDIUM
+          : process.env.STRIPE_PRICE_ID_PACK_LARGE;
+    if (!priceId) {
+      return NextResponse.json(
+        { error: "pack_checkout_not_configured" },
+        { status: 503 },
+      );
+    }
+
+    const amountCents =
+      packKind === "small"
+        ? PRICING.packSmallCents
+        : packKind === "medium"
+          ? PRICING.packMediumCents
+          : PRICING.packLargeCents;
+
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      payment_method_types: ["card"],
+      customer_email: user.email ?? undefined,
+      line_items: [{ price: priceId, quantity: 1 }],
+      metadata: {
+        user_id: user.id,
+        purpose,
+        pack_kind: packKind,
+        pack_type: packType,
+      },
+      success_url: `${origin}/dashboard?pack=1`,
+      cancel_url: `${origin}/upgrade?cancelled=1#packs`,
+    });
+
+    const admin = createAdminClient();
+    await admin.from("payments").insert({
+      user_id: user.id,
+      stripe_session_id: session.id,
+      amount_cents: amountCents,
+      currency: "usd",
+      purpose,
       status: "pending",
     });
 

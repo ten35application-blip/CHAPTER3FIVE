@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getStripe } from "@/lib/stripe";
+import { PRICING } from "@/lib/pricing";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   recordAudit,
@@ -14,8 +15,10 @@ export const runtime = "nodejs";
  *
  * Handles:
  *   checkout.session.completed        → mark payment paid + grant credit
- *                                        OR (subscription mode) bind
- *                                        customer/subscription + Pro window
+ *                                        (incl. add-on packs → message/
+ *                                        image_credits) OR (subscription
+ *                                        mode) bind customer/subscription
+ *                                        + paid window + subscription_tier
  *   charge.refunded                   → mark refunded + revert credit
  *   invoice.paid                      → renewal — extend pro_until forward
  *   invoice.payment_failed            → note it, don't revoke (Stripe smart
@@ -112,7 +115,11 @@ async function handleCheckoutCompleted(
       purpose !== "beneficiary_slot" &&
       purpose !== "restore_account" &&
       purpose !== "restore_oracle" &&
-      purpose !== "pro_monthly")
+      purpose !== "pro_monthly" &&
+      purpose !== "basic_monthly" &&
+      purpose !== "pack_small" &&
+      purpose !== "pack_medium" &&
+      purpose !== "pack_large")
   ) {
     await recordEvent(event, admin, userId);
     return;
@@ -121,9 +128,17 @@ async function handleCheckoutCompleted(
   // Subscription bootstrap: bind the customer + subscription to the
   // profile so future portal sessions + invoice.paid renewals can
   // reverse-lookup. pro_until is set here from current_period_end;
-  // invoice.paid extends it on each renewal.
-  if (purpose === "pro_monthly") {
-    await handleProMonthlyCheckout(event, session, admin, userId);
+  // invoice.paid extends it on each renewal. subscription_tier is
+  // written from the purchased tier so getPlanTier can split Basic
+  // from Pro.
+  if (purpose === "pro_monthly" || purpose === "basic_monthly") {
+    await handleSubscriptionCheckout(
+      event,
+      session,
+      admin,
+      userId,
+      purpose === "basic_monthly" ? "basic" : "pro",
+    );
     return;
   }
 
@@ -206,6 +221,71 @@ async function handleCheckoutCompleted(
     return;
   }
 
+  // Add-on packs: one-time top-ups that credit message_credits or
+  // image_credits by the pack's size. The type (messages vs images)
+  // was the buyer's pick at checkout and rides in metadata.
+  //
+  // Idempotency is two layers deep: the stripe_events dedupe at the
+  // top of POST, plus the pending→paid payments claim above — if the
+  // claim returned 0 rows we already short-circuited, so a duplicate
+  // delivery of this event id can never double-credit.
+  if (
+    purpose === "pack_small" ||
+    purpose === "pack_medium" ||
+    purpose === "pack_large"
+  ) {
+    const packKind = session.metadata?.pack_kind;
+    const packType =
+      session.metadata?.pack_type === "image" ? "image" : "message";
+    const grant =
+      packKind === "small"
+        ? packType === "image"
+          ? PRICING.packSmallImages
+          : PRICING.packSmallMessages
+        : packKind === "medium"
+          ? packType === "image"
+            ? PRICING.packMediumImages
+            : PRICING.packMediumMessages
+          : packKind === "large"
+            ? packType === "image"
+              ? PRICING.packLargeImages
+              : PRICING.packLargeMessages
+            : 0;
+
+    if (grant > 0) {
+      const { error: grantErr } = await admin.rpc(
+        "increment_profile_counter",
+        {
+          target_user_id: userId,
+          counter_name:
+            packType === "image" ? "image_credits" : "message_credits",
+          delta: grant,
+        },
+      );
+      if (grantErr) {
+        // Loud: the user PAID and the grant failed. Stripe will
+        // retry the event, but the payments row is already claimed
+        // paid, so the retry short-circuits — this log is the
+        // signal for a manual re-grant.
+        console.error(
+          "[stripe/webhook] pack credit grant failed:",
+          purpose,
+          packType,
+          grantErr,
+        );
+      }
+    } else {
+      console.error(
+        "[stripe/webhook] pack purchase with unrecognized pack_kind:",
+        session.metadata?.pack_kind,
+        session.id,
+      );
+    }
+
+    await recordEvent(event, admin, userId);
+    return;
+  }
+
   // Credit-grant purposes.
   const column =
     purpose === "oracle"
@@ -223,11 +303,12 @@ async function handleCheckoutCompleted(
   await recordEvent(event, admin, userId);
 }
 
-async function handleProMonthlyCheckout(
+async function handleSubscriptionCheckout(
   event: Stripe.Event,
   session: Stripe.Checkout.Session,
   admin: AdminClient,
   userId: string,
+  tier: "basic" | "pro",
 ) {
   const customerId =
     typeof session.customer === "string" ? session.customer : null;
@@ -254,6 +335,12 @@ async function handleProMonthlyCheckout(
     .eq("stripe_session_id", session.id)
     .eq("status", "pending");
 
+  // Belt: prefer the tier derived from the subscription's actual
+  // Price ID when it matches a configured env — the metadata purpose
+  // is the fallback. Guards against a stale client POSTing one
+  // purpose while checkout was created against the other Price.
+  const priceTier = tierFromPriceId(sub);
+
   await admin
     .from("profiles")
     .update({
@@ -264,10 +351,25 @@ async function handleProMonthlyCheckout(
       subscription_status: sub.status,
       plan_source: "stripe",
       pro_until: periodEnd,
+      subscription_tier: priceTier ?? tier,
     })
     .eq("id", userId);
 
   await recordEvent(event, admin, userId);
+}
+
+/**
+ * Map a subscription's Price ID to our tier by matching the
+ * configured price envs. Returns null when the price matches
+ * neither (unconfigured env, test subscription, unknown SKU) so
+ * callers can fall back rather than clobbering a known tier.
+ */
+function tierFromPriceId(sub: Stripe.Subscription): "basic" | "pro" | null {
+  const priceId = sub.items?.data?.[0]?.price?.id ?? null;
+  if (!priceId) return null;
+  if (priceId === process.env.STRIPE_PRICE_ID_BASIC_MONTHLY) return "basic";
+  if (priceId === process.env.STRIPE_PRICE_ID_PRO_MONTHLY) return "pro";
+  return null;
 }
 
 async function handleInvoicePaid(event: Stripe.Event, admin: AdminClient) {
@@ -390,12 +492,18 @@ async function handleSubscriptionUpdated(
     return;
   }
 
+  // Tier sync: a plan change through the billing portal (Basic ⇄ Pro)
+  // arrives as subscription.updated with the new Price. Only write
+  // when the Price maps to a configured env — an unknown Price never
+  // clobbers a known tier.
+  const updatedTier = tierFromPriceId(sub);
   await admin
     .from("profiles")
     .update({
       current_period_end: subPeriodEndIso(sub),
       cancel_at_period_end: sub.cancel_at_period_end,
       subscription_status: sub.status,
+      ...(updatedTier ? { subscription_tier: updatedTier } : {}),
     })
     .eq("id", profile.id);
 
@@ -423,6 +531,13 @@ async function handleSubscriptionDeleted(
   // Settings stops rendering "Renews on X" (or "Cancels on X") for
   // a dead sub. pro_until still drives the isPro check; the mirror
   // columns are display-only.
+  //
+  // subscription_tier is cleared here too. Stripe fires
+  // customer.subscription.deleted AT the period end for a
+  // cancel_at_period_end sub, so this IS the end-of-period clear —
+  // and since getPlanTier gates on pro_until > now() first, the
+  // residual paid window (usually minutes) resolves as Pro-tier
+  // rather than mis-labeling a still-paid Basic user as Free.
   await admin
     .from("profiles")
     .update({
@@ -430,6 +545,7 @@ async function handleSubscriptionDeleted(
       subscription_status: sub.status,
       cancel_at_period_end: null,
       current_period_end: null,
+      subscription_tier: null,
     })
     .eq("id", profile.id);
 
@@ -513,7 +629,7 @@ async function handleChargeRefunded(event: Stripe.Event, admin: AdminClient) {
   // checkout.session.completed (e.g. test data), there's nothing to revert.
   const { data: payment } = await admin
     .from("payments")
-    .select("id, user_id, purpose, status, refunded_at")
+    .select("id, user_id, purpose, status, refunded_at, stripe_session_id")
     .eq("stripe_payment_intent_id", paymentIntentId)
     .maybeSingle();
 
@@ -558,6 +674,52 @@ async function handleChargeRefunded(event: Stripe.Event, admin: AdminClient) {
       counter_name: column,
       delta: -1,
     });
+  }
+
+  // Pack refunds revert the granted credits. The pack's type
+  // (message vs image) only lives in the checkout session metadata,
+  // so retrieve it from Stripe; greatest(0, ...) in the counter fn
+  // means already-spent credits simply floor at zero rather than
+  // driving the balance negative. Best-effort — a failed lookup
+  // logs loudly and leaves the (refunded) credits for manual claw-back.
+  if (
+    (payment.purpose === "pack_small" ||
+      payment.purpose === "pack_medium" ||
+      payment.purpose === "pack_large") &&
+    payment.stripe_session_id
+  ) {
+    try {
+      const stripe = getStripe();
+      const session = await stripe.checkout.sessions.retrieve(
+        payment.stripe_session_id,
+      );
+      const packType =
+        session.metadata?.pack_type === "image" ? "image" : "message";
+      const grant =
+        payment.purpose === "pack_small"
+          ? packType === "image"
+            ? PRICING.packSmallImages
+            : PRICING.packSmallMessages
+          : payment.purpose === "pack_medium"
+            ? packType === "image"
+              ? PRICING.packMediumImages
+              : PRICING.packMediumMessages
+            : packType === "image"
+              ? PRICING.packLargeImages
+              : PRICING.packLargeMessages;
+      await admin.rpc("increment_profile_counter", {
+        target_user_id: payment.user_id,
+        counter_name:
+          packType === "image" ? "image_credits" : "message_credits",
+        delta: -grant,
+      });
+    } catch (err) {
+      console.error(
+        "[stripe/webhook] pack refund credit revert failed:",
+        payment.id,
+        err,
+      );
+    }
   }
 
   await recordEvent(event, admin, payment.user_id);
