@@ -44,6 +44,13 @@ export const maxDuration = 60;
 const MAX_USER_MESSAGE_CHARS = 4000;
 const DAILY_MESSAGE_CAP = 200;
 const HISTORY_LIMIT = 40;
+// Per-user-message retry cap. Fable's audit surfaced that one
+// legitimately-stamped user row could be re-rolled indefinitely
+// (bounded only by the 200/day rate limit). Any real user hitting >5
+// is either the persona genuinely failing repeatedly (fix the app,
+// not the counter) or abuse. Enforced against messages.retry_count
+// (server-controlled after 0109) via admin-client increment below.
+const MAX_RETRIES_PER_MESSAGE = 5;
 
 /**
  * SSE chat stream for /chat/[id].
@@ -190,28 +197,33 @@ export async function POST(
     );
   }
 
-  // Retry-legitimacy check. `isRetry: true` means "regenerate the reply
-  // for the last user row." If that row was actually inserted by THIS
-  // route on a prior call, it has `read_by_oracle_at` stamped (line ~438
-  // below, admin-client only — `enforce_message_soft_delete_only` locks
-  // user-role UPDATEs to `deleted_at`, so this stamp is unforgeable).
+  // Retry-legitimacy + retry-count enforcement. `isRetry: true` means
+  // "regenerate the reply for the last user row." Two checks:
   //
-  // Without this check, an attacker could POST directly to
-  // /rest/v1/messages (RLS lets a user insert their own user-role row)
-  // to plant a message row, then call this endpoint with retry:true to
-  // get an LLM reply that skips the cap + credit consumption below.
-  // 0108 extended the messages INSERT policy to include the concierge
-  // Adrian, so that vector is now available to every authenticated user.
+  //   1) Was that row actually inserted by THIS route on a prior call?
+  //      If so it has `read_by_oracle_at` stamped by the admin-client
+  //      block below (~line 490). Migration 0109 locks that column
+  //      (revoked from user grants + trigger enforcement), so the stamp
+  //      is unforgeable. A direct-inserted row has read_by_oracle_at
+  //      null → demote to fresh send: apply cap, consume a pack credit
+  //      if over-cap, continue. The row already exists and is still
+  //      theirs; we just refuse the retry discount.
   //
-  // If we cannot prove the retry corresponds to a route-inserted send,
-  // demote it to a fresh send: apply the cap, consume a pack credit if
-  // over-cap, and continue. Nothing to reject — the row already exists
-  // and it's still theirs. We just refuse to give it the retry discount.
+  //   2) Has this row already been re-rolled MAX_RETRIES_PER_MESSAGE
+  //      times? The server-controlled `retry_count` column is
+  //      incremented via admin client on every stamped retry (below);
+  //      users cannot forge it after 0109. Reject with 429 past the
+  //      cap.
+  //
+  // The retry-legitimacy check uses the user client (RLS scopes to
+  // auth.uid() = user_id) so we never leak another user's rows.
   let effectiveRetry = isRetry;
+  let retryTargetMessageId: string | null = null;
+  let retryPriorCount = 0;
   if (isRetry) {
     const { data: lastUserRow } = await supabase
       .from("messages")
-      .select("read_by_oracle_at")
+      .select("id, read_by_oracle_at, retry_count")
       .eq("oracle_id", oracleId)
       .eq("user_id", user.id)
       .eq("role", "user")
@@ -221,6 +233,18 @@ export async function POST(
       .maybeSingle();
     if (!lastUserRow?.read_by_oracle_at) {
       effectiveRetry = false;
+    } else {
+      retryTargetMessageId = lastUserRow.id;
+      retryPriorCount = lastUserRow.retry_count ?? 0;
+      if (retryPriorCount >= MAX_RETRIES_PER_MESSAGE) {
+        return NextResponse.json(
+          {
+            error: "retry_limit_exceeded",
+            limit: MAX_RETRIES_PER_MESSAGE,
+          },
+          { status: 429 },
+        );
+      }
     }
   }
 
@@ -289,6 +313,37 @@ export async function POST(
   });
   if (typeof usageCount === "number" && usageCount > DAILY_MESSAGE_CAP) {
     return NextResponse.json({ error: "rate_limited" }, { status: 429 });
+  }
+
+  // Retry-count enforcement — atomic bump via 0109's SECURITY DEFINER
+  // RPC. The user-client pre-check above rejects the obvious cap-hit
+  // path early; this is the race-safe authoritative gate for the
+  // concurrent-retry case (two tabs, one message). Returns the NEW
+  // count on success or null if the cap was already reached.
+  if (effectiveRetry && retryTargetMessageId) {
+    const { data: bumpedTo, error: bumpErr } = await admin.rpc(
+      "bump_message_retry_count",
+      {
+        target_message_id: retryTargetMessageId,
+        max_allowed: MAX_RETRIES_PER_MESSAGE,
+      },
+    );
+    if (bumpErr) {
+      console.error("[chat stream] retry bump failed:", bumpErr);
+      return NextResponse.json(
+        { error: "Could not process retry" },
+        { status: 500 },
+      );
+    }
+    if (bumpedTo === null) {
+      return NextResponse.json(
+        {
+          error: "retry_limit_exceeded",
+          limit: MAX_RETRIES_PER_MESSAGE,
+        },
+        { status: 429 },
+      );
+    }
   }
 
   // Recent history (this user's thread with this persona), oldest first.
