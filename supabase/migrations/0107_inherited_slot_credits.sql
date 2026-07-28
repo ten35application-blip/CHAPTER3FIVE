@@ -7,9 +7,11 @@
 --
 -- Historical note: this migration originally shipped alongside a
 -- memorial waiver (free redemption when the code minter's deceased_at
--- was set). Migration e2b8242 removed the waiver -- Wilson's call, the
--- privacy angle around "verifying someone died" was worse than the
--- pricing benefit. Redemption is now flat $5 for everyone, every code.
+-- was set). A later code-only change removed the waiver -- Wilson's
+-- call, the privacy angle around "verifying someone died" was worse
+-- than the pricing benefit. Redemption is now flat $5 for everyone,
+-- every code. (No migration needed for that removal; it was purely
+-- application logic + copy sweep.)
 --
 -- profiles.inherited_slot_credits — INTEGER, not null, default 0. A
 -- running balance of purchased-but-unused inherit-slot credits,
@@ -23,9 +25,8 @@
 --
 -- This REPLACES the old recurring model (includedInheritedIdentities
 -- PerPlan + extra_inherited_slots at $5/month). The admin grant tool
--- was later repurposed (9e53088) to grant inherited_slot_credits
--- through the same RPC as pack credits; extra_inherited_slots is now
--- fully inert.
+-- was later repurposed to grant inherited_slot_credits through the
+-- same RPC as pack credits; extra_inherited_slots is now fully inert.
 --
 -- The new column joins the protect_billing_columns denylist (users
 -- must never write it; the webhook + redeem action go through the
