@@ -31,17 +31,15 @@
  * concierge. Personal identity slots are on TOP of Adrian.
  *
  * EVERY tier is message-capped. Overage is handled by one-time
- * add-on packs instead of an unlimited tier:
+ * add-on packs instead of an unlimited tier. Each pack credits BOTH
+ * message_credits AND image_credits in a single purchase (Wilson's
+ * 2026-07-28 spec — "you get both that many messages and photos, not
+ * either/or"). The retired pack_type=message|image metadata is
+ * ignored by the webhook; both counters always grant.
  *
  *   Small  — $5   → +100 messages AND +12 images
  *   Medium — $10  → +250 messages AND +30 images
  *   Large  — $20  → +600 messages AND +75 images
- *
- * A pack is one-time (not recurring) and credits BOTH counters
- * (message_credits + image_credits) in one purchase. Wilson's product
- * spec 2026-07-28: users get "both that many messages and photos" per
- * pack — not one type or the other. The old pack_type=message|image
- * metadata is retired; the webhook grants both counters regardless.
  *
  * When a price changes, change it HERE and let every copy site pull
  * from this object. Legal prose in /terms is intentionally static

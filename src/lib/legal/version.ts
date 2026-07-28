@@ -56,8 +56,19 @@
  *                 deceased); recording a legacy archive + minting a
  *                 code opened to EVERY plan, Free included, and
  *                 dropped from the Basic/Pro plan feature lists.
+ *   2026-07-28b — legal-doc audit before store submission. Terms §4 +
+ *                 §8: the $5 one-time other-mode legacy-creation
+ *                 charge (otherIdentityCreateCents, charged at Finish;
+ *                 self-mode stays free) is now disclosed; the "Restore
+ *                 a deleted account — $5" SKU is removed (its checkout
+ *                 purpose was purged 2026-07-28 and no purchase path
+ *                 exists — account restore during the 30-day grace
+ *                 window is via support); Terms §4 + Privacy §7 now
+ *                 state the 0111 durability model: a redeemed inherit
+ *                 code yields an INDEPENDENT copy that survives the
+ *                 creator deleting their account/archive/codes.
  */
-export const CURRENT_TERMS_VERSION = "2026-07-28a";
+export const CURRENT_TERMS_VERSION = "2026-07-28b";
 
 /**
  * True only if the profile has accepted exactly the current version.

@@ -16,6 +16,7 @@ import {
   FREE_MESSAGES_PER_MONTH,
   INHERITED_SLOT_PRICE_LABEL,
   MONTHLY_PRICE_LABEL,
+  OTHER_IDENTITY_CREATE_PRICE_LABEL,
   PRICING,
   PRO_IMAGES_PER_MONTH,
   PRO_MESSAGES_PER_MONTH,
@@ -215,7 +216,16 @@ export default function TermsPage() {
           <strong>Recording and minting.</strong> Any account holder — on
           any plan, including the Free tier — may record a legacy archive
           and mint an inherit code. No subscription is required to create
-          the archive or to mint and share its code.
+          the archive or to mint and share its code. Recording an archive{" "}
+          <strong>about yourself</strong> is free. Completing an archive
+          you record <strong>for someone you love</strong> (with their
+          participation — see the Community Guidelines) requires a{" "}
+          <strong>
+            {OTHER_IDENTITY_CREATE_PRICE_LABEL} one-time charge
+          </strong>
+          , collected when you finish the archive and before the
+          companion is synthesized (see Section 8). Minting and sharing
+          the inherit code is free in both cases.
         </p>
         <p>
           <strong>Sharing and redemption.</strong> A legacy identity may be
@@ -232,6 +242,16 @@ export default function TermsPage() {
           charge. There are no exceptions to this fee, and we do not
           verify, and are not obligated to verify, whether the creator of
           any archive is living or deceased.
+        </p>
+        <p>
+          <strong>Your inherited copy is yours.</strong> When you redeem
+          an inherit code, you receive your own independent copy of the
+          identity in your account. The creator later deleting their
+          account, their archive, or their codes does <strong>not</strong>{" "}
+          remove copies that were already redeemed — an inherited
+          companion cannot be taken away from you by anything the creator
+          does after you redeem it. (Codes that were never redeemed are
+          deleted along with the creator&rsquo;s account.)
         </p>
       </LegalSection>
 
@@ -443,6 +463,16 @@ export default function TermsPage() {
               </li>
               <li>
                 <strong>
+                  Legacy identity for someone you love —{" "}
+                  {OTHER_IDENTITY_CREATE_PRICE_LABEL} one-time.
+                </strong>{" "}
+                Charged when you finish a legacy archive recorded for
+                someone other than yourself, before the companion is
+                synthesized (see Section 4). Recording an archive about
+                yourself is free on every plan.
+              </li>
+              <li>
+                <strong>
                   Restore a deleted identity — {RESTORE_IDENTITY_PRICE_LABEL}{" "}
                   one-time.
                 </strong>{" "}
@@ -451,22 +481,17 @@ export default function TermsPage() {
                 are <strong>always free to restore</strong> — grief is not
                 a moment we charge you at.
               </li>
-              <li>
-                <strong>
-                  Restore a deleted account — {RESTORE_IDENTITY_PRICE_LABEL}{" "}
-                  one-time.
-                </strong>{" "}
-                Same 30-day grace window.
-              </li>
             </ul>
           </li>
           <li>
             No subscription tier is required to record a legacy archive,
             mint an inherit code, or redeem one: recording and minting
-            are available on every plan (including Free), and every
-            redemption requires the {INHERITED_SLOT_PRICE_LABEL}{" "}
-            one-time inherit-slot purchase described above (see
-            Section 4).
+            are available on every plan (including Free). Recording
+            about yourself is free; finishing an archive for someone
+            you love is the {OTHER_IDENTITY_CREATE_PRICE_LABEL}{" "}
+            one-time charge, and every redemption requires the{" "}
+            {INHERITED_SLOT_PRICE_LABEL} one-time inherit-slot purchase
+            described above (see Section 4).
           </li>
           <li>
             <strong>chapter3five does not currently offer a free trial

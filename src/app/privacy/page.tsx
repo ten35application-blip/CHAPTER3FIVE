@@ -322,12 +322,16 @@ export default function PrivacyPage() {
             billing records).
           </li>
           <li>
-            <strong>Legacy identities are different, on purpose.</strong> An
-            identity someone recorded for inheritance is kept until{" "}
-            <strong>every designated inheritor has deleted it, or 100 years
+            <strong>Legacy identities are different, on purpose.</strong>{" "}
+            When an inheritor redeems an inherit code, they receive their
+            own <strong>independent copy</strong> of the identity in their
+            account. Each redeemed copy is kept until{" "}
+            <strong>the inheritor who holds it deletes it, or 100 years
             have passed</strong> — whichever comes first. A legacy identity
-            is a gift meant to outlive its creator, so it does not die with
-            the creator&rsquo;s account.
+            is a gift meant to outlive its creator: the creator deleting
+            their account removes the creator&rsquo;s own archive and any
+            codes that were never redeemed, but it does <strong>not</strong>{" "}
+            remove copies inheritors have already redeemed.
           </li>
         </ul>
       </LegalSection>
