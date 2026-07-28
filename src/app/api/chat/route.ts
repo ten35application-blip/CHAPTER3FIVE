@@ -249,12 +249,16 @@ export async function POST(request: NextRequest) {
     (typeof payload.oracle_id === "string" ? payload.oracle_id : null) ??
     profile.active_oracle_id;
   if (history.length === 0 && conversationOracleId) {
+    // Soft-deleted rows (conversation-delete via hub) are excluded so
+    // the model never gets recycled deleted context. Matches the
+    // stream route (src/app/api/chat/[id]/stream/route.ts).
     const { data: recent } = await supabase
       .from("messages")
       .select("role, content, created_at")
       .eq("user_id", user.id)
       .eq("oracle_id", conversationOracleId)
       .in("role", ["user", "assistant"])
+      .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(12);
     if (Array.isArray(recent) && recent.length > 0) {
@@ -265,6 +269,14 @@ export async function POST(request: NextRequest) {
           role: r.role as "user" | "assistant",
           content: String(r.content ?? ""),
         }));
+      // The Anthropic API requires messages[0].role === "user"
+      // (assistant-first is a 400). A 12-row window can open on an
+      // assistant turn (proactive push, welcome insert, burst
+      // straddle). Drop leading assistant rows so the request
+      // doesn't silently 400 and lose a whispered lock-screen reply.
+      while (history.length > 0 && history[0].role !== "user") {
+        history.shift();
+      }
     }
   }
 
