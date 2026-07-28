@@ -5,15 +5,12 @@ import { useState } from "react";
 /**
  * "Extra usage" surface for Settings. Shows the three one-time
  * add-on packs so users can proactively top up before or after
- * hitting a cap — Wilson's ask 2026-07-28: "or you can go into the
- * settings at any time... it'll have the amounts you can click and
- * then press take me to pay."
+ * hitting a cap.
  *
- * Each pack has TWO buttons (messages vs photos) because pack_type
- * is chosen at checkout, not baked into the price. The checkout
- * endpoint already understands purpose='pack_small|medium|large' +
- * pack_type='message|image' metadata; the webhook credits the right
- * counter (message_credits or image_credits) on success.
+ * Each pack credits BOTH message_credits and image_credits on the
+ * user's profile — Wilson's product spec 2026-07-28: "you get both
+ * that many messages and photos, it's not separate." One button per
+ * pack, one payment, both counters bumped by the pack's amounts.
  *
  * Compact-list style, not marketing cards — matches the "Settings
  * reads like Settings" bar we set for the inherit codes surface.
@@ -58,7 +55,8 @@ export function PacksList() {
     <div className="flex flex-col divide-y divide-warm-700/60">
       <p className="px-4 pb-3 pt-4 text-xs leading-relaxed text-warm-400">
         Top up whenever you want &mdash; each pack is a one-time
-        purchase and adds to whatever's left of your monthly quota.
+        purchase that adds messages AND photos to whatever&rsquo;s
+        left of your monthly quota.
       </p>
       {PACKS.map((pack) => (
         <PackRow key={pack.purpose} pack={pack} />
@@ -68,20 +66,17 @@ export function PacksList() {
 }
 
 function PackRow({ pack }: { pack: Pack }) {
-  const [pending, setPending] = useState<null | "message" | "image">(null);
+  const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function buy(packType: "message" | "image") {
+  async function buy() {
     setError(null);
-    setPending(packType);
+    setPending(true);
     try {
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          purpose: pack.purpose,
-          pack_type: packType,
-        }),
+        body: JSON.stringify({ purpose: pack.purpose }),
       });
       if (!res.ok) {
         // Env not wired yet -> 503 from the endpoint. Surface plainly
@@ -91,7 +86,7 @@ function PackRow({ pack }: { pack: Pack }) {
         } else {
           setError("Couldn't start checkout. Try again in a moment.");
         }
-        setPending(null);
+        setPending(false);
         return;
       }
       const body = (await res.json()) as { url?: string };
@@ -102,48 +97,40 @@ function PackRow({ pack }: { pack: Pack }) {
         return;
       }
       setError("Checkout link missing. Try again.");
-      setPending(null);
+      setPending(false);
     } catch (err) {
       console.error("[packs] checkout POST failed:", err);
       setError("Network hiccup. Try again.");
-      setPending(null);
+      setPending(false);
     }
   }
 
   return (
-    <div className="px-4 py-3.5">
-      <div className="flex items-baseline justify-between gap-3">
-        <p className="text-[15px] font-medium text-warm-50">{pack.name}</p>
-        <p className="text-sm font-semibold text-warm-100">
-          ${(pack.priceCents / 100).toFixed(0)}
+    <div className="flex items-center justify-between gap-3 px-4 py-3.5">
+      <div className="min-w-0 flex-1">
+        <p className="text-[15px] font-medium text-warm-50">
+          {pack.name}{" "}
+          <span className="ml-1 text-sm font-semibold text-warm-200">
+            ${(pack.priceCents / 100).toFixed(0)}
+          </span>
         </p>
-      </div>
-      <p className="mt-1 text-xs text-warm-400">
-        {pack.messages} messages &nbsp;or&nbsp; {pack.images} photos
-      </p>
-      <div className="mt-2.5 flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => void buy("message")}
-          disabled={pending !== null}
-          className="rounded-full bg-warm-700/40 px-3.5 py-1.5 text-xs font-medium text-warm-100 ring-1 ring-warm-700/60 transition-colors hover:bg-warm-700/60 disabled:opacity-60"
-        >
-          {pending === "message" ? "Opening checkout…" : "Buy for messages"}
-        </button>
-        <button
-          type="button"
-          onClick={() => void buy("image")}
-          disabled={pending !== null}
-          className="rounded-full bg-warm-700/40 px-3.5 py-1.5 text-xs font-medium text-warm-100 ring-1 ring-warm-700/60 transition-colors hover:bg-warm-700/60 disabled:opacity-60"
-        >
-          {pending === "image" ? "Opening checkout…" : "Buy for photos"}
-        </button>
-      </div>
-      {error ? (
-        <p role="alert" className="mt-2 text-xs font-medium text-coral-strong">
-          {error}
+        <p className="mt-1 text-xs text-warm-400">
+          {pack.messages} messages &amp; {pack.images} photos
         </p>
-      ) : null}
+        {error ? (
+          <p role="alert" className="mt-1.5 text-xs font-medium text-coral-strong">
+            {error}
+          </p>
+        ) : null}
+      </div>
+      <button
+        type="button"
+        onClick={() => void buy()}
+        disabled={pending}
+        className="bg-gradient-cta shrink-0 rounded-full px-4 py-2 text-xs font-semibold text-white shadow-[0_4px_10px_-2px_rgba(232,138,118,0.35)] transition-transform hover:-translate-y-0.5 disabled:opacity-60"
+      >
+        {pending ? "Opening…" : "Take me to pay"}
+      </button>
     </div>
   );
 }

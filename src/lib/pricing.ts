@@ -33,12 +33,15 @@
  * EVERY tier is message-capped. Overage is handled by one-time
  * add-on packs instead of an unlimited tier:
  *
- *   Small  — $5   → +100 messages OR +12 images
- *   Medium — $10  → +250 messages OR +30 images
- *   Large  — $20  → +600 messages OR +75 images
+ *   Small  — $5   → +100 messages AND +12 images
+ *   Medium — $10  → +250 messages AND +30 images
+ *   Large  — $20  → +600 messages AND +75 images
  *
- * A pack is one-time (not recurring) and the buyer picks ONE type per
- * pack: messages or images, never both.
+ * A pack is one-time (not recurring) and credits BOTH counters
+ * (message_credits + image_credits) in one purchase. Wilson's product
+ * spec 2026-07-28: users get "both that many messages and photos" per
+ * pack — not one type or the other. The old pack_type=message|image
+ * metadata is retired; the webhook grants both counters regardless.
  *
  * When a price changes, change it HERE and let every copy site pull
  * from this object. Legal prose in /terms is intentionally static

@@ -400,15 +400,15 @@ export default function TermsPage() {
             <strong>Add-on packs</strong> — one-time purchases (not
             subscriptions) that add extra usage on top of your plan for
             the current calendar month&rsquo;s allowance. Each pack adds{" "}
-            <strong>either</strong> messages <strong>or</strong> photo
-            attachments — one type per pack, your choice at purchase:
+            <strong>both</strong> messages <strong>and</strong> photo
+            attachments in the amounts listed:
             <ul>
               {ADDON_PACKS.map((pack) => (
                 <li key={pack.id}>
                   <strong>
                     {pack.name} pack — {pack.priceLabel} one-time.
                   </strong>{" "}
-                  Adds {pack.messages} messages or {pack.images} photo
+                  Adds {pack.messages} messages and {pack.images} photo
                   attachments.
                 </li>
               ))}

@@ -240,44 +240,64 @@ async function handleCheckoutCompleted(
     purpose === "pack_medium" ||
     purpose === "pack_large"
   ) {
+    // Every pack credits BOTH counters -- Wilson's product spec
+    // 2026-07-28: "you get both that many messages and photos, its
+    // not separate." A $5 pack grants 100 messages AND 12 photos, a
+    // $10 pack grants 250 messages AND 30 photos, and so on. The old
+    // pack_type metadata is ignored now; it may still ride along from
+    // in-flight sessions -- doing nothing with it is fine.
     const packKind = session.metadata?.pack_kind;
-    const packType =
-      session.metadata?.pack_type === "image" ? "image" : "message";
-    const grant =
+    const grants =
       packKind === "small"
-        ? packType === "image"
-          ? PRICING.packSmallImages
-          : PRICING.packSmallMessages
+        ? {
+            messages: PRICING.packSmallMessages,
+            images: PRICING.packSmallImages,
+          }
         : packKind === "medium"
-          ? packType === "image"
-            ? PRICING.packMediumImages
-            : PRICING.packMediumMessages
+          ? {
+              messages: PRICING.packMediumMessages,
+              images: PRICING.packMediumImages,
+            }
           : packKind === "large"
-            ? packType === "image"
-              ? PRICING.packLargeImages
-              : PRICING.packLargeMessages
-            : 0;
+            ? {
+                messages: PRICING.packLargeMessages,
+                images: PRICING.packLargeImages,
+              }
+            : null;
 
-    if (grant > 0) {
-      const { error: grantErr } = await admin.rpc(
+    if (grants) {
+      const { error: msgErr } = await admin.rpc(
         "increment_profile_counter",
         {
           target_user_id: userId,
-          counter_name:
-            packType === "image" ? "image_credits" : "message_credits",
-          delta: grant,
+          counter_name: "message_credits",
+          delta: grants.messages,
         },
       );
-      if (grantErr) {
+      if (msgErr) {
         // Loud: the user PAID and the grant failed. Stripe will
         // retry the event, but the payments row is already claimed
-        // paid, so the retry short-circuits — this log is the
+        // paid, so the retry short-circuits -- this log is the
         // signal for a manual re-grant.
         console.error(
-          "[stripe/webhook] pack credit grant failed:",
+          "[stripe/webhook] pack message-credit grant failed:",
           purpose,
-          packType,
-          grantErr,
+          msgErr,
+        );
+      }
+      const { error: imgErr } = await admin.rpc(
+        "increment_profile_counter",
+        {
+          target_user_id: userId,
+          counter_name: "image_credits",
+          delta: grants.images,
+        },
+      );
+      if (imgErr) {
+        console.error(
+          "[stripe/webhook] pack image-credit grant failed:",
+          purpose,
+          imgErr,
         );
       }
     } else {
@@ -781,29 +801,34 @@ async function handleChargeRefunded(event: Stripe.Event, admin: AdminClient) {
     payment.stripe_session_id
   ) {
     try {
-      const stripe = getStripe();
-      const session = await stripe.checkout.sessions.retrieve(
-        payment.stripe_session_id,
-      );
-      const packType =
-        session.metadata?.pack_type === "image" ? "image" : "message";
-      const grant =
+      // Refund revert mirrors the grant path (2026-07-28 pack rework):
+      // grants BOTH counters, so a refund reverts BOTH counters too.
+      // Session retrieve stays only for future-proofing (metadata may
+      // grow to carry per-pack overrides); not needed for the math.
+      const grants =
         payment.purpose === "pack_small"
-          ? packType === "image"
-            ? PRICING.packSmallImages
-            : PRICING.packSmallMessages
+          ? {
+              messages: PRICING.packSmallMessages,
+              images: PRICING.packSmallImages,
+            }
           : payment.purpose === "pack_medium"
-            ? packType === "image"
-              ? PRICING.packMediumImages
-              : PRICING.packMediumMessages
-            : packType === "image"
-              ? PRICING.packLargeImages
-              : PRICING.packLargeMessages;
+            ? {
+                messages: PRICING.packMediumMessages,
+                images: PRICING.packMediumImages,
+              }
+            : {
+                messages: PRICING.packLargeMessages,
+                images: PRICING.packLargeImages,
+              };
       await admin.rpc("increment_profile_counter", {
         target_user_id: payment.user_id,
-        counter_name:
-          packType === "image" ? "image_credits" : "message_credits",
-        delta: -grant,
+        counter_name: "message_credits",
+        delta: -grants.messages,
+      });
+      await admin.rpc("increment_profile_counter", {
+        target_user_id: payment.user_id,
+        counter_name: "image_credits",
+        delta: -grants.images,
       });
     } catch (err) {
       console.error(
