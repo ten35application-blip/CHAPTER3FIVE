@@ -62,13 +62,13 @@ export function NameField({ fullName }: Props) {
   }
 
   return (
-    <div className="flex w-full flex-col items-center gap-3 px-4 pb-6">
-      <div className="w-full max-w-sm">
+    <div className="flex w-full flex-col gap-3 px-4 pb-5">
+      <div className="w-full">
         <label
           htmlFor="profile-name-input"
-          className="mb-1 block text-xs font-semibold uppercase tracking-widest text-warm-400"
+          className="mb-1.5 block text-[15px] font-medium text-warm-50"
         >
-          Your name
+          Name
         </label>
         <div className="relative">
           <input
@@ -87,7 +87,7 @@ export function NameField({ fullName }: Props) {
             placeholder="What should we call you?"
             autoComplete="name"
             disabled={pending}
-            className="w-full rounded-2xl bg-warm-800/40 px-4 py-3 text-base text-warm-50 ring-1 ring-warm-700/60 transition-all placeholder:text-warm-500 focus:bg-warm-800/60 focus:outline-none focus:ring-2 focus:ring-coral/50 disabled:opacity-70"
+            className="w-full rounded-xl bg-warm-700/25 px-3.5 py-2.5 text-[15px] text-warm-50 ring-1 ring-warm-700/60 transition-all placeholder:text-warm-500 focus:bg-warm-700/40 focus:outline-none focus:ring-2 focus:ring-coral/50 disabled:opacity-70"
           />
           {saving ? (
             <span
@@ -108,8 +108,8 @@ export function NameField({ fullName }: Props) {
           role={toast.kind === "error" ? "alert" : "status"}
           className={
             toast.kind === "error"
-              ? "w-full max-w-sm rounded-2xl bg-coral-strong/10 px-4 py-3 text-center text-sm font-medium text-coral-strong"
-              : "w-full max-w-sm rounded-2xl bg-teal/10 px-4 py-3 text-center text-sm font-medium text-teal-strong"
+              ? "w-full rounded-xl bg-coral-strong/10 px-4 py-2.5 text-sm font-medium text-coral-strong"
+              : "w-full rounded-xl bg-teal/10 px-4 py-2.5 text-sm font-medium text-teal-strong"
           }
         >
           {toast.text}

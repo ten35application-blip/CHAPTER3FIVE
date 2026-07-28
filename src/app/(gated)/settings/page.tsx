@@ -1,7 +1,5 @@
-import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { CollapsibleSection } from "@/components/collapsible-section";
 import { createClient } from "@/lib/supabase/server";
 import { isAdmin } from "@/lib/admin/allowlist";
 import { isPro } from "@/lib/subscription";
@@ -132,13 +130,15 @@ export default async function SettingsPage({
 
   return (
     <main className="min-h-dvh flex-1 pb-16">
-      {/* Header — small logo + back arrow, page title. Sits inline
-          rather than as floating chrome; this is a sub-page. */}
-      <header className="mx-auto flex w-full max-w-2xl items-center gap-3 px-4 pt-6">
+      {/* Header — back chevron + plain page title. Deliberately quiet
+          (no logo, no gradient) so the page reads as product chrome,
+          not a marketing surface — the Instagram/Reddit settings
+          register Wilson asked for (2026-07-27 redesign). */}
+      <header className="mx-auto flex w-full max-w-2xl items-center gap-1 px-4 pt-6">
         <Link
           href="/dashboard"
           aria-label="Back to dashboard"
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-warm-700/70 text-warm-100 backdrop-blur transition-colors hover:bg-warm-700"
+          className="-ml-2 flex h-10 w-10 items-center justify-center rounded-full text-warm-100 transition-colors hover:bg-warm-700/40"
         >
           <svg
             viewBox="0 0 24 24"
@@ -154,26 +154,19 @@ export default async function SettingsPage({
             <path d="M15 18l-6-6 6-6" />
           </svg>
         </Link>
-        <Image
-          src="/logo-transparent.png"
-          alt=""
-          width={32}
-          height={32}
-          className="h-8 w-8 drop-shadow-[0_6px_16px_rgba(232,138,118,0.22)]"
-        />
-        <h1 className="text-xl font-bold tracking-tight">
-          Your <span className="text-gradient-cta">settings</span>
+        <h1 className="text-xl font-bold tracking-tight text-warm-50">
+          Settings
         </h1>
       </header>
 
-      <div className="mx-auto flex w-full max-w-2xl flex-col gap-8 px-4 pt-8">
+      <div className="mx-auto flex w-full max-w-2xl flex-col gap-7 px-4 pt-6">
         {/* PROFILE — inline photo + name editor. Two client components
             rather than one ProfileEditor wrapper: PhotoUploader owns
             its native-form flow (round-4 rebuild after three
             revert-symptom fixes failed), NameField owns the blur-save
             name flow. Splitting them keeps the photo pipeline
             isolated from every other bit of state on this page. */}
-        <Section label="Profile" accent="You" icon={<PersonIcon />}>
+        <Section label="Profile">
           <PhotoUploader
             initialPhotoUrl={avatarSignedUrl}
             initial={initial}
@@ -182,19 +175,30 @@ export default async function SettingsPage({
           <NameField fullName={fullName} />
         </Section>
 
+        {/* ACCOUNT — email lives here per Wilson (name lives up in
+            Profile alongside the photo). Password change isn't wired
+            yet — dropping the dead row until it is. */}
+        <Section label="Account">
+          <Row icon={<MailIcon />} label="Email" value={email} />
+        </Section>
+
         {/* PLAN — count + upgrade CTA. Identity row shows the raw
             count with descriptive text ("You have N identities") rather
             than "N of 5". Wilson's read: the quota framing feels
             restrictive, and it's especially wrong when N=0 (a "5 more
             before you need premium" nudge lands as tone-deaf on an
             empty account). Subtitle only appears when there's room
-            left and at least one identity exists. */}
-        <Section label="Plan" accent="chapter3five+" icon={<SparkIcon />}>
-          <IconRow icon={<StarIcon />} label="Plan" value={planName} />
+            left and at least one identity exists.
+            LOCKED per Wilson 2026-07-26: "I love how the plans look" —
+            the PlanCards / buttons / copy below must not change. Only
+            the shared Section/Row chrome around them follows the
+            grouped-list restyle. */}
+        <Section label="Plan">
+          <Row icon={<StarIcon />} label="Plan" value={planName} />
           {pro && periodEndLabel && stripeCustomerId ? (
             <>
               <Divider />
-              <IconRow
+              <Row
                 icon={<StarIcon />}
                 label={cancelAtPeriodEnd ? "Cancels on" : "Renews on"}
                 value={periodEndLabel}
@@ -203,7 +207,7 @@ export default async function SettingsPage({
           ) : pro && !admin && trialActive && trialEndLabel && !stripeCustomerId ? (
             <>
               <Divider />
-              <IconRow
+              <Row
                 icon={<StarIcon />}
                 label="Trial ends"
                 value={trialEndLabel}
@@ -254,152 +258,98 @@ export default async function SettingsPage({
           </div>
         </Section>
 
-        {/* ACCOUNT — email lives here per Wilson (name lives up in
-            Profile alongside the photo). Password change isn't wired
-            yet — dropping the dead row until it is. */}
-        <Section label="Account" accent="secure" icon={<KeyIcon />}>
-          <IconRow icon={<MailIcon />} label="Email" value={email} />
-        </Section>
-
         {/* APPEARANCE — theme picker. Client-only state; localStorage
             persists across visits; the inline script in RootLayout
-            reapplies before first paint so there's no FOUC. Placed
-            here (between Account and the collapsible fine-print) so
-            it's discoverable without competing with the main tasks
-            up top. */}
-        <Section label="Appearance" accent="you" icon={<MoonIcon />}>
+            reapplies before first paint so there's no FOUC. */}
+        <Section label="Appearance">
           <ThemeToggle />
         </Section>
 
-        {/* HOW THIS WORKS — collapsible per Wilson (default open). */}
-        <CollapsibleSection
-          storageKey="settings.how-this-works"
-          label="How this works"
-        >
-          <div className="mt-2 overflow-hidden rounded-2xl bg-ink-soft ring-1 ring-warm-700/60">
-            <IconNavRow
-              href="/settings/tutorial"
-              icon={<CompassIcon />}
-              label="Tutorial"
-              value="How to use chapter3five"
-            />
-            <Divider />
-            <IconNavRow
-              href="/settings/help"
-              icon={<HeartIcon />}
-              label="Get help"
-              value="Contact us"
-            />
-          </div>
-        </CollapsibleSection>
+        {/* SUPPORT — was the "How this works" collapsible. Flattened
+            to a plain section in the 2026-07-27 grouped-list redesign:
+            two rows don't earn a disclosure control, and Instagram/
+            Reddit-style settings never hide rows behind one. "Contact
+            us" here absorbs the old fine-print Support group's
+            duplicate row (both pointed at /settings/help). */}
+        <Section label="Support">
+          <NavRow href="/settings/tutorial" icon={<CompassIcon />} label="Tutorial" />
+          <Divider />
+          <NavRow href="/settings/help" icon={<HeartIcon />} label="Contact us" />
+        </Section>
 
-        {/* THE FINE PRINT — full landing-footer inventory. Wilson asked
-            for every link the marketing footer carries to live here
-            too, so a signed-in user never has to leave the app to find
-            terms/privacy/about/etc. Grouped by intent: About (who we
-            are), Legal (terms and app-store review essentials),
-            Support (contact + advertise). Default-collapsed so the
-            longer list doesn't dominate the settings screen. */}
-        <CollapsibleSection
-          storageKey="settings.fine-print"
-          label="The fine print"
-          defaultOpen={false}
-        >
-          <div className="mt-2 flex flex-col gap-3">
-            <FinePrintGroup label="About">
-              <IconNavRow
-                href="/about"
-                icon={<InfoIcon />}
-                label="About"
-                value="Our story"
-              />
-            </FinePrintGroup>
-            <FinePrintGroup label="Legal">
-              <IconNavRow
-                href="/terms"
-                icon={<ShieldIcon />}
-                label="Terms of Service"
-                value="Read"
-              />
-              <Divider />
-              <IconNavRow
-                href="/eula"
-                icon={<ShieldIcon />}
-                label="End-User License Agreement"
-                value="Read"
-              />
-              <Divider />
-              <IconNavRow
-                href="/privacy"
-                icon={<LockIcon />}
-                label="Privacy Policy"
-                value="Read"
-              />
-              <Divider />
-              <IconNavRow
-                href="/guidelines"
-                icon={<HeartIcon />}
-                label="Community Guidelines"
-                value="Read"
-              />
-              <Divider />
-              <IconNavRow
-                href="/data-deletion"
-                icon={<TrashIcon />}
-                label="Data deletion"
-                value="How it works"
-              />
-            </FinePrintGroup>
-            {/* "Your data" — GDPR / CCPA / Play Data Safety portability
-                lives here. The delete-account row still sits below the
-                fine print in a red block, so this group is intentionally
-                the read/export-only path. */}
-            <FinePrintGroup label="Your data">
-              <DataExportButton />
-            </FinePrintGroup>
-            <FinePrintGroup label="Support">
-              <IconNavRow
-                href="/settings/help"
-                icon={<HeartIcon />}
-                label="Contact us"
-                value="Get help"
-              />
-              <Divider />
-              <IconNavRow
-                href="/advertise"
-                icon={<MegaphoneIcon />}
-                label="Advertise"
-                value="Reach families"
-              />
-            </FinePrintGroup>
-          </div>
-        </CollapsibleSection>
+        {/* ABOUT & LEGAL — was "The fine print" collapsible. Full
+            landing-footer inventory, kept per Wilson so a signed-in
+            user never has to leave the app to find terms/privacy/
+            about/etc. Flattened + trailing "Read" value-text dropped:
+            label + chevron is the whole story for a nav row, and the
+            uniform column of chevrons reads cleaner than repeated
+            filler values. */}
+        <Section label="About &amp; legal">
+          <NavRow href="/about" icon={<InfoIcon />} label="About chapter3five" />
+          <Divider />
+          <NavRow href="/terms" icon={<ShieldIcon />} label="Terms of Service" />
+          <Divider />
+          <NavRow href="/privacy" icon={<LockIcon />} label="Privacy Policy" />
+          <Divider />
+          <NavRow
+            href="/eula"
+            icon={<ShieldIcon />}
+            label="End-User License Agreement"
+          />
+          <Divider />
+          <NavRow
+            href="/guidelines"
+            icon={<HeartIcon />}
+            label="Community Guidelines"
+          />
+          <Divider />
+          <NavRow
+            href="/data-deletion"
+            icon={<TrashIcon />}
+            label="Data deletion"
+          />
+          <Divider />
+          <NavRow href="/advertise" icon={<MegaphoneIcon />} label="Advertise" />
+        </Section>
 
-        {/* SIGN OUT — plain, unadorned button under the fine print
-            per Wilson. Not scary, not in the danger zone; just a way
-            out. Warm-200 text, subtle underline on hover, sits on its
-            own row without card chrome. */}
-        <form action={signOut} className="flex justify-center">
-          <button
-            type="submit"
-            className="text-sm font-medium text-warm-200 underline-offset-4 transition-colors hover:text-warm-50 hover:underline"
-          >
-            Sign out
-          </button>
+        {/* YOUR DATA — GDPR / CCPA / Play Data Safety portability.
+            The delete-account row still sits below in its red block,
+            so this section is intentionally the export-only path. */}
+        <Section label="Your data">
+          <DataExportButton />
+        </Section>
+
+        {/* SIGN OUT — its own single-row card, centered label, no
+            icon and no red: it's a way out, not a warning (Wilson:
+            "not scary"). Sits above delete so the destructive row
+            keeps the very bottom. */}
+        <form action={signOut}>
+          <div className="overflow-hidden rounded-2xl bg-ink-soft ring-1 ring-warm-700/60">
+            <button
+              type="submit"
+              className="flex min-h-12 w-full items-center justify-center px-4 text-[15px] font-medium text-warm-100 transition-colors hover:bg-warm-700/30"
+            >
+              Sign out
+            </button>
+          </div>
         </form>
 
         {/* DELETE — red row without the DANGER ZONE header per Wilson
             (2026-07-25): "if people want to delete their account it's
             cool. I like how it looks in red and in the bottom." The
             row itself carries the warning copy so the consequence is
-            still clear at the tap-target. */}
+            still clear at the tap-target. Red is the only non-neutral
+            color on the page — reserved for the destructive action. */}
         <section>
           <div className="overflow-hidden rounded-2xl bg-ink-soft ring-1 ring-warm-700/60">
             <Link
               href="/settings/delete"
-              className="flex items-center rounded-2xl px-4 py-3 text-base font-medium text-red-500 hover:bg-warm-700/20"
+              className="flex min-h-12 items-center gap-3 px-4 py-2.5 text-[15px] font-medium text-red-500 transition-colors hover:bg-red-500/5"
             >
-              <span className="mr-3 flex h-8 w-8 items-center justify-center rounded-full bg-red-500/10 text-red-500">
+              <span
+                aria-hidden
+                className="flex w-6 flex-shrink-0 items-center justify-center"
+              >
                 <TrashIcon />
               </span>
               Delete my account
@@ -417,39 +367,22 @@ export default async function SettingsPage({
 }
 
 /**
- * Card-style section with a warm gradient-tinted header. `accent` is
- * the highlighted word; keep it short (1–2 words) so the header stays
- * calm. `icon` renders in a coral-tinted bubble to the left of the
- * label — mirrors the HubSheet menu-row treatment for consistency.
+ * Grouped-list section — small uppercase header above a plain card,
+ * Reddit-settings style. No icons or accent words in the header; the
+ * 2026-07-27 redesign keeps all color out of section chrome so the
+ * rows themselves carry the page.
  */
 function Section({
   label,
-  accent,
-  icon,
   children,
 }: {
   label: string;
-  accent?: string;
-  icon?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
     <section>
-      <h2 className="mb-2 flex items-center gap-2 px-4 text-xs font-semibold uppercase tracking-wider text-warm-300">
-        {icon ? (
-          <span
-            aria-hidden
-            className="bg-coral/12 text-gradient-cta flex h-6 w-6 items-center justify-center rounded-full"
-          >
-            {icon}
-          </span>
-        ) : null}
-        <span>{label}</span>
-        {accent ? (
-          <span className="text-gradient-cta font-bold normal-case tracking-normal">
-            {accent}
-          </span>
-        ) : null}
+      <h2 className="mb-2 px-4 text-xs font-semibold uppercase tracking-wider text-warm-400">
+        {label}
       </h2>
       <div className="overflow-hidden rounded-2xl bg-ink-soft ring-1 ring-warm-700/60">
         {children}
@@ -459,30 +392,10 @@ function Section({
 }
 
 /**
- * Sub-group inside the fine-print list — a tiny label followed by an
- * icon-row card. Keeps the long list scannable without adding chrome
- * that competes with the top-level sections.
+ * Static row: plain neutral icon, label, right-aligned value. 48px
+ * minimum height for tap-target parity with the nav rows.
  */
-function FinePrintGroup({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div>
-      <p className="mb-1 px-4 text-[10px] font-bold uppercase tracking-widest text-warm-500">
-        {label}
-      </p>
-      <div className="overflow-hidden rounded-2xl bg-ink-soft ring-1 ring-warm-700/60">
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function IconRow({
+function Row({
   icon,
   label,
   value,
@@ -492,17 +405,17 @@ function IconRow({
   value: string;
 }) {
   return (
-    <div className="flex items-center gap-3 px-4 py-3">
+    <div className="flex min-h-12 items-center gap-3 px-4 py-2.5">
       <span
         aria-hidden
-        className="bg-coral/12 text-gradient-cta flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full"
+        className="flex w-6 flex-shrink-0 items-center justify-center text-warm-300"
       >
         {icon}
       </span>
-      <span className="flex-1 text-base font-medium text-warm-50">
+      <span className="flex-1 text-[15px] font-medium text-warm-50">
         {label}
       </span>
-      <span className="max-w-[55%] truncate text-base text-warm-300">
+      <span className="max-w-[55%] truncate text-sm text-warm-300">
         {value}
       </span>
     </div>
@@ -540,15 +453,15 @@ function IdentityCountRow({
       ? `You have ${count} of ${quota} identities`
       : `You have ${label}`;
   return (
-    <div className="flex items-start gap-3 px-4 py-3">
+    <div className="flex min-h-12 items-center gap-3 px-4 py-2.5">
       <span
         aria-hidden
-        className="bg-coral/12 text-gradient-cta mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full"
+        className="flex w-6 flex-shrink-0 items-center justify-center text-warm-300"
       >
         <PeopleIcon />
       </span>
       <div className="flex flex-1 flex-col">
-        <span className="text-base font-medium text-warm-50">
+        <span className="text-[15px] font-medium text-warm-50">
           {mainLine}
         </span>
         {showRemaining ? (
@@ -561,41 +474,46 @@ function IdentityCountRow({
   );
 }
 
-function IconNavRow({
+/**
+ * Navigable row: icon + label + chevron. No trailing value text —
+ * dropped in the grouped-list redesign so nav rows scan as one clean
+ * column (the old "Read" / "Our story" fillers added noise without
+ * information).
+ */
+function NavRow({
   href,
   icon,
   label,
-  value,
 }: {
   href: string;
   icon: React.ReactNode;
   label: string;
-  value: string;
 }) {
   return (
     <Link
       href={href}
-      className="flex items-center gap-3 px-4 py-3 hover:bg-coral/5"
+      className="flex min-h-12 items-center gap-3 px-4 py-2.5 transition-colors hover:bg-warm-700/30"
     >
       <span
         aria-hidden
-        className="bg-coral/12 text-gradient-cta flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full"
+        className="flex w-6 flex-shrink-0 items-center justify-center text-warm-300"
       >
         {icon}
       </span>
-      <span className="flex-1 text-base font-medium text-warm-50">
+      <span className="flex-1 truncate text-[15px] font-medium text-warm-50">
         {label}
-      </span>
-      <span className="max-w-[45%] truncate text-base text-warm-300">
-        {value}
       </span>
       <Chevron />
     </Link>
   );
 }
 
+/**
+ * Hairline divider, inset to align with row text (16px padding + 24px
+ * icon column + 12px gap = 52px) — the iOS grouped-list detail.
+ */
 function Divider() {
-  return <div className="mx-4 h-px bg-warm-700/60" />;
+  return <div className="ml-[52px] h-px bg-warm-700/60" />;
 }
 
 function Chevron() {
@@ -610,7 +528,7 @@ function Chevron() {
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden
-      className="ml-2 text-warm-400"
+      className="ml-2 flex-shrink-0 text-warm-500"
     >
       <path d="M9 6l6 6-6 6" />
     </svg>
@@ -618,37 +536,19 @@ function Chevron() {
 }
 
 /* ================================================================== */
-/* Icons — small stroke-only glyphs, sized 16×16, colored by parent.  */
+/* Icons — small stroke-only glyphs, sized 18×18, colored by parent   */
+/* (rows tint them text-warm-300; the delete row inherits red).       */
 /* ================================================================== */
-
-function PersonIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width="14"
-      height="14"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-      <circle cx="12" cy="7" r="4" />
-    </svg>
-  );
-}
 
 function PeopleIcon() {
   return (
     <svg
       viewBox="0 0 24 24"
-      width="14"
-      height="14"
+      width="18"
+      height="18"
       fill="none"
       stroke="currentColor"
-      strokeWidth="2"
+      strokeWidth="1.75"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden
@@ -665,11 +565,11 @@ function StarIcon() {
   return (
     <svg
       viewBox="0 0 24 24"
-      width="14"
-      height="14"
+      width="18"
+      height="18"
       fill="none"
       stroke="currentColor"
-      strokeWidth="2"
+      strokeWidth="1.75"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden
@@ -679,54 +579,15 @@ function StarIcon() {
   );
 }
 
-function SparkIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width="14"
-      height="14"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M12 2v6M12 16v6M2 12h6M16 12h6M4.93 4.93l4.24 4.24M14.83 14.83l4.24 4.24M4.93 19.07l4.24-4.24M14.83 9.17l4.24-4.24" />
-    </svg>
-  );
-}
-
-function KeyIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width="14"
-      height="14"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <circle cx="8" cy="15" r="4" />
-      <path d="M10.85 12.15 21 2" />
-      <path d="M18 5l3 3" />
-      <path d="M15 8l3 3" />
-    </svg>
-  );
-}
-
 function MailIcon() {
   return (
     <svg
       viewBox="0 0 24 24"
-      width="14"
-      height="14"
+      width="18"
+      height="18"
       fill="none"
       stroke="currentColor"
-      strokeWidth="2"
+      strokeWidth="1.75"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden
@@ -741,11 +602,11 @@ function LockIcon() {
   return (
     <svg
       viewBox="0 0 24 24"
-      width="14"
-      height="14"
+      width="18"
+      height="18"
       fill="none"
       stroke="currentColor"
-      strokeWidth="2"
+      strokeWidth="1.75"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden
@@ -760,11 +621,11 @@ function CompassIcon() {
   return (
     <svg
       viewBox="0 0 24 24"
-      width="14"
-      height="14"
+      width="18"
+      height="18"
       fill="none"
       stroke="currentColor"
-      strokeWidth="2"
+      strokeWidth="1.75"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden
@@ -779,11 +640,11 @@ function HeartIcon() {
   return (
     <svg
       viewBox="0 0 24 24"
-      width="14"
-      height="14"
+      width="18"
+      height="18"
       fill="none"
       stroke="currentColor"
-      strokeWidth="2"
+      strokeWidth="1.75"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden
@@ -797,11 +658,11 @@ function ShieldIcon() {
   return (
     <svg
       viewBox="0 0 24 24"
-      width="14"
-      height="14"
+      width="18"
+      height="18"
       fill="none"
       stroke="currentColor"
-      strokeWidth="2"
+      strokeWidth="1.75"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden
@@ -815,11 +676,11 @@ function InfoIcon() {
   return (
     <svg
       viewBox="0 0 24 24"
-      width="14"
-      height="14"
+      width="18"
+      height="18"
       fill="none"
       stroke="currentColor"
-      strokeWidth="2"
+      strokeWidth="1.75"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden
@@ -835,11 +696,11 @@ function MegaphoneIcon() {
   return (
     <svg
       viewBox="0 0 24 24"
-      width="14"
-      height="14"
+      width="18"
+      height="18"
       fill="none"
       stroke="currentColor"
-      strokeWidth="2"
+      strokeWidth="1.75"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden
@@ -850,33 +711,15 @@ function MegaphoneIcon() {
   );
 }
 
-function MoonIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width="14"
-      height="14"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-    </svg>
-  );
-}
-
 function TrashIcon() {
   return (
     <svg
       viewBox="0 0 24 24"
-      width="14"
-      height="14"
+      width="18"
+      height="18"
       fill="none"
       stroke="currentColor"
-      strokeWidth="2"
+      strokeWidth="1.75"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden

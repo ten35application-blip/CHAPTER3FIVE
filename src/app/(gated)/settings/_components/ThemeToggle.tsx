@@ -82,49 +82,45 @@ export function ThemeToggle() {
   const active = choice ?? "system";
 
   return (
-    <div className="flex items-start gap-3 px-4 py-4">
-      <span
-        aria-hidden
-        className="bg-coral/12 text-gradient-cta mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full"
-      >
-        <SunMoonIcon />
-      </span>
-      <div className="flex min-w-0 flex-1 flex-col gap-2">
-        <span className="text-base font-medium text-warm-50">Theme</span>
-        {/* Segmented control — three equal-width tabs. Uses radiogroup
-            semantics so screen readers announce it as a single choice
-            picker rather than three unrelated buttons. */}
-        <div
-          role="radiogroup"
-          aria-label="Theme"
-          className="grid grid-cols-3 gap-1 rounded-full bg-warm-700/60 p-1"
-        >
-          <SegmentButton
-            active={active === "light"}
-            onClick={() => select("light")}
-            label="Light"
-            icon={<SunIcon />}
-          />
-          <SegmentButton
-            active={active === "dark"}
-            onClick={() => select("dark")}
-            label="Dark"
-            icon={<MoonIcon />}
-          />
-          <SegmentButton
-            active={active === "system"}
-            onClick={() => select("system")}
-            label="System"
-            icon={<DeviceIcon />}
-          />
-        </div>
+    <div className="px-4 py-3">
+      <div className="flex min-h-7 items-center justify-between gap-3">
+        <span className="text-[15px] font-medium text-warm-50">Theme</span>
         <p className="text-xs text-warm-400">
           {active === "system"
-            ? "Follows your device."
+            ? "Follows your device"
             : active === "dark"
-              ? "Always dark."
-              : "Always light."}
+              ? "Always dark"
+              : "Always light"}
         </p>
+      </div>
+      {/* Segmented control — three equal-width tabs. Uses radiogroup
+          semantics so screen readers announce it as a single choice
+          picker rather than three unrelated buttons. Neutral inverted
+          pill for the active tab (2026-07-27 grouped-list redesign:
+          no gradients in settings chrome). */}
+      <div
+        role="radiogroup"
+        aria-label="Theme"
+        className="mt-2.5 grid grid-cols-3 gap-1 rounded-lg bg-warm-700/50 p-1"
+      >
+        <SegmentButton
+          active={active === "light"}
+          onClick={() => select("light")}
+          label="Light"
+          icon={<SunIcon />}
+        />
+        <SegmentButton
+          active={active === "dark"}
+          onClick={() => select("dark")}
+          label="Dark"
+          icon={<MoonIcon />}
+        />
+        <SegmentButton
+          active={active === "system"}
+          onClick={() => select("system")}
+          label="System"
+          icon={<DeviceIcon />}
+        />
       </div>
     </div>
   );
@@ -147,10 +143,10 @@ function SegmentButton({
       role="radio"
       aria-checked={active}
       onClick={onClick}
-      className={`flex items-center justify-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold transition-all ${
+      className={`flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${
         active
-          ? "bg-gradient-cta text-white shadow-[0_4px_12px_-4px_rgba(232,138,118,0.5)]"
-          : "text-warm-200 hover:text-warm-50"
+          ? "bg-warm-100 text-ink-soft shadow-sm"
+          : "text-warm-300 hover:text-warm-50"
       }`}
     >
       <span aria-hidden className="flex h-3.5 w-3.5 items-center justify-center">
@@ -161,23 +157,6 @@ function SegmentButton({
   );
 }
 
-function SunMoonIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width="14"
-      height="14"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-    </svg>
-  );
-}
 
 function SunIcon() {
   return (

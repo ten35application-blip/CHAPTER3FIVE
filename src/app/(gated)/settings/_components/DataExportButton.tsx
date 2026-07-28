@@ -57,12 +57,32 @@ export function DataExportButton() {
             }
           });
         }}
-        className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors hover:bg-warm-700/20 disabled:opacity-60"
+        className="flex min-h-12 w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-warm-700/30 disabled:opacity-60"
       >
-        <span className="text-base font-medium text-warm-100">
+        <span
+          aria-hidden
+          className="flex w-6 flex-shrink-0 items-center justify-center text-warm-300"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            width="18"
+            height="18"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.75"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+        </span>
+        <span className="flex-1 text-[15px] font-medium text-warm-50">
           Download my data
         </span>
-        <span className="text-xs font-medium text-warm-400">
+        <span className="text-sm text-warm-300">
           {pending ? "Building…" : "JSON"}
         </span>
       </button>
