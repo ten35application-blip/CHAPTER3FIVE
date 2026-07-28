@@ -70,14 +70,15 @@ export default async function UpgradePage({
   const wantsInheritedSlot =
     reason === "inherited-slot" || reason === "extra-inherited";
 
-  // Tier-aware gate: Pro (incl. admin/trial) bounces to its target as
-  // before; a BASIC subscriber stays — this page doubles as their
-  // upgrade surface with Basic marked "current."
+  // Tier-aware surface. Pre-audit (2026-07-28) this page bounced Pro
+  // users straight back to their target, which dead-ended a Pro
+  // subscriber who hit a message cap: they'd land here from the chat
+  // banner and get punted right back with no pack path. Now Pro users
+  // stay, subscription cards are hidden (they're already on the top
+  // tier), and the packs section becomes the whole point.
   const plan = await getPlanTier(supabase);
-  if (!wantsInheritedSlot && plan.tier === "pro") {
-    redirect(safeNext(next));
-  }
   const isBasicSubscriber = plan.tier === "basic";
+  const isProSubscriber = plan.tier === "pro";
 
   const target = safeNext(next);
   const cameFromInherit = target.startsWith("/identity/inherit");
@@ -194,6 +195,11 @@ export default async function UpgradePage({
             </Link>
             , or pick a plan below for companions of your own.
           </p>
+        ) : isProSubscriber ? (
+          <p className="mt-6 max-w-md text-lg leading-relaxed text-warm-200">
+            You&rsquo;re on Pro &mdash; the top tier. If a month runs
+            long, top up with an add-on pack below and keep going.
+          </p>
         ) : isBasicSubscriber ? (
           <p className="mt-6 max-w-md text-lg leading-relaxed text-warm-200">
             Step up to Pro for a bigger cast and more room every month
@@ -212,16 +218,21 @@ export default async function UpgradePage({
             free-tier block can't drift on prices, features, or copy.
             `nextHref` threads context into the Pro mailto so a user
             who was trying to open /identity/inherit/... gives us that
-            context when they email us. */}
-        <div className="mt-12 w-full">
-          <PlanCards
-            email={email}
-            checkoutEnabled={checkoutEnabled}
-            basicCheckoutEnabled={basicCheckoutEnabled}
-            currentTier={isBasicSubscriber ? "basic" : null}
-            nextHref={next ? target : null}
-          />
-        </div>
+            context when they email us. Skipped for Pro subscribers:
+            they're already at the top tier, so the plan cards would
+            just be noise; the packs section below is the whole
+            point of the page for them. */}
+        {isProSubscriber ? null : (
+          <div className="mt-12 w-full">
+            <PlanCards
+              email={email}
+              checkoutEnabled={checkoutEnabled}
+              basicCheckoutEnabled={basicCheckoutEnabled}
+              currentTier={isBasicSubscriber ? "basic" : null}
+              nextHref={next ? target : null}
+            />
+          </div>
+        )}
 
         {/* Add-on packs — one-time message/image top-ups. Anchored so
             the chat cap-hit CTA ("Grab a pack →") lands right here.
@@ -233,7 +244,7 @@ export default async function UpgradePage({
           </h2>
           <p className="mx-auto mt-2 max-w-md text-base text-warm-300">
             One-time top-ups from {PACK_FROM_PRICE_LABEL}, on top of any
-            plan. Pick extra messages or extra images per pack.
+            plan. Each pack adds both extra messages and photos.
           </p>
           <div className="mt-6">
             <PackOptions email={email} checkoutEnabled={packCheckoutEnabled} />

@@ -629,8 +629,8 @@ export default function Home() {
             <strong className="text-warm-100">
               Add-on packs from {PACK_FROM_PRICE_LABEL}
             </strong>{" "}
-            &mdash; one-time top-ups of extra messages or images on any
-            plan. Extra identity slots are{" "}
+            &mdash; one-time top-ups that add extra messages and photos
+            on any plan. Extra identity slots are{" "}
             <strong className="text-warm-100">
               {EXTRA_IDENTITY_PRICE_LABEL}/month
             </strong>{" "}
