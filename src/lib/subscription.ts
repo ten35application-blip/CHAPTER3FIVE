@@ -170,19 +170,25 @@ export async function canChatWithOracle(
     if (pro) return true;
     const conciergeId = await getConciergeId();
     if (conciergeId && oracleId === conciergeId) return true;
-    const freeId = await getFreeIdentityId(client);
-    if (freeId !== null && freeId === oracleId) return true;
 
-    // Inherited-oracle branch: any oracle_shares row keyed to the
-    // caller for this oracle_id means they legitimately redeemed a
-    // code. Uses the same client that resolved the user above (via
-    // getFreeIdentityId's auth.getUser); RLS on oracle_shares scopes
-    // to the caller's own rows already, so a plain SELECT is the
-    // authorization. No admin client needed.
+    // Resolve the user once, then use it for both the free_identity_id
+    // read and the oracle_shares fallback. Previously getFreeIdentityId
+    // did its own auth.getUser and the shares branch did a second one,
+    // adding an extra Supabase round-trip per non-Pro chat load. RLS
+    // on both tables scopes to auth.uid(), so a plain SELECT with the
+    // explicit .eq('user_id', user.id) belt is the authorization.
     const {
       data: { user },
     } = await client.auth.getUser();
     if (!user) return false;
+
+    const { data: profile } = await client
+      .from("profiles")
+      .select("free_identity_id")
+      .eq("id", user.id)
+      .maybeSingle<{ free_identity_id: string | null }>();
+    if (profile?.free_identity_id === oracleId) return true;
+
     const { data: share } = await client
       .from("oracle_shares")
       .select("oracle_id")

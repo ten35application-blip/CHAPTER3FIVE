@@ -26,6 +26,7 @@ import {
 } from "@/lib/memory";
 import { moderateImage } from "@/lib/moderation";
 import {
+  canSendImageForMonthCap,
   canSendMessageForTierCap,
   consumePackCredit,
 } from "@/lib/subscription";
@@ -297,6 +298,31 @@ export async function POST(request: NextRequest) {
       },
       { status: 402 },
     );
+  }
+
+  // Image cap check -- if the caller attached an image, gate before we
+  // touch storage or start any generation. Matches the pattern in the
+  // stream route (`/api/chat/[id]/stream/route.ts` ~line 327). Free
+  // tier gets 1 image/mo, Basic 10, Pro 30; over cap and out of image
+  // credits → 402 image_month_cap. This route was previously skipping
+  // the image cap entirely, so anyone hitting the legacy endpoint
+  // could bypass the paid restriction. Fixed.
+  let imageUsesCredit = false;
+  if (typeof payload.image_url === "string" && payload.image_url) {
+    const imageCap = await canSendImageForMonthCap(supabase);
+    if (!imageCap.ok) {
+      return NextResponse.json(
+        {
+          error: "image_month_cap",
+          current: imageCap.current,
+          limit: imageCap.limit,
+          message:
+            "You've hit this month's image limit. Upgrade your plan or grab an add-on pack for more images.",
+        },
+        { status: 402 },
+      );
+    }
+    imageUsesCredit = imageCap.usingCredit;
   }
 
   // Daily rate limit. Atomic increment via SQL — race-safe under bursts.
@@ -781,6 +807,9 @@ ${archiveBlock}`;
       if (tierCap.usingCredit) {
         await consumePackCredit(user.id, "message");
       }
+      if (imageUsesCredit) {
+        await consumePackCredit(user.id, "image");
+      }
 
       return NextResponse.json({
         reply: blockLine,
@@ -948,6 +977,9 @@ ${archiveBlock}`;
       // a decrement failure never blocks the reply already composed.
       if (!persistErr && tierCap.usingCredit) {
         await consumePackCredit(user.id, "message");
+      }
+      if (!persistErr && imageUsesCredit) {
+        await consumePackCredit(user.id, "image");
       }
     }
 

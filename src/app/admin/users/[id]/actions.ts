@@ -132,12 +132,16 @@ export async function grantProAction(userId: string): Promise<ActionResult> {
 }
 
 /**
- * Grant one extra inherited-identity slot (the $5/mo add-on) on the
- * house. Real: bumps profiles.extra_inherited_slots by 1 via the
- * service-role client — the column is guarded by
- * protect_billing_columns, so this and the future Stripe webhook are
- * the only ways it moves. Same comp pattern as grantProAction while
- * checkout isn't wired end-to-end.
+ * Grant one inherited-slot credit on the house — repurposed from the
+ * pre-rework "extra inherited slot ($5/mo add-on)" tool. The
+ * `extra_inherited_slots` column no longer gates redemption anywhere
+ * (migration 0107 unbundled inherit slots to a one-time $5 credit
+ * model tracked in `inherited_slot_credits`), so this action now
+ * increments the credit column that redemption actually consumes.
+ *
+ * Uses the same `increment_profile_counter` RPC as pack purchases
+ * so admin comps flow through the same allowlist + trigger surface
+ * as paid grants — no ad-hoc UPDATE that skirts protect_billing_columns.
  */
 export async function grantExtraInheritedSlotAction(
   userId: string,
@@ -145,33 +149,39 @@ export async function grantExtraInheritedSlotAction(
   const admin = await requireAdmin();
   const service = createAdminClient();
 
-  const { data: existing } = await service
-    .from("profiles")
-    .select("extra_inherited_slots")
-    .eq("id", userId)
-    .maybeSingle<{ extra_inherited_slots: number | null }>();
-
-  const nextCount = (existing?.extra_inherited_slots ?? 0) + 1;
-
-  const { error } = await service
-    .from("profiles")
-    .update({ extra_inherited_slots: nextCount })
-    .eq("id", userId);
+  const { error } = await service.rpc("increment_profile_counter", {
+    target_user_id: userId,
+    counter_name: "inherited_slot_credits",
+    delta: 1,
+  });
 
   if (error) {
     console.error(
-      `[admin] ${admin.email} FAILED grant extra inherited slot for ${userId}:`,
+      `[admin] ${admin.email} FAILED grant inherited slot credit for ${userId}:`,
       error,
     );
     return { ok: false, message: `Failed: ${error.message}` };
   }
 
+  // Read back for a truthful message. Best-effort — if the SELECT fails
+  // we still return success since the increment already landed.
+  const { data: after } = await service
+    .from("profiles")
+    .select("inherited_slot_credits")
+    .eq("id", userId)
+    .maybeSingle<{ inherited_slot_credits: number | null }>();
+  const nextCount = after?.inherited_slot_credits ?? null;
+
   console.log(
-    `[admin] ${admin.email} granted extra inherited slot to ${userId} (now ${nextCount})`,
+    `[admin] ${admin.email} granted 1 inherited slot credit to ${userId}${
+      nextCount !== null ? ` (now ${nextCount})` : ""
+    }`,
   );
   revalidatePath(`/admin/users/${userId}`);
   return {
     ok: true,
-    message: `Extra inherited slot granted — they now have ${nextCount}.`,
+    message: nextCount !== null
+      ? `Inherited slot credit granted — they now have ${nextCount}.`
+      : `Inherited slot credit granted.`,
   };
 }

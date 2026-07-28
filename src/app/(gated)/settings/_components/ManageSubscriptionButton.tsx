@@ -65,7 +65,7 @@ export function ManageSubscriptionButton({
         className={
           variant === "cta"
             ? "bg-gradient-cta hover:bg-gradient-cta-hover flex h-14 w-full items-center justify-center rounded-full text-base font-bold text-white shadow-[0_16px_36px_-10px_rgba(232,138,118,0.55),_0_6px_16px_-4px_rgba(126,196,196,0.45)] transition-all hover:-translate-y-px active:translate-y-0 active:opacity-90 disabled:opacity-60"
-            : "flex h-14 w-full items-center justify-center rounded-full bg-ink-elevated text-base font-semibold text-warm-50 ring-1 ring-warm-700 transition-all hover:bg-warm-800/70 active:opacity-90 disabled:opacity-60"
+            : "flex h-14 w-full items-center justify-center rounded-full bg-ink-elevated text-base font-semibold text-warm-50 ring-1 ring-warm-700 transition-all hover:bg-warm-700/70 active:opacity-90 disabled:opacity-60"
         }
       >
         {pending ? "Opening…" : label}

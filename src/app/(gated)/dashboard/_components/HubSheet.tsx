@@ -413,7 +413,7 @@ function ContactsPanel({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search"
-            className="h-10 w-full rounded-full bg-warm-800/40 pl-10 pr-4 text-sm text-warm-50 placeholder:text-warm-400 ring-1 ring-warm-700/60 focus:outline-none focus:ring-2 focus:ring-coral/40"
+            className="h-10 w-full rounded-full bg-warm-700/40 pl-10 pr-4 text-sm text-warm-50 placeholder:text-warm-400 ring-1 ring-warm-700/60 focus:outline-none focus:ring-2 focus:ring-coral/40"
           />
         </label>
       </div>
@@ -667,7 +667,7 @@ function ArchivedRow({ item }: { item: ArchivedIdentity }) {
         type="button"
         disabled={pending}
         onClick={onUnarchive}
-        className="rounded-full bg-warm-800/60 px-3 py-1.5 text-xs font-semibold text-warm-50 ring-1 ring-warm-700/60 transition-colors hover:bg-warm-800 disabled:opacity-50"
+        className="rounded-full bg-warm-700/60 px-3 py-1.5 text-xs font-semibold text-warm-50 ring-1 ring-warm-700/60 transition-colors hover:bg-warm-700 disabled:opacity-50"
       >
         {pending ? "Unarchiving…" : "Unarchive"}
       </button>
@@ -785,7 +785,7 @@ function DeletedConversationRow({ item }: { item: DeletedConversation }) {
             type="button"
             disabled={pending !== null}
             onClick={onRecover}
-            className="rounded-full bg-warm-800/60 px-3 py-1.5 text-xs font-semibold text-warm-50 ring-1 ring-warm-700/60 transition-colors hover:bg-warm-800 disabled:opacity-50"
+            className="rounded-full bg-warm-700/60 px-3 py-1.5 text-xs font-semibold text-warm-50 ring-1 ring-warm-700/60 transition-colors hover:bg-warm-700 disabled:opacity-50"
           >
             {pending === "recover" ? "Recovering…" : "Recover"}
           </button>

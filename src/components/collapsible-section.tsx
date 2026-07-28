@@ -80,8 +80,8 @@ export function CollapsibleSection({
         aria-expanded={open}
         className={
           sticky
-            ? "sticky top-0 z-[1] flex w-full items-center gap-2 bg-ink-soft/95 px-4 py-2 text-left backdrop-blur transition-colors hover:bg-warm-800/20"
-            : "flex w-full items-center gap-2 px-4 py-2 text-left transition-colors hover:bg-warm-800/20"
+            ? "sticky top-0 z-[1] flex w-full items-center gap-2 bg-ink-soft/95 px-4 py-2 text-left backdrop-blur transition-colors hover:bg-warm-700/20"
+            : "flex w-full items-center gap-2 px-4 py-2 text-left transition-colors hover:bg-warm-700/20"
         }
       >
         <SectionChevron open={open} />

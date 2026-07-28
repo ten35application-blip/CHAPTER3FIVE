@@ -459,7 +459,7 @@ function PathList({
       {items.map((item) => (
         <li
           key={item.title}
-          className="rounded-2xl bg-warm-800/30 p-4 ring-1 ring-warm-700/50"
+          className="rounded-2xl bg-warm-700/30 p-4 ring-1 ring-warm-700/50"
         >
           <p className="flex flex-wrap items-center gap-2 text-base font-semibold text-warm-50">
             {item.title}

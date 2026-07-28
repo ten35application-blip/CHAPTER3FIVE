@@ -25,7 +25,9 @@ type ProfileRow = {
   deleted_at: string | null;
   pro_until: string | null;
   plan_source: string | null;
-  extra_inherited_slots: number | null;
+  inherited_slot_credits: number | null;
+  message_credits: number | null;
+  image_credits: number | null;
 };
 
 type OracleRow = {
@@ -69,7 +71,7 @@ export default async function AdminUserDetailPage({
       safeSelect<ProfileRow>(
         supabase,
         "profiles",
-        "full_name, terms_accepted_at, terms_version_accepted, deleted_at, pro_until, plan_source, extra_inherited_slots",
+        "full_name, terms_accepted_at, terms_version_accepted, deleted_at, pro_until, plan_source, inherited_slot_credits, message_credits, image_credits",
         (q) => q.eq("id", id),
       ),
       safeSelect<OracleRow>(
@@ -155,8 +157,16 @@ export default async function AdminUserDetailPage({
         />
         <Row label="Plan" value={planLabel(profile, isAdmin(user.email))} />
         <Row
-          label="Extra inherited slots"
-          value={String(profile?.extra_inherited_slots ?? 0)}
+          label="Inherited slot credits"
+          value={String(profile?.inherited_slot_credits ?? 0)}
+        />
+        <Row
+          label="Message credits"
+          value={String(profile?.message_credits ?? 0)}
+        />
+        <Row
+          label="Image credits"
+          value={String(profile?.image_credits ?? 0)}
         />
         <div className="flex flex-wrap gap-2 px-4 py-3">
           <ActionButton
@@ -165,8 +175,8 @@ export default async function AdminUserDetailPage({
             action={grantProAction.bind(null, user.id)}
           />
           <ActionButton
-            label="Grant extra inherited slot"
-            confirm={`Give ${email} one extra inherited-identity slot (the $5/mo add-on) on the house?`}
+            label="Grant inherited slot credit"
+            confirm={`Give ${email} 1 inherited-slot credit (unlocks one code redemption) on the house?`}
             action={grantExtraInheritedSlotAction.bind(null, user.id)}
           />
         </div>
