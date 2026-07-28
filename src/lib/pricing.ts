@@ -8,26 +8,24 @@
  *           concierge (oracles.is_concierge = true). 20 messages and
  *           1 image attachment per calendar month.
  *   BASIC — $5/mo.   3 personal identities (2 formula + 1 photo) on
- *           top of Adrian. 100 messages and 10 images per month. CAN
- *           record a legacy archive and mint an inherit code (was
- *           Pro-only before this rework).
+ *           top of Adrian. 100 messages and 10 images per month.
  *   PRO   — $10/mo.  5 self-created identities (4 formula + 1 photo)
  *           on top of Adrian. 300 messages and 30 images per month.
  *           (Was $12 with 3 formula + 1 photo + 1 bundled inherited
  *           slot; the price dropped and the identity count grew to
  *           compensate for the unbundled inherited slot.)
  *
- * THE INHERITED SLOT IS UNBUNDLED (this rework's headline). No tier
- * includes a free inherited slot anymore, and no tier is required to
- * redeem: every inherit-code redemption is a $5 ONE-TIME purchase
+ * THE LEGACY PATH IS TIER-BLIND (July 2026 flat-fee rework). ANY
+ * signed-in account — Free included — can record a legacy archive and
+ * mint an inherit code. And redeeming ANY inherit code is a flat $5
+ * ONE-TIME purchase per code, every tier, every code, NO exceptions
  * (inheritedSlotPurchaseCents; Stripe purpose
- * 'inherited_slot_purchase' → profiles.inherited_slot_credits),
- * replacing the old $5/MONTH recurring extra-inherited-slot model
- * (extraInheritedIdentityCents, deleted). The MEMORIAL WAIVER is on
- * by default: when the code's minter has passed away
- * (profiles.deceased_at set — a post-mortem beneficiary claim),
- * redemption is free and no credit is consumed. Living-minter codes
- * (alive-preparing, friend-gift, playful) pay the $5.
+ * 'inherited_slot_purchase' → profiles.inherited_slot_credits). The
+ * memorial waiver is REMOVED — Wilson: "it is NOT free to inherit a
+ * code and it's not our place to verify someone died." This replaced
+ * the old $5/MONTH recurring extra-inherited-slot model
+ * (extraInheritedIdentityCents, deleted). Pro's pitch is identity
+ * slots + message caps, never inheritance perks.
  *
  * Adrian is universal — every tier, including Free, chats with the
  * concierge. Personal identity slots are on TOP of Adrian.
@@ -58,13 +56,13 @@ export const PRICING = {
   extraIdentityCents: 500, // $5/mo per identity beyond the base 5
   /** NO inherited slot is bundled with any plan since the July 2026
    *  second rework — every inherit-code redemption is the one-time
-   *  inheritedSlotPurchaseCents purchase (memorial waiver aside).
-   *  Kept as an explicit 0 so slot math keeps compiling against one
-   *  constant instead of scattering hardcoded zeros. */
+   *  inheritedSlotPurchaseCents purchase, no exceptions. Kept as an
+   *  explicit 0 so slot math keeps compiling against one constant
+   *  instead of scattering hardcoded zeros. */
   includedInheritedIdentitiesPerPlan: 0,
   /** $5 ONE-TIME per inherit-code redemption (replaces the retired
-   *  $5/month extraInheritedIdentityCents recurring slot). Waived
-   *  when the code's minter is deceased — the memorial waiver. */
+   *  $5/month extraInheritedIdentityCents recurring slot). Flat —
+   *  every tier, every code, no waivers. */
   inheritedSlotPurchaseCents: 500,
   /** Monthly message cap for Pro. NEW in the pack rework — Pro was
    *  unlimited before. Counted per calendar month against the user's
@@ -141,9 +139,9 @@ export const BASIC_MONTHLY_PRICE_LABEL = `$${PRICING.basicMonthlyCents / 100}`;
 /** "$5" — extra self-created identity beyond the plan's ceiling. */
 export const EXTRA_IDENTITY_PRICE_LABEL = `$${PRICING.extraIdentityCents / 100}`;
 
-/** "$5" — one-time inherit-slot purchase, paid per code redeemed
- *  (waived when the code's minter has passed away). Replaces the
- *  retired EXTRA_INHERITED_PRICE_LABEL ($5/month recurring slot). */
+/** "$5" — one-time inherit-slot purchase, paid per code redeemed on
+ *  every tier, no exceptions. Replaces the retired
+ *  EXTRA_INHERITED_PRICE_LABEL ($5/month recurring slot). */
 export const INHERITED_SLOT_PRICE_LABEL = `$${PRICING.inheritedSlotPurchaseCents / 100}`;
 
 /** "$5" — one-time paywall on restoring a deleted identity. */

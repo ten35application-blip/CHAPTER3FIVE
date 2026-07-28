@@ -138,7 +138,8 @@ export function PlanCards({
                 to send to any companion
               </FeatureLine>
               <FeatureLine>
-                Record your own legacy archive (mint a code for family)
+                Redeem inherit codes for {INHERITED_SLOT_PRICE_LABEL}{" "}
+                each &mdash; same one-time fee on every plan
               </FeatureLine>
               <FeatureLine>
                 Adrian, our guide, always included
@@ -256,11 +257,8 @@ export function PlanCards({
                 to send to any companion
               </FeatureLine>
               <FeatureLine>
-                Record your own legacy archive (mint a code for family)
-              </FeatureLine>
-              <FeatureLine>
-                Open legacy codes &mdash; {INHERITED_SLOT_PRICE_LABEL}{" "}
-                one-time per code, free when the sender has passed away
+                Redeem inherit codes for {INHERITED_SLOT_PRICE_LABEL}{" "}
+                each &mdash; same one-time fee on every plan
               </FeatureLine>
               <FeatureLine>
                 Extras {EXTRA_IDENTITY_PRICE_LABEL}/mo per slot

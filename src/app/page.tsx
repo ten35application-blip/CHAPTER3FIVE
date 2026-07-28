@@ -343,9 +343,6 @@ export default function Home() {
                 <p className="text-sm font-bold uppercase tracking-[0.14em] text-teal-strong">
                   For someone to keep
                 </p>
-                <span className="bg-gradient-cta rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-white">
-                  Pro
-                </span>
               </div>
               <h3 className="mt-4 text-2xl font-bold leading-[1.1] tracking-[-0.02em] text-teal-strong md:text-3xl">
                 Sit with someone you love.
@@ -444,10 +441,11 @@ export default function Home() {
           first personal companions; teal frame), and Pro ($10/mo —
           the highlighted primary tier with the coral gradient
           border; 4 formula + 1 photo since the July 2026 second
-          rework unbundled the inherited slot into a $5 one-time
-          per-code purchase with the memorial waiver). Every tier is
-          message-capped; add-on packs (one-time top-ups) get a strip
-          below alongside the extra-identity add-on. */}
+          rework unbundled the inherited slot into a flat $5 one-time
+          per-code purchase — every tier, every code, no waivers).
+          Every tier is message-capped; add-on packs (one-time
+          top-ups) get a strip below alongside the extra-identity
+          add-on. */}
       <section className="px-6 py-24 md:py-32">
         <div className="mx-auto flex w-full max-w-5xl flex-col items-center lg:max-w-6xl">
           <Rule />
@@ -492,6 +490,10 @@ export default function Home() {
                 <FeatureLine>
                   {FREE_IMAGES_PER_MONTH} photo a month to try image
                   sends
+                </FeatureLine>
+                <FeatureLine>
+                  Record your own legacy archive &mdash; mint a code
+                  for family, on any plan (yes, even Free)
                 </FeatureLine>
                 <FeatureLine>
                   When you&rsquo;re ready to build your own, upgrade in
@@ -554,10 +556,6 @@ export default function Home() {
                     you can send to any companion
                   </FeatureLine>
                   <FeatureLine>
-                    Record your own legacy archive &mdash; mint a code
-                    for family
-                  </FeatureLine>
-                  <FeatureLine>
                     Adrian, our guide, always included
                   </FeatureLine>
                 </ul>
@@ -616,14 +614,6 @@ export default function Home() {
                     can send to any companion
                   </FeatureLine>
                   <FeatureLine>
-                    <strong className="text-warm-50">
-                      Lock in your own identity
-                    </strong>{" "}
-                    &mdash; answer the forty questions, mint a code, share
-                    it with unlimited family. When you&apos;re gone, they
-                    can still talk to you.
-                  </FeatureLine>
-                  <FeatureLine>
                     Cancel any time. No refunds mid-month.
                   </FeatureLine>
                 </ul>
@@ -649,7 +639,7 @@ export default function Home() {
             <strong className="text-warm-100">
               {INHERITED_SLOT_PRICE_LABEL} one-time
             </strong>{" "}
-            per code &mdash; free when its creator has passed away.
+            per code &mdash; the same flat fee on every plan.
           </div>
         </div>
       </section>

@@ -40,14 +40,13 @@ export const metadata = {
  *
  * Special copy paths:
  *   - ?reason=inherited-slot (legacy alias: extra-inherited) — the
- *     visitor tried to redeem a LIVING-minter inherit code without a
- *     purchased slot credit. Renders the one-time $5 purchase pitch
- *     (Stripe Checkout on STRIPE_PRICE_ID_INHERITED_SLOT, mailto
- *     fallback) — ANY tier can land here since the July 2026 second
- *     rework unbundled the inherited slot, so this branch never
- *     bounces Pro visitors (that would loop them into the gate).
- *     Deceased-minter codes never reach this page — the memorial
- *     waiver redeems them free.
+ *     visitor tried to redeem an inherit code without a purchased
+ *     slot credit. Renders the one-time $5 purchase pitch (Stripe
+ *     Checkout on STRIPE_PRICE_ID_INHERITED_SLOT, mailto fallback) —
+ *     ANY tier can land here since the July 2026 second rework
+ *     unbundled the inherited slot (flat $5 per code, every tier, no
+ *     waivers), so this branch never bounces Pro visitors (that
+ *     would loop them into the gate).
  *   - ?next=/identity/inherit/... — a Free user holding an inherit
  *     code gets the "open the code" framing above the cards.
  *
@@ -110,9 +109,8 @@ export default async function UpgradePage({
           <p className="mt-6 max-w-md text-lg leading-relaxed text-warm-200">
             Bringing in an identity someone shared with you is a{" "}
             {INHERITED_SLOT_PRICE_LABEL} one-time unlock &mdash; once,
-            per code, never monthly. And when the code comes from
-            someone who has passed away, there&rsquo;s no charge at
-            all: their archive opens free.
+            per code, never monthly. The same flat fee on every plan,
+            for every code.
           </p>
 
           <div className="mt-10 w-full max-w-sm">
@@ -187,8 +185,7 @@ export default async function UpgradePage({
             You&rsquo;re holding an inherit code &mdash; someone sat down
             and answered forty questions so that archive could reach you.
             Opening it is a {INHERITED_SLOT_PRICE_LABEL} one-time unlock
-            on any plan (free when the sender has passed away) &mdash;
-            head back to{" "}
+            on any plan &mdash; head back to{" "}
             <Link
               href="/identity/inherit"
               className="font-semibold text-warm-100 underline underline-offset-2"

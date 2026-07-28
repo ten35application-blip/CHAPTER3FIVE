@@ -32,8 +32,8 @@ async function signOut() {
 // Wilson's pricing (July 2026 second rework): Free tier chats with
 // Adrian only; Pro is $10/month for 4 formula + 1 photo (5
 // self-created, what this constant counts). No inherited slot is
-// bundled anymore — inherit codes are a $5 one-time unlock per code
-// (free when the minter has passed away). Numbers live in
+// bundled anymore — inherit codes are a flat $5 one-time unlock per
+// code on every tier, no waivers. Numbers live in
 // src/lib/pricing.ts -- change them there.
 const PLAN_QUOTA = PRICING.totalIdentitiesPerPlan;
 

@@ -48,8 +48,16 @@
  *                 memorial waiver); recording a legacy archive +
  *                 minting a code extended to Basic; §4's Pro-plan
  *                 redemption requirement deleted.
+ *   2026-07-28a — Terms §4 + §8 rewritten for the flat-fee rework:
+ *                 the memorial waiver is REMOVED — redeeming ANY
+ *                 inherit code is the $5 one-time inherit-slot
+ *                 purchase, flat, on every plan, no exceptions (we do
+ *                 not verify whether a creator is living or
+ *                 deceased); recording a legacy archive + minting a
+ *                 code opened to EVERY plan, Free included, and
+ *                 dropped from the Basic/Pro plan feature lists.
  */
-export const CURRENT_TERMS_VERSION = "2026-07-27f";
+export const CURRENT_TERMS_VERSION = "2026-07-28a";
 
 /**
  * True only if the profile has accepted exactly the current version.

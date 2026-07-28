@@ -22,8 +22,8 @@ import { requireTermsAccepted } from "@/lib/legal/gate";
  *   - "inherited_slot_purchase" — one-time $5 inherit-slot credit
  *     (STRIPE_PRICE_ID_INHERITED_SLOT). On payment the webhook adds
  *     1 to profiles.inherited_slot_credits; the /identity/inherit
- *     redeem action consumes 1 per living-minter code (deceased-
- *     minter codes are free — the memorial waiver). success_url
+ *     redeem action consumes 1 per code redeemed (flat fee — every
+ *     tier, every code, no waivers). success_url
  *     lands the buyer back on /identity/inherit so they can enter
  *     the code they were holding when the gate stopped them.
  */

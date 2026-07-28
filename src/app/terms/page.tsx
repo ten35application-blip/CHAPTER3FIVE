@@ -212,32 +212,27 @@ export default function TermsPage() {
           Section 5).
         </p>
         <p>
+          <strong>Recording and minting.</strong> Any account holder — on
+          any plan, including the Free tier — may record a legacy archive
+          and mint an inherit code. No subscription is required to create
+          the archive or to mint and share its code.
+        </p>
+        <p>
           <strong>Sharing and redemption.</strong> A legacy identity may be
           shared with an <strong>unlimited number of family members</strong>{" "}
           via its inherit code, and everything the creator baked into the
           identity — including any photo-based likeness — transfers with the
           code. Redemption does not require any particular subscription
-          tier; it is paid <strong>per code</strong>:
+          tier. Redeeming any inherit code requires a{" "}
+          <strong>
+            {INHERITED_SLOT_PRICE_LABEL} one-time inherit-slot purchase
+          </strong>{" "}
+          (see Section 8) — a flat fee paid <strong>per code</strong>, the
+          same on every plan and for every code, and never a recurring
+          charge. There are no exceptions to this fee, and we do not
+          verify, and are not obligated to verify, whether the creator of
+          any archive is living or deceased.
         </p>
-        <ul>
-          <li>
-            <strong>Memorial redemptions are free.</strong> When the
-            person who created the archive has passed away (their
-            passing has been reported and confirmed on our end),
-            redeeming their inherit code costs nothing. Grief is not a
-            moment we charge you at.
-          </li>
-          <li>
-            While the creator is <strong>living</strong> (for example, a
-            code shared ahead of time or given as a gift), redeeming
-            their code requires a{" "}
-            <strong>
-              {INHERITED_SLOT_PRICE_LABEL} one-time inherit-slot
-              purchase
-            </strong>{" "}
-            (see Section 8) — once per code, never a recurring fee.
-          </li>
-        </ul>
       </LegalSection>
 
       <LegalSection
@@ -336,8 +331,10 @@ export default function TermsPage() {
             <strong>
               {FREE_IMAGES_PER_MONTH} photo attachment per month
             </strong>
-            . No personal identities. No credit card required, no
-            expiration date, no automatic conversion.
+            . No formula or photo identities, though recording a legacy
+            archive and minting an inherit code is available (see
+            Section 4). No credit card required, no expiration date, no
+            automatic conversion.
           </li>
           <li>
             The <strong>{BASIC_TIER_LABEL} plan</strong> is{" "}
@@ -365,11 +362,6 @@ export default function TermsPage() {
                   calendar month
                 </strong>
                 .
-              </li>
-              <li>
-                The ability to{" "}
-                <strong>record your own legacy archive</strong> and mint
-                an inherit code (see Section 4).
               </li>
             </ul>
           </li>
@@ -401,11 +393,6 @@ export default function TermsPage() {
                   month
                 </strong>{" "}
                 that you can send to any of your companions.
-              </li>
-              <li>
-                The ability to <strong>record your own legacy archive</strong>{" "}
-                — answer the forty questions yourself, mint an inherit
-                code, and hand it to whoever you choose.
               </li>
             </ul>
           </li>
@@ -449,10 +436,9 @@ export default function TermsPage() {
                   Inherit-slot purchase —{" "}
                   {INHERITED_SLOT_PRICE_LABEL} one-time per code.
                 </strong>{" "}
-                Unlocks the redemption of one inherit code minted by a
-                living creator. <strong>Waived entirely</strong> when
-                the creator has passed away (see Section 4) — memorial
-                redemptions are always free. Not a subscription; no
+                Unlocks the redemption of one inherit code. A flat fee
+                — the same on every plan and for every code, with no
+                exceptions (see Section 4). Not a subscription; no
                 recurring charge.
               </li>
               <li>
@@ -475,11 +461,12 @@ export default function TermsPage() {
             </ul>
           </li>
           <li>
-            No subscription tier is required to redeem an inherit code:
-            redemption is free when the code&rsquo;s creator has passed
-            away, and otherwise requires the{" "}
-            {INHERITED_SLOT_PRICE_LABEL} one-time inherit-slot purchase
-            described above (see Section 4).
+            No subscription tier is required to record a legacy archive,
+            mint an inherit code, or redeem one: recording and minting
+            are available on every plan (including Free), and every
+            redemption requires the {INHERITED_SLOT_PRICE_LABEL}{" "}
+            one-time inherit-slot purchase described above (see
+            Section 4).
           </li>
           <li>
             <strong>chapter3five does not currently offer a free trial

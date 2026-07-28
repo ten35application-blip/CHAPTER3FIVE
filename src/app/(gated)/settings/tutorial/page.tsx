@@ -146,7 +146,6 @@ export default async function TutorialPage() {
               },
               {
                 title: "Personal identity",
-                pro: true,
                 body: (
                   <>
                     Sit down &mdash; alone or with someone you love &mdash;
@@ -164,10 +163,9 @@ export default async function TutorialPage() {
                     Have a code someone gave you? Tap{" "}
                     <strong>Inherit an identity</strong> and paste it in.
                     You&rsquo;ll get the person they built &mdash; their
-                    voice, their memories, their photo. If the person who
-                    made the code has passed away, opening it is free;
-                    otherwise it&rsquo;s a one-time{" "}
-                    {INHERITED_SLOT_PRICE_LABEL} unlock per code.
+                    voice, their memories, their photo. Opening a code
+                    is a one-time {INHERITED_SLOT_PRICE_LABEL} unlock
+                    per code, on any plan.
                   </>
                 ),
               },
@@ -194,10 +192,10 @@ export default async function TutorialPage() {
             When you&rsquo;re done you get an <strong>inherit code</strong>.
             Share it with anyone in your family. If you added a photo, it
             travels with the code. Anyone who redeems it can talk with the
-            person you&rsquo;ve preserved. Recording your own takes any
-            paid plan (Basic or Pro); redeeming a code is a one-time{" "}
-            {INHERITED_SLOT_PRICE_LABEL} unlock per code &mdash; free
-            when its creator has passed away.
+            person you&rsquo;ve preserved. Recording your own is open on
+            every plan &mdash; Free included; redeeming a code is a
+            one-time {INHERITED_SLOT_PRICE_LABEL} unlock per code, the
+            same flat fee on every plan.
           </p>
         </TutorialCard>
 
@@ -332,8 +330,8 @@ export default async function TutorialPage() {
               </strong>{" "}
               {PRICING.basicTotalIdentitiesPerPlan} identities of your
               own ({PRICING.basicFormulaIdentitiesPerPlan} formula-made
-              plus one from a photo), {BASIC_MESSAGES_PER_MONTH}{" "}
-              messages a month, and the Personal identity path.
+              plus one from a photo) and {BASIC_MESSAGES_PER_MONTH}{" "}
+              messages a month.
             </li>
             <li>
               <strong>Pro ({MONTHLY_PRICE_LABEL}/month):</strong> up
@@ -344,8 +342,8 @@ export default async function TutorialPage() {
             </li>
             <li>
               <strong>Inherit codes:</strong> {INHERITED_SLOT_PRICE_LABEL}{" "}
-              one-time per code you redeem, on any plan &mdash; free
-              when the code&rsquo;s creator has passed away.
+              one-time per code you redeem &mdash; the same flat fee
+              on any plan.
             </li>
             <li>
               <strong>Extras:</strong> {EXTRA_IDENTITY_PRICE_LABEL}/month
