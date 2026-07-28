@@ -15,6 +15,17 @@ type ExpoPushMessage = {
   sound?: "default" | null;
   priority?: "default" | "normal" | "high";
   badge?: number;
+  /** iOS notification category identifier -- used to attach action
+   *  buttons (reply / dismiss). Registered client-side via
+   *  Notifications.setNotificationCategoryAsync. */
+  categoryId?: string;
+  /** Android channel identifier -- must match a channel the client
+   *  has registered. Defaults to "default" if omitted. */
+  channelId?: string;
+  /** iOS thread identifier -- lets notifications from the same
+   *  companion stack together in Notification Center (like Messages
+   *  groups by contact). Set to the oracle_id. */
+  threadIdentifier?: string;
 };
 
 const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
@@ -25,6 +36,14 @@ export async function sendPushToUser(opts: {
   body: string;
   data?: Record<string, unknown>;
   badge?: number;
+  /** iOS notification category -- e.g. "companion_message" for a
+   *  push that should show a Reply text action on the lock screen. */
+  categoryId?: string;
+  /** iOS thread grouping (typically oracle_id so all messages from
+   *  the same companion stack). */
+  threadIdentifier?: string;
+  /** Android channel id -- must exist client-side. */
+  channelId?: string;
 }): Promise<{ sent: number; failed: number }> {
   const admin = createAdminClient();
   const { data: tokens } = await admin
@@ -46,6 +65,11 @@ export async function sendPushToUser(opts: {
     sound: "default",
     priority: "high",
     ...(typeof opts.badge === "number" ? { badge: opts.badge } : {}),
+    ...(opts.categoryId ? { categoryId: opts.categoryId } : {}),
+    ...(opts.threadIdentifier
+      ? { threadIdentifier: opts.threadIdentifier }
+      : {}),
+    ...(opts.channelId ? { channelId: opts.channelId } : {}),
   }));
 
   let sent = 0;

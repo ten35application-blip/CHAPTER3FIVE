@@ -181,12 +181,18 @@ ${variety}`;
           .eq("id", row.oracle_id);
       }
 
-      // Best-effort push so they see it on mobile too.
+      // Best-effort push so they see it on mobile too. Companion
+      // category + oracle-scoped thread = iOS renders a Reply text
+      // action on the lock screen (looks like iMessage) and stacks
+      // multiple messages from the same companion into one group.
       sendPushToUser({
         userId: row.user_id,
         title: oracleName,
         body: reply,
-        data: { oracle_id: row.oracle_id },
+        data: { oracle_id: row.oracle_id, kind: "companion_message" },
+        categoryId: "companion_message",
+        threadIdentifier: row.oracle_id,
+        channelId: "companion",
       }).catch(() => {});
 
       sent++;
