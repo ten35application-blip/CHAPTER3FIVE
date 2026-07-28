@@ -7,7 +7,6 @@ import {
   EXTRA_IDENTITY_PRICE_LABEL,
   INHERITED_SLOT_PRICE_LABEL,
   MONTHLY_PRICE_LABEL,
-  PACK_FROM_PRICE_LABEL,
   PRICING,
   PRO_IMAGES_PER_MONTH,
   PRO_MESSAGES_PER_MONTH,
@@ -324,20 +323,11 @@ export function PlanCards({
         </div>
       </div>
 
-      {/* Pack nudge — packs are one-time top-ups on any paid tier.
-          The full pack cards live on /upgrade#packs (PackOptions). */}
-      <p
-        className={`mt-5 text-center ${compact ? "text-xs" : "text-sm"} text-warm-400`}
-      >
-        Extra messages? Extra images?{" "}
-        <Link
-          href="/upgrade#packs"
-          className="font-semibold text-warm-300 underline underline-offset-2 hover:text-teal-strong"
-        >
-          Grab an add-on pack
-        </Link>{" "}
-        from {PACK_FROM_PRICE_LABEL}.
-      </p>
+      {/* Pack nudge removed 2026-07-28 -- redundant with the actual
+          PacksList surface that renders right below PlanCards in
+          Settings, and with the PackOptions block on /upgrade. On the
+          landing page a user follows the Enroll CTAs; pack discovery
+          happens after signup on Settings > Extra usage. */}
     </div>
   );
 }
