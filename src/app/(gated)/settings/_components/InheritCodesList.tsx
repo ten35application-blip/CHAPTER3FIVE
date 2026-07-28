@@ -5,17 +5,26 @@ import { useState } from "react";
 
 /**
  * Inherit codes surface, rendered INLINE inside the Profile section
- * (settings/page.tsx) directly below NameField. Wilson's ask
- * 2026-07-28: this belongs with the user's identity chrome, not as
- * its own tile — the codes are how the person's family finds them,
- * so they sit with name + photo.
+ * (settings/page.tsx) directly below NameField.
  *
- * Empty state teaches the flow with a soft CTA into /identity/legacy/new.
- * Populated state lists every legacy identity the user has minted and
- * puts a Share button on the right of each row — Web Share API when
- * available so the OS share sheet (Messages, Mail, WhatsApp, etc.)
- * opens directly; falls back to clipboard copy otherwise so the code
- * is still recoverable.
+ * Two-slot layout — mirrors the 1+1 legacy cap enforced in
+ * completeLegacyIdentity (one self + one other per account). Each slot
+ * has two states:
+ *   - EMPTY: a CTA pointing at the picker with the mode pre-set
+ *     (?mode=self or ?mode=other).
+ *   - FILLED: the identity's name + code + a Share button (Web Share
+ *     API when available, clipboard fallback otherwise).
+ *
+ * Wilson's ask 2026-07-28: users should SEE the two-slot shape up
+ * front — one for themselves, one for a loved one — so the flow
+ * doesn't feel like a single ambiguous "inherit code" surface. When a
+ * slot fills, the CTA is replaced by the actual code + share button
+ * in the same footprint.
+ *
+ * Pre-mode codes (mode === null, minted before the toggle shipped
+ * 2026-07-28) are grouped under the "For someone you love" slot as
+ * the historical default. That matches the cap logic which treats
+ * unlabeled rows as "other" for the 1+1 count.
  */
 type CodeItem = {
   oracleId: string;
@@ -23,34 +32,106 @@ type CodeItem = {
   code: string;
   /** "self" = user recorded themselves; "other" = they recorded a
    *  loved one. Null for codes minted before the mode toggle shipped
-   *  (2026-07-28) — those render without a label. */
+   *  (2026-07-28) — those group with "other" as the historical
+   *  default, matching the completeLegacyIdentity cap counter. */
   mode: "self" | "other" | null;
 };
 
 export function InheritCodesList({ items }: { items: Array<CodeItem> }) {
+  // Slot bucketing: mode='self' → self slot; mode='other' OR null →
+  // other slot. If somehow more than one exists per mode (shouldn't
+  // happen after the 1+1 cap, but defensive), we take the first.
+  const selfItem = items.find((i) => i.mode === "self") ?? null;
+  const otherItem =
+    items.find((i) => i.mode === "other" || i.mode === null) ?? null;
+
   return (
     <div className="border-t border-warm-700/60 px-4 py-4">
-      <p className="mb-3 text-[15px] font-medium text-warm-50">Inherit codes</p>
-      {items.length === 0 ? <EmptyState /> : <CodesList items={items} />}
+      <p className="mb-1 text-[15px] font-medium text-warm-50">Inherit codes</p>
+      <p className="mb-4 text-xs leading-relaxed text-warm-400">
+        Two slots per account &mdash; one for yourself, one for a loved one.
+        Share the code with family so they can meet the person you&rsquo;re
+        keeping alive.
+      </p>
+      <div className="flex flex-col gap-3">
+        <Slot
+          kind="self"
+          heading="Your own"
+          emptyBlurb="Answer forty warm questions in your own voice. Your family gets a code to talk with you later."
+          emptyCta="Create your own identity"
+          emptyHref="/identity/legacy/new?mode=self"
+          item={selfItem}
+        />
+        <Slot
+          kind="other"
+          heading="For someone you love"
+          emptyBlurb="Record a parent, partner, or friend. Lands in your contacts, plus a code you can share with family."
+          emptyCta="Create it for someone you love"
+          emptyHref="/identity/legacy/new?mode=other"
+          item={otherItem}
+        />
+      </div>
     </div>
   );
 }
 
-function EmptyState() {
+function Slot({
+  kind,
+  heading,
+  emptyBlurb,
+  emptyCta,
+  emptyHref,
+  item,
+}: {
+  kind: "self" | "other";
+  heading: string;
+  emptyBlurb: string;
+  emptyCta: string;
+  emptyHref: string;
+  item: CodeItem | null;
+}) {
   return (
-    <div>
-      <p className="text-xs leading-relaxed text-warm-400">
-        Your inherit code shows up here once you&rsquo;ve created a legacy
-        identity. Sit with yourself, or with someone you love, and answer
-        a warm set of questions about who they really are &mdash; the code
-        is what you&rsquo;ll share with family so they can meet the person
-        you&rsquo;re keeping alive.
+    <div className="rounded-2xl bg-warm-700/25 p-3.5 ring-1 ring-warm-700/60">
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-coral-strong">
+        {heading}
       </p>
+      {item ? (
+        <FilledSlot item={item} />
+      ) : (
+        <EmptySlot blurb={emptyBlurb} cta={emptyCta} href={emptyHref} kind={kind} />
+      )}
+    </div>
+  );
+}
+
+function EmptySlot({
+  blurb,
+  cta,
+  href,
+  kind,
+}: {
+  blurb: string;
+  cta: string;
+  href: string;
+  kind: "self" | "other";
+}) {
+  return (
+    <div className="mt-1.5">
+      <p className="text-xs leading-relaxed text-warm-300">{blurb}</p>
       <Link
-        href="/identity/legacy/new"
+        href={href}
         className="bg-gradient-cta mt-3 inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-semibold text-white shadow-[0_4px_10px_-2px_rgba(232,138,118,0.35)] transition-transform hover:-translate-y-0.5"
       >
-        Create your inherit code
+        {cta}
+        {kind === "other" ? (
+          <span className="text-[10px] font-medium text-white/85">
+            &middot; $5
+          </span>
+        ) : (
+          <span className="text-[10px] font-medium text-white/85">
+            &middot; Free
+          </span>
+        )}
         <span aria-hidden>
           <ArrowIcon />
         </span>
@@ -59,42 +140,15 @@ function EmptyState() {
   );
 }
 
-function CodesList({ items }: { items: Array<CodeItem> }) {
+function FilledSlot({ item }: { item: CodeItem }) {
   return (
-    <ul className="flex flex-col gap-2.5">
-      {items.map((item) => {
-        // Small tag above the name so YOU can tell your own code from
-        // one you made for a loved one at a glance. Pre-mode codes
-        // (mode === null) render nameless so we don't guess wrong.
-        const tag =
-          item.mode === "self"
-            ? "Your code"
-            : item.mode === "other"
-              ? `For ${item.name}`
-              : null;
-        return (
-          <li
-            key={item.oracleId}
-            className="flex items-center justify-between gap-3 rounded-xl bg-warm-700/25 px-3.5 py-2.5 ring-1 ring-warm-700/60"
-          >
-            <div className="min-w-0 flex-1">
-              {tag ? (
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-coral-strong">
-                  {tag}
-                </p>
-              ) : null}
-              <p className="truncate text-sm font-medium text-warm-50">
-                {item.name}
-              </p>
-              <p className="mt-0.5 font-mono text-xs text-warm-300">
-                {item.code}
-              </p>
-            </div>
-            <ShareButton code={item.code} name={item.name} />
-          </li>
-        );
-      })}
-    </ul>
+    <div className="mt-1.5 flex items-center justify-between gap-3">
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium text-warm-50">{item.name}</p>
+        <p className="mt-0.5 font-mono text-xs text-warm-300">{item.code}</p>
+      </div>
+      <ShareButton code={item.code} name={item.name} />
+    </div>
   );
 }
 
