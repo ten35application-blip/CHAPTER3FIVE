@@ -13,6 +13,7 @@ import { InheritCodesList } from "./_components/InheritCodesList";
 import { ManageSubscriptionButton } from "./_components/ManageSubscriptionButton";
 import { MintedBanner } from "./_components/MintedBanner";
 import { NameField } from "./_components/NameField";
+import { PacksList } from "./_components/PacksList";
 import { PasswordResetRow } from "./_components/PasswordResetRow";
 import { PhotoUploader } from "./_components/PhotoUploader";
 import { ThemeToggle } from "./_components/ThemeToggle";
@@ -375,6 +376,15 @@ export default async function SettingsPage({
               />
             )}
           </div>
+        </Section>
+
+        {/* EXTRA USAGE — proactive top-up surface for the add-on packs.
+            Wilson's ask 2026-07-28: users should be able to buy a pack
+            from Settings whenever they want, not only after hitting a
+            cap. Sits right under Plan because it's a plan add-on, not
+            a standalone concept. */}
+        <Section label="Extra usage">
+          <PacksList />
         </Section>
 
         {/* APPEARANCE — theme picker. Client-only state; localStorage
