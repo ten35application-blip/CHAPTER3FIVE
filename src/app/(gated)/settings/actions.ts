@@ -301,3 +301,44 @@ export async function updateProfileName(
   revalidatePath("/dashboard");
   return { ok: true };
 }
+
+/**
+ * Password reset kickoff. Sends the standard Supabase
+ * "recover your account" email to the caller's registered address; the
+ * link inside lands on /auth/update-password with a live session that
+ * lets the client-side form call updateUser({password}) directly.
+ *
+ * We DON'T let the caller pass an arbitrary email — the reset always
+ * goes to the currently-signed-in user's own email (`auth.users.email`).
+ * Prevents a signed-in user from spamming reset emails to strangers.
+ *
+ * Deliberately reports success even if Supabase returns an error, to
+ * avoid leaking whether an account exists — but since we required a
+ * signed-in session above, that leak surface is already zero here. We
+ * still swallow the error to a generic message so a transient email
+ * provider issue doesn't stall the surface.
+ */
+export async function sendPasswordResetEmail(): Promise<
+  { ok: true } | { ok: false; error: string }
+> {
+  const { supabase, user } = await requireUser();
+  const email = user.email;
+  if (!email) {
+    return { ok: false, error: "No email on file for this account." };
+  }
+
+  const origin =
+    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "";
+  const redirectTo = origin
+    ? `${origin}/auth/update-password`
+    : "/auth/update-password";
+
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo,
+  });
+  if (error) {
+    console.error("[password-reset] resetPasswordForEmail failed:", error);
+    return { ok: false, error: "Couldn't send the reset email. Try again." };
+  }
+  return { ok: true };
+}

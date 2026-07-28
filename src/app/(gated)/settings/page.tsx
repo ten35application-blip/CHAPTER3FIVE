@@ -13,6 +13,7 @@ import { InheritCodesList } from "./_components/InheritCodesList";
 import { ManageSubscriptionButton } from "./_components/ManageSubscriptionButton";
 import { MintedBanner } from "./_components/MintedBanner";
 import { NameField } from "./_components/NameField";
+import { PasswordResetRow } from "./_components/PasswordResetRow";
 import { PhotoUploader } from "./_components/PhotoUploader";
 import { ThemeToggle } from "./_components/ThemeToggle";
 import { UpgradeButton } from "./_components/UpgradeButton";
@@ -260,6 +261,7 @@ export default async function SettingsPage({
           />
           <NameField fullName={fullName} />
           <Row icon={<MailIcon />} label="Email" value={email} />
+          <PasswordResetRow email={email} />
         </Section>
 
         {/* INHERIT CODES — its own Section (Wilson's ask 2026-07-28:
