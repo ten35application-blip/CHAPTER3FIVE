@@ -126,15 +126,34 @@ export function LegacyFlow({
     window.scrollTo({ top: 0 });
   }
 
+  const [stuckError, setStuckError] = useState<string | null>(null);
+
   async function finish() {
     setSubmitting(true);
+    setStuckError(null);
     flushSave();
-    // The action redirects on success; on failure it redirects back here
-    // with ?error= and the draft intact.
-    await completeLegacyIdentity({
-      subject: latest.current.subject,
-      answers: latest.current.answers,
-    });
+    // Client-side watchdog: if the server action hasn't redirected in
+    // ~5 minutes (matches page.tsx maxDuration=300), surface a retry
+    // affordance instead of leaving the user on the WeavingScreen
+    // forever. The action itself is idempotent-ish (fingerprint
+    // uniqueness catches double-submits), so a retry is safe.
+    const watchdog = window.setTimeout(() => {
+      setSubmitting(false);
+      setStuckError(
+        "The weaving is taking longer than expected. Your answers are saved -- try Finish again.",
+      );
+    }, 305_000);
+    try {
+      // Success = server redirects, this component unmounts, watchdog
+      // never fires. Failure = redirectWithError bounces back to this
+      // page with ?error= (serverError prop repopulates on remount).
+      await completeLegacyIdentity({
+        subject: latest.current.subject,
+        answers: latest.current.answers,
+      });
+    } finally {
+      window.clearTimeout(watchdog);
+    }
   }
 
   const answeredCount = Object.values(answers).filter(
@@ -151,6 +170,11 @@ export function LegacyFlow({
         {serverError ? (
           <div className="mb-6 rounded-2xl bg-coral/10 px-4 py-3 text-sm font-medium text-coral-strong ring-1 ring-coral/25">
             {serverError}
+          </div>
+        ) : null}
+        {stuckError ? (
+          <div className="mb-6 rounded-2xl bg-coral/10 px-4 py-3 text-sm font-medium text-coral-strong ring-1 ring-coral/25">
+            {stuckError}
           </div>
         ) : null}
 
@@ -585,6 +609,27 @@ function QuestionScreen({
 // ─── Weaving overlay ────────────────────────────────────────────────────────
 
 function WeavingScreen({ name }: { name: string }) {
+  // Smooth trickle percentage. The server action is opaque (Claude
+  // synthesis inside a Next server action -- no streaming signal we
+  // can subscribe to), so we simulate: fast at first, slower as we
+  // approach 92, then hold. The redirect unmounts this screen the
+  // instant synthesis completes, so users almost always see the jump
+  // 92 -> next-page rather than 92 sitting forever. Time-based
+  // exponential curve (not a fixed step) keeps the number smooth if
+  // the tab is throttled or the frame rate stutters.
+  const [pct, setPct] = useState(0);
+  useEffect(() => {
+    const start = performance.now();
+    const CEILING = 92;
+    const TAU_MS = 12_000; // shape constant; ~63% at 12s, ~92% at 30s
+    const id = window.setInterval(() => {
+      const t = performance.now() - start;
+      const next = CEILING * (1 - Math.exp(-t / TAU_MS));
+      setPct((prev) => (next > prev ? next : prev));
+    }, 200);
+    return () => window.clearInterval(id);
+  }, []);
+  const displayPct = Math.floor(pct);
   return (
     <main className="flex min-h-dvh flex-1 flex-col items-center justify-center px-6 py-12">
       <div className="hero-orb hero-orb-drift flex flex-col items-center pt-4 text-center">
@@ -600,7 +645,23 @@ function WeavingScreen({ name }: { name: string }) {
           {`Weaving ${name.trim() || "them"} together`}
           <span aria-hidden>&hellip;</span>
         </p>
-        <p className="mt-2 text-sm text-warm-300">
+        <div
+          className="mt-6 h-1.5 w-56 overflow-hidden rounded-full bg-warm-700/40"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={displayPct}
+          aria-label="Weaving progress"
+        >
+          <div
+            className="bg-gradient-cta h-full rounded-full transition-[width] duration-200 ease-out"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+        <p className="mt-2 font-mono text-xs tabular-nums text-warm-300">
+          {displayPct}%
+        </p>
+        <p className="mt-3 text-sm text-warm-300">
           Every answer becomes part of who they are. This takes a minute.
         </p>
       </div>

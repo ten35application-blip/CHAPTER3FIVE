@@ -11,6 +11,16 @@ export const metadata = {
   title: "Someone to keep · chapter3five",
 };
 
+// Server-action budget for the Weaving step. `completeLegacyIdentity`
+// synthesizes a full persona from up to 40 answers via Anthropic; a
+// long batch can push past the Vercel Hobby default (60s) and hang
+// the user on the WeavingScreen with no error. 300s is the Pro-plan
+// ceiling and covers even the slowest real-world synthesis by a wide
+// margin. The client-side finish() also carries its own abort timer
+// (see LegacyFlow.tsx) so a stuck request surfaces as an error toast
+// instead of a stuck screen.
+export const maxDuration = 300;
+
 type DraftRow = {
   subject: Partial<LegacySubject> | null;
   answers: Record<string, string> | null;

@@ -299,5 +299,12 @@ export async function completeLegacyIdentity(payload: {
   // The draft has served its purpose.
   await supabase.from("legacy_drafts").delete().eq("user_id", user.id);
 
-  redirect(`/identity/legacy/${inserted.id}/share`);
+  // Land in Settings so the freshly-minted code + the native Share
+  // button surface in one place. The `?minted=` param triggers a
+  // one-time success banner at the top of Settings (Wilson's ask
+  // 2026-07-28: "take you back to your settings with your inherit
+  // code and the ability to now share the code"). The old /share
+  // page still works if someone deep-links to it, but nothing routes
+  // there by default anymore.
+  redirect(`/settings?minted=${inserted.id}`);
 }
