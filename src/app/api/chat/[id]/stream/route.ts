@@ -324,6 +324,7 @@ export async function POST(
     const { data: bumpedTo, error: bumpErr } = await admin.rpc(
       "bump_message_retry_count",
       {
+        caller_user_id: user.id,
         target_message_id: retryTargetMessageId,
         max_allowed: MAX_RETRIES_PER_MESSAGE,
       },
