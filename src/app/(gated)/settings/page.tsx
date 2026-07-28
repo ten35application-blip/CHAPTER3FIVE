@@ -9,6 +9,7 @@ import {
 } from "@/lib/pricing";
 import { PlanCards } from "@/components/PlanCards";
 import { DataExportButton } from "./_components/DataExportButton";
+import { InheritCodesList } from "./_components/InheritCodesList";
 import { ManageSubscriptionButton } from "./_components/ManageSubscriptionButton";
 import { NameField } from "./_components/NameField";
 import { PhotoUploader } from "./_components/PhotoUploader";
@@ -88,6 +89,44 @@ export default async function SettingsPage({
   const initial = (email[0] ?? "?").toUpperCase();
   const count = identityCount ?? 0;
   const fullName = (profile?.full_name as string | null) ?? null;
+
+  // Inherit codes for legacy identities THIS user minted (not ones
+  // they've merely redeemed). Two thin queries mirror the dashboard
+  // shape (dashboard/page.tsx:80-101) so a single index covers both
+  // surfaces. Same-user RLS scopes the oracles read; the inherit_codes
+  // read is filtered to those oracle ids so a stray policy change
+  // can't leak someone else's codes here.
+  const { data: legacyRows } = await supabase
+    .from("oracles")
+    .select("id, name, created_at")
+    .eq("is_legacy", true)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false });
+  const legacyOracleIds = (legacyRows ?? []).map((r) => r.id as string);
+  const codeByOracle = new Map<string, string>();
+  if (legacyOracleIds.length > 0) {
+    const { data: codeRows } = await supabase
+      .from("inherit_codes")
+      .select("code, oracle_id")
+      .in("oracle_id", legacyOracleIds)
+      .is("revoked_at", null);
+    for (const c of codeRows ?? []) {
+      if (typeof c.code === "string" && typeof c.oracle_id === "string") {
+        codeByOracle.set(c.oracle_id, c.code);
+      }
+    }
+  }
+  const inheritCodeItems = (legacyRows ?? [])
+    .map((r) => {
+      const code = codeByOracle.get(r.id as string);
+      if (!code) return null;
+      return {
+        oracleId: r.id as string,
+        name: (r.name as string | null) ?? "Untitled",
+        code,
+      };
+    })
+    .filter((x): x is { oracleId: string; name: string; code: string } => x !== null);
 
   const pro = await isPro(supabase);
   // Tier split (Basic vs Pro) for the plan label + identity quota.
@@ -181,6 +220,17 @@ export default async function SettingsPage({
             debug={debug}
           />
           <NameField fullName={fullName} />
+        </Section>
+
+        {/* INHERIT CODES — the codes for every legacy identity this
+            user has minted. Empty state teaches the flow (Wilson's ask
+            2026-07-28: "a blank message with instructions on how to
+            create the code, and when it's done the code should be
+            there"). Placed right under Profile because it's a "who
+            you are + what you can pass on" surface, not a plan or
+            billing concern. */}
+        <Section label="Inherit codes">
+          <InheritCodesList items={inheritCodeItems} />
         </Section>
 
         {/* ACCOUNT — email lives here per Wilson (name lives up in
