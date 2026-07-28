@@ -318,10 +318,14 @@ export async function POST(request: NextRequest) {
     const imageCap = await canSendImageForMonthCap(supabase, requesterPlan);
     if (!imageCap.ok) {
       if (typeof payload.image_storage_path === "string" && payload.image_storage_path) {
-        // Best-effort orphan cleanup. Never let a delete error block
-        // the 402 -- the paid restriction is what matters here.
-        await createAdminClient()
-          .storage.from("chat-photos")
+        // Best-effort orphan cleanup. RLS-respecting delete via the
+        // USER client (same as the moderation-reject path below) --
+        // the path is client-supplied, so a service-role delete here
+        // would let any capped user remove arbitrary chat-photos
+        // objects. Never let a delete error block the 402 -- the paid
+        // restriction is what matters here.
+        await supabase.storage
+          .from("chat-photos")
           .remove([payload.image_storage_path])
           .catch((err) =>
             console.error("[chat] cap-hit orphan cleanup failed:", err),
