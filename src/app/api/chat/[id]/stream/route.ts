@@ -171,12 +171,19 @@ export async function POST(
   // the derived boolean). Cuts 3 profiles-table SELECTs per turn to 1.
   const requesterPlan = await getPlanTier(supabase);
   const requesterIsPro = requesterPlan.tier === "pro";
+  // canChatWithOracle's precomputed flag stands in for isPro(), whose
+  // meaning is "ANY active paid window" (Basic OR Pro OR trial OR
+  // admin) — NOT the Basic/Pro split. Passing tier === "pro" here
+  // 403'd Basic subscribers on every oracle except free_identity_id
+  // (page loaded via real isPro, stream then bounced). tier !== "free"
+  // matches isPro exactly: trial and admin both resolve to "pro".
+  const requesterIsPaid = requesterPlan.tier !== "free";
 
   // Trial / Free-tier gate — Pro (paid, admin, or in-trial) chats with
   // everything; Free tier only with profiles.free_identity_id. Checked
   // BEFORE the rate-limit bump so a locked send never counts against
   // the user's daily usage.
-  if (!(await canChatWithOracle(oracleId, supabase, requesterIsPro))) {
+  if (!(await canChatWithOracle(oracleId, supabase, requesterIsPaid))) {
     return NextResponse.json(
       { error: "trial_ended_or_locked" },
       { status: 403 },
