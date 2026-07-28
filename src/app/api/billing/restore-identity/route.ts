@@ -44,9 +44,17 @@ export async function POST(request: NextRequest) {
   // already restricts oracles selects to the owner, but this second
   // filter guarantees we're not billing to restore something that's
   // already active.
+  //
+  // Deliberately NOT selecting restore_price_cents: the price is
+  // derived from the PRICING constant below, not from the DB column,
+  // because until migration 0117 landed the column was client-
+  // writable (Fable audit C2). Even with 0117 blocking further
+  // patches, we don't want to trust any past-manipulated value
+  // sitting on an oracle row. This closes the "restore a $5 identity
+  // for $0.50 by first PATCHing your own row" attack.
   const { data: oracle } = await supabase
     .from("oracles")
-    .select("id, name, deleted_at, restore_price_cents, is_legacy")
+    .select("id, name, deleted_at, is_legacy")
     .eq("id", oracleId)
     .not("deleted_at", "is", null)
     .maybeSingle();
@@ -76,10 +84,7 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  const priceCents =
-    typeof oracle.restore_price_cents === "number"
-      ? oracle.restore_price_cents
-      : PRICING.restoreIdentityCents;
+  const priceCents = PRICING.restoreIdentityCents;
 
   // Stub mode: no Stripe key yet. Report cleanly so the client can show
   // a "coming soon" message; log the intent so demand is visible.
