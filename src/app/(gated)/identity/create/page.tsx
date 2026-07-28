@@ -68,7 +68,6 @@ export default async function IdentityCreatePage() {
             title="For someone to keep"
             subhead="Sit with yourself, or with someone you love. Answer warm, specific questions about who they really are. You'll get a code you can share with family."
             icon={<HeartTagIcon />}
-            proOnly
           />
         </div>
 
@@ -88,13 +87,11 @@ function PathCard({
   title,
   subhead,
   icon,
-  proOnly,
 }: {
   href: string;
   title: string;
   subhead: string;
   icon: React.ReactNode;
-  proOnly?: boolean;
 }) {
   return (
     <Link
@@ -108,14 +105,7 @@ function PathCard({
         <span className="text-gradient-cta">{icon}</span>
       </span>
       <span className="flex min-w-0 flex-col">
-        <span className="flex items-center gap-2">
-          <span className="text-lg font-semibold text-warm-50">{title}</span>
-          {proOnly ? (
-            <span className="bg-gradient-cta rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-white">
-              Pro
-            </span>
-          ) : null}
-        </span>
+        <span className="text-lg font-semibold text-warm-50">{title}</span>
         <span className="mt-1 text-sm leading-relaxed text-warm-300">
           {subhead}
         </span>
