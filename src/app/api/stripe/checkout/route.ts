@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { headers } from "next/headers";
-import { getStripe, RANDOMIZE_PRICE_USD_CENTS } from "@/lib/stripe";
+import { getStripe } from "@/lib/stripe";
 import { PRICING } from "@/lib/pricing";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -9,38 +9,36 @@ import { requireTermsAccepted } from "@/lib/legal/gate";
 /**
  * Create a Stripe Checkout session. The `purpose` query/body field
  * decides the SKU:
- *   - "randomize" (default) — adds 1 to randomize_credits
- *   - "oracle"              — adds 1 to extra_oracle_credits
- *   - "beneficiary_slot" / "restore_account" / "restore_oracle"
  *   - "pro_monthly" / "basic_monthly" — recurring subscriptions,
  *     gated on STRIPE_PRICE_ID_PRO_MONTHLY / _BASIC_MONTHLY
  *   - "pack_small" / "pack_medium" / "pack_large" — one-time add-on
- *     packs (STRIPE_PRICE_ID_PACK_*). The buyer picks the pack TYPE
- *     (messages or images) in the UI before hitting checkout; it
- *     arrives as `pack_type` in the body/query and rides into the
- *     session metadata so the webhook credits the right column.
+ *     packs (STRIPE_PRICE_ID_PACK_*). Each pack credits BOTH
+ *     message_credits AND image_credits per Wilson's 2026-07-28
+ *     product spec ("you get both that many messages and photos").
+ *     Older `pack_type` metadata is silently ignored.
  *   - "inherited_slot_purchase" — one-time $5 inherit-slot credit
  *     (STRIPE_PRICE_ID_INHERITED_SLOT). On payment the webhook adds
- *     1 to profiles.inherited_slot_credits; the /identity/inherit
- *     redeem action consumes 1 per code redeemed (flat fee — every
- *     tier, every code, no waivers). success_url
- *     lands the buyer back on /identity/inherit so they can enter
- *     the code they were holding when the gate stopped them.
+ *     1 to profiles.inherited_slot_credits; /identity/inherit
+ *     consumes 1 per code redeemed (flat fee — every tier, every
+ *     code, no waivers). success_url lands the buyer back on
+ *     /identity/inherit so they can enter the code they were
+ *     holding when the gate stopped them.
  *   - "other_identity_create" — one-time $5 other-mode legacy-mint
  *     credit (STRIPE_PRICE_ID_OTHER_IDENTITY_CREATE). On payment the
- *     webhook adds 1 to profiles.other_identity_credits; the
- *     completeLegacyIdentity action consumes 1 per other-mode
- *     completion (self-mode stays free). success_url lands the buyer
- *     back on /identity/legacy/new?paid=1 — the last question with a
+ *     webhook adds 1 to profiles.other_identity_credits;
+ *     completeLegacyIdentity consumes 1 per other-mode completion
+ *     (self-mode stays free). success_url lands the buyer back on
+ *     /identity/legacy/new?paid=1 — the last question with a
  *     "You're paid — finish it" CTA.
+ *
+ * PURGED 2026-07-28 (Fable payment audit): "randomize", "oracle",
+ * "beneficiary_slot", "restore_account", "restore_oracle" — those
+ * routes were scrapped in the 2026-06-29 reset. The checkout
+ * branches for them survived and would have landed buyers on 404
+ * success pages, so they're rejected here.
  */
 export async function POST(request: NextRequest) {
   type Purpose =
-    | "randomize"
-    | "oracle"
-    | "beneficiary_slot"
-    | "restore_account"
-    | "restore_oracle"
     | "pro_monthly"
     | "basic_monthly"
     | "pack_small"
@@ -48,15 +46,8 @@ export async function POST(request: NextRequest) {
     | "pack_large"
     | "inherited_slot_purchase"
     | "other_identity_create";
-  let purpose: Purpose = "randomize";
-  let restoreOracleId: string | null = null;
-  let packType: "message" | "image" = "message";
+  let purpose: Purpose | null = null;
   const isPurpose = (v: unknown): v is Purpose =>
-    v === "randomize" ||
-    v === "oracle" ||
-    v === "beneficiary_slot" ||
-    v === "restore_account" ||
-    v === "restore_oracle" ||
     v === "pro_monthly" ||
     v === "basic_monthly" ||
     v === "pack_small" ||
@@ -64,18 +55,10 @@ export async function POST(request: NextRequest) {
     v === "pack_large" ||
     v === "inherited_slot_purchase" ||
     v === "other_identity_create";
-  const isPackType = (v: unknown): v is "message" | "image" =>
-    v === "message" || v === "image";
   try {
     const body = await request.clone().json();
     if (isPurpose(body?.purpose)) {
       purpose = body.purpose;
-    }
-    if (typeof body?.oracle_id === "string") {
-      restoreOracleId = body.oracle_id;
-    }
-    if (isPackType(body?.pack_type)) {
-      packType = body.pack_type;
     }
   } catch {
     // body optional
@@ -85,9 +68,12 @@ export async function POST(request: NextRequest) {
   if (isPurpose(qp)) {
     purpose = qp;
   }
-  const qpPackType = url.searchParams.get("pack_type");
-  if (isPackType(qpPackType)) {
-    packType = qpPackType;
+
+  if (purpose === null) {
+    return NextResponse.json(
+      { error: "unknown_or_missing_purpose" },
+      { status: 400 },
+    );
   }
 
   const supabase = await createClient();
@@ -241,7 +227,9 @@ export async function POST(request: NextRequest) {
         user_id: user.id,
         purpose,
         pack_kind: packKind,
-        pack_type: packType,
+        // pack_type retired 2026-07-28: packs now credit BOTH counters
+        // (message_credits + image_credits) regardless of any prior
+        // buyer selection.
       },
       success_url: `${origin}/dashboard?pack=1`,
       cancel_url: `${origin}/upgrade?cancelled=1#packs`,
@@ -348,85 +336,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ url: session.url });
   }
 
-  const productName =
-    purpose === "oracle"
-      ? "chapter3five — new identity"
-      : purpose === "beneficiary_slot"
-        ? "chapter3five — extra beneficiary"
-        : purpose === "restore_account"
-          ? "chapter3five — restore account"
-          : purpose === "restore_oracle"
-            ? "chapter3five — restore identity"
-            : "chapter3five — randomize";
-  const productDesc =
-    purpose === "oracle"
-      ? "Create one additional identity in your account."
-      : purpose === "beneficiary_slot"
-        ? "Designate one additional beneficiary for your archive."
-        : purpose === "restore_account"
-          ? "Bring your archive back from the 30-day grace period."
-          : purpose === "restore_oracle"
-            ? "Restore one of your identities from the 30-day grace period."
-            : "One additional randomized character generation.";
-  const successPath =
-    purpose === "oracle"
-      ? "/oracle/success?session_id={CHECKOUT_SESSION_ID}"
-      : purpose === "beneficiary_slot"
-        ? "/sharing?saved=beneficiary-slot"
-        : purpose === "restore_account"
-          ? "/dashboard?restored=1"
-          : purpose === "restore_oracle"
-            ? "/identities?saved=oracle-restored"
-            : "/randomize/success?session_id={CHECKOUT_SESSION_ID}";
-  const cancelPath =
-    purpose === "oracle"
-      ? "/oracle/cancel"
-      : purpose === "beneficiary_slot"
-        ? "/sharing?error=Payment%20cancelled"
-        : purpose === "restore_account"
-          ? "/restore?error=Payment%20cancelled"
-          : purpose === "restore_oracle"
-            ? "/identities?error=Payment%20cancelled"
-            : "/randomize/cancel";
-
-  const session = await stripe.checkout.sessions.create({
-    mode: "payment",
-    payment_method_types: ["card"],
-    customer_email: user.email ?? undefined,
-    line_items: [
-      {
-        quantity: 1,
-        price_data: {
-          currency: "usd",
-          unit_amount: RANDOMIZE_PRICE_USD_CENTS,
-          product_data: {
-            name: productName,
-            description: productDesc,
-          },
-        },
-      },
-    ],
-    metadata: {
-      user_id: user.id,
-      purpose,
-      ...(purpose === "restore_oracle" && restoreOracleId
-        ? { oracle_id: restoreOracleId }
-        : {}),
-    },
-    success_url: `${origin}${successPath}`,
-    cancel_url: `${origin}${cancelPath}`,
-  });
-
-  // Record a pending payment row so we can reconcile.
-  const admin = createAdminClient();
-  await admin.from("payments").insert({
-    user_id: user.id,
-    stripe_session_id: session.id,
-    amount_cents: RANDOMIZE_PRICE_USD_CENTS,
-    currency: "usd",
-    purpose,
-    status: "pending",
-  });
-
-  return NextResponse.json({ url: session.url });
+  // Every valid purpose has its own branch above and returns; hitting
+  // this point means the isPurpose validator has drifted from the
+  // branch table. Fail closed rather than silently minting a garbage
+  // session.
+  return NextResponse.json(
+    { error: "purpose_not_handled" },
+    { status: 500 },
+  );
 }

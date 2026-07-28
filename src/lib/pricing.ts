@@ -185,9 +185,11 @@ export const FREE_MONTHLY_SPEND_LABEL = `$${(PRICING.freeMonthlySpendCents / 100
 
 /**
  * The three add-on packs in display order, ready for UI iteration.
- * One-time purchases; each pack is messages OR images, buyer's pick.
- * Not Stripe-wired yet — surfaces render mailto reserve buttons until
- * the Price objects exist.
+ * One-time purchases; each pack credits BOTH message_credits AND
+ * image_credits by the amounts listed (Wilson's 2026-07-28 product
+ * spec: "you get both that many messages and photos"). Stripe-wired
+ * via STRIPE_PRICE_ID_PACK_SMALL / _MEDIUM / _LARGE; UI falls back
+ * to a mailto reserve button if the env for a given pack is absent.
  */
 export const ADDON_PACKS = [
   {

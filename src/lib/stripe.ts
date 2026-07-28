@@ -12,4 +12,3 @@ export function getStripe(): Stripe {
   return cached;
 }
 
-export const RANDOMIZE_PRICE_USD_CENTS = 500;

@@ -3,47 +3,44 @@
 import { useState } from "react";
 
 /**
- * "Extra usage" surface for Settings. Shows the three one-time
- * add-on packs so users can proactively top up before or after
- * hitting a cap.
+ * "Extra usage" surface — compact single-row picker. Wilson's ask
+ * 2026-07-28: the three-row layout felt repetitive; collapsed to one
+ * copy line + a dropdown + one "Take me to pay" button.
  *
- * Each pack credits BOTH message_credits and image_credits on the
- * user's profile — Wilson's product spec 2026-07-28: "you get both
- * that many messages and photos, it's not separate." One button per
- * pack, one payment, both counters bumped by the pack's amounts.
- *
- * Compact-list style, not marketing cards — matches the "Settings
- * reads like Settings" bar we set for the inherit codes surface.
+ * Each pack still credits BOTH message_credits AND image_credits per
+ * the 2026-07-28 product spec ("you get both that many messages and
+ * photos"). The dropdown label shows exactly what each pack adds so
+ * the buyer sees the trade-off before hitting checkout.
  */
+type PackId = "pack_small" | "pack_medium" | "pack_large";
+
 type Pack = {
-  purpose: "pack_small" | "pack_medium" | "pack_large";
+  id: PackId;
   name: string;
   priceCents: number;
   messages: number;
   images: number;
 };
 
-// Duplicated from PRICING to keep this client-safe (pricing.ts pulls
-// in nothing sensitive but avoiding a client bundle grow-through is
-// worth the 6 lines of static data here).
+// Duplicated from PRICING to keep this client-safe.
 const PACKS: Pack[] = [
   {
-    purpose: "pack_small",
-    name: "Small pack",
+    id: "pack_small",
+    name: "Small",
     priceCents: 500,
     messages: 100,
     images: 12,
   },
   {
-    purpose: "pack_medium",
-    name: "Medium pack",
+    id: "pack_medium",
+    name: "Medium",
     priceCents: 1000,
     messages: 250,
     images: 30,
   },
   {
-    purpose: "pack_large",
-    name: "Large pack",
+    id: "pack_large",
+    name: "Large",
     priceCents: 2000,
     messages: 600,
     images: 75,
@@ -51,21 +48,7 @@ const PACKS: Pack[] = [
 ];
 
 export function PacksList() {
-  return (
-    <div className="flex flex-col divide-y divide-warm-700/60">
-      <p className="px-4 pb-3 pt-4 text-xs leading-relaxed text-warm-400">
-        Top up whenever you want &mdash; each pack is a one-time
-        purchase that adds messages AND photos to whatever&rsquo;s
-        left of your monthly quota.
-      </p>
-      {PACKS.map((pack) => (
-        <PackRow key={pack.purpose} pack={pack} />
-      ))}
-    </div>
-  );
-}
-
-function PackRow({ pack }: { pack: Pack }) {
+  const [selected, setSelected] = useState<PackId>("pack_small");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -76,11 +59,9 @@ function PackRow({ pack }: { pack: Pack }) {
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ purpose: pack.purpose }),
+        body: JSON.stringify({ purpose: selected }),
       });
       if (!res.ok) {
-        // Env not wired yet -> 503 from the endpoint. Surface plainly
-        // so this doesn't look like a mystery failure.
         if (res.status === 503) {
           setError("Pack checkout isn't configured yet.");
         } else {
@@ -91,8 +72,6 @@ function PackRow({ pack }: { pack: Pack }) {
       }
       const body = (await res.json()) as { url?: string };
       if (body.url) {
-        // Full-page nav to Stripe -- checkout expects to own the
-        // whole browser context, not iframe from us.
         window.location.href = body.url;
         return;
       }
@@ -106,31 +85,50 @@ function PackRow({ pack }: { pack: Pack }) {
   }
 
   return (
-    <div className="flex items-center justify-between gap-3 px-4 py-3.5">
-      <div className="min-w-0 flex-1">
-        <p className="text-[15px] font-medium text-warm-50">
-          {pack.name}{" "}
-          <span className="ml-1 text-sm font-semibold text-warm-200">
-            ${(pack.priceCents / 100).toFixed(0)}
-          </span>
-        </p>
-        <p className="mt-1 text-xs text-warm-400">
-          {pack.messages} messages &amp; {pack.images} photos
-        </p>
-        {error ? (
-          <p role="alert" className="mt-1.5 text-xs font-medium text-coral-strong">
-            {error}
-          </p>
-        ) : null}
+    <div className="px-4 py-4">
+      <p className="text-xs leading-relaxed text-warm-400">
+        Extra usage? Grab an add-on pack from $5 &mdash; each pack adds
+        both messages and photos to whatever&rsquo;s left of your
+        monthly quota.
+      </p>
+      <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+        <label className="flex-1">
+          <span className="sr-only">Choose a pack</span>
+          <select
+            value={selected}
+            onChange={(e) => setSelected(e.target.value as PackId)}
+            disabled={pending}
+            className="h-11 w-full appearance-none rounded-full bg-warm-700/40 px-4 pr-9 text-sm font-medium text-warm-50 ring-1 ring-warm-700/60 transition-colors hover:bg-warm-700/60 focus:outline-none focus:ring-2 focus:ring-coral/50 disabled:opacity-60"
+            style={{
+              backgroundImage:
+                "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%239ca394' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M5 8l5 5 5-5'/></svg>\")",
+              backgroundRepeat: "no-repeat",
+              backgroundPosition: "right 12px center",
+              backgroundSize: "16px",
+            }}
+          >
+            {PACKS.map((pack) => (
+              <option key={pack.id} value={pack.id}>
+                {pack.name} &mdash; ${(pack.priceCents / 100).toFixed(0)}{" "}
+                &mdash; {pack.messages} messages &amp; {pack.images} photos
+              </option>
+            ))}
+          </select>
+        </label>
+        <button
+          type="button"
+          onClick={() => void buy()}
+          disabled={pending}
+          className="bg-gradient-cta h-11 shrink-0 rounded-full px-5 text-sm font-semibold text-white shadow-[0_4px_10px_-2px_rgba(232,138,118,0.35)] transition-transform hover:-translate-y-0.5 disabled:opacity-60"
+        >
+          {pending ? "Opening…" : "Take me to pay"}
+        </button>
       </div>
-      <button
-        type="button"
-        onClick={() => void buy()}
-        disabled={pending}
-        className="bg-gradient-cta shrink-0 rounded-full px-4 py-2 text-xs font-semibold text-white shadow-[0_4px_10px_-2px_rgba(232,138,118,0.35)] transition-transform hover:-translate-y-0.5 disabled:opacity-60"
-      >
-        {pending ? "Opening…" : "Take me to pay"}
-      </button>
+      {error ? (
+        <p role="alert" className="mt-2 text-xs font-medium text-coral-strong">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }

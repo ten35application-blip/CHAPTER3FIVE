@@ -67,11 +67,20 @@ export async function POST(request: NextRequest) {
 
   if (event.type === "checkout.session.completed") {
     await handleCheckoutCompleted(event, admin);
-  } else if (
-    event.type === "charge.refunded" ||
-    event.type === "charge.dispute.closed"
-  ) {
+  } else if (event.type === "charge.refunded") {
     await handleChargeRefunded(event, admin);
+  } else if (event.type === "charge.dispute.closed") {
+    // A dispute CAN close in the merchant's favor — status='won' means
+    // the merchant kept the money and the customer's dispute failed.
+    // Only status='lost' should trigger a credit revert. Fable payment
+    // audit 2026-07-28: pre-fix, ANY close treated as a refund, which
+    // would incorrectly claw back credits the customer legitimately
+    // paid for. Statuses that neither win nor lose (needs_response,
+    // warning_*, etc.) are also ignored — only a final 'lost' revert.
+    const dispute = event.data.object as { status?: string };
+    if (dispute.status === "lost") {
+      await handleChargeRefunded(event, admin);
+    }
   } else if (event.type === "invoice.paid") {
     await handleInvoicePaid(event, admin);
   } else if (event.type === "invoice.payment_failed") {

@@ -73,12 +73,15 @@ function avatarsObjectPath(avatarUrl: string | null): string | null {
  * the person away from the family. No live sync after redemption, by
  * design.
  *
- * GATE MODEL (unchanged from the flat-fee rework): redemption is paid
+GATE MODEL (unchanged from the flat-fee rework): redemption is paid
  * PER CODE — every NEW redemption consumes one purchased inherit-slot
  * credit (profiles.inherited_slot_credits, $5 one-time via Stripe). No
- * credit → bounce to /upgrade?reason=inherited-slot. No memorial
- * waiver — Wilson: "it is NOT free to inherit a code and it's not our
- * place to verify someone died."
+ * credit → we mint a Stripe checkout session inline and redirect
+ * straight to it (Wilson's ask 2026-07-28: no /upgrade detour). On
+ * successful payment the webhook grants the credit and the buyer is
+ * bounced back to /identity/inherit?purchased=1 to re-enter their
+ * code. No memorial waiver — Wilson: "it is NOT free to inherit a
+ * code and it's not our place to verify someone died."
  *
  * The credit is consumed AFTER the copy persists (consumePackCredit
  * pattern) and only when the copy is genuinely NEW — re-redeeming an

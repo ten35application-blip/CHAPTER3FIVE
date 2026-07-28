@@ -6,6 +6,7 @@ import { getFreeIdentityId, isPro } from "@/lib/subscription";
 import { ensureAdrianAvatar } from "@/lib/faces/adrian";
 import { HubSheet } from "./_components/HubSheet";
 import { DashboardContent, type Identity } from "./_components/DashboardContent";
+import { PurchaseToast } from "./_components/PurchaseToast";
 import { PushOptIn } from "./_components/PushOptIn";
 import { UserMenu } from "./_components/UserMenu";
 import { signOut } from "./actions";
@@ -38,9 +39,26 @@ export const dynamic = "force-dynamic";
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ welcomed?: string; claimed?: string }>;
+  searchParams: Promise<{
+    welcomed?: string;
+    claimed?: string;
+    /** Set by /api/stripe/checkout success_url on pack purchase --
+     *  triggers a small "Pack added" toast so the buyer sees the
+     *  credits landed. */
+    pack?: string;
+    /** Set by the subscription checkout success_url when a Free user
+     *  or Basic user upgrades tiers. */
+    upgraded?: string;
+  }>;
 }) {
-  const { welcomed: welcomedId, claimed: claimedFlag } = await searchParams;
+  const {
+    welcomed: welcomedId,
+    claimed: claimedFlag,
+    pack: packFlag,
+    upgraded: upgradedFlag,
+  } = await searchParams;
+  const showPackToast = packFlag === "1";
+  const showUpgradedToast = upgradedFlag === "1";
   const supabase = await createClient();
   const {
     data: { user },
@@ -325,6 +343,9 @@ export default async function DashboardPage({
         vapidPublicKey={vapidPublicKey}
         alreadySubscribed={alreadySubscribed}
       />
+
+      {showPackToast ? <PurchaseToast kind="pack" /> : null}
+      {showUpgradedToast ? <PurchaseToast kind="upgraded" /> : null}
 
       {/* Middle — favorites row + search + swipeable list */}
       <DashboardContent
