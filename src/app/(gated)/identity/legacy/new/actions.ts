@@ -1,9 +1,17 @@
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import sharp from "sharp";
 import { redirectWithError } from "@/lib/action-errors";
-import { claimFreeIdentitySlot } from "@/lib/subscription";
+import { isAdmin } from "@/lib/admin/allowlist";
+import { getStripe } from "@/lib/stripe";
+import { PRICING } from "@/lib/pricing";
+import {
+  claimFreeIdentitySlot,
+  consumeOtherIdentityCreateCredit,
+  hasOtherIdentityCreateCredit,
+} from "@/lib/subscription";
 import { SynthesisError } from "@/lib/identity/synthesize";
 import { fingerprintLegacyAnswers } from "@/lib/legacy/fingerprint";
 import { mintInheritCode } from "@/lib/legacy/mint";
@@ -212,9 +220,11 @@ export async function completeLegacyIdentity(payload: {
     redirect("/auth/signin");
   }
 
-  // NO plan gate — any signed-in account (Free included) can complete
-  // the flow and mint an inherit code (July 2026 flat-fee rework).
-  // The recipient pays $5 per code at redemption instead.
+  // NO plan gate — any signed-in account (Free included) can run the
+  // flow (July 2026 flat-fee rework). But completion is mode-priced:
+  // self-mode is free, other-mode costs a one-time $5 mint credit
+  // (checked below, before synthesis). The recipient still pays $5
+  // per code at redemption, unchanged.
 
   const subject = sanitizeSubject(payload.subject);
   const answers = sanitizeAnswers(payload.answers);
@@ -271,6 +281,83 @@ export async function completeLegacyIdentity(payload: {
         ? "You've already made a legacy identity for yourself. One per account -- edit the existing one from your dashboard."
         : "You've already made a legacy identity for a loved one. One per account -- edit the existing one from your dashboard.",
     );
+  }
+
+  // Other-mode mints are PAID — $5 one-time at Finish, enforced HERE,
+  // BEFORE synthesis (no burning Anthropic tokens on unpaid runs).
+  // Self-mode stays free; the recipient-redeem gate ($5 per code in
+  // /identity/inherit) is separate and unchanged. Admins skip the
+  // till, as everywhere else. Fail-closed: an unreadable balance
+  // reads as no-credit and bounces to checkout rather than minting a
+  // free other-mode identity. The credit is CONSUMED after synthesis
+  // + insert succeed (post-persist, like every other credit) — a
+  // failed weave leaves the credit intact for the retry.
+  const usingCreateCredit = currentMode === "other" && !isAdmin(user.email);
+  if (usingCreateCredit && !(await hasOtherIdentityCreateCredit(user.id))) {
+    const priceId = process.env.STRIPE_PRICE_ID_OTHER_IDENTITY_CREATE;
+    if (!priceId) {
+      // Same feature-flag posture as the checkout route's 503: the
+      // surface ships before the Stripe Price exists. Graceful banner
+      // instead of a hard error while Wilson wires the env.
+      redirectWithError(
+        "/identity/legacy/new",
+        "The payment step isn't set up yet — your answers are saved. Check back soon.",
+      );
+    }
+
+    // Inline checkout-session creation, same shape as the
+    // other_identity_create branch in /api/stripe/checkout (a server
+    // action can't cleanly proxy its own cookie-authed POST, so the
+    // branch is mirrored here: mode=payment, one line item,
+    // purchase_kind metadata, pending payments row, redirect to
+    // session.url). The webhook grants the credit while they pay;
+    // ?paid=1 lands them back on their last question with the
+    // "You're paid — finish it" CTA (Wilson's option B).
+    const headerList = await headers();
+    const host = headerList.get("host") ?? "chapter3five.app";
+    const proto = headerList.get("x-forwarded-proto") ?? "https";
+    const origin = `${proto}://${host}`;
+
+    let checkoutUrl: string | null = null;
+    try {
+      const stripe = getStripe();
+      const session = await stripe.checkout.sessions.create({
+        mode: "payment",
+        payment_method_types: ["card"],
+        customer_email: user.email ?? undefined,
+        line_items: [{ price: priceId, quantity: 1 }],
+        metadata: {
+          user_id: user.id,
+          purpose: "other_identity_create",
+          purchase_kind: "other_identity_create",
+        },
+        success_url: `${origin}/identity/legacy/new?paid=1`,
+        cancel_url: `${origin}/identity/legacy/new?cancelled=1`,
+      });
+      checkoutUrl = session.url;
+
+      await createAdminClient().from("payments").insert({
+        user_id: user.id,
+        stripe_session_id: session.id,
+        amount_cents: PRICING.otherIdentityCreateCents,
+        currency: "usd",
+        purpose: "other_identity_create",
+        status: "pending",
+      });
+    } catch (err) {
+      redirectWithError(
+        "/identity/legacy/new",
+        "Couldn't open the payment page. Your answers are saved — try again.",
+        err,
+      );
+    }
+    if (!checkoutUrl) {
+      redirectWithError(
+        "/identity/legacy/new",
+        "Couldn't open the payment page. Your answers are saved — try again.",
+      );
+    }
+    redirect(checkoutUrl);
   }
 
   const fingerprint = fingerprintLegacyAnswers(subject, answers);
@@ -332,6 +419,16 @@ export async function completeLegacyIdentity(payload: {
       "Couldn't save them. Your answers are still here — try again.",
       insertError,
     );
+  }
+
+  // Consume the paid mint credit AFTER synthesis + insert succeeded —
+  // the credit was paid for a COMPLETED identity, so a failed weave or
+  // a lost insert race (23505 above) leaves it intact for the retry.
+  // Best-effort, never throws; a double-submit can't consume twice
+  // because the fingerprint index collapses the second insert before
+  // this line is reached.
+  if (usingCreateCredit) {
+    await consumeOtherIdentityCreateCredit(user.id);
   }
 
   // First identity created claims the post-trial Free-tier slot

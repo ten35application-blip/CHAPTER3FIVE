@@ -35,9 +35,19 @@ type DraftRow = {
 export default async function LegacyNewPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; mode?: string }>;
+  searchParams: Promise<{
+    error?: string;
+    mode?: string;
+    paid?: string;
+    cancelled?: string;
+  }>;
 }) {
-  const { error, mode: modeParam } = await searchParams;
+  const {
+    error,
+    mode: modeParam,
+    paid: paidParam,
+    cancelled: cancelledParam,
+  } = await searchParams;
 
   const supabase = await createClient();
   const {
@@ -101,6 +111,14 @@ export default async function LegacyNewPage({
       initialAnswers={draft?.answers ?? {}}
       initialStep={draft?.current_step ?? 0}
       serverError={error ?? null}
+      // Stripe round-trip signals (other-mode mint gate). ?paid=1 is
+      // the success_url — swap the Finish CTA for "You're paid —
+      // finish it" (Wilson's option B: one transparent extra click).
+      // ?cancelled=1 is the cancel_url — reassure that the answers
+      // survived. Cosmetic only: the server action re-checks the paid
+      // credit on every Finish regardless of what the URL claims.
+      paid={paidParam === "1"}
+      cancelled={cancelledParam === "1"}
     />
   );
 }

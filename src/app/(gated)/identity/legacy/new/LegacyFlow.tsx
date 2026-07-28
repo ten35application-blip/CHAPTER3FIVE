@@ -8,6 +8,7 @@ import type {
   LegacyQuestion,
 } from "@/lib/legacy/questions";
 import type { LegacySubject } from "@/lib/legacy/synthesize";
+import { OTHER_IDENTITY_CREATE_PRICE_LABEL } from "@/lib/pricing";
 import {
   completeLegacyIdentity,
   saveLegacyDraft,
@@ -37,6 +38,11 @@ type Props = {
   initialAnswers: Record<string, string>;
   initialStep: number;
   serverError: string | null;
+  // Stripe round-trip signals for the other-mode mint gate ($5 at
+  // Finish). Both are COSMETIC — the server action re-checks the paid
+  // credit on every Finish, so a hand-typed ?paid=1 buys nothing.
+  paid: boolean;
+  cancelled: boolean;
 };
 
 const AUTOSAVE_MS = 1200;
@@ -48,6 +54,8 @@ export function LegacyFlow({
   initialAnswers,
   initialStep,
   serverError,
+  paid,
+  cancelled,
 }: Props) {
   const questionCount = questions.length;
   const [subject, setSubject] = useState<LegacySubject>(initialSubject);
@@ -160,6 +168,12 @@ export function LegacyFlow({
     (a) => a.trim().length > 0,
   ).length;
 
+  // The $5 mint gate applies to OTHER-mode only (self-mode stays
+  // free). Drives the Finish CTA copy: price cue when unpaid, the
+  // "You're paid" CTA after the Stripe round-trip. Cosmetic — the
+  // server re-checks the credit either way.
+  const isOtherMode = (subject.mode ?? "other") === "other";
+
   if (submitting) {
     return <WeavingScreen name={subject.name} />;
   }
@@ -175,6 +189,18 @@ export function LegacyFlow({
         {stuckError ? (
           <div className="mb-6 rounded-2xl bg-coral/10 px-4 py-3 text-sm font-medium text-coral-strong ring-1 ring-coral/25">
             {stuckError}
+          </div>
+        ) : null}
+        {cancelled ? (
+          <div className="mb-6 rounded-2xl bg-ink-soft px-4 py-3 text-sm font-medium text-warm-200 ring-1 ring-warm-700/60">
+            Payment cancelled &mdash; your answers are saved. Click
+            Finish when you&rsquo;re ready to pay.
+          </div>
+        ) : null}
+        {paid && isOtherMode ? (
+          <div className="mb-6 rounded-2xl bg-teal/10 px-4 py-3 text-sm font-medium text-teal-strong ring-1 ring-teal/25">
+            Payment received &mdash; one click left. Hit the finish
+            button whenever you&rsquo;re ready.
           </div>
         ) : null}
 
@@ -205,6 +231,8 @@ export function LegacyFlow({
             saved={saved}
             saveError={saveError}
             onRetrySave={() => flushSave()}
+            paid={paid}
+            isOtherMode={isOtherMode}
           />
         )}
       </div>
@@ -542,6 +570,8 @@ function QuestionScreen({
   saved,
   saveError,
   onRetrySave,
+  paid,
+  isOtherMode,
 }: {
   questions: LegacyQuestion[];
   categoryLabels: Record<LegacyCategory, string>;
@@ -555,11 +585,23 @@ function QuestionScreen({
   saved: boolean;
   saveError: boolean;
   onRetrySave: () => void;
+  paid: boolean;
+  isOtherMode: boolean;
 }) {
   const question = questions[step - 1];
   const isLast = step === questions.length;
   const canFinishEarly = !isLast && answeredCount >= MIN_ANSWERS_TO_FINISH;
   const progress = (step / questions.length) * 100;
+
+  // Other-mode finish copy carries the $5 gate: a price cue before
+  // payment, the paid CTA after the Stripe round-trip (Wilson's
+  // option B — transparent, one extra click, no auto-magic). Self
+  // mode keeps the original label; the server enforces either way.
+  const finishLabel = !isOtherMode
+    ? "Bring them together"
+    : paid
+      ? "You're paid — finish it"
+      : `Bring them together · ${OTHER_IDENTITY_CREATE_PRICE_LABEL}`;
 
   return (
     <div className="flex flex-1 flex-col">
@@ -639,7 +681,7 @@ function QuestionScreen({
             onClick={onFinish}
             className="bg-gradient-cta flex h-13 flex-1 items-center justify-center rounded-full text-base font-semibold text-white shadow-[0_14px_36px_-10px_rgba(217,115,89,0.5)] transition-all hover:-translate-y-px active:translate-y-0 active:opacity-90"
           >
-            Bring them together
+            {finishLabel}
           </button>
         ) : (
           <button
@@ -663,7 +705,11 @@ function QuestionScreen({
           onClick={onFinish}
           className="mt-4 flex h-11 items-center justify-center rounded-full px-6 text-sm font-medium text-warm-300 ring-1 ring-warm-700 transition-colors hover:text-warm-100 hover:ring-warm-500"
         >
-          Finish now with {answeredCount} answers
+          {!isOtherMode
+            ? `Finish now with ${answeredCount} answers`
+            : paid
+              ? `You're paid — finish now with ${answeredCount} answers`
+              : `Finish now with ${answeredCount} answers · ${OTHER_IDENTITY_CREATE_PRICE_LABEL}`}
         </button>
       ) : null}
 
