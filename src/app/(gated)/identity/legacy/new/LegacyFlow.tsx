@@ -597,7 +597,8 @@ function WeavingScreen({ name }: { name: string }) {
           className="h-24 w-24 animate-pulse drop-shadow-[0_18px_50px_rgba(232,138,118,0.28)]"
         />
         <p className="mt-8 text-xl font-medium text-warm-50">
-          Weaving {name.trim() || "them"} together&hellip;
+          {`Weaving ${name.trim() || "them"} together`}
+          <span aria-hidden>&hellip;</span>
         </p>
         <p className="mt-2 text-sm text-warm-300">
           Every answer becomes part of who they are. This takes a minute.
