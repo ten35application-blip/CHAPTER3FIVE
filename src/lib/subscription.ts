@@ -199,6 +199,8 @@ export async function claimFreeIdentitySlot(
  * Rules:
  *   - Free tier: allowed only if they don't have their free
  *     identity yet (profiles.free_identity_id is null).
+ *   - Basic (Stripe subscription_tier='basic'): up to
+ *     PRICING.basicTotalIdentitiesPerPlan + extra_oracle_credits.
  *   - Pro / trial / admin: allowed up to
  *     PRICING.totalIdentitiesPerPlan + extra_oracle_credits.
  *     extra_oracle_credits is bumped by successful Stripe
@@ -224,7 +226,7 @@ export async function canCreateOracle(
       admin
         .from("profiles")
         .select(
-          "email, pro_until, trial_ends_at, plan_source, free_identity_id, extra_oracle_credits",
+          "email, pro_until, trial_ends_at, plan_source, free_identity_id, extra_oracle_credits, stripe_customer_id, subscription_tier",
         )
         .eq("id", userId)
         .maybeSingle<{
@@ -234,6 +236,8 @@ export async function canCreateOracle(
           plan_source: string | null;
           free_identity_id: string | null;
           extra_oracle_credits: number | null;
+          stripe_customer_id: string | null;
+          subscription_tier: string | null;
         }>(),
       admin
         .from("oracles")
@@ -263,8 +267,22 @@ export async function canCreateOracle(
       return { ok: true };
     }
 
-    const quota =
-      PRICING.totalIdentitiesPerPlan + (profile.extra_oracle_credits ?? 0);
+    // Basic subscribers get the smaller self-created ceiling (2
+    // formula + 1 photo = 3); Pro / trial / admin keep 4. A Basic
+    // user is one whose ACTIVE paid window came through Stripe with
+    // the webhook-written subscription_tier = 'basic' — admin grants
+    // and legacy trials have no Stripe customer and stay on the Pro
+    // ceiling. Add-on credits stack on top of whichever base applies.
+    const isBasicUser =
+      !isAdmin(profile.email) &&
+      profile.stripe_customer_id !== null &&
+      profile.subscription_tier === "basic" &&
+      profile.pro_until &&
+      new Date(profile.pro_until).getTime() > now;
+    const baseQuota = isBasicUser
+      ? PRICING.basicTotalIdentitiesPerPlan
+      : PRICING.totalIdentitiesPerPlan;
+    const quota = baseQuota + (profile.extra_oracle_credits ?? 0);
     if (currentCount >= quota) {
       return {
         ok: false,
@@ -283,17 +301,11 @@ export async function canCreateOracle(
 /* ── Tier resolution + per-tier usage caps ─────────────────────────
  *
  * The pack rework caps EVERY tier's messages and images (Pro was
- * unlimited before). The three-tier shape (free / basic / pro) is
- * modeled here even though Basic can't be granted yet:
- *
- *   TODAY: Stripe only knows one Price (Pro). Basic enrollment runs
- *   the mailto flow, so no Basic subscriber exists in the database
- *   and getPlanTier only ever returns "free" or "pro".
- *
- *   LATER (Stripe-wiring follow-up): a subscription_tier column (or
- *   the stored Stripe Price ID) distinguishes Basic from Pro. Teach
- *   getPlanTier to read it and every cap below starts enforcing
- *   Basic automatically — the cap tables already know the numbers.
+ * unlimited before). Since 0106, the three-tier shape is fully live:
+ * profiles.subscription_tier (written only by the Stripe webhook,
+ * matched by Price ID) splits Basic from Pro, and the pack credit
+ * balances (profiles.message_credits / image_credits) let a capped
+ * user keep sending on purchased top-ups.
  *
  * Admin-allowlisted accounts are `unlimited: true` and skip caps
  * entirely (unchanged from the pre-pack behavior).
@@ -323,15 +335,24 @@ const TIER_IMAGE_CAPS: Record<PlanTier, number> = {
 
 /**
  * Resolve the current user's plan tier. Fail-closed: any read failure
- * (or no session) resolves to Free.
+ * (or no session) resolves to Free. Priority order:
  *
- *   - Admin allowlist → pro + unlimited.
- *   - pro_until / trial_ends_at in the future → pro (Stripe checkout,
- *     admin grant, and legacy trials all land here today).
- *   - Otherwise → free.
+ *   1. Admin allowlist → pro + unlimited.
+ *   2. Active paid window (pro_until in the future):
+ *      - with a Stripe customer → tier from the webhook-written
+ *        subscription_tier column ("basic" or "pro"; a null column
+ *        falls back to "pro" so a paying user is never locked out
+ *        by a missed webhook write).
+ *      - without one (admin grant / comped) → "pro" as before.
+ *   3. Trial (trial_ends_at in the future) → "pro" (legacy trialers
+ *      keep Pro-level access until expiry).
+ *   4. Otherwise → "free".
  *
- * Basic never resolves yet — see the block comment above. When the
- * subscription_tier column lands, branch on it here and nowhere else.
+ * The profile read runs on the SERVICE-ROLE client: subscription_tier
+ * is billing state (protect_billing_columns denies user writes) and
+ * reading it here through the admin client keeps the tier decision
+ * independent of whatever column grants the user role happens to
+ * carry. Auth still resolves through the caller's client.
  */
 export async function getPlanTier(
   supabase?: SupabaseClient,
@@ -344,23 +365,89 @@ export async function getPlanTier(
     if (!user) return { tier: "free", unlimited: false };
     if (isAdmin(user.email)) return { tier: "pro", unlimited: true };
 
-    const { data, error } = await client
+    const admin = createAdminClient();
+    const { data, error } = await admin
       .from("profiles")
-      .select("pro_until, trial_ends_at")
+      .select("pro_until, trial_ends_at, stripe_customer_id, subscription_tier")
       .eq("id", user.id)
       .maybeSingle<{
         pro_until: string | null;
         trial_ends_at: string | null;
+        stripe_customer_id: string | null;
+        subscription_tier: string | null;
       }>();
     if (error || !data) return { tier: "free", unlimited: false };
 
     const now = Date.now();
-    const paid =
-      (data.pro_until && new Date(data.pro_until).getTime() > now) ||
-      (data.trial_ends_at && new Date(data.trial_ends_at).getTime() > now);
-    return { tier: paid ? "pro" : "free", unlimited: false };
+    if (data.pro_until && new Date(data.pro_until).getTime() > now) {
+      if (data.stripe_customer_id) {
+        return {
+          tier: data.subscription_tier === "basic" ? "basic" : "pro",
+          unlimited: false,
+        };
+      }
+      // Paid window without a Stripe customer = admin grant / comped.
+      return { tier: "pro", unlimited: false };
+    }
+    if (data.trial_ends_at && new Date(data.trial_ends_at).getTime() > now) {
+      return { tier: "pro", unlimited: false };
+    }
+    return { tier: "free", unlimited: false };
   } catch {
     return { tier: "free", unlimited: false };
+  }
+}
+
+/**
+ * Pack-credit balance read (message_credits / image_credits). Admin
+ * client because the columns are billing state. Returns 0 on ANY
+ * failure — fail-closed: a broken read can't mint free sends.
+ */
+async function getPackCreditBalance(
+  userId: string,
+  column: "message_credits" | "image_credits",
+): Promise<number> {
+  try {
+    const admin = createAdminClient();
+    const { data, error } = await admin
+      .from("profiles")
+      .select(column)
+      .eq("id", userId)
+      .maybeSingle<Record<string, number | null>>();
+    if (error || !data) return 0;
+    const value = data[column];
+    return typeof value === "number" && value > 0 ? value : 0;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Consume ONE pack credit after a SUCCESSFUL send. Called by the
+ * chat routes post-persist (never at cap-check time — a failed
+ * generation must not eat a paid credit). Best-effort and never
+ * throws: a decrement error must never block the reply that already
+ * shipped. Race note: two concurrent sends can both pass the
+ * balance>0 check and both decrement; increment_profile_counter
+ * floors at 0 (greatest(0, ...)), so the worst case is one extra
+ * un-paid-for message — accepted rounding, not worth a lock.
+ */
+export async function consumePackCredit(
+  userId: string,
+  kind: "message" | "image",
+): Promise<void> {
+  try {
+    const admin = createAdminClient();
+    const { error } = await admin.rpc("increment_profile_counter", {
+      target_user_id: userId,
+      counter_name: kind === "message" ? "message_credits" : "image_credits",
+      delta: -1,
+    });
+    if (error) {
+      console.error("[subscription] pack credit decrement failed:", error);
+    }
+  } catch (err) {
+    console.error("[subscription] pack credit decrement failed:", err);
   }
 }
 
@@ -372,15 +459,24 @@ export async function getPlanTier(
  * on any error — if we can't count, we deny (better than accidentally
  * letting a user blow past the cap).
  *
+ * When the tier cap is exhausted, the user's pack-credit balance
+ * (profiles.message_credits, topped up by add-on pack purchases via
+ * the Stripe webhook) is consulted: balance > 0 → the send is allowed
+ * with `usingCredit: true`, and the ROUTE decrements the credit AFTER
+ * the message actually persists (consumePackCredit). The check never
+ * decrements — a failed generation must not eat a paid credit.
+ *
  * Returns:
- *   { ok: true, current: N, limit: L }        — allowed
- *   { ok: false, current: N, limit: L }       — tier cap hit
+ *   { ok: true, current: N, limit: L, usingCredit: false } — under cap
+ *   { ok: true, current: N, limit: L, usingCredit: true }  — over cap,
+ *       riding a pack credit; caller MUST consumePackCredit on success
+ *   { ok: false, current: N, limit: L }  — cap hit, no credits (402)
  */
 export async function canSendMessageForTierCap(
   supabase?: SupabaseClient,
   precomputedPlan?: ResolvedPlan,
 ): Promise<
-  | { ok: true; current: number; limit: number }
+  | { ok: true; current: number; limit: number; usingCredit: boolean }
   | { ok: false; current: number; limit: number }
 > {
   const client = supabase ?? (await createClient());
@@ -391,7 +487,9 @@ export async function canSendMessageForTierCap(
   const limit = TIER_MESSAGE_CAPS[plan.tier];
 
   if (!user) return { ok: false, current: 0, limit };
-  if (plan.unlimited) return { ok: true, current: 0, limit };
+  if (plan.unlimited) {
+    return { ok: true, current: 0, limit, usingCredit: false };
+  }
 
   const monthStart = new Date();
   monthStart.setUTCHours(0, 0, 0, 0);
@@ -409,9 +507,14 @@ export async function canSendMessageForTierCap(
   }
 
   if (count >= limit) {
+    // Tier cap exhausted — pack credits keep the conversation going.
+    const credits = await getPackCreditBalance(user.id, "message_credits");
+    if (credits > 0) {
+      return { ok: true, current: count, limit, usingCredit: true };
+    }
     return { ok: false, current: count, limit };
   }
-  return { ok: true, current: count, limit };
+  return { ok: true, current: count, limit, usingCredit: false };
 }
 
 /**
@@ -420,17 +523,20 @@ export async function canSendMessageForTierCap(
  * purely text send doesn't touch it. Admin allowlist always passes.
  *
  * Fail-CLOSED on any error -- can't count → deny. Matches the
- * canSendMessageForTierCap shape so gate sites look consistent.
+ * canSendMessageForTierCap shape so gate sites look consistent,
+ * including the pack-credit overflow: cap exhausted + image_credits
+ * balance > 0 → allowed with `usingCredit: true`, and the route
+ * decrements via consumePackCredit AFTER the send persists.
  *
  * Returns:
- *   { ok: true, current: N, limit: L }                   -- allowed
- *   { ok: false, current: N, limit: L }                  -- cap hit
+ *   { ok: true, current: N, limit: L, usingCredit: boolean } -- allowed
+ *   { ok: false, current: N, limit: L }                      -- cap hit
  */
 export async function canSendImageForMonthCap(
   supabase?: SupabaseClient,
   precomputedPlan?: ResolvedPlan,
 ): Promise<
-  | { ok: true; current: number; limit: number }
+  | { ok: true; current: number; limit: number; usingCredit: boolean }
   | { ok: false; current: number; limit: number }
 > {
   const client = supabase ?? (await createClient());
@@ -441,16 +547,17 @@ export async function canSendImageForMonthCap(
   const limit = TIER_IMAGE_CAPS[plan.tier];
 
   if (!user) return { ok: false, current: 0, limit };
-  if (plan.unlimited) return { ok: true, current: 0, limit };
-  // Zero-cap tiers short-circuit before the DB read -- no reason to
-  // count if the answer is decided. (No tier is zero today, but the
-  // guard keeps a future zero-cap tier from paying a count query.)
-  if (limit === 0) return { ok: false, current: 0, limit };
+  if (plan.unlimited) {
+    return { ok: true, current: 0, limit, usingCredit: false };
+  }
 
   const monthStart = new Date();
   monthStart.setUTCHours(0, 0, 0, 0);
   monthStart.setUTCDate(1);
 
+  // Note: the zero-cap short-circuit from the pre-pack version is
+  // gone on purpose — a zero-cap tier with purchased image credits
+  // must still fall through to the balance check below.
   const { count, error } = await client
     .from("messages")
     .select("id", { count: "exact", head: true })
@@ -464,9 +571,13 @@ export async function canSendImageForMonthCap(
   }
 
   if (count >= limit) {
+    const credits = await getPackCreditBalance(user.id, "image_credits");
+    if (credits > 0) {
+      return { ok: true, current: count, limit, usingCredit: true };
+    }
     return { ok: false, current: count, limit };
   }
-  return { ok: true, current: count, limit };
+  return { ok: true, current: count, limit, usingCredit: false };
 }
 
 // trialSpotsRemaining removed in the 0096 pricing rework -- handle_new_user

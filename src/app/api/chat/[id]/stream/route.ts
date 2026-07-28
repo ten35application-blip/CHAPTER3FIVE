@@ -31,6 +31,7 @@ import {
   canChatWithOracle,
   canSendImageForMonthCap,
   canSendMessageForTierCap,
+  consumePackCredit,
   getPlanTier,
 } from "@/lib/subscription";
 import { requireTermsAccepted } from "@/lib/legal/gate";
@@ -187,6 +188,11 @@ export async function POST(
   // across all conversations); only the admin allowlist is uncapped.
   // On retry (isRetry) we skip — the user isn't sending a new message,
   // just re-rolling the assistant's response to one already counted.
+  // usingCredit=true means the tier cap is spent and this send rides a
+  // purchased pack credit — the decrement happens AFTER the user row
+  // persists (see the after() below the insert), never here, so a
+  // failed send can't eat a paid credit.
+  let messageUsesCredit = false;
   if (!isRetry) {
     const cap = await canSendMessageForTierCap(supabase, requesterPlan);
     if (!cap.ok) {
@@ -199,6 +205,7 @@ export async function POST(
         { status: 402 },
       );
     }
+    messageUsesCredit = cap.usingCredit;
   }
 
   // Free-tier Anthropic-spend gate. Wilson pays for tokens directly;
@@ -305,6 +312,7 @@ export async function POST(
   // (Free 1, Basic 10, Pro 30 per month). Retries never re-consume the
   // cap (that image already counted when the original turn shipped).
   let signedImageUrl: string | null = null;
+  let imageUsesCredit = false;
   if (imageStoragePath && !isRetry) {
     if (!imageStoragePath.startsWith(`${user.id}/`)) {
       return NextResponse.json({ error: "Invalid image path" }, { status: 403 });
@@ -320,6 +328,7 @@ export async function POST(
         { status: 402 },
       );
     }
+    imageUsesCredit = imageCap.usingCredit;
     const { data: signed, error: signErr } = await supabase.storage
       .from("chat-uploads")
       .createSignedUrl(imageStoragePath, 15 * 60);
@@ -360,6 +369,18 @@ export async function POST(
       );
     }
     userMessageId = userRow.id;
+
+    // Pack-credit consumption — the send persisted, so an over-cap
+    // turn now pays its credit. Deferred via after() so the ledger
+    // write never delays the reply, and consumePackCredit swallows
+    // its own errors so a failed decrement can't break the stream
+    // (worst case the user gets a free message — never the reverse).
+    if (messageUsesCredit || imageUsesCredit) {
+      after(async () => {
+        if (messageUsesCredit) await consumePackCredit(user.id, "message");
+        if (imageUsesCredit) await consumePackCredit(user.id, "image");
+      });
+    }
 
     // Long-term memory extraction (formula v4) + crisis check —
     // registered together via after() so neither blocks the reply.

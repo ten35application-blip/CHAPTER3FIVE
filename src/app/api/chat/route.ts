@@ -25,7 +25,10 @@ import {
   extractAndStoreMemories,
 } from "@/lib/memory";
 import { moderateImage } from "@/lib/moderation";
-import { canSendMessageForTierCap } from "@/lib/subscription";
+import {
+  canSendMessageForTierCap,
+  consumePackCredit,
+} from "@/lib/subscription";
 import {
   judgeTone,
   generateBlockLine,
@@ -279,6 +282,9 @@ export async function POST(request: NextRequest) {
   // uncapped). Help-mode already returned above so support queries
   // aren't gated. Runs BEFORE the daily bump so a rejected send
   // doesn't tick against the user's daily count.
+  // usingCredit=true → over the tier cap but riding a purchased pack
+  // credit; the decrement fires AFTER the message rows persist (both
+  // the block-verdict path and the normal path below), never here.
   const tierCap = await canSendMessageForTierCap(supabase);
   if (!tierCap.ok) {
     return NextResponse.json(
@@ -768,6 +774,14 @@ ${archiveBlock}`;
         reason: verdict.reason,
       });
 
+      // The user's message persisted (even though the persona walked
+      // away) — an over-cap send still pays its pack credit here.
+      // consumePackCredit never throws; a decrement failure can't
+      // block the block-line reply.
+      if (tierCap.usingCredit) {
+        await consumePackCredit(user.id, "message");
+      }
+
       return NextResponse.json({
         reply: blockLine,
         blocked: true,
@@ -925,7 +939,16 @@ ${archiveBlock}`;
       });
       // Assistant rows are written server-side: clients may only insert
       // their own 'user' turns.
-      await createAdminClient().from("messages").insert(rows);
+      const { error: persistErr } = await createAdminClient()
+        .from("messages")
+        .insert(rows);
+
+      // Pack-credit consumption — only after the rows actually landed
+      // so a failed persist doesn't eat a paid credit. Never throws;
+      // a decrement failure never blocks the reply already composed.
+      if (!persistErr && tierCap.usingCredit) {
+        await consumePackCredit(user.id, "message");
+      }
     }
 
     // Memory extraction — runs every 4th turn to keep cost down. Skips on
