@@ -190,17 +190,51 @@ export async function POST(
     );
   }
 
+  // Retry-legitimacy check. `isRetry: true` means "regenerate the reply
+  // for the last user row." If that row was actually inserted by THIS
+  // route on a prior call, it has `read_by_oracle_at` stamped (line ~438
+  // below, admin-client only — `enforce_message_soft_delete_only` locks
+  // user-role UPDATEs to `deleted_at`, so this stamp is unforgeable).
+  //
+  // Without this check, an attacker could POST directly to
+  // /rest/v1/messages (RLS lets a user insert their own user-role row)
+  // to plant a message row, then call this endpoint with retry:true to
+  // get an LLM reply that skips the cap + credit consumption below.
+  // 0108 extended the messages INSERT policy to include the concierge
+  // Adrian, so that vector is now available to every authenticated user.
+  //
+  // If we cannot prove the retry corresponds to a route-inserted send,
+  // demote it to a fresh send: apply the cap, consume a pack credit if
+  // over-cap, and continue. Nothing to reject — the row already exists
+  // and it's still theirs. We just refuse to give it the retry discount.
+  let effectiveRetry = isRetry;
+  if (isRetry) {
+    const { data: lastUserRow } = await supabase
+      .from("messages")
+      .select("read_by_oracle_at")
+      .eq("oracle_id", oracleId)
+      .eq("user_id", user.id)
+      .eq("role", "user")
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (!lastUserRow?.read_by_oracle_at) {
+      effectiveRetry = false;
+    }
+  }
+
   // Monthly message cap for the user's tier — EVERY tier is capped in
   // the pack rework (Free 20, Basic 100, Pro 300 per calendar month
   // across all conversations); only the admin allowlist is uncapped.
-  // On retry (isRetry) we skip — the user isn't sending a new message,
-  // just re-rolling the assistant's response to one already counted.
-  // usingCredit=true means the tier cap is spent and this send rides a
-  // purchased pack credit — the decrement happens AFTER the user row
-  // persists (see the after() below the insert), never here, so a
-  // failed send can't eat a paid credit.
+  // On legit retry (effectiveRetry) we skip — the user isn't sending a
+  // new message, just re-rolling the assistant's response to one
+  // already counted. usingCredit=true means the tier cap is spent and
+  // this send rides a purchased pack credit — the decrement happens
+  // AFTER the user row persists (see the after() below the insert),
+  // never here, so a failed send can't eat a paid credit.
   let messageUsesCredit = false;
-  if (!isRetry) {
+  if (!effectiveRetry) {
     const cap = await canSendMessageForTierCap(supabase, requesterPlan);
     if (!cap.ok) {
       return NextResponse.json(
@@ -387,18 +421,6 @@ export async function POST(
     }
     userMessageId = userRow.id;
 
-    // Pack-credit consumption — the send persisted, so an over-cap
-    // turn now pays its credit. Deferred via after() so the ledger
-    // write never delays the reply, and consumePackCredit swallows
-    // its own errors so a failed decrement can't break the stream
-    // (worst case the user gets a free message — never the reverse).
-    if (messageUsesCredit || imageUsesCredit) {
-      after(async () => {
-        if (messageUsesCredit) await consumePackCredit(user.id, "message");
-        if (imageUsesCredit) await consumePackCredit(user.id, "image");
-      });
-    }
-
     // Long-term memory extraction (formula v4) + crisis check —
     // registered together via after() so neither blocks the reply.
     // The persona's own safety block (988 line in the system prompt)
@@ -428,6 +450,23 @@ export async function POST(
         }
       });
     }
+  }
+
+  // Pack-credit consumption — over-cap turn pays its credit. Deferred
+  // via after() so the ledger write never delays the reply, and
+  // consumePackCredit swallows its own errors so a failed decrement
+  // can't break the stream (worst case the user gets a free message
+  // -- never the reverse). Fires OUTSIDE the !isRetry block so a
+  // demoted retry (where messageUsesCredit was set by the cap check
+  // above but the insert was skipped because the row already exists)
+  // still pays. messageUsesCredit is only true when the tier cap was
+  // spent and canSendMessageForTierCap said usingCredit -- so gating on
+  // the flag alone is safe.
+  if (messageUsesCredit || imageUsesCredit) {
+    after(async () => {
+      if (messageUsesCredit) await consumePackCredit(user.id, "message");
+      if (imageUsesCredit) await consumePackCredit(user.id, "image");
+    });
   }
 
   // The persona "reads" the user's messages the moment it starts
