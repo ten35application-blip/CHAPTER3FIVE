@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { createClient as createPlainClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { recordAudit } from "@/lib/notifications";
@@ -37,10 +38,28 @@ export async function POST(request: NextRequest) {
   const typedName = String(body.confirm_name ?? "");
   const typedDate = String(body.confirm_date ?? "").trim();
 
+  // Cookie OR Bearer auth (same pattern as /api/onboarding/initialize
+  // + /api/chat) so the Expo mobile client can call this. Without the
+  // Bearer branch the mobile "delete account" button 401s forever,
+  // functionally failing Apple 5.1.1(v) even though the UI exists.
+  // Fable audit 2026-07-28.
   const supabase = await createClient();
-  const {
+  let {
     data: { user },
   } = await supabase.auth.getUser();
+  if (!user) {
+    const auth = request.headers.get("authorization") ?? "";
+    const m = auth.match(/^Bearer\s+(.+)$/i);
+    if (m) {
+      const tokenClient = createPlainClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+        { global: { headers: { Authorization: `Bearer ${m[1]}` } } },
+      );
+      const r = await tokenClient.auth.getUser(m[1]);
+      user = r.data.user ?? null;
+    }
+  }
   if (!user) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
