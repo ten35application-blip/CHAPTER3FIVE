@@ -1,6 +1,7 @@
 "use server";
 
 import { createHash } from "node:crypto";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { redirectWithError } from "@/lib/action-errors";
 import { isAdmin } from "@/lib/admin/allowlist";
@@ -8,6 +9,8 @@ import {
   isInheritCodeShaped,
   normalizeInheritCode,
 } from "@/lib/legacy/code-format";
+import { PRICING } from "@/lib/pricing";
+import { getStripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -172,12 +175,68 @@ export async function redeemInheritCode(rawCode: string): Promise<void> {
   // Every NEW redemption requires a purchased credit — flat $5 per
   // code, every tier, no exceptions (admins skip the till, as
   // everywhere else). Fail-closed: an unreadable balance reads as 0
-  // and bounces to purchase rather than minting a free redemption.
+  // and creates a Stripe checkout session inline.
+  //
+  // Wilson's ask 2026-07-28: no /upgrade detour. Recipient enters the
+  // code → we go straight to Stripe → they pay $5 → land back on
+  // /identity/inherit?purchased=1 → re-enter the code (or continue
+  // from consent state) → this branch's balance check passes → the
+  // full redemption completes. Same shape as the other-identity mint
+  // gate (legacy/new/actions.ts).
   const usingCredit = !isAdmin(user.email);
   if (usingCredit && (await getInheritedSlotCredits(user.id)) < 1) {
-    redirect(
-      `/upgrade?next=${encodeURIComponent("/identity/inherit")}&reason=inherited-slot`,
-    );
+    const priceId = process.env.STRIPE_PRICE_ID_INHERITED_SLOT;
+    if (!priceId) {
+      redirectWithError(
+        "/identity/inherit",
+        "The payment step isn't set up yet. Try again in a bit.",
+      );
+    }
+    const headerList = await headers();
+    const host = headerList.get("host") ?? "chapter3five.app";
+    const proto = headerList.get("x-forwarded-proto") ?? "https";
+    const origin = `${proto}://${host}`;
+
+    let checkoutUrl: string | null = null;
+    try {
+      const stripe = getStripe();
+      const session = await stripe.checkout.sessions.create({
+        mode: "payment",
+        payment_method_types: ["card"],
+        customer_email: user.email ?? undefined,
+        line_items: [{ price: priceId as string, quantity: 1 }],
+        metadata: {
+          user_id: user.id,
+          purpose: "inherited_slot_purchase",
+          purchase_kind: "inherited_slot",
+        },
+        success_url: `${origin}/identity/inherit?purchased=1`,
+        cancel_url: `${origin}/identity/inherit?cancelled=1`,
+      });
+      checkoutUrl = session.url;
+
+      await createAdminClient().from("payments").insert({
+        user_id: user.id,
+        stripe_session_id: session.id,
+        amount_cents: PRICING.inheritedSlotPurchaseCents,
+        currency: "usd",
+        purpose: "inherited_slot_purchase",
+        status: "pending",
+      });
+    } catch (err) {
+      redirectWithError(
+        "/identity/inherit",
+        "Couldn't open the payment page. Try again in a moment.",
+        err,
+      );
+    }
+    if (!checkoutUrl) {
+      redirectWithError(
+        "/identity/inherit",
+        "Couldn't open the payment page. Try again in a moment.",
+      );
+    }
+    redirect(checkoutUrl);
   }
 
   // Copy the avatar FILE into the recipient's own namespace so the
