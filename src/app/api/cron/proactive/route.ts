@@ -206,12 +206,23 @@ export async function GET(request: NextRequest) {
 
       // Wake the device. Best-effort — failure here doesn't block the
       // cron, the message is already in the DB and will show up on next
-      // app open either way.
+      // app open either way. Companion category + oracle-scoped thread
+      // = iOS renders a Reply text action on the lock screen (looks
+      // like iMessage) and stacks multiple messages from the same
+      // companion. channelId targets Android's dedicated "companion"
+      // channel. data.oracle_id is required for the mobile REPLY
+      // handler to know which oracle to send the reply to.
       sendPushToUser({
         userId: profile.id,
         title: profile.oracle_name ?? "your identity",
         body: reply.length > 140 ? reply.slice(0, 140) + "…" : reply,
-        data: { kind: "proactive" },
+        data: {
+          oracle_id: profile.active_oracle_id,
+          kind: "companion_message",
+        },
+        categoryId: "companion_message",
+        threadIdentifier: profile.active_oracle_id ?? undefined,
+        channelId: "companion",
         badge: 1,
       }).catch((err) =>
         console.error(`proactive push failed for ${profile.id}`, err),

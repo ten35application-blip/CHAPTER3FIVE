@@ -282,12 +282,23 @@ ${variety}
           initiated_by_oracle: true,
         });
 
-        // Push the device(s).
+        // Push the device(s). Companion category + oracle-scoped
+        // thread so iOS renders a Reply action and stacks by oracle;
+        // channelId targets Android's companion channel. data.oracle_id
+        // is required for the mobile REPLY handler to route to the
+        // right oracle. anniversary_kind is kept for analytics.
         sendPushToUser({
           userId: p.id,
           title: p.oracle_name ?? "your identity",
           body: reply.length > 140 ? reply.slice(0, 140) + "…" : reply,
-          data: { kind: "anniversary", anniversary_kind: hit.kind },
+          data: {
+            oracle_id: p.active_oracle_id,
+            kind: "companion_message",
+            anniversary_kind: hit.kind,
+          },
+          categoryId: "companion_message",
+          threadIdentifier: p.active_oracle_id ?? undefined,
+          channelId: "companion",
           badge: 1,
         }).catch((err) =>
           console.error(`anniversary push failed for ${p.id}`, err),
