@@ -26,6 +26,13 @@ import { requireTermsAccepted } from "@/lib/legal/gate";
  *     tier, every code, no waivers). success_url
  *     lands the buyer back on /identity/inherit so they can enter
  *     the code they were holding when the gate stopped them.
+ *   - "other_identity_create" — one-time $5 other-mode legacy-mint
+ *     credit (STRIPE_PRICE_ID_OTHER_IDENTITY_CREATE). On payment the
+ *     webhook adds 1 to profiles.other_identity_credits; the
+ *     completeLegacyIdentity action consumes 1 per other-mode
+ *     completion (self-mode stays free). success_url lands the buyer
+ *     back on /identity/legacy/new?paid=1 — the last question with a
+ *     "You're paid — finish it" CTA.
  */
 export async function POST(request: NextRequest) {
   type Purpose =
@@ -39,7 +46,8 @@ export async function POST(request: NextRequest) {
     | "pack_small"
     | "pack_medium"
     | "pack_large"
-    | "inherited_slot_purchase";
+    | "inherited_slot_purchase"
+    | "other_identity_create";
   let purpose: Purpose = "randomize";
   let restoreOracleId: string | null = null;
   let packType: "message" | "image" = "message";
@@ -54,7 +62,8 @@ export async function POST(request: NextRequest) {
     v === "pack_small" ||
     v === "pack_medium" ||
     v === "pack_large" ||
-    v === "inherited_slot_purchase";
+    v === "inherited_slot_purchase" ||
+    v === "other_identity_create";
   const isPackType = (v: unknown): v is "message" | "image" =>
     v === "message" || v === "image";
   try {
@@ -286,6 +295,51 @@ export async function POST(request: NextRequest) {
       user_id: user.id,
       stripe_session_id: session.id,
       amount_cents: PRICING.inheritedSlotPurchaseCents,
+      currency: "usd",
+      purpose,
+      status: "pending",
+    });
+
+    return NextResponse.json({ url: session.url });
+  }
+
+  // One-time other-mode legacy-mint credit. Same shape as the
+  // inherit-slot SKU: real Stripe Price, feature-flagged on the env so
+  // the surface can ship before the Price exists in the dashboard
+  // (absent env → 503; the completion action turns that into a
+  // graceful "not configured yet" banner).
+  if (purpose === "other_identity_create") {
+    const priceId = process.env.STRIPE_PRICE_ID_OTHER_IDENTITY_CREATE;
+    if (!priceId) {
+      return NextResponse.json(
+        { error: "other_identity_create_checkout_not_configured" },
+        { status: 503 },
+      );
+    }
+
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      payment_method_types: ["card"],
+      customer_email: user.email ?? undefined,
+      line_items: [{ price: priceId, quantity: 1 }],
+      metadata: {
+        user_id: user.id,
+        purpose,
+        purchase_kind: "other_identity_create",
+      },
+      // Back to the flow they were finishing — the draft autosaved, so
+      // ?paid=1 lands them on their last question with the paid CTA
+      // (Wilson's option B: transparent, one extra click, no
+      // auto-magic).
+      success_url: `${origin}/identity/legacy/new?paid=1`,
+      cancel_url: `${origin}/identity/legacy/new?cancelled=1`,
+    });
+
+    const admin = createAdminClient();
+    await admin.from("payments").insert({
+      user_id: user.id,
+      stripe_session_id: session.id,
+      amount_cents: PRICING.otherIdentityCreateCents,
       currency: "usd",
       purpose,
       status: "pending",

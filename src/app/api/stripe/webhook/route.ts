@@ -17,7 +17,9 @@ export const runtime = "nodejs";
  *   checkout.session.completed        → mark payment paid + grant credit
  *                                        (incl. add-on packs → message/
  *                                        image_credits; inherit-slot
- *                                        purchases → inherited_slot_credits)
+ *                                        purchases → inherited_slot_credits;
+ *                                        other-mode legacy mints →
+ *                                        other_identity_credits)
  *                                        OR (subscription
  *                                        mode) bind customer/subscription
  *                                        + paid window + subscription_tier
@@ -122,7 +124,8 @@ async function handleCheckoutCompleted(
       purpose !== "pack_small" &&
       purpose !== "pack_medium" &&
       purpose !== "pack_large" &&
-      purpose !== "inherited_slot_purchase")
+      purpose !== "inherited_slot_purchase" &&
+      purpose !== "other_identity_create")
   ) {
     await recordEvent(event, admin, userId);
     return;
@@ -318,6 +321,46 @@ async function handleCheckoutCompleted(
     } else {
       console.error(
         "[stripe/webhook] inherited_slot_purchase with unexpected mode/metadata:",
+        session.mode,
+        session.metadata?.purchase_kind,
+        session.id,
+      );
+    }
+
+    await recordEvent(event, admin, userId);
+    return;
+  }
+
+  // Other-mode legacy-mint purchase: one-time $5 credit toward
+  // completing one other-mode legacy identity (mode=payment;
+  // purchase_kind rides in metadata from the checkout route). Same
+  // two-layer idempotency as the packs: stripe_events dedupe + the
+  // pending→paid payments claim above.
+  if (purpose === "other_identity_create") {
+    if (
+      session.mode === "payment" &&
+      session.metadata?.purchase_kind === "other_identity_create"
+    ) {
+      const { error: grantErr } = await admin.rpc(
+        "increment_profile_counter",
+        {
+          target_user_id: userId,
+          counter_name: "other_identity_credits",
+          delta: 1,
+        },
+      );
+      if (grantErr) {
+        // Loud: the user PAID and the grant failed. The payments row
+        // is already claimed paid, so a Stripe retry short-circuits —
+        // this log is the signal for a manual re-grant.
+        console.error(
+          "[stripe/webhook] other-identity-create credit grant failed:",
+          grantErr,
+        );
+      }
+    } else {
+      console.error(
+        "[stripe/webhook] other_identity_create with unexpected mode/metadata:",
         session.mode,
         session.metadata?.purchase_kind,
         session.id,
@@ -704,7 +747,8 @@ async function handleChargeRefunded(event: Stripe.Event, admin: AdminClient) {
     payment.purpose === "randomize" ||
     payment.purpose === "oracle" ||
     payment.purpose === "beneficiary_slot" ||
-    payment.purpose === "inherited_slot_purchase"
+    payment.purpose === "inherited_slot_purchase" ||
+    payment.purpose === "other_identity_create"
   ) {
     const column =
       payment.purpose === "oracle"
@@ -713,7 +757,9 @@ async function handleChargeRefunded(event: Stripe.Event, admin: AdminClient) {
           ? "paid_beneficiary_slots"
           : payment.purpose === "inherited_slot_purchase"
             ? "inherited_slot_credits"
-            : "randomize_credits";
+            : payment.purpose === "other_identity_create"
+              ? "other_identity_credits"
+              : "randomize_credits";
 
     await admin.rpc("increment_profile_counter", {
       target_user_id: payment.user_id,

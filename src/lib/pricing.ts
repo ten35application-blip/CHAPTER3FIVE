@@ -102,6 +102,14 @@ export const PRICING = {
    *  so a user pays what they saw. */
   restoreIdentityCents: 500,
 
+  /** $5 ONE-TIME to complete an OTHER-mode legacy identity ("For
+   *  someone I love"). Charged at Finish time, BEFORE synthesis runs
+   *  (Stripe purpose 'other_identity_create' →
+   *  profiles.other_identity_credits). Self-mode stays free; the
+   *  recipient-redeem gate (inheritedSlotPurchaseCents) is separate
+   *  and unchanged. */
+  otherIdentityCreateCents: 500,
+
   /* ── Add-on packs (one-time; messages OR images per pack) ─────── */
   packSmallCents: 500, // $5.00
   packSmallMessages: 100,
@@ -146,6 +154,10 @@ export const INHERITED_SLOT_PRICE_LABEL = `$${PRICING.inheritedSlotPurchaseCents
 
 /** "$5" — one-time paywall on restoring a deleted identity. */
 export const RESTORE_IDENTITY_PRICE_LABEL = `$${PRICING.restoreIdentityCents / 100}`;
+
+/** "$5" — one-time charge to complete an other-mode legacy identity,
+ *  paid at Finish before synthesis. Self-mode is free. */
+export const OTHER_IDENTITY_CREATE_PRICE_LABEL = `$${PRICING.otherIdentityCreateCents / 100}`;
 
 /** 20 — monthly message cap for the Free tier. */
 export const FREE_MESSAGES_PER_MONTH = PRICING.freeMessagesPerMonth;

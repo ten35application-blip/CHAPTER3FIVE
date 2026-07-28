@@ -561,6 +561,68 @@ export async function consumeInheritedSlotCredit(
 }
 
 /**
+ * Does the user hold a purchased other-mode legacy-mint credit
+ * (profiles.other_identity_credits, 0113)? One credit = one paid
+ * other-mode legacy completion ($5 one-time via Stripe purpose
+ * 'other_identity_create'); self-mode completions never consult this.
+ * Admin client because the column is billing state; returns false on
+ * ANY failure (fail-closed — a broken read can't mint a free
+ * other-mode identity).
+ */
+export async function hasOtherIdentityCreateCredit(
+  userId: string,
+): Promise<boolean> {
+  try {
+    const admin = createAdminClient();
+    const { data, error } = await admin
+      .from("profiles")
+      .select("other_identity_credits")
+      .eq("id", userId)
+      .maybeSingle<{ other_identity_credits: number | null }>();
+    if (error || !data) return false;
+    const value = data.other_identity_credits;
+    return typeof value === "number" && value > 0;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Consume ONE other-mode legacy-mint credit after a SUCCESSFUL
+ * completion — called post-synthesis + post-insert (the credit was
+ * paid for a completed identity; a failed synthesis or insert must
+ * never eat it, the user just retries with the credit intact). Same
+ * best-effort/never-throws contract and race model as
+ * consumeInheritedSlotCredit: increment_profile_counter floors at 0,
+ * so the worst concurrent-finish case is one un-paid-for mint — and
+ * the fingerprint unique index already collapses double-submits of
+ * the same answers into one oracle anyway.
+ */
+export async function consumeOtherIdentityCreateCredit(
+  userId: string,
+): Promise<void> {
+  try {
+    const admin = createAdminClient();
+    const { error } = await admin.rpc("increment_profile_counter", {
+      target_user_id: userId,
+      counter_name: "other_identity_credits",
+      delta: -1,
+    });
+    if (error) {
+      console.error(
+        "[subscription] other-identity-create credit decrement failed:",
+        error,
+      );
+    }
+  } catch (err) {
+    console.error(
+      "[subscription] other-identity-create credit decrement failed:",
+      err,
+    );
+  }
+}
+
+/**
  * Monthly message cap check for the current user's TIER (formerly
  * canSendMessageForFreeCap — renamed when Pro gained a cap too).
  * Counts USER messages sent this calendar month (UTC month bucket)
