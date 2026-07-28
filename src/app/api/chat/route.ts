@@ -29,6 +29,7 @@ import {
   canSendImageForMonthCap,
   canSendMessageForTierCap,
   consumePackCredit,
+  getPlanTier,
 } from "@/lib/subscription";
 import {
   judgeTone,
@@ -286,7 +287,12 @@ export async function POST(request: NextRequest) {
   // usingCredit=true → over the tier cap but riding a purchased pack
   // credit; the decrement fires AFTER the message rows persist (both
   // the block-verdict path and the normal path below), never here.
-  const tierCap = await canSendMessageForTierCap(supabase);
+  // Resolve tier ONCE per request and thread it into both cap
+  // functions. Each cap fn otherwise re-runs getPlanTier internally --
+  // stream route's pattern, applied here to match. Micro-perf, real.
+  const requesterPlan = await getPlanTier(supabase);
+
+  const tierCap = await canSendMessageForTierCap(supabase, requesterPlan);
   if (!tierCap.ok) {
     return NextResponse.json(
       {
@@ -304,13 +310,23 @@ export async function POST(request: NextRequest) {
   // touch storage or start any generation. Matches the pattern in the
   // stream route (`/api/chat/[id]/stream/route.ts` ~line 327). Free
   // tier gets 1 image/mo, Basic 10, Pro 30; over cap and out of image
-  // credits → 402 image_month_cap. This route was previously skipping
-  // the image cap entirely, so anyone hitting the legacy endpoint
-  // could bypass the paid restriction. Fixed.
+  // credits → 402 image_month_cap. On cap-hit we also delete the
+  // already-uploaded chat-photo object so a rejected send doesn't
+  // leave orphans piling up in storage.
   let imageUsesCredit = false;
   if (typeof payload.image_url === "string" && payload.image_url) {
-    const imageCap = await canSendImageForMonthCap(supabase);
+    const imageCap = await canSendImageForMonthCap(supabase, requesterPlan);
     if (!imageCap.ok) {
+      if (typeof payload.image_storage_path === "string" && payload.image_storage_path) {
+        // Best-effort orphan cleanup. Never let a delete error block
+        // the 402 -- the paid restriction is what matters here.
+        await createAdminClient()
+          .storage.from("chat-photos")
+          .remove([payload.image_storage_path])
+          .catch((err) =>
+            console.error("[chat] cap-hit orphan cleanup failed:", err),
+          );
+      }
       return NextResponse.json(
         {
           error: "image_month_cap",
@@ -776,22 +792,24 @@ ${archiveBlock}`;
       const adminWrite = createAdminClient();
       // Assistant rows are written server-side: clients may only insert
       // their own 'user' turns.
-      await adminWrite.from("messages").insert([
-        {
-          user_id: user.id,
-          oracle_id: profile.active_oracle_id,
-          role: "user",
-          content: userMessage,
-          image_url: payload.image_url ?? null,
-          image_storage_path: payload.image_storage_path ?? null,
-        },
-        {
-          user_id: user.id,
-          oracle_id: profile.active_oracle_id,
-          role: "assistant",
-          content: blockLine,
-        },
-      ]);
+      const { error: blockPersistErr } = await adminWrite
+        .from("messages")
+        .insert([
+          {
+            user_id: user.id,
+            oracle_id: profile.active_oracle_id,
+            role: "user",
+            content: userMessage,
+            image_url: payload.image_url ?? null,
+            image_storage_path: payload.image_storage_path ?? null,
+          },
+          {
+            user_id: user.id,
+            oracle_id: profile.active_oracle_id,
+            role: "assistant",
+            content: blockLine,
+          },
+        ]);
       await adminWrite.from("chat_blocks").insert({
         oracle_id: profile.active_oracle_id,
         user_id: user.id,
@@ -800,14 +818,16 @@ ${archiveBlock}`;
         reason: verdict.reason,
       });
 
-      // The user's message persisted (even though the persona walked
-      // away) — an over-cap send still pays its pack credit here.
+      // Pack-credit consumption -- only after the user row actually
+      // persisted. Matches the normal path's `!persistErr` gate below;
+      // without this a failed insert on the block path could eat a
+      // paid credit for a message that never lived in the DB.
       // consumePackCredit never throws; a decrement failure can't
       // block the block-line reply.
-      if (tierCap.usingCredit) {
+      if (!blockPersistErr && tierCap.usingCredit) {
         await consumePackCredit(user.id, "message");
       }
-      if (imageUsesCredit) {
+      if (!blockPersistErr && imageUsesCredit) {
         await consumePackCredit(user.id, "image");
       }
 

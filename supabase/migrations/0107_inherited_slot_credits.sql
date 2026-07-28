@@ -3,24 +3,29 @@
 -- July 2026 second tier rework: the inherited slot is UNBUNDLED from
 -- Pro. Nobody gets a free inherited slot with a subscription anymore;
 -- redeeming an inherit code costs a one-time $5 purchase per code
--- (Stripe purpose 'inherited_slot_purchase'), waived entirely when the
--- code's minter has passed away (profiles.deceased_at set — the
--- memorial waiver; grief is not a paywall moment).
+-- (Stripe purpose 'inherited_slot_purchase').
+--
+-- Historical note: this migration originally shipped alongside a
+-- memorial waiver (free redemption when the code minter's deceased_at
+-- was set). Migration e2b8242 removed the waiver -- Wilson's call, the
+-- privacy angle around "verifying someone died" was worse than the
+-- pricing benefit. Redemption is now flat $5 for everyone, every code.
 --
 -- profiles.inherited_slot_credits — INTEGER, not null, default 0. A
 -- running balance of purchased-but-unused inherit-slot credits,
 -- exactly parallel to message_credits / image_credits (0106): the
 -- Stripe webhook increments it by 1 per completed purchase, the
--- redeem action decrements it by 1 after a successful (non-waived)
--- redemption, and a refund decrements it back. Same "balance column,
--- not ledger table" reasoning as 0106 — the payments table already
--- records every purchase for reconciliation, and greatest(0, ...) in
+-- redeem action decrements it by 1 after a successful redemption, and
+-- a refund decrements it back. Same "balance column, not ledger
+-- table" reasoning as 0106 — the payments table already records every
+-- purchase for reconciliation, and greatest(0, ...) in
 -- increment_profile_counter floors a losing race at zero.
 --
 -- This REPLACES the old recurring model (includedInheritedIdentities
--- PerPlan + extra_inherited_slots at $5/month). extra_inherited_slots
--- stays in place for the admin grant tool but no longer gates
--- redemption.
+-- PerPlan + extra_inherited_slots at $5/month). The admin grant tool
+-- was later repurposed (9e53088) to grant inherited_slot_credits
+-- through the same RPC as pack credits; extra_inherited_slots is now
+-- fully inert.
 --
 -- The new column joins the protect_billing_columns denylist (users
 -- must never write it; the webhook + redeem action go through the

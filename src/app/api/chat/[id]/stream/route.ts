@@ -326,6 +326,16 @@ export async function POST(
     }
     const imageCap = await canSendImageForMonthCap(supabase, requesterPlan);
     if (!imageCap.ok) {
+      // Best-effort orphan cleanup so a rejected send doesn't leave
+      // the uploaded chat-upload piling up in storage. Never let a
+      // delete error block the 402 -- the paid restriction is what
+      // matters here.
+      await createAdminClient()
+        .storage.from("chat-uploads")
+        .remove([imageStoragePath])
+        .catch((err) =>
+          console.error("[chat stream] cap-hit orphan cleanup failed:", err),
+        );
       return NextResponse.json(
         {
           error: "image_month_cap",
