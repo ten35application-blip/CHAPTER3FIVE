@@ -188,7 +188,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const history = Array.isArray(payload.history) ? payload.history : [];
+  let history: Message[] = Array.isArray(payload.history) ? payload.history : [];
   const clientTimezone =
     typeof payload.timezone === "string" ? payload.timezone.trim() : "";
 
@@ -229,6 +229,43 @@ export async function POST(request: NextRequest) {
 
   if (!profile) {
     return NextResponse.json({ error: "No profile" }, { status: 404 });
+  }
+
+  // History fallback for lock-screen notification replies.
+  //
+  // The mobile notification-reply path (lib/push.ts sendReplyFromNotification)
+  // sends `history: []` because the JS runtime that handles the REPLY
+  // action has no in-memory chat state -- it's a background invocation
+  // with just a token, oracleId, and typed text. Without this fallback,
+  // the companion answers the reply with zero context and the response
+  // reads as a stranger's, not the ongoing conversation. Worse, several
+  // `isFirstMessage` branches below would falsely trigger on a user
+  // with a long chat history.
+  //
+  // Rehydrate up to the last 12 messages for this user+oracle. Web
+  // clients that legitimately send history keep whatever the client
+  // sent. Brand-new conversations correctly get an empty history.
+  const conversationOracleId =
+    (typeof payload.oracle_id === "string" ? payload.oracle_id : null) ??
+    profile.active_oracle_id;
+  if (history.length === 0 && conversationOracleId) {
+    const { data: recent } = await supabase
+      .from("messages")
+      .select("role, content, created_at")
+      .eq("user_id", user.id)
+      .eq("oracle_id", conversationOracleId)
+      .in("role", ["user", "assistant"])
+      .order("created_at", { ascending: false })
+      .limit(12);
+    if (Array.isArray(recent) && recent.length > 0) {
+      history = recent
+        .slice()
+        .reverse()
+        .map((r) => ({
+          role: r.role as "user" | "assistant",
+          content: String(r.content ?? ""),
+        }));
+    }
   }
 
   // Help-mode short-circuit. If the active oracle is the built-in
