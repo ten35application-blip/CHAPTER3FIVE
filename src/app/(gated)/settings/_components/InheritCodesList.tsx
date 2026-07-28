@@ -164,21 +164,20 @@ function ArrowIcon() {
 }
 
 function ShareIcon() {
+  // Paper plane -- Wilson's ask 2026-07-28 ("a paperplane with our
+  // colors"). Filled triangle body + a subtle inner fold line so it
+  // reads as "send", not a random arrow. Uses currentColor so the
+  // parent's gradient text-fill (bg-gradient-cta on the button)
+  // paints it in the coral+teal palette.
   return (
     <svg
       viewBox="0 0 20 20"
-      width="12"
-      height="12"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
+      width="13"
+      height="13"
+      fill="currentColor"
       aria-hidden
     >
-      <path d="M10 3v10" />
-      <path d="M6 7l4-4 4 4" />
-      <path d="M4 13v3a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-3" />
+      <path d="M17.6 2.4a1 1 0 0 1 .3 1.02l-4.2 13.3a1 1 0 0 1-1.83.16l-2.62-4.9-4.9-2.62a1 1 0 0 1 .16-1.83L17.02 2.1a1 1 0 0 1 .58.3zM8.7 11.3l1.7 3.18 2.85-9.03L8.7 11.3z" />
     </svg>
   );
 }
