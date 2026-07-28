@@ -593,18 +593,18 @@ export default function Home() {
                 <ul className="mt-8 flex flex-col gap-3 text-left text-base text-warm-200">
                   <FeatureLine>
                     <strong className="text-warm-50">
-                      {PRO_MESSAGES_PER_MONTH} messages a month
-                    </strong>{" "}
-                    &mdash; room for the 2 a.m. conversations, and the
-                    3 a.m. ones too
-                  </FeatureLine>
-                  <FeatureLine>
-                    <strong className="text-warm-50">
                       {PRICING.totalIdentitiesPerPlan} companions
                     </strong>{" "}
                     &mdash; {PRICING.formulaIdentitiesPerPlan} rolled fresh
                     from our formula and {PRICING.photoIdentitiesPerPlan}{" "}
                     built from a photo you upload
+                  </FeatureLine>
+                  <FeatureLine>
+                    <strong className="text-warm-50">
+                      {PRO_MESSAGES_PER_MONTH} messages a month
+                    </strong>{" "}
+                    &mdash; room for the 2 a.m. conversations, and the
+                    3 a.m. ones too
                   </FeatureLine>
                   <FeatureLine>
                     <strong className="text-warm-50">

@@ -238,17 +238,17 @@ export function PlanCards({
             >
               <FeatureLine>
                 <strong className="text-warm-50">
-                  {PRO_MESSAGES_PER_MONTH} messages a month
-                </strong>{" "}
-                across all your conversations
-              </FeatureLine>
-              <FeatureLine>
-                <strong className="text-warm-50">
                   {PRICING.totalIdentitiesPerPlan} companions
                 </strong>{" "}
                 &mdash; {PRICING.formulaIdentitiesPerPlan} from our
                 formula + {PRICING.photoIdentitiesPerPlan} from a photo
                 you upload
+              </FeatureLine>
+              <FeatureLine>
+                <strong className="text-warm-50">
+                  {PRO_MESSAGES_PER_MONTH} messages a month
+                </strong>{" "}
+                across all your conversations
               </FeatureLine>
               <FeatureLine>
                 <strong className="text-warm-50">
