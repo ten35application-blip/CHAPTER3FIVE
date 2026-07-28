@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 
 /**
@@ -55,19 +54,13 @@ export function InheritCodesList({ items }: { items: Array<CodeItem> }) {
       </p>
       <div className="flex flex-col gap-3">
         <Slot
-          kind="self"
           heading="Your own"
-          emptyBlurb="Answer forty warm questions in your own voice. Your family gets a code to talk with you later."
-          emptyCta="Create your own identity"
-          emptyHref="/identity/legacy/new?mode=self"
+          emptyPlaceholder="When you record yourself, your code will appear here."
           item={selfItem}
         />
         <Slot
-          kind="other"
           heading="For someone you love"
-          emptyBlurb="Record a parent, partner, or friend. Lands in your contacts, plus a code you can share with family."
-          emptyCta="Create it for someone you love"
-          emptyHref="/identity/legacy/new?mode=other"
+          emptyPlaceholder="When you record someone you love, their code will appear here."
           item={otherItem}
         />
       </div>
@@ -76,18 +69,12 @@ export function InheritCodesList({ items }: { items: Array<CodeItem> }) {
 }
 
 function Slot({
-  kind,
   heading,
-  emptyBlurb,
-  emptyCta,
-  emptyHref,
+  emptyPlaceholder,
   item,
 }: {
-  kind: "self" | "other";
   heading: string;
-  emptyBlurb: string;
-  emptyCta: string;
-  emptyHref: string;
+  emptyPlaceholder: string;
   item: CodeItem | null;
 }) {
   return (
@@ -98,44 +85,14 @@ function Slot({
       {item ? (
         <FilledSlot item={item} />
       ) : (
-        <EmptySlot blurb={emptyBlurb} cta={emptyCta} href={emptyHref} kind={kind} />
+        // Passive placeholder. Wilson's ask 2026-07-28: Settings is a
+        // state mirror, not a discovery surface -- creation lives on
+        // /identity/create, and the picker is the canonical door. No
+        // CTA here so the section reads like Settings, not marketing.
+        <p className="mt-1.5 text-xs italic leading-relaxed text-warm-400">
+          {emptyPlaceholder}
+        </p>
       )}
-    </div>
-  );
-}
-
-function EmptySlot({
-  blurb,
-  cta,
-  href,
-  kind,
-}: {
-  blurb: string;
-  cta: string;
-  href: string;
-  kind: "self" | "other";
-}) {
-  return (
-    <div className="mt-1.5">
-      <p className="text-xs leading-relaxed text-warm-300">{blurb}</p>
-      <Link
-        href={href}
-        className="bg-gradient-cta mt-3 inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-semibold text-white shadow-[0_4px_10px_-2px_rgba(232,138,118,0.35)] transition-transform hover:-translate-y-0.5"
-      >
-        {cta}
-        {kind === "other" ? (
-          <span className="text-[10px] font-medium text-white/85">
-            &middot; $5
-          </span>
-        ) : (
-          <span className="text-[10px] font-medium text-white/85">
-            &middot; Free
-          </span>
-        )}
-        <span aria-hidden>
-          <ArrowIcon />
-        </span>
-      </Link>
     </div>
   );
 }
@@ -214,24 +171,6 @@ function ShareButton({ code, name }: { code: string; name: string }) {
       </span>
       <span>{label}</span>
     </button>
-  );
-}
-
-function ArrowIcon() {
-  return (
-    <svg
-      viewBox="0 0 20 20"
-      width="12"
-      height="12"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M4 10h12M11 5l5 5-5 5" />
-    </svg>
   );
 }
 
