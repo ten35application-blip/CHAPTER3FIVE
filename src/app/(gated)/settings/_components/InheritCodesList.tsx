@@ -45,8 +45,7 @@ export function InheritCodesList({ items }: { items: Array<CodeItem> }) {
     items.find((i) => i.mode === "other" || i.mode === null) ?? null;
 
   return (
-    <div className="border-t border-warm-700/60 px-4 py-4">
-      <p className="mb-1 text-[15px] font-medium text-warm-50">Inherit codes</p>
+    <div className="px-4 py-4">
       <p className="mb-4 text-xs leading-relaxed text-warm-400">
         Two slots per account &mdash; one for yourself, one for a loved one.
         Share the code with family so they can meet the person you&rsquo;re

@@ -246,12 +246,12 @@ export default async function SettingsPage({
 
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-7 px-4 pt-6">
         {mintedItem ? <MintedBanner name={mintedItem.name} /> : null}
-        {/* PROFILE — inline photo + name editor. Two client components
-            rather than one ProfileEditor wrapper: PhotoUploader owns
-            its native-form flow (round-4 rebuild after three
-            revert-symptom fixes failed), NameField owns the blur-save
-            name flow. Splitting them keeps the photo pipeline
-            isolated from every other bit of state on this page. */}
+        {/* PROFILE — everything about who you are + how you sign in.
+            Photo, display name, email all live together. Wilson's ask
+            2026-07-28: consolidated Account into Profile because
+            "email under name" reads naturally as one identity block.
+            Password change is a separate follow-up (needs a reset
+            landing page, not just a UI row). */}
         <Section label="Profile">
           <PhotoUploader
             initialPhotoUrl={avatarSignedUrl}
@@ -259,21 +259,17 @@ export default async function SettingsPage({
             debug={debug}
           />
           <NameField fullName={fullName} />
-          {/* Inherit codes sit INSIDE the Profile card, directly under
-              the name field's "your identities will use this to greet
-              you" subtext (Wilson's ask 2026-07-28: this is part of
-              your profile — how family finds the person you're
-              keeping alive — so it belongs with name + photo, not in
-              its own tile). Empty state teaches the flow; populated
-              rows carry a native Share button on the right. */}
-          <InheritCodesList items={inheritCodeItems} />
+          <Row icon={<MailIcon />} label="Email" value={email} />
         </Section>
 
-        {/* ACCOUNT — email lives here per Wilson (name lives up in
-            Profile alongside the photo). Password change isn't wired
-            yet — dropping the dead row until it is. */}
-        <Section label="Account">
-          <Row icon={<MailIcon />} label="Email" value={email} />
+        {/* INHERIT CODES — its own Section (Wilson's ask 2026-07-28:
+            these are artifacts you've produced, not identity
+            attributes; they deserve their own container next to Plan,
+            not a nested slot inside Profile). Two-slot passive
+            layout, no CTAs -- creation happens via the identity
+            picker, not here. */}
+        <Section label="Inherit codes">
+          <InheritCodesList items={inheritCodeItems} />
         </Section>
 
         {/* PLAN — count + upgrade CTA. Identity row shows the raw
