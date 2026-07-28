@@ -139,13 +139,20 @@ export async function getFreeIdentityId(
 
 /**
  * May the current user chat with this identity?
- *   - Pro (paid, admin, or in-trial): yes, always.
+ *   - Pro / Basic / admin / trial: yes, always.
  *   - The concierge (Adrian): yes, always -- everyone can chat with
  *     the guide regardless of plan or which identity happens to be
  *     saved as free_identity_id. Belt against grandfathered users
  *     whose free_identity_id points at a personal oracle and against
  *     Pro users who want to ask a product question.
- *   - Free tier: only their free_identity_id.
+ *   - Free tier + assigned free_identity_id: yes (their designated one).
+ *   - Free tier + inherited identity (they have an oracle_shares row):
+ *     yes. Post-0107 inherited redemption is per-code-priced and
+ *     tier-agnostic (memorial waiver or $5 one-time), so a grieving
+ *     Free user CAN redeem a code -- and needs to be able to chat with
+ *     it too. This branch closes the gap Fable flagged: without it, a
+ *     widow could pay for a memorial redemption and be locked out of
+ *     the conversation, which is the opposite of what the app is for.
  * Never throws -- any failure reads as "no" (fail-closed).
  */
 export async function canChatWithOracle(
@@ -163,7 +170,25 @@ export async function canChatWithOracle(
     const conciergeId = await getConciergeId();
     if (conciergeId && oracleId === conciergeId) return true;
     const freeId = await getFreeIdentityId(client);
-    return freeId !== null && freeId === oracleId;
+    if (freeId !== null && freeId === oracleId) return true;
+
+    // Inherited-oracle branch: any oracle_shares row keyed to the
+    // caller for this oracle_id means they legitimately redeemed a
+    // code. Uses the same client that resolved the user above (via
+    // getFreeIdentityId's auth.getUser); RLS on oracle_shares scopes
+    // to the caller's own rows already, so a plain SELECT is the
+    // authorization. No admin client needed.
+    const {
+      data: { user },
+    } = await client.auth.getUser();
+    if (!user) return false;
+    const { data: share } = await client
+      .from("oracle_shares")
+      .select("oracle_id")
+      .eq("oracle_id", oracleId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    return share !== null;
   } catch {
     return false;
   }
