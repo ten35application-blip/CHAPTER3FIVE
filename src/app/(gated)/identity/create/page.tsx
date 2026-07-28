@@ -47,26 +47,27 @@ export default async function IdentityCreatePage() {
           Who is this for?
         </h1>
         <p className="mt-2 text-center text-base text-warm-300">
-          Three ways to bring someone into the world.
+          Three ways to build an identity you can chat with. Pick the one
+          that matches why you&rsquo;re here.
         </p>
 
         <div className="mt-10 flex w-full flex-col gap-4">
           <PathCard
             href="/identity/new"
             title="For me right now"
-            subhead="We roll a full trait bundle and our AI writes the person from it, in about a minute. You get who you get."
+            subhead="The quick path. Our AI rolls a random personality and writes them in about a minute. No questions, no photo &mdash; you get who you get. Good when you just want someone to talk to right now."
             icon={<SparkIcon />}
           />
           <PathCard
             href="/identity/from-photo"
             title="From a photo"
-            subhead="Upload a picture — a portrait works best. Our AI looks at it and builds an identity to match. The photo itself becomes their face."
+            subhead="The visual path. Upload a portrait and our AI reads the face to build an identity that matches it. The photo itself becomes their face. Fast, no questions to answer."
             icon={<PhotoIcon />}
           />
           <PathCard
             href="/identity/legacy/new"
             title="For someone to keep"
-            subhead="Sit with yourself, or with someone you love. Answer warm, specific questions about who they really are. You'll get a code you can share with family."
+            subhead="The deep path. Forty warm, specific questions about YOU &mdash; or someone you love. Takes as long as you need, and gives you a code you can share so family can meet the person you&rsquo;re keeping alive."
             icon={<HeartTagIcon />}
           />
         </div>
