@@ -24,6 +24,7 @@ import {
   type LegacySubject,
 } from "@/lib/legacy/synthesize";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { recordPendingPaymentOrThrow } from "@/lib/billing/pendingPayment";
 import { createClient } from "@/lib/supabase/server";
 
 /** Enough answers to weave a real person from — half the bank. */
@@ -334,16 +335,23 @@ export async function completeLegacyIdentity(payload: {
         success_url: `${origin}/identity/legacy/new?paid=1`,
         cancel_url: `${origin}/identity/legacy/new?cancelled=1`,
       });
-      checkoutUrl = session.url;
-
-      await createAdminClient().from("payments").insert({
-        user_id: user.id,
-        stripe_session_id: session.id,
-        amount_cents: PRICING.otherIdentityCreateCents,
-        currency: "usd",
-        purpose: "other_identity_create",
-        status: "pending",
+      // H2 fix: throw on ledger insert failure so the surrounding
+      // catch redirects with a graceful "answers are saved -- try
+      // again" instead of orphaning the Stripe session. Insert BEFORE
+      // assigning checkoutUrl so a ledger failure leaves it null and
+      // the fallback error path fires.
+      await recordPendingPaymentOrThrow({
+        admin: createAdminClient(),
+        stripe,
+        session,
+        row: {
+          user_id: user.id,
+          amount_cents: PRICING.otherIdentityCreateCents,
+          currency: "usd",
+          purpose: "other_identity_create",
+        },
       });
+      checkoutUrl = session.url;
     } catch (err) {
       redirectWithError(
         "/identity/legacy/new",

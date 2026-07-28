@@ -12,6 +12,7 @@ import {
 import { PRICING } from "@/lib/pricing";
 import { getStripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { recordPendingPaymentOrThrow } from "@/lib/billing/pendingPayment";
 import { createClient } from "@/lib/supabase/server";
 import {
   consumeInheritedSlotCredit,
@@ -216,16 +217,24 @@ export async function redeemInheritCode(rawCode: string): Promise<void> {
         success_url: `${origin}/identity/inherit?purchased=1`,
         cancel_url: `${origin}/identity/inherit?cancelled=1`,
       });
-      checkoutUrl = session.url;
-
-      await createAdminClient().from("payments").insert({
-        user_id: user.id,
-        stripe_session_id: session.id,
-        amount_cents: PRICING.inheritedSlotPurchaseCents,
-        currency: "usd",
-        purpose: "inherited_slot_purchase",
-        status: "pending",
+      // H2 fix: throw on insert failure so the surrounding catch
+      // redirects to a graceful "try again" instead of leaving an
+      // unfulfilled Stripe session open. Helper also expires the
+      // session and logs loudly. Do the insert BEFORE assigning
+      // checkoutUrl so a ledger failure keeps checkoutUrl null and
+      // the fallback error path fires.
+      await recordPendingPaymentOrThrow({
+        admin: createAdminClient(),
+        stripe,
+        session,
+        row: {
+          user_id: user.id,
+          amount_cents: PRICING.inheritedSlotPurchaseCents,
+          currency: "usd",
+          purpose: "inherited_slot_purchase",
+        },
       });
+      checkoutUrl = session.url;
     } catch (err) {
       redirectWithError(
         "/identity/inherit",
