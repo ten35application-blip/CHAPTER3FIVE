@@ -243,8 +243,8 @@ export default async function UpgradePage({
             Add-on packs
           </h2>
           <p className="mx-auto mt-2 max-w-md text-base text-warm-300">
-            One-time top-ups from {PACK_FROM_PRICE_LABEL}, on top of any
-            plan. Each pack adds both extra messages and photos.
+            Extra messages? Extra images? Grab an add-on pack from{" "}
+            {PACK_FROM_PRICE_LABEL}.
           </p>
           <div className="mt-6">
             <PackOptions email={email} checkoutEnabled={packCheckoutEnabled} />

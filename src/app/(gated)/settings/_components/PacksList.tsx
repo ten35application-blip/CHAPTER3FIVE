@@ -91,9 +91,7 @@ export function PacksList() {
   return (
     <div className="px-4 py-4">
       <p className="text-xs leading-relaxed text-warm-400">
-        Extra usage? Grab an add-on pack from $5 &mdash; each pack adds
-        both messages and photos to whatever&rsquo;s left of your
-        monthly quota.
+        Extra messages? Extra images? Grab an add-on pack from $5.
       </p>
       <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
         <label className="flex-1">
