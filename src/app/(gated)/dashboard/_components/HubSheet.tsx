@@ -595,8 +595,11 @@ function CreateMenuItem({
     >
       <span>{label}</span>
       {pro ? (
+        // "Paid" not "Pro" — the legacy path opened to Basic in the
+        // July 2026 second rework; the badge means "needs any paid
+        // plan", and requirePro (any-paid despite the name) enforces.
         <span className="bg-gradient-cta rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] leading-tight text-white">
-          Pro
+          Paid
         </span>
       ) : null}
     </Link>

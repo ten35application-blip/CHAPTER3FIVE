@@ -12,9 +12,9 @@ import {
   BASIC_MONTHLY_PRICE_LABEL,
   BASIC_TIER_LABEL,
   EXTRA_IDENTITY_PRICE_LABEL,
-  EXTRA_INHERITED_PRICE_LABEL,
   FREE_IMAGES_PER_MONTH,
   FREE_MESSAGES_PER_MONTH,
+  INHERITED_SLOT_PRICE_LABEL,
   MONTHLY_PRICE_LABEL,
   PRICING,
   PRO_IMAGES_PER_MONTH,
@@ -212,17 +212,32 @@ export default function TermsPage() {
           Section 5).
         </p>
         <p>
-          <strong>Sharing and the Pro plan.</strong> A legacy identity may be
+          <strong>Sharing and redemption.</strong> A legacy identity may be
           shared with an <strong>unlimited number of family members</strong>{" "}
           via its inherit code, and everything the creator baked into the
           identity — including any photo-based likeness — transfers with the
-          code. However, <strong>redeeming an inherit code and using a shared
-          identity requires an active paid Pro subscription</strong> (see
-          Section 8). If a recipient&rsquo;s subscription lapses, their
-          access to the shared identity <strong>pauses</strong> — the
-          connection is not deleted, and access resumes when the
-          subscription is reactivated.
+          code. Redemption does not require any particular subscription
+          tier; it is paid <strong>per code</strong>:
         </p>
+        <ul>
+          <li>
+            <strong>Memorial redemptions are free.</strong> When the
+            person who created the archive has passed away (their
+            passing has been reported and confirmed on our end),
+            redeeming their inherit code costs nothing. Grief is not a
+            moment we charge you at.
+          </li>
+          <li>
+            While the creator is <strong>living</strong> (for example, a
+            code shared ahead of time or given as a gift), redeeming
+            their code requires a{" "}
+            <strong>
+              {INHERITED_SLOT_PRICE_LABEL} one-time inherit-slot
+              purchase
+            </strong>{" "}
+            (see Section 8) — once per code, never a recurring fee.
+          </li>
+        </ul>
       </LegalSection>
 
       <LegalSection
@@ -352,9 +367,9 @@ export default function TermsPage() {
                 .
               </li>
               <li>
-                No inherited-identity slot — redeeming an inherit code
-                and recording your own legacy archive both require the
-                Pro plan.
+                The ability to{" "}
+                <strong>record your own legacy archive</strong> and mint
+                an inherit code (see Section 4).
               </li>
             </ul>
           </li>
@@ -373,14 +388,6 @@ export default function TermsPage() {
                   {PRICING.photoIdentitiesPerPlan} identity
                 </strong>{" "}
                 built from a photo you upload.
-              </li>
-              <li>
-                <strong>
-                  {PRICING.includedInheritedIdentitiesPerPlan} inherited-identity
-                  slot
-                </strong>{" "}
-                for a persona someone shared with you through a legacy
-                code.
               </li>
               <li>
                 <strong>
@@ -439,11 +446,14 @@ export default function TermsPage() {
               </li>
               <li>
                 <strong>
-                  Extra inherited-identity slot —{" "}
-                  {EXTRA_INHERITED_PRICE_LABEL}/month per slot.
+                  Inherit-slot purchase —{" "}
+                  {INHERITED_SLOT_PRICE_LABEL} one-time per code.
                 </strong>{" "}
-                Adds room to redeem another legacy code beyond the one
-                included with Pro.
+                Unlocks the redemption of one inherit code minted by a
+                living creator. <strong>Waived entirely</strong> when
+                the creator has passed away (see Section 4) — memorial
+                redemptions are always free. Not a subscription; no
+                recurring charge.
               </li>
               <li>
                 <strong>
@@ -465,8 +475,11 @@ export default function TermsPage() {
             </ul>
           </li>
           <li>
-            An active Pro plan is required to redeem an inherit code and
-            use a legacy identity someone shared with you (see Section 4).
+            No subscription tier is required to redeem an inherit code:
+            redemption is free when the code&rsquo;s creator has passed
+            away, and otherwise requires the{" "}
+            {INHERITED_SLOT_PRICE_LABEL} one-time inherit-slot purchase
+            described above (see Section 4).
           </li>
           <li>
             <strong>chapter3five does not currently offer a free trial

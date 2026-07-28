@@ -5,6 +5,7 @@ import {
   BASIC_MONTHLY_PRICE_LABEL,
   BASIC_TIER_LABEL,
   EXTRA_IDENTITY_PRICE_LABEL,
+  INHERITED_SLOT_PRICE_LABEL,
   MONTHLY_PRICE_LABEL,
   PACK_FROM_PRICE_LABEL,
   PRICING,
@@ -137,6 +138,9 @@ export function PlanCards({
                 to send to any companion
               </FeatureLine>
               <FeatureLine>
+                Record your own legacy archive (mint a code for family)
+              </FeatureLine>
+              <FeatureLine>
                 Adrian, our guide, always included
               </FeatureLine>
             </ul>
@@ -238,14 +242,12 @@ export function PlanCards({
                 across all your conversations
               </FeatureLine>
               <FeatureLine>
-                {PRICING.formulaIdentitiesPerPlan} formula companions +{" "}
-                {PRICING.photoIdentitiesPerPlan} from a photo you upload
-              </FeatureLine>
-              <FeatureLine>
                 <strong className="text-warm-50">
-                  {PRICING.includedInheritedIdentitiesPerPlan} inherited slot
+                  {PRICING.totalIdentitiesPerPlan} companions
                 </strong>{" "}
-                &mdash; open a legacy code from someone
+                &mdash; {PRICING.formulaIdentitiesPerPlan} from our
+                formula + {PRICING.photoIdentitiesPerPlan} from a photo
+                you upload
               </FeatureLine>
               <FeatureLine>
                 <strong className="text-warm-50">
@@ -255,6 +257,10 @@ export function PlanCards({
               </FeatureLine>
               <FeatureLine>
                 Record your own legacy archive (mint a code for family)
+              </FeatureLine>
+              <FeatureLine>
+                Open legacy codes &mdash; {INHERITED_SLOT_PRICE_LABEL}{" "}
+                one-time per code, free when the sender has passed away
               </FeatureLine>
               <FeatureLine>
                 Extras {EXTRA_IDENTITY_PRICE_LABEL}/mo per slot

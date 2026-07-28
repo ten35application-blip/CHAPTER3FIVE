@@ -29,9 +29,11 @@ async function signOut() {
   redirect("/");
 }
 
-// Wilson's pricing (July 2026 rework): Free tier chats with Adrian
-// only; Pro is $10/month for 3 formula + 1 photo (4 self-created,
-// what this constant counts) + 1 inherited slot. Numbers live in
+// Wilson's pricing (July 2026 second rework): Free tier chats with
+// Adrian only; Pro is $10/month for 4 formula + 1 photo (5
+// self-created, what this constant counts). No inherited slot is
+// bundled anymore — inherit codes are a $5 one-time unlock per code
+// (free when the minter has passed away). Numbers live in
 // src/lib/pricing.ts -- change them there.
 const PLAN_QUOTA = PRICING.totalIdentitiesPerPlan;
 
@@ -231,6 +233,24 @@ export default async function SettingsPage({
           <div className="px-4 py-4">
             {pro && stripeCustomerId ? (
               <>
+                {isBasicTier ? (
+                  // Basic subscriber: lead with the Pro step-up. Plan
+                  // CHANGES go through the billing portal (a fresh
+                  // Checkout would 409 on the already-subscribed
+                  // guard) — same pattern as the PlanCards Pro CTA.
+                  <div className="mb-4">
+                    <ManageSubscriptionButton
+                      label="Upgrade to Pro"
+                      variant="cta"
+                    />
+                    <p className="mt-3 text-center text-xs text-warm-300">
+                      Pro is {MONTHLY_PRICE_LABEL}/month &mdash;{" "}
+                      {PLAN_QUOTA} companions and more room every
+                      month. Changes happen in the billing portal and
+                      take effect right away.
+                    </p>
+                  </div>
+                ) : null}
                 <ManageSubscriptionButton />
                 <p className="mt-3 text-center text-xs text-warm-300">
                   Update your card, view invoices, or cancel any time

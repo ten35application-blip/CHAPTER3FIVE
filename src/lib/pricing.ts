@@ -146,11 +146,6 @@ export const EXTRA_IDENTITY_PRICE_LABEL = `$${PRICING.extraIdentityCents / 100}`
  *  retired EXTRA_INHERITED_PRICE_LABEL ($5/month recurring slot). */
 export const INHERITED_SLOT_PRICE_LABEL = `$${PRICING.inheritedSlotPurchaseCents / 100}`;
 
-/** @deprecated Transitional alias for INHERITED_SLOT_PRICE_LABEL —
- *  the recurring extra-inherited-slot SKU is retired. Deleted once
- *  the copy surfaces move off it (same rework, later commit). */
-export const EXTRA_INHERITED_PRICE_LABEL = INHERITED_SLOT_PRICE_LABEL;
-
 /** "$5" — one-time paywall on restoring a deleted identity. */
 export const RESTORE_IDENTITY_PRICE_LABEL = `$${PRICING.restoreIdentityCents / 100}`;
 

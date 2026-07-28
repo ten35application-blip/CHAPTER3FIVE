@@ -5,13 +5,14 @@ import { getPlanTier } from "@/lib/subscription";
 import {
   BASIC_MONTHLY_PRICE_LABEL,
   BASIC_TIER_LABEL,
-  EXTRA_INHERITED_PRICE_LABEL,
   FREE_MESSAGES_PER_MONTH,
+  INHERITED_SLOT_PRICE_LABEL,
   MONTHLY_PRICE_LABEL,
   PACK_FROM_PRICE_LABEL,
 } from "@/lib/pricing";
 import { PlanCards } from "@/components/PlanCards";
 import { PackOptions } from "@/components/PackOptions";
+import { UpgradeButton } from "@/app/(gated)/settings/_components/UpgradeButton";
 
 export const metadata = {
   title: "Upgrade · chapter3five",
@@ -37,10 +38,16 @@ export const metadata = {
  * plan" and Pro as the upgrade CTA (routed through the billing
  * portal). Only full-Pro visitors bounce away.
  *
- * Special copy paths preserved from the one-card era:
- *   - ?reason=extra-inherited — visitor is ALREADY Pro and hit the
- *     inherited-slot cap; renders its own add-a-slot pitch (no plan
- *     cards, no Pro bounce — bouncing would loop them into the gate).
+ * Special copy paths:
+ *   - ?reason=inherited-slot (legacy alias: extra-inherited) — the
+ *     visitor tried to redeem a LIVING-minter inherit code without a
+ *     purchased slot credit. Renders the one-time $5 purchase pitch
+ *     (Stripe Checkout on STRIPE_PRICE_ID_INHERITED_SLOT, mailto
+ *     fallback) — ANY tier can land here since the July 2026 second
+ *     rework unbundled the inherited slot, so this branch never
+ *     bounces Pro visitors (that would loop them into the gate).
+ *     Deceased-minter codes never reach this page — the memorial
+ *     waiver redeems them free.
  *   - ?next=/identity/inherit/... — a Free user holding an inherit
  *     code gets the "open the code" framing above the cards.
  *
@@ -61,13 +68,14 @@ export default async function UpgradePage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/auth/signin");
 
-  const wantsExtraInherited = reason === "extra-inherited";
+  const wantsInheritedSlot =
+    reason === "inherited-slot" || reason === "extra-inherited";
 
   // Tier-aware gate: Pro (incl. admin/trial) bounces to its target as
   // before; a BASIC subscriber stays — this page doubles as their
   // upgrade surface with Basic marked "current."
   const plan = await getPlanTier(supabase);
-  if (!wantsExtraInherited && plan.tier === "pro") {
+  if (!wantsInheritedSlot && plan.tier === "pro") {
     redirect(safeNext(next));
   }
   const isBasicSubscriber = plan.tier === "basic";
@@ -85,40 +93,59 @@ export default async function UpgradePage({
   };
   const email = user.email ?? "";
 
-  /* ── Extra-inherited-slot pitch (already-Pro visitor) ─────────── */
-  if (wantsExtraInherited) {
+  /* ── Inherit-slot purchase pitch (redeem gate, living minter) ─── */
+  if (wantsInheritedSlot) {
+    const inheritedSlotCheckoutEnabled = Boolean(
+      process.env.STRIPE_PRICE_ID_INHERITED_SLOT,
+    );
     return (
       <main className="flex min-h-dvh flex-1 items-center justify-center px-6 py-16">
         <div className="flex w-full max-w-xl flex-col items-center text-center">
           <p className="text-gradient-cta text-xs font-bold uppercase tracking-[0.14em]">
-            chapter3five Pro
+            chapter3five
           </p>
           <h1 className="mt-3 text-4xl font-bold leading-[1.05] tracking-[-0.02em] text-warm-50 sm:text-5xl">
             Open the <span className="text-gradient-cta">code.</span>
           </h1>
           <p className="mt-6 max-w-md text-lg leading-relaxed text-warm-200">
-            You&rsquo;ve used the inherited slot included with Pro. Extra
-            slots are {EXTRA_INHERITED_PRICE_LABEL}/month each if
-            you&rsquo;re holding more codes.
+            Bringing in an identity someone shared with you is a{" "}
+            {INHERITED_SLOT_PRICE_LABEL} one-time unlock &mdash; once,
+            per code, never monthly. And when the code comes from
+            someone who has passed away, there&rsquo;s no charge at
+            all: their archive opens free.
           </p>
 
-          {/* The extra-inherited slot is a different SKU that isn't
-              wired into Stripe yet, so this path keeps the mailto flow
-              even when Pro checkout is live. */}
           <div className="mt-10 w-full max-w-sm">
-            <a
-              href={`mailto:hello@chapter3five.app?subject=${encodeURIComponent(
-                "Add an extra inherited-identity slot",
-              )}&body=${encodeURIComponent(
-                `Hi — I'd like to add an extra inherited-identity slot (${EXTRA_INHERITED_PRICE_LABEL}/month) to my chapter3five account (${email}). I've already filled the inherited slot included with Pro and I have another code to redeem.\n\nThanks.`,
-              )}`}
-              className="bg-gradient-cta hover:bg-gradient-cta-hover flex h-14 w-full items-center justify-center rounded-full text-base font-bold text-white shadow-[0_16px_36px_-10px_rgba(232,138,118,0.55),_0_6px_16px_-4px_rgba(126,196,196,0.45)] transition-all hover:-translate-y-px"
-            >
-              Email us to add a slot
-            </a>
-            <p className="mt-3 text-center text-xs text-warm-400">
-              We&rsquo;ll flip the slot on within a day.
-            </p>
+            {inheritedSlotCheckoutEnabled ? (
+              <>
+                <UpgradeButton
+                  checkoutEnabled
+                  purpose="inherited_slot_purchase"
+                  fallbackHref="/upgrade"
+                  label={`Unlock for ${INHERITED_SLOT_PRICE_LABEL}`}
+                />
+                <p className="mt-3 text-center text-xs text-warm-400">
+                  One-time payment &mdash; you&rsquo;ll come right back
+                  here to enter the code.
+                </p>
+              </>
+            ) : (
+              <>
+                <a
+                  href={`mailto:hello@chapter3five.app?subject=${encodeURIComponent(
+                    "Unlock an inherit code",
+                  )}&body=${encodeURIComponent(
+                    `Hi — I'm holding an inherit code and I'd like the one-time ${INHERITED_SLOT_PRICE_LABEL} unlock on my chapter3five account (${email}).\n\nThanks.`,
+                  )}`}
+                  className="bg-gradient-cta hover:bg-gradient-cta-hover flex h-14 w-full items-center justify-center rounded-full text-base font-bold text-white shadow-[0_16px_36px_-10px_rgba(232,138,118,0.55),_0_6px_16px_-4px_rgba(126,196,196,0.45)] transition-all hover:-translate-y-px"
+                >
+                  Email us to unlock
+                </a>
+                <p className="mt-3 text-center text-xs text-warm-400">
+                  We&rsquo;ll flip it on within a day.
+                </p>
+              </>
+            )}
           </div>
 
           <Link
@@ -159,13 +186,21 @@ export default async function UpgradePage({
           <p className="mt-6 max-w-md text-lg leading-relaxed text-warm-200">
             You&rsquo;re holding an inherit code &mdash; someone sat down
             and answered forty questions so that archive could reach you.
-            The Pro plan below opens it.
+            Opening it is a {INHERITED_SLOT_PRICE_LABEL} one-time unlock
+            on any plan (free when the sender has passed away) &mdash;
+            head back to{" "}
+            <Link
+              href="/identity/inherit"
+              className="font-semibold text-warm-100 underline underline-offset-2"
+            >
+              enter your code
+            </Link>
+            , or pick a plan below for companions of your own.
           </p>
         ) : isBasicSubscriber ? (
           <p className="mt-6 max-w-md text-lg leading-relaxed text-warm-200">
-            Step up to Pro for a bigger cast, the inherited slot, and
-            your own legacy archive &mdash; or grab an add-on pack when
-            a month runs long.
+            Step up to Pro for a bigger cast and more room every month
+            &mdash; or grab an add-on pack when a month runs long.
           </p>
         ) : (
           <p className="mt-6 max-w-md text-lg leading-relaxed text-warm-200">

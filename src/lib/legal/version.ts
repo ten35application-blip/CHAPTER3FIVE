@@ -38,8 +38,18 @@
  *                 add-on packs disclosed (Small $5, Medium $10, Large
  *                 $20 — each adds messages OR images); "no free
  *                 trial" clause retained.
+ *   2026-07-27f — Terms §4 + §8 rewritten for the second tier rework:
+ *                 Pro $12 → $10/mo with 5 self-created identities (4
+ *                 formula + 1 photo); the bundled inherited slot is
+ *                 removed from Pro and the $5/month extra-inherited
+ *                 slot SKU is retired — redeeming an inherit code is
+ *                 now a $5 ONE-TIME purchase per code on any tier,
+ *                 waived when the code's creator has passed away (the
+ *                 memorial waiver); recording a legacy archive +
+ *                 minting a code extended to Basic; §4's Pro-plan
+ *                 redemption requirement deleted.
  */
-export const CURRENT_TERMS_VERSION = "2026-07-27e";
+export const CURRENT_TERMS_VERSION = "2026-07-27f";
 
 /**
  * True only if the profile has accepted exactly the current version.

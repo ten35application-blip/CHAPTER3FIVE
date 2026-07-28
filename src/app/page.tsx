@@ -8,6 +8,7 @@ import {
   EXTRA_IDENTITY_PRICE_LABEL,
   FREE_IMAGES_PER_MONTH,
   FREE_MESSAGES_PER_MONTH,
+  INHERITED_SLOT_PRICE_LABEL,
   MONTHLY_PRICE_LABEL,
   PACK_FROM_PRICE_LABEL,
   PRICING,
@@ -440,11 +441,13 @@ export default function Home() {
       {/* ── 7 · PRICING ──────────────────────────────────────────
           Three tiers, one card each, cheapest → priciest: Free (chat
           with Adrian, 20 msgs/mo), Basic (BASIC_TIER_LABEL, $5/mo —
-          first personal companions; teal frame), and Pro ($12/mo —
+          first personal companions; teal frame), and Pro ($10/mo —
           the highlighted primary tier with the coral gradient
-          border). The $25 Plus placeholder tier is retired. Every
-          tier is message-capped now; add-on packs (one-time top-ups)
-          get a strip below alongside the extra-identity add-on. */}
+          border; 4 formula + 1 photo since the July 2026 second
+          rework unbundled the inherited slot into a $5 one-time
+          per-code purchase with the memorial waiver). Every tier is
+          message-capped; add-on packs (one-time top-ups) get a strip
+          below alongside the extra-identity add-on. */}
       <section className="px-6 py-24 md:py-32">
         <div className="mx-auto flex w-full max-w-5xl flex-col items-center lg:max-w-6xl">
           <Rule />
@@ -551,6 +554,10 @@ export default function Home() {
                     you can send to any companion
                   </FeatureLine>
                   <FeatureLine>
+                    Record your own legacy archive &mdash; mint a code
+                    for family
+                  </FeatureLine>
+                  <FeatureLine>
                     Adrian, our guide, always included
                   </FeatureLine>
                 </ul>
@@ -595,13 +602,11 @@ export default function Home() {
                   </FeatureLine>
                   <FeatureLine>
                     <strong className="text-warm-50">
-                      Five companions
+                      {PRICING.totalIdentitiesPerPlan} companions
                     </strong>{" "}
                     &mdash; {PRICING.formulaIdentitiesPerPlan} rolled fresh
-                    from our formula, {PRICING.photoIdentitiesPerPlan} built
-                    from a photo you upload, and{" "}
-                    {PRICING.includedInheritedIdentitiesPerPlan} slot for
-                    an identity someone inherited to you
+                    from our formula and {PRICING.photoIdentitiesPerPlan}{" "}
+                    built from a photo you upload
                   </FeatureLine>
                   <FeatureLine>
                     <strong className="text-warm-50">
@@ -635,11 +640,16 @@ export default function Home() {
               Add-on packs from {PACK_FROM_PRICE_LABEL}
             </strong>{" "}
             &mdash; one-time top-ups of extra messages or images on any
-            plan. And extra identity slots are{" "}
+            plan. Extra identity slots are{" "}
             <strong className="text-warm-100">
               {EXTRA_IDENTITY_PRICE_LABEL}/month
             </strong>{" "}
-            each.
+            each. And opening an inherit code someone shared with you
+            is{" "}
+            <strong className="text-warm-100">
+              {INHERITED_SLOT_PRICE_LABEL} one-time
+            </strong>{" "}
+            per code &mdash; free when its creator has passed away.
           </div>
         </div>
       </section>

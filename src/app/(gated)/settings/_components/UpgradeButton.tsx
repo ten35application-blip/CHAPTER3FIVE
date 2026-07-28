@@ -4,10 +4,11 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 
 /**
- * Subscription-checkout CTA on /settings and /upgrade. When the
- * matching price env is configured (checkoutEnabled === true), the
- * button POSTs to /api/stripe/checkout with the given purpose
- * (pro_monthly by default; basic_monthly for the Basic card) and
+ * Checkout CTA on /settings and /upgrade. When the matching price
+ * env is configured (checkoutEnabled === true), the button POSTs to
+ * /api/stripe/checkout with the given purpose (pro_monthly by
+ * default; basic_monthly for the Basic card;
+ * inherited_slot_purchase for the one-time inherit-slot credit) and
  * redirects to Stripe Checkout. Otherwise it falls back to a link
  * (typically /upgrade) so the mailto flow on that page still works.
  *
@@ -24,7 +25,7 @@ export function UpgradeButton({
   checkoutEnabled: boolean;
   fallbackHref: string;
   label?: string;
-  purpose?: "pro_monthly" | "basic_monthly";
+  purpose?: "pro_monthly" | "basic_monthly" | "inherited_slot_purchase";
   tone?: "coral" | "teal";
 }) {
   const [pending, startTransition] = useTransition();
