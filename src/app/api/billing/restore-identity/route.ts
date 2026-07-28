@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PRICING } from "@/lib/pricing";
+import { recordPendingPayment } from "@/lib/billing/pendingPayment";
 
 export const runtime = "nodejs";
 
@@ -139,14 +140,18 @@ export async function POST(request: NextRequest) {
   });
 
   const admin = createAdminClient();
-  await admin.from("payments").insert({
-    user_id: user.id,
-    stripe_session_id: session.id,
-    amount_cents: priceCents,
-    currency: "usd",
-    purpose: "restore_oracle",
-    status: "pending",
+  const record = await recordPendingPayment({
+    admin,
+    stripe,
+    session,
+    row: {
+      user_id: user.id,
+      amount_cents: priceCents,
+      currency: "usd",
+      purpose: "restore_oracle",
+    },
   });
+  if (!record.ok) return record.response;
 
   return NextResponse.json({ url: session.url });
 }

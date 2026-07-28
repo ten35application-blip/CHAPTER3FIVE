@@ -5,6 +5,7 @@ import { PRICING } from "@/lib/pricing";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireTermsAccepted } from "@/lib/legal/gate";
+import { recordPendingPayment } from "@/lib/billing/pendingPayment";
 
 /**
  * Create a Stripe Checkout session. The `purpose` query/body field
@@ -168,17 +169,23 @@ export async function POST(request: NextRequest) {
 
     // Pending payment ledger row — mirrors the one-shot flow so
     // /admin/revenue and reconciliation tooling see the same shape.
-    await admin.from("payments").insert({
-      user_id: user.id,
-      stripe_session_id: session.id,
-      amount_cents:
-        purpose === "basic_monthly"
-          ? PRICING.basicMonthlyCents
-          : PRICING.monthlyCents,
-      currency: "usd",
-      purpose,
-      status: "pending",
+    // H2 fix: fail-loud if the insert errors, so the customer can't
+    // pay for something the webhook won't fulfill.
+    const record = await recordPendingPayment({
+      admin,
+      stripe,
+      session,
+      row: {
+        user_id: user.id,
+        amount_cents:
+          purpose === "basic_monthly"
+            ? PRICING.basicMonthlyCents
+            : PRICING.monthlyCents,
+        currency: "usd",
+        purpose,
+      },
     });
+    if (!record.ok) return record.response;
 
     return NextResponse.json({ url: session.url });
   }
@@ -236,14 +243,18 @@ export async function POST(request: NextRequest) {
     });
 
     const admin = createAdminClient();
-    await admin.from("payments").insert({
-      user_id: user.id,
-      stripe_session_id: session.id,
-      amount_cents: amountCents,
-      currency: "usd",
-      purpose,
-      status: "pending",
+    const record = await recordPendingPayment({
+      admin,
+      stripe,
+      session,
+      row: {
+        user_id: user.id,
+        amount_cents: amountCents,
+        currency: "usd",
+        purpose,
+      },
     });
+    if (!record.ok) return record.response;
 
     return NextResponse.json({ url: session.url });
   }
@@ -279,14 +290,18 @@ export async function POST(request: NextRequest) {
     });
 
     const admin = createAdminClient();
-    await admin.from("payments").insert({
-      user_id: user.id,
-      stripe_session_id: session.id,
-      amount_cents: PRICING.inheritedSlotPurchaseCents,
-      currency: "usd",
-      purpose,
-      status: "pending",
+    const record = await recordPendingPayment({
+      admin,
+      stripe,
+      session,
+      row: {
+        user_id: user.id,
+        amount_cents: PRICING.inheritedSlotPurchaseCents,
+        currency: "usd",
+        purpose,
+      },
     });
+    if (!record.ok) return record.response;
 
     return NextResponse.json({ url: session.url });
   }
@@ -324,14 +339,18 @@ export async function POST(request: NextRequest) {
     });
 
     const admin = createAdminClient();
-    await admin.from("payments").insert({
-      user_id: user.id,
-      stripe_session_id: session.id,
-      amount_cents: PRICING.otherIdentityCreateCents,
-      currency: "usd",
-      purpose,
-      status: "pending",
+    const record = await recordPendingPayment({
+      admin,
+      stripe,
+      session,
+      row: {
+        user_id: user.id,
+        amount_cents: PRICING.otherIdentityCreateCents,
+        currency: "usd",
+        purpose,
+      },
     });
+    if (!record.ok) return record.response;
 
     return NextResponse.json({ url: session.url });
   }
