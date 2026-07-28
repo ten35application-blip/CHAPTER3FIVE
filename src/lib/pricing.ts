@@ -111,7 +111,7 @@ export const PRICING = {
    *  and unchanged. */
   otherIdentityCreateCents: 500,
 
-  /* ── Add-on packs (one-time; messages OR images per pack) ─────── */
+  /* ── Add-on packs (one-time; each pack credits BOTH counters) ── */
   packSmallCents: 500, // $5.00
   packSmallMessages: 100,
   packSmallImages: 12,
