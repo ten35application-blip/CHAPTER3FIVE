@@ -11,6 +11,7 @@ import { PlanCards } from "@/components/PlanCards";
 import { DataExportButton } from "./_components/DataExportButton";
 import { InheritCodesList } from "./_components/InheritCodesList";
 import { ManageSubscriptionButton } from "./_components/ManageSubscriptionButton";
+import { MintedBanner } from "./_components/MintedBanner";
 import { NameField } from "./_components/NameField";
 import { PhotoUploader } from "./_components/PhotoUploader";
 import { ThemeToggle } from "./_components/ThemeToggle";
@@ -49,6 +50,11 @@ export default async function SettingsPage({
   // the page is force-dynamic anyway.
   const sp = await searchParams;
   const debug = sp.debug === "1";
+  // ?minted=<oracleId> — set by completeLegacyIdentity on success so
+  // the user lands on Settings with a celebratory banner instead of
+  // being dropped in cold. Normalize the shape (RSC searchParams can
+  // hand us string[] too) before using it.
+  const mintedParam = Array.isArray(sp.minted) ? sp.minted[0] : sp.minted;
 
   const supabase = await createClient();
   const {
@@ -127,6 +133,13 @@ export default async function SettingsPage({
       };
     })
     .filter((x): x is { oracleId: string; name: string; code: string } => x !== null);
+
+  // If ?minted matches an identity the user actually owns, resolve
+  // its name for the banner. Server-side lookup so we can't be
+  // spoofed by a crafted URL naming someone else's oracle.
+  const mintedItem = mintedParam
+    ? inheritCodeItems.find((item) => item.oracleId === mintedParam) ?? null
+    : null;
 
   const pro = await isPro(supabase);
   // Tier split (Basic vs Pro) for the plan label + identity quota.
@@ -207,6 +220,7 @@ export default async function SettingsPage({
       </header>
 
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-7 px-4 pt-6">
+        {mintedItem ? <MintedBanner name={mintedItem.name} /> : null}
         {/* PROFILE — inline photo + name editor. Two client components
             rather than one ProfileEditor wrapper: PhotoUploader owns
             its native-form flow (round-4 rebuild after three
