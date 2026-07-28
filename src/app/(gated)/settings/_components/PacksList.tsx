@@ -22,25 +22,28 @@ type Pack = {
   images: number;
 };
 
-// Duplicated from PRICING to keep this client-safe.
+// Duplicated from PRICING to keep this client-safe. Pack names match
+// the display convention Wilson chose 2026-07-28 ("Small Pack /
+// Medium Pack / Large Pack" -- explicit, matches how the Stripe
+// dashboard products are named).
 const PACKS: Pack[] = [
   {
     id: "pack_small",
-    name: "Small",
+    name: "Small Pack",
     priceCents: 500,
     messages: 100,
     images: 12,
   },
   {
     id: "pack_medium",
-    name: "Medium",
+    name: "Medium Pack",
     priceCents: 1000,
     messages: 250,
     images: 30,
   },
   {
     id: "pack_large",
-    name: "Large",
+    name: "Large Pack",
     priceCents: 2000,
     messages: 600,
     images: 75,
@@ -51,6 +54,7 @@ export function PacksList() {
   const [selected, setSelected] = useState<PackId>("pack_small");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const selectedPack = PACKS.find((p) => p.id === selected) ?? PACKS[0];
 
   async function buy() {
     setError(null);
@@ -109,8 +113,7 @@ export function PacksList() {
           >
             {PACKS.map((pack) => (
               <option key={pack.id} value={pack.id}>
-                {pack.name} &mdash; ${(pack.priceCents / 100).toFixed(0)}{" "}
-                &mdash; {pack.messages} messages &amp; {pack.images} photos
+                {pack.name}
               </option>
             ))}
           </select>
@@ -124,6 +127,11 @@ export function PacksList() {
           {pending ? "Opening…" : "Take me to pay"}
         </button>
       </div>
+      <p className="mt-2 text-xs text-warm-400">
+        {selectedPack.name}: ${(selectedPack.priceCents / 100).toFixed(0)}{" "}
+        &mdash; adds {selectedPack.messages} messages &amp;{" "}
+        {selectedPack.images} photos.
+      </p>
       {error ? (
         <p role="alert" className="mt-2 text-xs font-medium text-coral-strong">
           {error}
