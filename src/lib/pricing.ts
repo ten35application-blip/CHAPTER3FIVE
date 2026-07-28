@@ -99,8 +99,14 @@ export const PRICING = {
   /** One-time paywall to restore an identity from the recently-deleted
    *  bin. Free archive vs paid restore is the intentional wedge —
    *  changing your mind after a delete has a cost, changing your mind
-   *  after an archive doesn't. Stored on each oracle at creation time
-   *  so a user pays what they saw. */
+   *  after an archive doesn't.
+   *
+   *  This constant is the SINGLE SOURCE OF TRUTH; the checkout route
+   *  reads it directly (Fable audit C2 — the per-row
+   *  oracles.restore_price_cents column is no longer trusted as the
+   *  charge amount, since it was previously client-writable).
+   *  Changing this value here + the 0074 column default + the 0117
+   *  trigger's `500` check keeps everything aligned. */
   restoreIdentityCents: 500,
 
   /** $5 ONE-TIME to complete an OTHER-mode legacy identity ("For

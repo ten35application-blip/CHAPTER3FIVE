@@ -91,7 +91,11 @@ $$;
 -- Trigger already exists from 0091; the create-or-replace above
 -- swaps the function body under it. No trigger drop/create needed.
 
--- Quick probe verification (idempotent; commented so it doesn't
--- fire in production runs, but Wilson can uncomment to sanity-check
--- against a live DB if needed):
--- select public.protect_oracle_state();
+-- Backfill: reset any pre-fix tampered rows so the DB matches the
+-- server-derived price the /api/billing/restore-identity route now
+-- charges. Without this, HubSheet.tsx's display would show e.g.
+-- $0.50 for a tampered row while checkout charges $5 — a jarring
+-- mismatch even after the exploit itself is closed. Idempotent.
+update public.oracles
+   set restore_price_cents = 500
+ where restore_price_cents is distinct from 500;
