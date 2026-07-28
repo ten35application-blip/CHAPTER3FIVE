@@ -22,12 +22,19 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
+  ADDON_PACKS,
+  BASIC_IMAGES_PER_MONTH,
+  BASIC_MESSAGES_PER_MONTH,
+  BASIC_MONTHLY_PRICE_LABEL,
+  BASIC_TIER_LABEL,
   EXTRA_IDENTITY_PRICE_LABEL,
   EXTRA_INHERITED_PRICE_LABEL,
+  FREE_IMAGES_PER_MONTH,
   FREE_MESSAGES_PER_MONTH,
   MONTHLY_PRICE_LABEL,
   PRICING,
   PRO_IMAGES_PER_MONTH,
+  PRO_MESSAGES_PER_MONTH,
 } from "@/lib/pricing";
 
 /** Cached concierge id -- populated on first successful lookup, then
@@ -74,22 +81,37 @@ export function buildConciergePricingBlock(): string {
   return [
     "== CURRENT PRICING (refer to this whenever pricing comes up — do NOT quote numbers from memory) ==",
     "",
+    "Every plan includes you (Adrian). Every plan has a monthly message and photo cap — there is no unlimited tier.",
+    "",
     "FREE TIER — $0/month.",
-    `Chat with you (Adrian). ${FREE_MESSAGES_PER_MONTH} messages a month. No image sends on Free. When someone is ready to build their own identities, they upgrade.`,
+    `Chat with you (Adrian) only — no personal identities. ${FREE_MESSAGES_PER_MONTH} messages and ${FREE_IMAGES_PER_MONTH} photo send a month. When someone is ready to build their own identities, they upgrade.`,
+    "",
+    `${BASIC_TIER_LABEL.toUpperCase()} — ${BASIC_MONTHLY_PRICE_LABEL}/month.`,
+    `- ${PRICING.basicTotalIdentitiesPerPlan} personal identities (${PRICING.basicFormulaIdentitiesPerPlan} rolled from the formula + ${PRICING.basicPhotoIdentitiesPerPlan} built from a photo they upload)`,
+    `- ${BASIC_MESSAGES_PER_MONTH} messages a month`,
+    `- ${BASIC_IMAGES_PER_MONTH} photos a month they can send to any of their companions`,
+    "- No inherited slot — redeeming an inherit code and recording a legacy archive are Pro features",
+    "- Cancel any time. No refunds mid-month.",
     "",
     `PRO — ${MONTHLY_PRICE_LABEL}/month.`,
     `- ${PRICING.formulaIdentitiesPerPlan} identities rolled from the formula`,
     `- ${PRICING.photoIdentitiesPerPlan} identity built from a photo they upload`,
     `- ${PRICING.includedInheritedIdentitiesPerPlan} slot for a persona someone inherited to them (via a code)`,
-    "- Unlimited messages",
+    `- ${PRO_MESSAGES_PER_MONTH} messages a month`,
     `- ${PRO_IMAGES_PER_MONTH} photos a month they can send to any of their companions`,
     "- The ability to record their own legacy archive (answer the forty questions themselves and mint a code others can redeem)",
     "- Cancel any time. No refunds mid-month.",
     "",
-    "EXTRAS BEYOND PRO",
-    `- ${EXTRA_IDENTITY_PRICE_LABEL}/month per extra identity beyond the base 4 self-created`,
-    `- ${EXTRA_INHERITED_PRICE_LABEL}/month per extra inherited slot beyond the ${PRICING.includedInheritedIdentitiesPerPlan} included`,
+    "ADD-ON PACKS (one-time purchases on top of a plan; each pack adds EITHER messages OR images — one type per pack, their pick):",
+    ...ADDON_PACKS.map(
+      (pack) =>
+        `- ${pack.name} — ${pack.priceLabel} one-time → +${pack.messages} messages OR +${pack.images} images`,
+    ),
     "",
-    "NO TRIAL. Free is real -- someone can use you (Adrian) forever without paying. Pro is what you upgrade to when you want your own identities.",
+    "EXTRAS BEYOND THE PLAN",
+    `- ${EXTRA_IDENTITY_PRICE_LABEL}/month per extra self-created identity beyond the plan's included slots`,
+    `- ${EXTRA_INHERITED_PRICE_LABEL}/month per extra inherited slot beyond the ${PRICING.includedInheritedIdentitiesPerPlan} included with Pro`,
+    "",
+    "NO TRIAL. Free is real -- someone can use you (Adrian) forever without paying. Basic is the first paid step (their own identities); Pro adds the inherited slot and the legacy archive.",
   ].join("\n");
 }

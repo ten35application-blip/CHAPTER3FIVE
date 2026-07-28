@@ -30,8 +30,8 @@ import { handleCrisis } from "@/lib/safety/crisis-notify";
 import {
   canChatWithOracle,
   canSendImageForMonthCap,
-  canSendMessageForFreeCap,
-  isPro,
+  canSendMessageForTierCap,
+  getPlanTier,
 } from "@/lib/subscription";
 import { requireTermsAccepted } from "@/lib/legal/gate";
 import { createClient } from "@/lib/supabase/server";
@@ -166,8 +166,10 @@ export async function POST(
   }
 
   // Plan check runs ONCE per request; every downstream gate reuses it
-  // via precomputedIsPro. Cuts 3 profiles-table SELECTs per turn to 1.
-  const requesterIsPro = await isPro(supabase);
+  // (the cap checks take the resolved plan, canChatWithOracle takes
+  // the derived boolean). Cuts 3 profiles-table SELECTs per turn to 1.
+  const requesterPlan = await getPlanTier(supabase);
+  const requesterIsPro = requesterPlan.tier === "pro";
 
   // Trial / Free-tier gate — Pro (paid, admin, or in-trial) chats with
   // everything; Free tier only with profiles.free_identity_id. Checked
@@ -180,13 +182,13 @@ export async function POST(
     );
   }
 
-  // Free-tier monthly message cap. Pro/admin/trial are always allowed;
-  // Free users get PRICING.freeMessagesPerMonth per calendar month
-  // across all their conversations. On retry (isRetry) we skip — the
-  // user isn't sending a new message, just re-rolling the assistant's
-  // response to one that's already counted.
+  // Monthly message cap for the user's tier — EVERY tier is capped in
+  // the pack rework (Free 20, Basic 100, Pro 300 per calendar month
+  // across all conversations); only the admin allowlist is uncapped.
+  // On retry (isRetry) we skip — the user isn't sending a new message,
+  // just re-rolling the assistant's response to one already counted.
   if (!isRetry) {
-    const cap = await canSendMessageForFreeCap(supabase, requesterIsPro);
+    const cap = await canSendMessageForTierCap(supabase, requesterPlan);
     if (!cap.ok) {
       return NextResponse.json(
         {
@@ -299,16 +301,15 @@ export async function POST(
   // authorization (belt: reject paths outside the caller's own folder).
   //
   // Monthly image cap is enforced BEFORE URL signing so a capped user
-  // never pays the sign round-trip. Free tier is imagesPerMonthFree=0
-  // and short-circuits inside canSendImageForMonthCap without a count
-  // query. Retries never re-consume the cap (that image already counted
-  // when the original turn shipped).
+  // never pays the sign round-trip. Every tier has an image cap now
+  // (Free 1, Basic 10, Pro 30 per month). Retries never re-consume the
+  // cap (that image already counted when the original turn shipped).
   let signedImageUrl: string | null = null;
   if (imageStoragePath && !isRetry) {
     if (!imageStoragePath.startsWith(`${user.id}/`)) {
       return NextResponse.json({ error: "Invalid image path" }, { status: 403 });
     }
-    const imageCap = await canSendImageForMonthCap(supabase, requesterIsPro);
+    const imageCap = await canSendImageForMonthCap(supabase, requesterPlan);
     if (!imageCap.ok) {
       return NextResponse.json(
         {

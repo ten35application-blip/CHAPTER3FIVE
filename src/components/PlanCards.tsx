@@ -1,28 +1,38 @@
 import Link from "next/link";
 import {
+  BASIC_IMAGES_PER_MONTH,
+  BASIC_MESSAGES_PER_MONTH,
+  BASIC_MONTHLY_PRICE_LABEL,
+  BASIC_TIER_LABEL,
   EXTRA_IDENTITY_PRICE_LABEL,
   MONTHLY_PRICE_LABEL,
-  PLUS_IMAGES_PER_MONTH,
-  PLUS_MONTHLY_PRICE_LABEL,
-  PLUS_TIER_LABEL,
+  PACK_FROM_PRICE_LABEL,
   PRICING,
   PRO_IMAGES_PER_MONTH,
+  PRO_MESSAGES_PER_MONTH,
 } from "@/lib/pricing";
 import { UpgradeButton } from "@/app/(gated)/settings/_components/UpgradeButton";
 
 /**
  * Shared plan cards -- rendered on /upgrade AND in the settings Plan
- * block for free-tier users. Wilson wants both surfaces to show Pro
- * AND Plus with features + an Enroll button, matching the landing.
- * Extracted to one component so a copy or price tweak lands in one
- * place instead of three.
+ * block for free-tier users. Both paid tiers (Basic + Pro) with
+ * features + an Enroll button, matching the landing. Extracted to one
+ * component so a copy or price tweak lands in one place instead of
+ * three.
  *
- * Layout: two cards side-by-side on md+, stacked on mobile. Pro gets
- * the gradient-border highlight as the primary tier; Plus sits beside
- * it with a solid border. Both end in an Enroll button:
+ * Layout: two cards side-by-side on md+, stacked on mobile. Basic
+ * sits first (cheaper starter tier) with the teal gradient frame that
+ * the retired Plus card wore -- Wilson liked that treatment, and the
+ * cooler all-teal border keeps it reading "real, pickable" without
+ * stealing the lead. Pro keeps the warm coral gradient highlight as
+ * the primary tier. Both end in an Enroll button:
  *   - Pro: Stripe checkout when `checkoutEnabled` (env is set), mailto
  *     fallback otherwise.
- *   - Plus: always mailto (no Stripe Price exists for Plus yet).
+ *   - Basic: always mailto (no Stripe Price exists for Basic yet).
+ *
+ * Below the grid: a one-line nudge pointing at the add-on packs on
+ * /upgrade#packs (packs are one-time message/image top-ups; the full
+ * pack cards live in src/components/PackOptions.tsx).
  *
  * Props:
  *   email          — user's email, threaded into mailto bodies
@@ -52,194 +62,215 @@ export function PlanCards({
   const targetContext = nextHref ? ` I was trying to open ${nextHref}.` : "";
 
   return (
-    <div className="grid w-full grid-cols-1 gap-6 text-left md:grid-cols-2">
-      {/* Pro — gradient border via absolute inset */}
-      <div
-        className={`relative flex flex-col rounded-3xl bg-ink-soft shadow-[0_20px_48px_-16px_rgba(232,138,118,0.25)] ${pad}`}
-      >
+    <div className="w-full">
+      <div className="grid w-full grid-cols-1 gap-6 text-left md:grid-cols-2">
+        {/* Basic — teal gradient border (inherited from the retired
+            Plus card's treatment). The cheaper starter tier: Adrian
+            plus a first cast of your own. */}
         <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 rounded-3xl p-[2px] bg-gradient-cta"
-          style={{
-            WebkitMask:
-              "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
-            WebkitMaskComposite: "xor",
-            maskComposite: "exclude",
-          }}
-        />
-        <div className="relative flex flex-1 flex-col">
-          <p className="text-gradient-cta text-sm font-bold uppercase tracking-[0.14em]">
-            chapter3five Pro
-          </p>
-          <p
-            className={`mt-3 font-bold tracking-[-0.03em] text-warm-50 ${priceSize}`}
-          >
-            {MONTHLY_PRICE_LABEL}
-            <span className="text-lg font-semibold text-warm-400">
-              /month
-            </span>
-          </p>
-          <p className={`mt-2 ${featureText} text-warm-300`}>
-            Cancel any time from Settings.
-          </p>
-          <ul
-            className={`mt-6 flex flex-1 flex-col gap-2.5 ${featureText} text-warm-200`}
-          >
-            <FeatureLine>
-              <strong className="text-warm-50">Unlimited messages</strong>
-            </FeatureLine>
-            <FeatureLine>
-              {PRICING.formulaIdentitiesPerPlan} formula companions +{" "}
-              {PRICING.photoIdentitiesPerPlan} from a photo you upload
-            </FeatureLine>
-            <FeatureLine>
-              <strong className="text-warm-50">
-                {PRICING.includedInheritedIdentitiesPerPlan} inherited slot
-              </strong>{" "}
-              &mdash; open a legacy code from someone
-            </FeatureLine>
-            <FeatureLine>
-              <strong className="text-warm-50">
-                {PRO_IMAGES_PER_MONTH} photos a month
-              </strong>{" "}
-              to send to any companion
-            </FeatureLine>
-            <FeatureLine>
-              Record your own legacy archive (mint a code for family)
-            </FeatureLine>
-            <FeatureLine>
-              Extras {EXTRA_IDENTITY_PRICE_LABEL}/mo per slot
-            </FeatureLine>
-          </ul>
-          <div className="mt-6">
-            {checkoutEnabled ? (
-              <UpgradeButton
-                checkoutEnabled
-                fallbackHref="/upgrade"
-                label="Enroll"
-              />
-            ) : (
+          className={`relative flex flex-col rounded-3xl bg-ink-soft shadow-[0_20px_48px_-16px_rgba(126,196,196,0.22)] ${pad}`}
+        >
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 rounded-3xl p-[2px]"
+            style={{
+              background:
+                "linear-gradient(135deg, var(--color-teal) 0%, var(--color-teal-strong) 100%)",
+              WebkitMask:
+                "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+              WebkitMaskComposite: "xor",
+              maskComposite: "exclude",
+            }}
+          />
+          <div className="relative flex flex-1 flex-col">
+            <p className="text-sm font-bold uppercase tracking-[0.14em] text-teal-strong">
+              {BASIC_TIER_LABEL}
+            </p>
+            <p
+              className={`mt-3 font-bold tracking-[-0.03em] text-warm-50 ${priceSize}`}
+            >
+              {BASIC_MONTHLY_PRICE_LABEL}
+              <span className="text-lg font-semibold text-warm-400">
+                /month
+              </span>
+            </p>
+            <p className={`mt-2 ${featureText} text-warm-300`}>
+              Your first companions of your own.
+            </p>
+            <ul
+              className={`mt-6 flex flex-1 flex-col gap-2.5 ${featureText} text-warm-200`}
+            >
+              <FeatureLine>
+                <strong className="text-warm-50">
+                  {PRICING.basicTotalIdentitiesPerPlan} companions
+                </strong>{" "}
+                &mdash; {PRICING.basicFormulaIdentitiesPerPlan} from our
+                formula + {PRICING.basicPhotoIdentitiesPerPlan} from a
+                photo you upload
+              </FeatureLine>
+              <FeatureLine>
+                <strong className="text-warm-50">
+                  {BASIC_MESSAGES_PER_MONTH} messages a month
+                </strong>{" "}
+                across all your conversations
+              </FeatureLine>
+              <FeatureLine>
+                <strong className="text-warm-50">
+                  {BASIC_IMAGES_PER_MONTH} photos a month
+                </strong>{" "}
+                to send to any companion
+              </FeatureLine>
+              <FeatureLine>
+                Adrian, our guide, always included
+              </FeatureLine>
+            </ul>
+            <div className="mt-6">
               <a
                 href={`mailto:hello@chapter3five.app?subject=${encodeURIComponent(
-                  nextHref
-                    ? `Upgrade me to Pro — ${nextHref}`
-                    : "Upgrade me to Pro",
+                  `Enroll me in ${BASIC_TIER_LABEL}`,
                 )}&body=${encodeURIComponent(
-                  `Hi — I'd like to upgrade my chapter3five account (${email}) to Pro (${MONTHLY_PRICE_LABEL}/month).${targetContext} Please send a checkout link when it's ready.\n\nThanks.`,
+                  `Hi — I'd like to enroll in ${BASIC_TIER_LABEL} (${BASIC_MONTHLY_PRICE_LABEL}/month) for my chapter3five account (${email}). Please send a checkout link when it's ready.\n\nThanks.`,
                 )}`}
-                className="bg-gradient-cta hover:bg-gradient-cta-hover flex h-14 w-full items-center justify-center rounded-full text-base font-bold text-white shadow-[0_16px_36px_-10px_rgba(232,138,118,0.55),_0_6px_16px_-4px_rgba(126,196,196,0.45)] transition-all hover:-translate-y-px"
+                className="flex h-14 w-full items-center justify-center rounded-full px-6 text-base font-bold text-white transition-all hover:-translate-y-px"
+                style={{
+                  background:
+                    "linear-gradient(135deg, var(--color-teal) 0%, var(--color-teal-strong) 100%)",
+                  boxShadow:
+                    "0 14px 32px -10px rgba(126,196,196,0.5), 0 4px 12px -4px rgba(126,196,196,0.3)",
+                }}
               >
                 Enroll
               </a>
-            )}
-            <p className="mt-3 text-center text-xs text-warm-400">
-              {checkoutEnabled ? (
-                <>
-                  Auto-renews monthly at {MONTHLY_PRICE_LABEL} until you
-                  cancel. See our{" "}
-                  <Link
-                    href="/terms#billing"
-                    className="text-warm-300 underline underline-offset-2 hover:text-coral-strong"
-                  >
-                    billing and refund policy
-                  </Link>
-                  .
-                </>
-              ) : (
-                <>
-                  Self-serve checkout is coming online &mdash; this
-                  emails us and we&rsquo;ll flip your account on within a
-                  day.
-                </>
-              )}
+              <p className="mt-3 text-center text-xs text-warm-400">
+                Enrollment opens soon &mdash; this emails us and
+                we&rsquo;ll flip your account on within a day.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Pro — coral gradient border, the primary highlighted tier */}
+        <div
+          className={`relative flex flex-col rounded-3xl bg-ink-soft shadow-[0_20px_48px_-16px_rgba(232,138,118,0.25)] ${pad}`}
+        >
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 rounded-3xl p-[2px] bg-gradient-cta"
+            style={{
+              WebkitMask:
+                "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+              WebkitMaskComposite: "xor",
+              maskComposite: "exclude",
+            }}
+          />
+          <div className="relative flex flex-1 flex-col">
+            <p className="text-gradient-cta text-sm font-bold uppercase tracking-[0.14em]">
+              chapter3five Pro
             </p>
+            <p
+              className={`mt-3 font-bold tracking-[-0.03em] text-warm-50 ${priceSize}`}
+            >
+              {MONTHLY_PRICE_LABEL}
+              <span className="text-lg font-semibold text-warm-400">
+                /month
+              </span>
+            </p>
+            <p className={`mt-2 ${featureText} text-warm-300`}>
+              Cancel any time from Settings.
+            </p>
+            <ul
+              className={`mt-6 flex flex-1 flex-col gap-2.5 ${featureText} text-warm-200`}
+            >
+              <FeatureLine>
+                <strong className="text-warm-50">
+                  {PRO_MESSAGES_PER_MONTH} messages a month
+                </strong>{" "}
+                across all your conversations
+              </FeatureLine>
+              <FeatureLine>
+                {PRICING.formulaIdentitiesPerPlan} formula companions +{" "}
+                {PRICING.photoIdentitiesPerPlan} from a photo you upload
+              </FeatureLine>
+              <FeatureLine>
+                <strong className="text-warm-50">
+                  {PRICING.includedInheritedIdentitiesPerPlan} inherited slot
+                </strong>{" "}
+                &mdash; open a legacy code from someone
+              </FeatureLine>
+              <FeatureLine>
+                <strong className="text-warm-50">
+                  {PRO_IMAGES_PER_MONTH} photos a month
+                </strong>{" "}
+                to send to any companion
+              </FeatureLine>
+              <FeatureLine>
+                Record your own legacy archive (mint a code for family)
+              </FeatureLine>
+              <FeatureLine>
+                Extras {EXTRA_IDENTITY_PRICE_LABEL}/mo per slot
+              </FeatureLine>
+            </ul>
+            <div className="mt-6">
+              {checkoutEnabled ? (
+                <UpgradeButton
+                  checkoutEnabled
+                  fallbackHref="/upgrade"
+                  label="Enroll"
+                />
+              ) : (
+                <a
+                  href={`mailto:hello@chapter3five.app?subject=${encodeURIComponent(
+                    nextHref
+                      ? `Upgrade me to Pro — ${nextHref}`
+                      : "Upgrade me to Pro",
+                  )}&body=${encodeURIComponent(
+                    `Hi — I'd like to upgrade my chapter3five account (${email}) to Pro (${MONTHLY_PRICE_LABEL}/month).${targetContext} Please send a checkout link when it's ready.\n\nThanks.`,
+                  )}`}
+                  className="bg-gradient-cta hover:bg-gradient-cta-hover flex h-14 w-full items-center justify-center rounded-full text-base font-bold text-white shadow-[0_16px_36px_-10px_rgba(232,138,118,0.55),_0_6px_16px_-4px_rgba(126,196,196,0.45)] transition-all hover:-translate-y-px"
+                >
+                  Enroll
+                </a>
+              )}
+              <p className="mt-3 text-center text-xs text-warm-400">
+                {checkoutEnabled ? (
+                  <>
+                    Auto-renews monthly at {MONTHLY_PRICE_LABEL} until you
+                    cancel. See our{" "}
+                    <Link
+                      href="/terms#billing"
+                      className="text-warm-300 underline underline-offset-2 hover:text-coral-strong"
+                    >
+                      billing and refund policy
+                    </Link>
+                    .
+                  </>
+                ) : (
+                  <>
+                    Self-serve checkout is coming online &mdash; this
+                    emails us and we&rsquo;ll flip your account on within a
+                    day.
+                  </>
+                )}
+              </p>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Plus — teal gradient border, paralleling Pro's coral gradient
-          so both cards read as "real, pickable" instead of "Pro is the
-          real option and Plus is greyed out." Pro's border is warmer
-          (coral+teal) so it still visually leads as the primary tier;
-          Plus gets a cooler all-teal frame that says "premium sibling,"
-          not "afterthought." */}
-      <div
-        className={`relative flex flex-col rounded-3xl bg-ink-soft shadow-[0_20px_48px_-16px_rgba(126,196,196,0.22)] ${pad}`}
+      {/* Pack nudge — packs are one-time top-ups on any paid tier.
+          The full pack cards live on /upgrade#packs (PackOptions). */}
+      <p
+        className={`mt-5 text-center ${compact ? "text-xs" : "text-sm"} text-warm-400`}
       >
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 rounded-3xl p-[2px]"
-          style={{
-            background:
-              "linear-gradient(135deg, var(--color-teal) 0%, var(--color-teal-strong) 100%)",
-            WebkitMask:
-              "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
-            WebkitMaskComposite: "xor",
-            maskComposite: "exclude",
-          }}
-        />
-        <div className="relative flex flex-1 flex-col">
-        <p className="text-sm font-bold uppercase tracking-[0.14em] text-teal-strong">
-          {PLUS_TIER_LABEL}
-        </p>
-        <p
-          className={`mt-3 font-bold tracking-[-0.03em] text-warm-50 ${priceSize}`}
+        Extra messages? Extra images?{" "}
+        <Link
+          href="/upgrade#packs"
+          className="font-semibold text-warm-300 underline underline-offset-2 hover:text-teal-strong"
         >
-          {PLUS_MONTHLY_PRICE_LABEL}
-          <span className="text-lg font-semibold text-warm-400">/month</span>
-        </p>
-        <p className={`mt-2 ${featureText} text-warm-300`}>
-          For a bigger cast.
-        </p>
-        <ul
-          className={`mt-6 flex flex-1 flex-col gap-2.5 ${featureText} text-warm-200`}
-        >
-          <FeatureLine>
-            <strong className="text-warm-50">Everything in Pro</strong>
-          </FeatureLine>
-          <FeatureLine>
-            <strong className="text-warm-50">
-              {PRICING.plusFormulaIdentitiesPerPlan +
-                PRICING.plusPhotoIdentitiesPerPlan +
-                PRICING.plusIncludedInheritedIdentitiesPerPlan}{" "}
-              companions total
-            </strong>{" "}
-            &mdash; {PRICING.plusFormulaIdentitiesPerPlan} formula,{" "}
-            {PRICING.plusPhotoIdentitiesPerPlan} from photos,{" "}
-            {PRICING.plusIncludedInheritedIdentitiesPerPlan} inherited slot
-          </FeatureLine>
-          <FeatureLine>
-            <strong className="text-warm-50">
-              {PLUS_IMAGES_PER_MONTH} photos a month
-            </strong>{" "}
-            for image-heavy conversations
-          </FeatureLine>
-          <FeatureLine>Priority support from a real person</FeatureLine>
-        </ul>
-        <div className="mt-6">
-          <a
-            href={`mailto:hello@chapter3five.app?subject=${encodeURIComponent(
-              `Reserve my ${PLUS_TIER_LABEL} spot`,
-            )}&body=${encodeURIComponent(
-              `Hi — I'd like to enroll in ${PLUS_TIER_LABEL} (${PLUS_MONTHLY_PRICE_LABEL}/month) for my chapter3five account (${email}). Please send a checkout link when it's ready.\n\nThanks.`,
-            )}`}
-            className="flex h-14 w-full items-center justify-center rounded-full px-6 text-base font-bold text-white transition-all hover:-translate-y-px"
-            style={{
-              background:
-                "linear-gradient(135deg, var(--color-teal) 0%, var(--color-teal-strong) 100%)",
-              boxShadow:
-                "0 14px 32px -10px rgba(126,196,196,0.5), 0 4px 12px -4px rgba(126,196,196,0.3)",
-            }}
-          >
-            Enroll
-          </a>
-          <p className="mt-3 text-center text-xs text-warm-400">
-            Enrollment opens soon &mdash; this emails us and we&rsquo;ll
-            reserve your spot.
-          </p>
-        </div>
-        </div>
-      </div>
+          Grab an add-on pack
+        </Link>{" "}
+        from {PACK_FROM_PRICE_LABEL}.
+      </p>
     </div>
   );
 }

@@ -3,10 +3,15 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
+  BASIC_MESSAGES_PER_MONTH,
+  BASIC_MONTHLY_PRICE_LABEL,
+  BASIC_TIER_LABEL,
   EXTRA_IDENTITY_PRICE_LABEL,
   FREE_MESSAGES_PER_MONTH,
   MONTHLY_PRICE_LABEL,
+  PACK_FROM_PRICE_LABEL,
   PRICING,
+  PRO_MESSAGES_PER_MONTH,
   RESTORE_IDENTITY_PRICE_LABEL,
 } from "@/lib/pricing";
 
@@ -315,19 +320,29 @@ export default async function TutorialPage() {
         >
           <ul className="space-y-2 [&_li]:list-disc [&_li]:ml-5 [&_li]:pl-1">
             <li>
-              <strong>Free:</strong> your first identity, plus{" "}
+              <strong>Free:</strong> chat with Adrian, our guide —{" "}
               {FREE_MESSAGES_PER_MONTH} messages a month.
             </li>
             <li>
-              <strong>Premium ({MONTHLY_PRICE_LABEL}/month):</strong> up
+              <strong>
+                {BASIC_TIER_LABEL} ({BASIC_MONTHLY_PRICE_LABEL}/month):
+              </strong>{" "}
+              {PRICING.basicTotalIdentitiesPerPlan} identities of your
+              own ({PRICING.basicFormulaIdentitiesPerPlan} formula-made
+              plus one from a photo) and {BASIC_MESSAGES_PER_MONTH}{" "}
+              messages a month.
+            </li>
+            <li>
+              <strong>Pro ({MONTHLY_PRICE_LABEL}/month):</strong> up
               to {PRICING.totalIdentitiesPerPlan} identities (
               {PRICING.formulaIdentitiesPerPlan} formula-made plus one
-              from a photo), unlimited messages, and unlocks the
-              Personal identity + Inherit paths.
+              from a photo), {PRO_MESSAGES_PER_MONTH} messages a month,
+              and unlocks the Personal identity + Inherit paths.
             </li>
             <li>
               <strong>Extras:</strong> {EXTRA_IDENTITY_PRICE_LABEL}/month
-              per identity beyond the plan.
+              per identity beyond the plan, and one-time add-on packs
+              from {PACK_FROM_PRICE_LABEL} for extra messages or images.
             </li>
             <li>
               <strong>Restoring a deleted identity:</strong>{" "}

@@ -3,30 +3,40 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isPro } from "@/lib/subscription";
 import {
+  BASIC_MONTHLY_PRICE_LABEL,
+  BASIC_TIER_LABEL,
   EXTRA_INHERITED_PRICE_LABEL,
   FREE_MESSAGES_PER_MONTH,
   MONTHLY_PRICE_LABEL,
-  PLUS_MONTHLY_PRICE_LABEL,
-  PLUS_TIER_LABEL,
+  PACK_FROM_PRICE_LABEL,
 } from "@/lib/pricing";
 import { PlanCards } from "@/components/PlanCards";
+import { PackOptions } from "@/components/PackOptions";
 
 export const metadata = {
   title: "Upgrade · chapter3five",
 };
 
 /**
- * Upgrade landing — the two-tier world (July 2026). A Free user sees
- * where they stand ("You're on the Free tier") and BOTH paid plans as
- * cards matching the landing pricing section's visual language: Pro
- * with the gradient border (primary), Plus with the quiet solid
- * border. Each card ends in an "Enroll" button — Wilson's word.
+ * Upgrade landing — the pack-rework tier world (July 2026). A Free
+ * user sees where they stand ("You're on the Free tier"), BOTH paid
+ * plans as cards matching the landing pricing section's visual
+ * language (Basic teal, Pro coral-gradient primary), and the add-on
+ * pack options below at #packs (the anchor cap-hit CTAs in chat link
+ * to). Each plan card ends in an "Enroll" button — Wilson's word.
  *
  *   - Pro enroll: Stripe Checkout when STRIPE_PRICE_ID_PRO_MONTHLY is
  *     configured, mailto fallback otherwise.
- *   - Plus enroll: ALWAYS mailto for now — no Stripe Price exists for
- *     Plus yet, so the copy frames it as "reserve your spot" rather
- *     than pretending a checkout is behind the button.
+ *   - Basic enroll + pack reserve: ALWAYS mailto for now — no Stripe
+ *     Prices exist for Basic or the packs yet, so the copy frames it
+ *     as "we'll flip it on" rather than pretending a checkout is
+ *     behind the button.
+ *
+ * When Basic becomes grantable (subscription_tier lands with the
+ * Stripe wiring), a Basic subscriber hitting a Pro-gated action
+ * should land here with Basic marked "your current plan" and Pro as
+ * the upgrade CTA — today no Basic subscriber can exist, so isPro's
+ * free-or-pro split still covers every visitor.
  *
  * Special copy paths preserved from the one-card era:
  *   - ?reason=extra-inherited — visitor is ALREADY Pro and hit the
@@ -135,7 +145,7 @@ export default async function UpgradePage({
           <p className="mt-6 max-w-md text-lg leading-relaxed text-warm-200">
             You&rsquo;re holding an inherit code &mdash; someone sat down
             and answered forty questions so that archive could reach you.
-            Either plan below opens it.
+            The Pro plan below opens it.
           </p>
         ) : (
           <p className="mt-6 max-w-md text-lg leading-relaxed text-warm-200">
@@ -151,12 +161,28 @@ export default async function UpgradePage({
             `nextHref` threads context into the Pro mailto so a user
             who was trying to open /identity/inherit/... gives us that
             context when they email us. */}
-        <div className="mt-12">
+        <div className="mt-12 w-full">
           <PlanCards
             email={email}
             checkoutEnabled={checkoutEnabled}
             nextHref={next ? target : null}
           />
+        </div>
+
+        {/* Add-on packs — one-time message/image top-ups. Anchored so
+            the chat cap-hit CTA ("Grab a pack →") lands right here.
+            Mailto reserve flow until the Stripe Prices exist. */}
+        <div id="packs" className="mt-14 w-full scroll-mt-24">
+          <h2 className="text-2xl font-bold tracking-[-0.02em] text-warm-50">
+            Add-on packs
+          </h2>
+          <p className="mx-auto mt-2 max-w-md text-base text-warm-300">
+            One-time top-ups from {PACK_FROM_PRICE_LABEL}, on top of any
+            plan. Pick extra messages or extra images per pack.
+          </p>
+          <div className="mt-6">
+            <PackOptions email={email} />
+          </div>
         </div>
 
         <Link
@@ -190,8 +216,9 @@ function BillingLocationNote() {
     <p className="mt-8 max-w-xs text-center text-[11px] leading-relaxed text-warm-500">
       Billing lives here on chapter3five.app for everyone &mdash; web
       and app. Every dollar reaches us directly (minus Stripe
-      processing), which is what keeps Pro at {MONTHLY_PRICE_LABEL}
-      /month and {PLUS_TIER_LABEL} at {PLUS_MONTHLY_PRICE_LABEL}/month.
+      processing), which is what keeps {BASIC_TIER_LABEL} at{" "}
+      {BASIC_MONTHLY_PRICE_LABEL}/month and Pro at {MONTHLY_PRICE_LABEL}
+      /month.
     </p>
   );
 }

@@ -1,14 +1,18 @@
 import Image from "next/image";
 import Link from "next/link";
 import {
+  BASIC_IMAGES_PER_MONTH,
+  BASIC_MESSAGES_PER_MONTH,
+  BASIC_MONTHLY_PRICE_LABEL,
+  BASIC_TIER_LABEL,
   EXTRA_IDENTITY_PRICE_LABEL,
+  FREE_IMAGES_PER_MONTH,
   FREE_MESSAGES_PER_MONTH,
   MONTHLY_PRICE_LABEL,
-  PLUS_IMAGES_PER_MONTH,
-  PLUS_MONTHLY_PRICE_LABEL,
-  PLUS_TIER_LABEL,
+  PACK_FROM_PRICE_LABEL,
   PRICING,
   PRO_IMAGES_PER_MONTH,
+  PRO_MESSAGES_PER_MONTH,
 } from "@/lib/pricing";
 
 // Force dynamic to bypass the CDN cache issue that stuck this page
@@ -434,12 +438,13 @@ export default function Home() {
       </section>
 
       {/* ── 7 · PRICING ──────────────────────────────────────────
-          Three tiers, one card each: Free (chat with Adrian), Pro
-          (what unlocks at MONTHLY_PRICE_LABEL/mo — still the
-          highlighted primary tier), and Plus (the $25 individual
-          power-user tier; PLACEHOLDER name via PLUS_TIER_LABEL,
-          display-only until its Stripe Price exists). Extra identity
-          add-on called out below. */}
+          Three tiers, one card each, cheapest → priciest: Free (chat
+          with Adrian, 20 msgs/mo), Basic (BASIC_TIER_LABEL, $5/mo —
+          first personal companions; teal frame), and Pro ($12/mo —
+          the highlighted primary tier with the coral gradient
+          border). The $25 Plus placeholder tier is retired. Every
+          tier is message-capped now; add-on packs (one-time top-ups)
+          get a strip below alongside the extra-identity add-on. */}
       <section className="px-6 py-24 md:py-32">
         <div className="mx-auto flex w-full max-w-5xl flex-col items-center lg:max-w-6xl">
           <Rule />
@@ -447,9 +452,9 @@ export default function Home() {
             What it costs.
           </h2>
           <p className="mt-4 max-w-xl text-center text-lg text-warm-300">
-            Start free. {MONTHLY_PRICE_LABEL}/month unlocks everything
-            worth unlocking &mdash; and there&rsquo;s more room if you
-            need it.
+            Start free. {BASIC_MONTHLY_PRICE_LABEL}/month gets you
+            companions of your own; {MONTHLY_PRICE_LABEL}/month unlocks
+            everything worth unlocking.
           </p>
 
           <div className="mt-12 grid w-full grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -482,14 +487,80 @@ export default function Home() {
                   you
                 </FeatureLine>
                 <FeatureLine>
+                  {FREE_IMAGES_PER_MONTH} photo a month to try image
+                  sends
+                </FeatureLine>
+                <FeatureLine>
                   When you&rsquo;re ready to build your own, upgrade in
                   a tap
                 </FeatureLine>
               </ul>
             </div>
 
-            {/* Pro tier — highlighted with the brand gradient border */}
-            <div className="relative flex flex-col rounded-3xl bg-ink-soft p-8 shadow-[0_20px_48px_-16px_rgba(232,138,118,0.25)] md:p-10">
+            {/* Basic tier — teal gradient frame (the treatment Wilson
+                liked on the retired Plus card): reads "real, pickable"
+                while Pro's warmer coral gradient still leads as the
+                primary tier. Name renders via BASIC_TIER_LABEL so a
+                rename is one edit. */}
+            <div className="relative flex flex-col rounded-3xl bg-ink-soft p-8 shadow-[0_20px_48px_-16px_rgba(126,196,196,0.22)] md:p-10">
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-0 rounded-3xl p-[2px]"
+                style={{
+                  background:
+                    "linear-gradient(135deg, var(--color-teal) 0%, var(--color-teal-strong) 100%)",
+                  WebkitMask:
+                    "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+                  WebkitMaskComposite: "xor",
+                  maskComposite: "exclude",
+                }}
+              />
+              <div className="relative">
+                <p className="text-sm font-bold uppercase tracking-[0.14em] text-teal-strong">
+                  {BASIC_TIER_LABEL}
+                </p>
+                <p className="mt-4 text-4xl font-bold tracking-[-0.03em] text-warm-50 sm:text-5xl">
+                  {BASIC_MONTHLY_PRICE_LABEL}
+                  <span className="text-lg font-semibold text-warm-400">
+                    /month
+                  </span>
+                </p>
+                <p className="mt-2 text-base text-warm-300">
+                  Your first companions of your own.
+                </p>
+                <ul className="mt-8 flex flex-col gap-3 text-left text-base text-warm-200">
+                  <FeatureLine>
+                    <strong className="text-warm-50">
+                      {PRICING.basicTotalIdentitiesPerPlan} companions
+                    </strong>{" "}
+                    &mdash; {PRICING.basicFormulaIdentitiesPerPlan} rolled
+                    fresh from our formula,{" "}
+                    {PRICING.basicPhotoIdentitiesPerPlan} built from a
+                    photo you upload
+                  </FeatureLine>
+                  <FeatureLine>
+                    <strong className="text-warm-50">
+                      {BASIC_MESSAGES_PER_MONTH} messages a month
+                    </strong>{" "}
+                    across all your conversations
+                  </FeatureLine>
+                  <FeatureLine>
+                    <strong className="text-warm-50">
+                      {BASIC_IMAGES_PER_MONTH} photos a month
+                    </strong>{" "}
+                    you can send to any companion
+                  </FeatureLine>
+                  <FeatureLine>
+                    Adrian, our guide, always included
+                  </FeatureLine>
+                </ul>
+              </div>
+            </div>
+
+            {/* Pro tier — highlighted with the brand gradient border.
+                Spans the full row at md (2-col) so it doesn't sit as
+                an orphan; back to one column at lg (3-col). */}
+            <div className="relative flex flex-col rounded-3xl bg-ink-soft p-8 shadow-[0_20px_48px_-16px_rgba(232,138,118,0.25)] md:col-span-2 md:p-10 lg:col-span-1">
               {/* gradient border via absolute inset */}
               <div
                 aria-hidden
@@ -517,10 +588,10 @@ export default function Home() {
                 <ul className="mt-8 flex flex-col gap-3 text-left text-base text-warm-200">
                   <FeatureLine>
                     <strong className="text-warm-50">
-                      Unlimited messages
+                      {PRO_MESSAGES_PER_MONTH} messages a month
                     </strong>{" "}
-                    &mdash; no caps, no meters. Talk at 2 a.m., and again
-                    at 3.
+                    &mdash; room for the 2 a.m. conversations, and the
+                    3 a.m. ones too
                   </FeatureLine>
                   <FeatureLine>
                     <strong className="text-warm-50">
@@ -553,69 +624,22 @@ export default function Home() {
                 </ul>
               </div>
             </div>
-
-            {/* Plus tier — $25/mo individual power-user tier. Same card
-                anatomy as Pro but a quiet solid border: Pro keeps the
-                gradient highlight as the primary tier. Name is a
-                PLACEHOLDER — always render via PLUS_TIER_LABEL.
-                Spans the full row at md (2-col) so it doesn't sit as
-                an orphan; back to one column at lg (3-col). */}
-            <div className="flex flex-col rounded-3xl border border-warm-600 bg-ink-soft p-8 shadow-[0_10px_36px_-16px_rgba(28,28,26,0.18)] md:col-span-2 md:p-10 lg:col-span-1">
-              <p className="text-gradient-cta text-sm font-bold uppercase tracking-[0.14em]">
-                {PLUS_TIER_LABEL}
-              </p>
-              <p className="mt-4 text-4xl font-bold tracking-[-0.03em] text-warm-50 sm:text-5xl">
-                {PLUS_MONTHLY_PRICE_LABEL}
-                <span className="text-lg font-semibold text-warm-400">
-                  /month
-                </span>
-              </p>
-              <p className="mt-2 text-base text-warm-300">
-                For one person who wants more room.
-              </p>
-              <ul className="mt-8 flex flex-col gap-3 text-left text-base text-warm-200">
-                <FeatureLine>
-                  <strong className="text-warm-50">
-                    Everything in Pro
-                  </strong>{" "}
-                  &mdash; unlimited messages, your own identity, all of
-                  it
-                </FeatureLine>
-                <FeatureLine>
-                  <strong className="text-warm-50">
-                    Eight companions
-                  </strong>{" "}
-                  &mdash; {PRICING.plusFormulaIdentitiesPerPlan} rolled
-                  fresh from our formula,{" "}
-                  {PRICING.plusPhotoIdentitiesPerPlan} built from photos
-                  you upload, and{" "}
-                  {PRICING.plusIncludedInheritedIdentitiesPerPlan} slot
-                  for an identity someone inherited to you
-                </FeatureLine>
-                <FeatureLine>
-                  <strong className="text-warm-50">
-                    More photos to share
-                  </strong>{" "}
-                  &mdash; up to {PLUS_IMAGES_PER_MONTH} images a month
-                  across your companions
-                </FeatureLine>
-                <FeatureLine>
-                  <strong className="text-warm-50">
-                    Priority support
-                  </strong>{" "}
-                  &mdash; your questions go to the front of the line
-                </FeatureLine>
-              </ul>
-            </div>
           </div>
 
-          {/* Add-on: extra identities beyond what a plan includes. */}
+          {/* Add-ons: one-time packs when a month runs long, plus the
+              recurring extra-identity slot. Pack details + reserve
+              buttons live on /upgrade#packs. */}
           <div className="mt-6 w-full rounded-2xl border border-warm-700/70 bg-ink-soft/60 p-6 text-center text-warm-300">
-            Need more than your plan includes?{" "}
+            Need more usage?{" "}
             <strong className="text-warm-100">
-              {EXTRA_IDENTITY_PRICE_LABEL}/month per extra identity
-            </strong>
-            .
+              Add-on packs from {PACK_FROM_PRICE_LABEL}
+            </strong>{" "}
+            &mdash; one-time top-ups of extra messages or images on any
+            plan. And extra identity slots are{" "}
+            <strong className="text-warm-100">
+              {EXTRA_IDENTITY_PRICE_LABEL}/month
+            </strong>{" "}
+            each.
           </div>
         </div>
       </section>

@@ -280,35 +280,118 @@ export async function canCreateOracle(
   }
 }
 
+/* ── Tier resolution + per-tier usage caps ─────────────────────────
+ *
+ * The pack rework caps EVERY tier's messages and images (Pro was
+ * unlimited before). The three-tier shape (free / basic / pro) is
+ * modeled here even though Basic can't be granted yet:
+ *
+ *   TODAY: Stripe only knows one Price (Pro). Basic enrollment runs
+ *   the mailto flow, so no Basic subscriber exists in the database
+ *   and getPlanTier only ever returns "free" or "pro".
+ *
+ *   LATER (Stripe-wiring follow-up): a subscription_tier column (or
+ *   the stored Stripe Price ID) distinguishes Basic from Pro. Teach
+ *   getPlanTier to read it and every cap below starts enforcing
+ *   Basic automatically — the cap tables already know the numbers.
+ *
+ * Admin-allowlisted accounts are `unlimited: true` and skip caps
+ * entirely (unchanged from the pre-pack behavior).
+ */
+
+export type PlanTier = "free" | "basic" | "pro";
+
+export type ResolvedPlan = {
+  tier: PlanTier;
+  /** Admin allowlist — never capped. */
+  unlimited: boolean;
+};
+
+/** Monthly message cap per tier. Every tier is capped now. */
+const TIER_MESSAGE_CAPS: Record<PlanTier, number> = {
+  free: PRICING.freeMessagesPerMonth,
+  basic: PRICING.basicMessagesPerMonth,
+  pro: PRICING.proMessagesPerMonth,
+};
+
+/** Monthly image-attachment cap per tier. */
+const TIER_IMAGE_CAPS: Record<PlanTier, number> = {
+  free: PRICING.imagesPerMonthFree,
+  basic: PRICING.basicImagesPerMonth,
+  pro: PRICING.imagesPerMonthPro,
+};
+
 /**
- * Free-tier monthly message cap check. Counts USER messages sent
- * this calendar month (in the caller's timezone-agnostic UTC month
- * bucket) against PRICING.freeMessagesPerMonth. Pro/admin/trial users
- * always pass. Fail-CLOSED on any error — if we can't count, we deny
- * (better than accidentally letting a free user blow past the cap).
+ * Resolve the current user's plan tier. Fail-closed: any read failure
+ * (or no session) resolves to Free.
+ *
+ *   - Admin allowlist → pro + unlimited.
+ *   - pro_until / trial_ends_at in the future → pro (Stripe checkout,
+ *     admin grant, and legacy trials all land here today).
+ *   - Otherwise → free.
+ *
+ * Basic never resolves yet — see the block comment above. When the
+ * subscription_tier column lands, branch on it here and nowhere else.
+ */
+export async function getPlanTier(
+  supabase?: SupabaseClient,
+): Promise<ResolvedPlan> {
+  const client = supabase ?? (await createClient());
+  try {
+    const {
+      data: { user },
+    } = await client.auth.getUser();
+    if (!user) return { tier: "free", unlimited: false };
+    if (isAdmin(user.email)) return { tier: "pro", unlimited: true };
+
+    const { data, error } = await client
+      .from("profiles")
+      .select("pro_until, trial_ends_at")
+      .eq("id", user.id)
+      .maybeSingle<{
+        pro_until: string | null;
+        trial_ends_at: string | null;
+      }>();
+    if (error || !data) return { tier: "free", unlimited: false };
+
+    const now = Date.now();
+    const paid =
+      (data.pro_until && new Date(data.pro_until).getTime() > now) ||
+      (data.trial_ends_at && new Date(data.trial_ends_at).getTime() > now);
+    return { tier: paid ? "pro" : "free", unlimited: false };
+  } catch {
+    return { tier: "free", unlimited: false };
+  }
+}
+
+/**
+ * Monthly message cap check for the current user's TIER (formerly
+ * canSendMessageForFreeCap — renamed when Pro gained a cap too).
+ * Counts USER messages sent this calendar month (UTC month bucket)
+ * against the tier's cap. Admin allowlist always passes. Fail-CLOSED
+ * on any error — if we can't count, we deny (better than accidentally
+ * letting a user blow past the cap).
  *
  * Returns:
- *   { ok: true, current: N }                             — allowed
- *   { ok: false, current: N, limit }                     — free cap hit
+ *   { ok: true, current: N, limit: L }        — allowed
+ *   { ok: false, current: N, limit: L }       — tier cap hit
  */
-export async function canSendMessageForFreeCap(
+export async function canSendMessageForTierCap(
   supabase?: SupabaseClient,
-  precomputedIsPro?: boolean,
+  precomputedPlan?: ResolvedPlan,
 ): Promise<
-  | { ok: true; current: number }
+  | { ok: true; current: number; limit: number }
   | { ok: false; current: number; limit: number }
 > {
   const client = supabase ?? (await createClient());
   const {
     data: { user },
   } = await client.auth.getUser();
-  if (!user) return { ok: false, current: 0, limit: PRICING.freeMessagesPerMonth };
+  const plan = precomputedPlan ?? (await getPlanTier(client));
+  const limit = TIER_MESSAGE_CAPS[plan.tier];
 
-  const pro =
-    precomputedIsPro !== undefined
-      ? precomputedIsPro
-      : await isPro(client);
-  if (pro) return { ok: true, current: 0 };
+  if (!user) return { ok: false, current: 0, limit };
+  if (plan.unlimited) return { ok: true, current: 0, limit };
 
   const monthStart = new Date();
   monthStart.setUTCHours(0, 0, 0, 0);
@@ -322,31 +405,22 @@ export async function canSendMessageForFreeCap(
     .gte("created_at", monthStart.toISOString());
 
   if (error || count === null) {
-    return {
-      ok: false,
-      current: 0,
-      limit: PRICING.freeMessagesPerMonth,
-    };
+    return { ok: false, current: 0, limit };
   }
 
-  if (count >= PRICING.freeMessagesPerMonth) {
-    return {
-      ok: false,
-      current: count,
-      limit: PRICING.freeMessagesPerMonth,
-    };
+  if (count >= limit) {
+    return { ok: false, current: count, limit };
   }
-  return { ok: true, current: count };
+  return { ok: true, current: count, limit };
 }
 
 /**
- * Monthly image-attachment cap. Free tier (0/mo) is a hard block;
- * Pro gets PRICING.imagesPerMonthPro per calendar month across all
- * conversations. Counted on messages.image_storage_path so a purely
- * text send doesn't touch it.
+ * Monthly image-attachment cap for the current user's TIER (Free 1,
+ * Basic 10, Pro 30). Counted on messages.image_storage_path so a
+ * purely text send doesn't touch it. Admin allowlist always passes.
  *
  * Fail-CLOSED on any error -- can't count → deny. Matches the
- * canSendMessageForFreeCap shape so gate sites look consistent.
+ * canSendMessageForTierCap shape so gate sites look consistent.
  *
  * Returns:
  *   { ok: true, current: N, limit: L }                   -- allowed
@@ -354,7 +428,7 @@ export async function canSendMessageForFreeCap(
  */
 export async function canSendImageForMonthCap(
   supabase?: SupabaseClient,
-  precomputedIsPro?: boolean,
+  precomputedPlan?: ResolvedPlan,
 ): Promise<
   | { ok: true; current: number; limit: number }
   | { ok: false; current: number; limit: number }
@@ -363,17 +437,14 @@ export async function canSendImageForMonthCap(
   const {
     data: { user },
   } = await client.auth.getUser();
-  const pro =
-    precomputedIsPro !== undefined
-      ? precomputedIsPro
-      : await isPro(client);
-  const limit = pro
-    ? PRICING.imagesPerMonthPro
-    : PRICING.imagesPerMonthFree;
+  const plan = precomputedPlan ?? (await getPlanTier(client));
+  const limit = TIER_IMAGE_CAPS[plan.tier];
 
   if (!user) return { ok: false, current: 0, limit };
+  if (plan.unlimited) return { ok: true, current: 0, limit };
   // Zero-cap tiers short-circuit before the DB read -- no reason to
-  // count if the answer is decided.
+  // count if the answer is decided. (No tier is zero today, but the
+  // guard keeps a future zero-cap tier from paying a count query.)
   if (limit === 0) return { ok: false, current: 0, limit };
 
   const monthStart = new Date();

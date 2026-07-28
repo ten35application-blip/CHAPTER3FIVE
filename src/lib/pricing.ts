@@ -1,41 +1,46 @@
 /**
  * Single source of truth for plan pricing.
  *
- * Wilson's pricing (July 2026 rework):
- *   - $10/month Pro. Doubled from $5 to move the tier out of the
- *     "too-cheap-to-be-sustainable" zone as launch approaches. Free
- *     tier now chats with the shared "Adrian" concierge (oracles.
- *     is_concierge = true; renamed from "Chapter" in 0097), so cost
- *     per free user drops to fractions of a cent instead of a per-user
- *     synthesis + per-user cache.
- *   - Pro slots: 3 formula-rolled + 1 photo-derived + 1 inherited = 5
- *     total. Inherited is a distinct slot rather than a countable
- *     resource (the old "up to 3 inherited on top of 5 self-created"
- *     model is retired -- protects margin as prices double).
- *   - Images: 0/month on Free, 20/month on Pro. Monthly (not daily) so
- *     Sunday clustering doesn't hit an artificial wall. 20/mo × ~$0.015
- *     Anthropic vision = ~$0.30/mo worst-case per Pro user.
- *   - No 30-day trial. Freemium via the concierge is the discovery
- *     path; existing trialers keep theirs until it expires (isPro still
- *     honors trial_ends_at) but handle_new_user (0096) no longer
- *     hands new ones out.
+ * Wilson's tier structure (locked July 2026 — replaces the $25 "Plus"
+ * placeholder tier, which is retired entirely):
  *
- *   - $25/month Plus (July 2026, landing display only for now). A
- *     power-user tier for ONE person who wants more -- individual,
- *     not family. 8 identities total (5 formula + 2 photo + 1
- *     inherited slot), 50 images/month, priority support. No Stripe
- *     Price object exists yet; checkout wiring lands when Wilson
- *     creates it. PLACEHOLDER NAME: "chapter3five Plus" is not
- *     final. Every copy site must render the name via
- *     PLUS_TIER_LABEL below so the eventual rename is one edit.
+ *   FREE  — $0/mo.   No personal identities — just Adrian, the shared
+ *           concierge (oracles.is_concierge = true). 20 messages and
+ *           1 image attachment per calendar month.
+ *   BASIC — $5/mo.   3 personal identities (2 formula + 1 photo) on
+ *           top of Adrian. 100 messages and 10 images per month. No
+ *           inherited slot — redeeming an inherit code stays a Pro
+ *           feature so the Pro upgrade keeps a real reason to exist.
+ *   PRO   — $12/mo.  5 personal identities (3 formula + 1 photo + 1
+ *           inherited) on top of Adrian. 300 messages and 30 images
+ *           per month. Only tier that can record a legacy archive or
+ *           redeem an inherit code.
  *
- * When the price changes next quarter, change it HERE and let every
- * copy site pull from this object. Legal prose in /terms is
- * intentionally static text -- update it by hand alongside this file
- * so the effective date moves too.
+ * Adrian is universal — every tier, including Free, chats with the
+ * concierge. Personal identity slots are on TOP of Adrian.
+ *
+ * EVERY tier is message-capped now, including Pro (which was
+ * unlimited before this rework). Overage is handled by one-time
+ * add-on packs instead of an unlimited tier:
+ *
+ *   Small  — $5   → +100 messages OR +12 images
+ *   Medium — $10  → +250 messages OR +30 images
+ *   Large  — $20  → +600 messages OR +75 images
+ *
+ * A pack is one-time (not recurring) and the buyer picks ONE type per
+ * pack: messages or images, never both. No Stripe Price objects exist
+ * for Basic or the packs yet — those surfaces run the mailto fallback
+ * flow until Wilson creates them and the checkout wiring lands (that
+ * follow-up also adds the credits ledger + subscription_tier column).
+ *
+ * When a price changes, change it HERE and let every copy site pull
+ * from this object. Legal prose in /terms is intentionally static
+ * text — update it by hand alongside this file so the effective date
+ * moves too.
  */
 export const PRICING = {
-  monthlyCents: 1000, // $10.00 (was $5 pre-July-2026 rework)
+  /* ── Pro ($12/mo) ─────────────────────────────────────────────── */
+  monthlyCents: 1200, // $12.00 (was $10 pre-pack-rework, $5 before that)
   formulaIdentitiesPerPlan: 3,
   photoIdentitiesPerPlan: 1,
   /** Ceiling on user-created oracles (formula + photo). Inherited
@@ -45,77 +50,141 @@ export const PRICING = {
   /** One inherited identity is included with Pro. Legacy identities
    *  from someone else's inherit code use this slot. Extras beyond
    *  the included one are the same $5/month per slot as an extra
-   *  self-created identity. Down from 3 in the July-2026 rework --
-   *  scarcity plus margin protection at the doubled price point. */
+   *  self-created identity. */
   includedInheritedIdentitiesPerPlan: 1,
   extraInheritedIdentityCents: 500,
+  /** Monthly message cap for Pro. NEW in the pack rework — Pro was
+   *  unlimited before. Counted per calendar month against the user's
+   *  outgoing messages (role='user') across all conversations. */
+  proMessagesPerMonth: 300,
+  imagesPerMonthPro: 30, // was 20 pre-pack-rework
+
+  /* ── Basic ($5/mo) ────────────────────────────────────────────── */
+  basicMonthlyCents: 500, // $5.00
+  /** Basic slot split: 2 formula + 1 photo = 3 personal identities.
+   *  Wilson locked "3 identities" without a split; 2+1 keeps the
+   *  photo path reachable on the starter tier while Pro stays the
+   *  bigger-formula-cast option. */
+  basicFormulaIdentitiesPerPlan: 2,
+  basicPhotoIdentitiesPerPlan: 1,
+  /** Ceiling on user-created oracles (formula + photo) on Basic. */
+  basicTotalIdentitiesPerPlan: 3,
+  /** No inherited slot on Basic — inheritance stays Pro-only so the
+   *  Pro upgrade keeps meaning (and Terms §4's "an active Pro plan is
+   *  required to redeem an inherit code" stays true). */
+  basicIncludedInheritedIdentitiesPerPlan: 0,
+  basicMessagesPerMonth: 100,
+  basicImagesPerMonth: 10,
+
+  /* ── Free ($0/mo) ─────────────────────────────────────────────── */
+  /** Monthly message cap for the Free tier (was 100 pre-pack-rework;
+   *  20 sizes Free as "meet Adrian," not "live here"). */
+  freeMessagesPerMonth: 20,
+  /** Free gets ONE image send a month (was 0) — enough to see the
+   *  feature work, not enough to lean on it. */
+  imagesPerMonthFree: 1,
+
+  /* ── Other one-time SKUs ──────────────────────────────────────── */
   /** One-time paywall to restore an identity from the recently-deleted
-   *  bin. Free archive vs paid restore is the intentional wedge --
+   *  bin. Free archive vs paid restore is the intentional wedge —
    *  changing your mind after a delete has a cost, changing your mind
    *  after an archive doesn't. Stored on each oracle at creation time
    *  so a user pays what they saw. */
   restoreIdentityCents: 500,
-  /** Monthly message cap for the Free tier. Pro is unlimited. Counted
-   *  per calendar month against the user's outgoing messages
-   *  (role='user') across all their conversations. */
-  freeMessagesPerMonth: 100,
-  /** Monthly image-attachment cap. Vision analysis adds ~$0.015 per
-   *  image on top of ~$0.005 text-only turn cost -- monthly caps
-   *  bound that cleanly. Free is zero (moderation + cost); Pro gets
-   *  a real conversational allowance. */
-  imagesPerMonthFree: 0,
-  imagesPerMonthPro: 20,
+
+  /* ── Add-on packs (one-time; messages OR images per pack) ─────── */
+  packSmallCents: 500, // $5.00
+  packSmallMessages: 100,
+  packSmallImages: 12,
+  packMediumCents: 1000, // $10.00
+  packMediumMessages: 250,
+  packMediumImages: 30,
+  packLargeCents: 2000, // $20.00
+  packLargeMessages: 600,
+  packLargeImages: 75,
+
+  /* ── Spend governor ───────────────────────────────────────────── */
   /** Monthly Anthropic-spend cap for the Free tier, in whole cents.
    *  Wilson pays for Claude tokens directly; this hard-stops runaway
    *  spend on Free users (misbehaving accounts, testing loops, edge
-   *  cases). Pro/admin are never gated. Cap is on ESTIMATED cost
-   *  (recorded per call via recordAnthropicSpend); over-run by one
-   *  in-flight call is acceptable. */
+   *  cases). Paid/admin are never gated here — the per-tier message
+   *  and image caps bound their spend instead. Cap is on ESTIMATED
+   *  cost (recorded per call via recordAnthropicSpend); over-run by
+   *  one in-flight call is acceptable. */
   freeMonthlySpendCents: 1000,
-  /** ── Plus tier (display-only until the Stripe Price exists) ──
-   *  Individual power-user tier: one person, more of everything.
-   *  8 identities total = 7 self-created (5 formula + 2 photo) + 1
-   *  included inherited slot. Extras beyond these ceilings reuse the
-   *  same $5/month add-on pricing as Pro. */
-  plusMonthlyCents: 2500, // $25.00
-  plusFormulaIdentitiesPerPlan: 5,
-  plusPhotoIdentitiesPerPlan: 2,
-  /** Ceiling on user-created oracles (formula + photo) on Plus.
-   *  Inherited identities have a separate ceiling, as on Pro. */
-  plusTotalIdentitiesPerPlan: 7,
-  plusIncludedInheritedIdentitiesPerPlan: 1,
-  plusImagesPerMonth: 50,
   currency: "USD",
 } as const;
 
-/** "$10" -- formatted whole-dollar price for copy sites. */
+/** "$12" — formatted whole-dollar Pro price for copy sites. */
 export const MONTHLY_PRICE_LABEL = `$${PRICING.monthlyCents / 100}`;
 
-/** "$5" -- extra self-created identity beyond the base 4. */
+/** Basic tier name. The single string to change if Wilson renames the
+ *  tier; every surface must render the name through this constant,
+ *  never a literal. */
+export const BASIC_TIER_LABEL = "chapter3five Basic";
+
+/** "$5" — formatted whole-dollar Basic price for copy sites. */
+export const BASIC_MONTHLY_PRICE_LABEL = `$${PRICING.basicMonthlyCents / 100}`;
+
+/** "$5" — extra self-created identity beyond the plan's ceiling. */
 export const EXTRA_IDENTITY_PRICE_LABEL = `$${PRICING.extraIdentityCents / 100}`;
 
-/** "$5" -- extra inherited identity beyond the one included. */
+/** "$5" — extra inherited identity beyond the one included with Pro. */
 export const EXTRA_INHERITED_PRICE_LABEL = `$${PRICING.extraInheritedIdentityCents / 100}`;
 
-/** "$5" -- one-time paywall on restoring a deleted identity. */
+/** "$5" — one-time paywall on restoring a deleted identity. */
 export const RESTORE_IDENTITY_PRICE_LABEL = `$${PRICING.restoreIdentityCents / 100}`;
 
-/** "100" -- monthly message cap for the Free tier. */
+/** 20 — monthly message cap for the Free tier. */
 export const FREE_MESSAGES_PER_MONTH = PRICING.freeMessagesPerMonth;
 
-/** "20" -- monthly image cap for the Pro tier. */
+/** 1 — monthly image cap for the Free tier. */
+export const FREE_IMAGES_PER_MONTH = PRICING.imagesPerMonthFree;
+
+/** 100 — monthly message cap for the Basic tier. */
+export const BASIC_MESSAGES_PER_MONTH = PRICING.basicMessagesPerMonth;
+
+/** 10 — monthly image cap for the Basic tier. */
+export const BASIC_IMAGES_PER_MONTH = PRICING.basicImagesPerMonth;
+
+/** 300 — monthly message cap for the Pro tier. */
+export const PRO_MESSAGES_PER_MONTH = PRICING.proMessagesPerMonth;
+
+/** 30 — monthly image cap for the Pro tier. */
 export const PRO_IMAGES_PER_MONTH = PRICING.imagesPerMonthPro;
 
-/** "$10.00" -- user-facing label for the Free monthly spend cap. */
+/** "$10.00" — user-facing label for the Free monthly spend cap. */
 export const FREE_MONTHLY_SPEND_LABEL = `$${(PRICING.freeMonthlySpendCents / 100).toFixed(2)}`;
 
-/** PLACEHOLDER tier name -- Wilson hasn't locked the real one. This
- *  is the single string to change when he does; every surface must
- *  render the tier name through this constant, never a literal. */
-export const PLUS_TIER_LABEL = "chapter3five Plus";
+/**
+ * The three add-on packs in display order, ready for UI iteration.
+ * One-time purchases; each pack is messages OR images, buyer's pick.
+ * Not Stripe-wired yet — surfaces render mailto reserve buttons until
+ * the Price objects exist.
+ */
+export const ADDON_PACKS = [
+  {
+    id: "small",
+    name: "Small",
+    priceLabel: `$${PRICING.packSmallCents / 100}`,
+    messages: PRICING.packSmallMessages,
+    images: PRICING.packSmallImages,
+  },
+  {
+    id: "medium",
+    name: "Medium",
+    priceLabel: `$${PRICING.packMediumCents / 100}`,
+    messages: PRICING.packMediumMessages,
+    images: PRICING.packMediumImages,
+  },
+  {
+    id: "large",
+    name: "Large",
+    priceLabel: `$${PRICING.packLargeCents / 100}`,
+    messages: PRICING.packLargeMessages,
+    images: PRICING.packLargeImages,
+  },
+] as const;
 
-/** "$25" -- formatted whole-dollar price for the Plus tier. */
-export const PLUS_MONTHLY_PRICE_LABEL = `$${PRICING.plusMonthlyCents / 100}`;
-
-/** "50" -- monthly image cap for the Plus tier. */
-export const PLUS_IMAGES_PER_MONTH = PRICING.plusImagesPerMonth;
+/** "$5" — the cheapest pack, for "packs from $5" copy. */
+export const PACK_FROM_PRICE_LABEL = ADDON_PACKS[0].priceLabel;

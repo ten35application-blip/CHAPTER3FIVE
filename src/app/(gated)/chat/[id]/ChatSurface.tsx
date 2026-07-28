@@ -971,23 +971,25 @@ export default function ChatSurface({
                     You&apos;ve reached this month&apos;s free-tier usage
                     allowance ({(capHit.limit / 100).toFixed(2)} spent).
                     {" "}
-                    {name} is still here &mdash; upgrade to premium to keep
+                    {name} is still here &mdash; upgrade your plan to keep
                     the conversations going, or come back at the start of
                     next month.
                   </>
                 ) : capHit.kind === "images" ? (
                   capHit.limit === 0 ? (
                     <>
-                      Photos are a Pro thing. Upgrade to send images to{" "}
-                      {name} &mdash; or keep going with just text.
+                      Photo sends aren&apos;t part of your plan. Upgrade
+                      to send images to {name} &mdash; or keep going with
+                      just text.
                     </>
                   ) : (
                     <>
                       You&apos;ve used all{" "}
                       <strong className="text-warm-50">{capHit.limit}</strong>
                       {" "}
-                      of this month&apos;s photo sends. Text still works, and
-                      the counter resets at the start of next month.
+                      of this month&apos;s photo sends. Text still works,
+                      an image pack adds more, and the counter resets at
+                      the start of next month.
                     </>
                   )
                 ) : (
@@ -995,8 +997,8 @@ export default function ChatSurface({
                     You&apos;ve used all{" "}
                     <strong className="text-warm-50">{capHit.limit}</strong>
                     {" "}
-                    of this month&apos;s free messages. {name} is still here
-                    &mdash; upgrade to premium for unlimited messages, or
+                    of this month&apos;s messages. {name} is still here
+                    &mdash; upgrade your plan or grab a message pack, or
                     come back at the start of next month.
                   </>
                 )}
@@ -1007,6 +1009,18 @@ export default function ChatSurface({
               >
                 Upgrade to keep talking
               </Link>
+              {/* Pack CTA — one-time top-ups live at /upgrade#packs.
+                  Spend-cap hits are excluded: packs top up messages
+                  and images, not the free-tier Anthropic-spend
+                  governor. */}
+              {capHit.kind !== "spend" && (
+                <Link
+                  href={`/upgrade?next=${encodeURIComponent(`/chat/${oracleId}`)}#packs`}
+                  className="text-sm font-semibold text-teal-strong underline underline-offset-4 transition-colors hover:text-warm-200"
+                >
+                  Grab a pack &rarr;
+                </Link>
+              )}
             </div>
           ) : (
             <ChatInput
