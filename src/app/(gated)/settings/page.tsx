@@ -220,16 +220,13 @@ export default async function SettingsPage({
             debug={debug}
           />
           <NameField fullName={fullName} />
-        </Section>
-
-        {/* INHERIT CODES — the codes for every legacy identity this
-            user has minted. Empty state teaches the flow (Wilson's ask
-            2026-07-28: "a blank message with instructions on how to
-            create the code, and when it's done the code should be
-            there"). Placed right under Profile because it's a "who
-            you are + what you can pass on" surface, not a plan or
-            billing concern. */}
-        <Section label="Inherit codes">
+          {/* Inherit codes sit INSIDE the Profile card, directly under
+              the name field's "your identities will use this to greet
+              you" subtext (Wilson's ask 2026-07-28: this is part of
+              your profile — how family finds the person you're
+              keeping alive — so it belongs with name + photo, not in
+              its own tile). Empty state teaches the flow; populated
+              rows carry a native Share button on the right. */}
           <InheritCodesList items={inheritCodeItems} />
         </Section>
 
