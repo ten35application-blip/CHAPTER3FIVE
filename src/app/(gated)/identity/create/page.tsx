@@ -53,7 +53,7 @@ export default async function IdentityCreatePage() {
         <div className="mt-10 flex w-full flex-col gap-4">
           <PathCard
             href="/identity/new"
-            title="Create a companion right now"
+            title="Add a companion"
             subhead="Our AI rolls a random personality and writes them in about a minute. No questions, no photo &mdash; you get who you get."
             icon={<SparkIcon />}
           />
