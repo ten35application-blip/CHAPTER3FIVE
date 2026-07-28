@@ -10,12 +10,19 @@ import { PRICING } from "@/lib/pricing";
 // until expiry.
 
 /**
- * The single source of truth for "is this user Pro?".
+ * The single source of truth for "does this user have an active PAID
+ * plan?". Despite the name, this is NOT Pro-tier-specific: a Basic
+ * subscription sets pro_until too, so isPro === "Basic OR Pro OR
+ * trial OR admin". Use getPlanTier when the Basic/Pro split matters
+ * (caps, quotas); use isPro/requirePro to gate paid-only features —
+ * since the July 2026 second rework that includes recording a legacy
+ * archive + minting an inherit code (Basic AND Pro; Free cannot).
  *
  * Rules:
  *   - Allowlisted admin emails are ALWAYS Pro (no persistence required).
- *   - profiles.pro_until in the future = Pro (Stripe / admin grant).
- *   - profiles.trial_ends_at in the future = Pro (the 30-day signup
+ *   - profiles.pro_until in the future = paid (Stripe Basic or Pro,
+ *     or an admin grant).
+ *   - profiles.trial_ends_at in the future = paid (the 30-day signup
  *     trial — full access, no card).
  *   - Otherwise = Free tier: exactly one chattable identity
  *     (profiles.free_identity_id; see canChatWithOracle).
@@ -85,9 +92,10 @@ export async function isProByUserId(userId: string): Promise<boolean> {
 }
 
 /**
- * Server-side guard for Pro-only routes. Call from a server component
- * or server action; if it returns { ok: false }, redirect the caller
- * to the returned path.
+ * Server-side guard for paid-only routes (Basic OR Pro OR trial OR
+ * admin — see the isPro naming note above). Call from a server
+ * component or server action; if it returns { ok: false }, redirect
+ * the caller to the returned path.
  *
  *   const gate = await requirePro();
  *   if (!gate.ok) redirect(gate.redirectTo);
@@ -268,7 +276,7 @@ export async function canCreateOracle(
     }
 
     // Basic subscribers get the smaller self-created ceiling (2
-    // formula + 1 photo = 3); Pro / trial / admin keep 4. A Basic
+    // formula + 1 photo = 3); Pro / trial / admin get 5. A Basic
     // user is one whose ACTIVE paid window came through Stripe with
     // the webhook-written subscription_tier = 'basic' — admin grants
     // and legacy trials have no Stripe customer and stay on the Pro
@@ -448,6 +456,65 @@ export async function consumePackCredit(
     }
   } catch (err) {
     console.error("[subscription] pack credit decrement failed:", err);
+  }
+}
+
+/**
+ * Purchased inherit-slot credit balance (profiles.inherited_slot_credits,
+ * 0107). One credit = one paid inherit-code redemption ($5 one-time via
+ * Stripe purpose 'inherited_slot_purchase'). The memorial waiver
+ * (minter deceased) bypasses credits entirely — see
+ * /identity/inherit/actions.ts. Admin client because the column is
+ * billing state; returns 0 on ANY failure (fail-closed — a broken
+ * read can't mint a free redemption).
+ */
+export async function getInheritedSlotCredits(
+  userId: string,
+): Promise<number> {
+  try {
+    const admin = createAdminClient();
+    const { data, error } = await admin
+      .from("profiles")
+      .select("inherited_slot_credits")
+      .eq("id", userId)
+      .maybeSingle<{ inherited_slot_credits: number | null }>();
+    if (error || !data) return 0;
+    const value = data.inherited_slot_credits;
+    return typeof value === "number" && value > 0 ? value : 0;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Consume ONE inherit-slot credit after a SUCCESSFUL redemption —
+ * called post-persist (after the oracle_shares row actually landed),
+ * never at gate-check time, so a failed redemption can't eat a paid
+ * credit. Same best-effort/never-throws contract and race model as
+ * consumePackCredit: increment_profile_counter floors at 0, so the
+ * worst concurrent-redeem case is one un-paid-for redemption.
+ */
+export async function consumeInheritedSlotCredit(
+  userId: string,
+): Promise<void> {
+  try {
+    const admin = createAdminClient();
+    const { error } = await admin.rpc("increment_profile_counter", {
+      target_user_id: userId,
+      counter_name: "inherited_slot_credits",
+      delta: -1,
+    });
+    if (error) {
+      console.error(
+        "[subscription] inherit-slot credit decrement failed:",
+        error,
+      );
+    }
+  } catch (err) {
+    console.error(
+      "[subscription] inherit-slot credit decrement failed:",
+      err,
+    );
   }
 }
 

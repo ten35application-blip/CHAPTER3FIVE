@@ -1,26 +1,38 @@
 /**
  * Single source of truth for plan pricing.
  *
- * Wilson's tier structure (locked July 2026 — replaces the $25 "Plus"
- * placeholder tier, which is retired entirely):
+ * Wilson's tier structure (SECOND July 2026 rework — locked after
+ * seeing the full Stripe wiring; supersedes the $12-Pro layout):
  *
  *   FREE  — $0/mo.   No personal identities — just Adrian, the shared
  *           concierge (oracles.is_concierge = true). 20 messages and
  *           1 image attachment per calendar month.
  *   BASIC — $5/mo.   3 personal identities (2 formula + 1 photo) on
- *           top of Adrian. 100 messages and 10 images per month. No
- *           inherited slot — redeeming an inherit code stays a Pro
- *           feature so the Pro upgrade keeps a real reason to exist.
- *   PRO   — $12/mo.  5 personal identities (3 formula + 1 photo + 1
- *           inherited) on top of Adrian. 300 messages and 30 images
- *           per month. Only tier that can record a legacy archive or
- *           redeem an inherit code.
+ *           top of Adrian. 100 messages and 10 images per month. CAN
+ *           record a legacy archive and mint an inherit code (was
+ *           Pro-only before this rework).
+ *   PRO   — $10/mo.  5 self-created identities (4 formula + 1 photo)
+ *           on top of Adrian. 300 messages and 30 images per month.
+ *           (Was $12 with 3 formula + 1 photo + 1 bundled inherited
+ *           slot; the price dropped and the identity count grew to
+ *           compensate for the unbundled inherited slot.)
+ *
+ * THE INHERITED SLOT IS UNBUNDLED (this rework's headline). No tier
+ * includes a free inherited slot anymore, and no tier is required to
+ * redeem: every inherit-code redemption is a $5 ONE-TIME purchase
+ * (inheritedSlotPurchaseCents; Stripe purpose
+ * 'inherited_slot_purchase' → profiles.inherited_slot_credits),
+ * replacing the old $5/MONTH recurring extra-inherited-slot model
+ * (extraInheritedIdentityCents, deleted). The MEMORIAL WAIVER is on
+ * by default: when the code's minter has passed away
+ * (profiles.deceased_at set — a post-mortem beneficiary claim),
+ * redemption is free and no credit is consumed. Living-minter codes
+ * (alive-preparing, friend-gift, playful) pay the $5.
  *
  * Adrian is universal — every tier, including Free, chats with the
  * concierge. Personal identity slots are on TOP of Adrian.
  *
- * EVERY tier is message-capped now, including Pro (which was
- * unlimited before this rework). Overage is handled by one-time
+ * EVERY tier is message-capped. Overage is handled by one-time
  * add-on packs instead of an unlimited tier:
  *
  *   Small  — $5   → +100 messages OR +12 images
@@ -28,10 +40,7 @@
  *   Large  — $20  → +600 messages OR +75 images
  *
  * A pack is one-time (not recurring) and the buyer picks ONE type per
- * pack: messages or images, never both. No Stripe Price objects exist
- * for Basic or the packs yet — those surfaces run the mailto fallback
- * flow until Wilson creates them and the checkout wiring lands (that
- * follow-up also adds the credits ledger + subscription_tier column).
+ * pack: messages or images, never both.
  *
  * When a price changes, change it HERE and let every copy site pull
  * from this object. Legal prose in /terms is intentionally static
@@ -39,20 +48,24 @@
  * moves too.
  */
 export const PRICING = {
-  /* ── Pro ($12/mo) ─────────────────────────────────────────────── */
-  monthlyCents: 1200, // $12.00 (was $10 pre-pack-rework, $5 before that)
-  formulaIdentitiesPerPlan: 3,
+  /* ── Pro ($10/mo) ─────────────────────────────────────────────── */
+  monthlyCents: 1000, // $10.00 (was $12 with the bundled inherited slot)
+  formulaIdentitiesPerPlan: 4,
   photoIdentitiesPerPlan: 1,
   /** Ceiling on user-created oracles (formula + photo). Inherited
-   *  identities have a separate ceiling. */
-  totalIdentitiesPerPlan: 4,
-  extraIdentityCents: 500, // $5/mo per identity beyond the base 4
-  /** One inherited identity is included with Pro. Legacy identities
-   *  from someone else's inherit code use this slot. Extras beyond
-   *  the included one are the same $5/month per slot as an extra
-   *  self-created identity. */
-  includedInheritedIdentitiesPerPlan: 1,
-  extraInheritedIdentityCents: 500,
+   *  identities are not counted here — they're per-code purchases. */
+  totalIdentitiesPerPlan: 5,
+  extraIdentityCents: 500, // $5/mo per identity beyond the base 5
+  /** NO inherited slot is bundled with any plan since the July 2026
+   *  second rework — every inherit-code redemption is the one-time
+   *  inheritedSlotPurchaseCents purchase (memorial waiver aside).
+   *  Kept as an explicit 0 so slot math keeps compiling against one
+   *  constant instead of scattering hardcoded zeros. */
+  includedInheritedIdentitiesPerPlan: 0,
+  /** $5 ONE-TIME per inherit-code redemption (replaces the retired
+   *  $5/month extraInheritedIdentityCents recurring slot). Waived
+   *  when the code's minter is deceased — the memorial waiver. */
+  inheritedSlotPurchaseCents: 500,
   /** Monthly message cap for Pro. NEW in the pack rework — Pro was
    *  unlimited before. Counted per calendar month against the user's
    *  outgoing messages (role='user') across all conversations. */
@@ -69,9 +82,8 @@ export const PRICING = {
   basicPhotoIdentitiesPerPlan: 1,
   /** Ceiling on user-created oracles (formula + photo) on Basic. */
   basicTotalIdentitiesPerPlan: 3,
-  /** No inherited slot on Basic — inheritance stays Pro-only so the
-   *  Pro upgrade keeps meaning (and Terms §4's "an active Pro plan is
-   *  required to redeem an inherit code" stays true). */
+  /** Same as Pro since the inherited-slot unbundle: zero included;
+   *  redemption is the per-code one-time purchase on every tier. */
   basicIncludedInheritedIdentitiesPerPlan: 0,
   basicMessagesPerMonth: 100,
   basicImagesPerMonth: 10,
@@ -115,7 +127,7 @@ export const PRICING = {
   currency: "USD",
 } as const;
 
-/** "$12" — formatted whole-dollar Pro price for copy sites. */
+/** "$10" — formatted whole-dollar Pro price for copy sites. */
 export const MONTHLY_PRICE_LABEL = `$${PRICING.monthlyCents / 100}`;
 
 /** Basic tier name. The single string to change if Wilson renames the
@@ -129,8 +141,15 @@ export const BASIC_MONTHLY_PRICE_LABEL = `$${PRICING.basicMonthlyCents / 100}`;
 /** "$5" — extra self-created identity beyond the plan's ceiling. */
 export const EXTRA_IDENTITY_PRICE_LABEL = `$${PRICING.extraIdentityCents / 100}`;
 
-/** "$5" — extra inherited identity beyond the one included with Pro. */
-export const EXTRA_INHERITED_PRICE_LABEL = `$${PRICING.extraInheritedIdentityCents / 100}`;
+/** "$5" — one-time inherit-slot purchase, paid per code redeemed
+ *  (waived when the code's minter has passed away). Replaces the
+ *  retired EXTRA_INHERITED_PRICE_LABEL ($5/month recurring slot). */
+export const INHERITED_SLOT_PRICE_LABEL = `$${PRICING.inheritedSlotPurchaseCents / 100}`;
+
+/** @deprecated Transitional alias for INHERITED_SLOT_PRICE_LABEL —
+ *  the recurring extra-inherited-slot SKU is retired. Deleted once
+ *  the copy surfaces move off it (same rework, later commit). */
+export const EXTRA_INHERITED_PRICE_LABEL = INHERITED_SLOT_PRICE_LABEL;
 
 /** "$5" — one-time paywall on restoring a deleted identity. */
 export const RESTORE_IDENTITY_PRICE_LABEL = `$${PRICING.restoreIdentityCents / 100}`;
