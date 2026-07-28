@@ -238,6 +238,38 @@ export async function completeLegacyIdentity(payload: {
     );
   }
 
+  // Legacy-flow quota: every account may mint one self-mode + one
+  // other-mode legacy identity. The randomize + from-photo paths use
+  // the tier quotas (Free 1 / Basic 3 / Pro 5); this cap is legacy-
+  // only. Wilson's ask 2026-07-28: "one for themselves and one for a
+  // loved one." We count the caller's existing legacy oracles of the
+  // same mode -- self clashes with self, other clashes with other --
+  // and reject a third of the same kind. Read via user client so RLS
+  // scopes to auth.uid().
+  const { data: existingLegacy } = await supabase
+    .from("oracles")
+    .select("id, legacy_answers")
+    .eq("is_legacy", true)
+    .is("deleted_at", null);
+  const currentMode = subject.mode ?? "other";
+  const sameModeCount = (existingLegacy ?? []).filter((row) => {
+    const rowMode =
+      (row.legacy_answers as { subject?: { mode?: unknown } } | null)?.subject
+        ?.mode;
+    // Pre-mode rows count as "other" by convention -- matches the
+    // sanitizeSubject / page.tsx hydration defaults.
+    const effective = rowMode === "self" ? "self" : "other";
+    return effective === currentMode;
+  }).length;
+  if (sameModeCount >= 1) {
+    redirectWithError(
+      "/identity/legacy/new",
+      currentMode === "self"
+        ? "You've already made a legacy identity for yourself. One per account -- edit the existing one from your dashboard."
+        : "You've already made a legacy identity for a loved one. One per account -- edit the existing one from your dashboard.",
+    );
+  }
+
   const fingerprint = fingerprintLegacyAnswers(subject, answers);
 
   let persona;

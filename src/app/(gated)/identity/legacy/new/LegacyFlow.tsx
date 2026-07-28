@@ -233,22 +233,20 @@ function SubjectScreen({
   return (
     <div className="flex flex-1 flex-col">
       <p className="text-sm font-semibold uppercase tracking-wider">
-        <span className="text-gradient-cta">Someone to keep</span>
+        <span className="text-gradient-cta">Set the scene</span>
       </p>
       <h1 className="mt-3 text-3xl font-semibold tracking-tight text-warm-50">
-        {isSelf ? "Who are we keeping — you?" : "Who are we keeping?"}
+        First, who&rsquo;s this for?
       </h1>
       <p className="mt-3 text-base leading-relaxed text-warm-300">
-        {isSelf
-          ? "Forty questions, answered in your own voice. Take days if you need them — everything saves as you go."
-          : "Forty questions, answered by you — or by the whole family around one table. Everything saves as you go, so take days if you need them."}
+        Pick one, then a few basics. Forty warm questions come after
+        &mdash; everything saves as you go, so you can stop and pick up
+        anytime.
       </p>
 
       {/* Mode toggle. First decision on the page because everything
           below (labels, placeholders, question wording) reads
-          differently depending on the answer. Wilson's ask
-          2026-07-28: dual-framed prompts read confused when you're
-          answering about yourself — split the flow up front. */}
+          differently depending on the answer. */}
       <ModeToggle
         mode={mode}
         onChange={(nextMode) =>
@@ -262,6 +260,10 @@ function SubjectScreen({
         }
       />
 
+      <p className="mt-8 text-sm font-semibold uppercase tracking-wider text-warm-400">
+        A few basics
+      </p>
+
       <PhotoPicker
         photoUrl={subject.photoUrl ?? null}
         mode={mode}
@@ -270,45 +272,30 @@ function SubjectScreen({
         }
       />
 
-      {/* Texting-style note — the single most important guidance for
-          fidelity. Real texting rhythm (lowercase, no periods,
-          run-on sentences, whatever) IS part of a person. Dictation
-          cleans it up into generic prose and washes that out. */}
-      <div className="mt-5 rounded-2xl bg-coral/8 p-4 ring-1 ring-coral/20">
-        <p className="text-sm font-semibold text-warm-50">
-          {isSelf
-            ? "Type how you actually text."
-            : "Type how they actually text."}
-        </p>
-        <p className="mt-1.5 text-sm leading-relaxed text-warm-300">
-          {isSelf
-            ? "The all-lowercase, the missing periods, the ALL CAPS when you’re hyped, the way you always start with “so” — that’s you. Don’t fix it into clean prose. Don’t dictate through a mic; it strips the voice out."
-            : "The all-lowercase, the missing periods, the ALL CAPS when they’re hyped, the way they always start with “so” — that’s them. Don’t fix it into clean prose. Don’t dictate through a mic; it strips the voice out."}
-        </p>
-      </div>
-
-      <div className="mt-8 flex flex-col gap-5">
+      <div className="mt-6 flex flex-col gap-5">
         <Field
-          label={isSelf ? "Your name" : "Their name, the way the family says it"}
+          label={isSelf ? "Your name" : "Their name"}
           value={subject.name}
           placeholder={isSelf ? "Wilson · Rosa" : "Grandpa Joe · Rosa"}
           onChange={(name) => onChange({ ...subject, name })}
         />
         {isSelf ? null : (
           <Field
-            label="Who are they to you?"
+            label="What they are to you"
             value={subject.relationship}
-            placeholder="My mother · Our grandfather"
+            placeholder="My mother · Our grandfather · My best friend"
             onChange={(relationship) =>
               onChange({ ...subject, relationship })
             }
           />
         )}
         <Field
-          label={isSelf ? "Your era" : "Their era"}
+          label={isSelf ? "When and where you're from" : "When and where they're from"}
           value={subject.era}
           placeholder={
-            isSelf ? "Born 1990, raised in Miami" : "Born 1952, raised in the Bronx"
+            isSelf
+              ? "Born 1990, raised in Miami"
+              : "Born 1952, raised in the Bronx"
           }
           onChange={(era) => onChange({ ...subject, era })}
         />
@@ -320,13 +307,23 @@ function SubjectScreen({
         />
       </div>
 
+      {/* One-line reminder about texting voice. The full callout used
+          to live here but it's redundant with the persistent tip on
+          every QuestionScreen; keeping just the single sentence here
+          so first-timers get the frame before they hit the questions. */}
+      <p className="mt-6 text-xs leading-relaxed text-warm-400">
+        {isSelf
+          ? "Tip: type how you actually text — lowercase, missing periods, all of it. Don't clean it up."
+          : "Tip: type how they actually text — lowercase, missing periods, all of it. Don't clean it up."}
+      </p>
+
       <button
         type="button"
         onClick={onNext}
         disabled={!canContinue}
         className="bg-gradient-cta mt-10 flex h-14 w-full items-center justify-center rounded-full text-lg font-semibold text-white shadow-[0_14px_36px_-10px_rgba(217,115,89,0.5),_0_4px_12px_rgba(126,196,196,0.18)] transition-all hover:-translate-y-px active:translate-y-0 active:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
       >
-        Begin the questions
+        Start
       </button>
 
       <Link
