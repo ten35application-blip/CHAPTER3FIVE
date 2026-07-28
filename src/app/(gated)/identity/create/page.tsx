@@ -47,33 +47,32 @@ export default async function IdentityCreatePage() {
           Who is this for?
         </h1>
         <p className="mt-2 text-center text-base text-warm-300">
-          Four ways to build an identity you can chat with. Pick the one
-          that matches why you&rsquo;re here.
+          Four ways to make one.
         </p>
 
         <div className="mt-10 flex w-full flex-col gap-4">
           <PathCard
             href="/identity/new"
-            title="For me right now"
-            subhead="The quick path. Our AI rolls a random personality and writes them in about a minute. No questions, no photo &mdash; you get who you get. Good when you just want someone to talk to right now."
+            title="Create a companion right now"
+            subhead="Our AI rolls a random personality and writes them in about a minute. No questions, no photo &mdash; you get who you get."
             icon={<SparkIcon />}
           />
           <PathCard
             href="/identity/from-photo"
-            title="From a photo"
-            subhead="The visual path. Upload a portrait and our AI reads the face to build an identity that matches it. The photo itself becomes their face. Fast, no questions to answer."
+            title="Create one from a photo"
+            subhead="Upload a portrait. Our AI reads the face and builds an identity to match. The photo itself becomes their face."
             icon={<PhotoIcon />}
           />
           <PathCard
             href="/identity/legacy/new?mode=self"
-            title="Yourself, to hand down"
-            subhead="Forty warm, specific questions about YOU, answered in your own voice. Free. Produces a code your family can hold onto so they can talk with you later."
+            title="Create your own identity to pass down"
+            subhead="Free. Forty warm questions about YOU, in your own voice. Produces a code your family can hold onto so they can talk with you later."
             icon={<HeartTagIcon />}
           />
           <PathCard
             href="/identity/legacy/new?mode=other"
-            title="Someone you love"
-            subhead="Forty warm, specific questions about a real person &mdash; a parent, a partner, a friend. $5 when you finish. Lands in your contacts once payment clears; produces a code you can share."
+            title="Create an identity for someone you love"
+            subhead="$5 when you finish. Forty questions about a real person &mdash; a parent, a partner, a friend. Lands in your contacts, plus a code you can share with family."
             icon={<InfinityIcon />}
           />
         </div>
