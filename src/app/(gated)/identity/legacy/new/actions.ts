@@ -246,10 +246,13 @@ export async function completeLegacyIdentity(payload: {
   // same mode -- self clashes with self, other clashes with other --
   // and reject a third of the same kind. Read via user client so RLS
   // scopes to auth.uid().
+  // Inherited copies (0111) are is_legacy + owned too, but they were
+  // REDEEMED, not minted — they must not eat the mint quota.
   const { data: existingLegacy } = await supabase
     .from("oracles")
     .select("id, legacy_answers")
     .eq("is_legacy", true)
+    .is("inherited_at", null)
     .is("deleted_at", null);
   const currentMode = subject.mode ?? "other";
   const sameModeCount = (existingLegacy ?? []).filter((row) => {
@@ -290,7 +293,12 @@ export async function completeLegacyIdentity(payload: {
     );
   }
 
-  const { data: inserted, error: insertError } = await supabase
+  // Service-role insert on purpose: protect_oracle_columns (0067+)
+  // rejects ALL oracles inserts from PostgREST roles, and the legacy
+  // row needs server-only columns (is_legacy, fingerprint) anyway.
+  // Ownership is not client-controlled — user_id/created_by come from
+  // auth.getUser above and every field was sanitized server-side.
+  const { data: inserted, error: insertError } = await createAdminClient()
     .from("oracles")
     .insert({
       user_id: user.id,
