@@ -603,6 +603,20 @@ function QuestionScreen({
       ? "You're paid — finish it"
       : `Bring them together · ${OTHER_IDENTITY_CREATE_PRICE_LABEL}`;
 
+  // Single-voice question rendering (2026-07-29): questions.ts ships
+  // sibling self/other phrasings, and the synthesizer already assumes
+  // self-mode answerers SAW the second-person variant (synthesize.ts
+  // `shownPrompt = isSelf ? q.promptSelf ?? q.prompt : q.prompt`) —
+  // but this screen rendered the third-person prompt for everyone.
+  // Mirror the synthesizer's selection so the mobile port and the web
+  // show the same words the model is told the user read.
+  const shownPrompt = !isOtherMode
+    ? question.promptSelf ?? question.prompt
+    : question.prompt;
+  const shownPlaceholder = !isOtherMode
+    ? question.placeholderSelf ?? question.placeholder
+    : question.placeholder;
+
   return (
     <div className="flex flex-1 flex-col">
       {/* Progress: label + coral→teal bar */}
@@ -640,7 +654,7 @@ function QuestionScreen({
         </span>
       </p>
       <h1 className="mt-3 text-2xl font-semibold leading-snug tracking-tight text-warm-50 sm:text-3xl">
-        {question.prompt}
+        {shownPrompt}
       </h1>
       {question.estimateMinutes && question.estimateMinutes >= 4 ? (
         <p className="mt-2 text-sm text-warm-400">
@@ -652,7 +666,7 @@ function QuestionScreen({
         key={question.id}
         value={answer}
         onChange={(e) => onChange(e.target.value)}
-        placeholder={question.placeholder}
+        placeholder={shownPlaceholder}
         maxLength={4000}
         rows={question.category === "essay" ? 12 : 8}
         autoFocus
