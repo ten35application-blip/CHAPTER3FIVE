@@ -343,9 +343,9 @@ export default function Home() {
               </p>
             </div>
 
-            {/* Card 4 — Create an identity for someone you love (teal) */}
+            {/* Card 4 — Create an identity for someone you love (coral) */}
             <div className="flex flex-col rounded-3xl border border-warm-700 bg-ink-soft p-8 shadow-[0_10px_36px_-16px_rgba(28,28,26,0.18)] md:p-8">
-              <h3 className="text-2xl font-bold leading-[1.1] tracking-[-0.02em] text-teal-strong md:text-3xl">
+              <h3 className="text-2xl font-bold leading-[1.1] tracking-[-0.02em] text-coral-strong md:text-3xl">
                 Create an identity for someone you love
               </h3>
               <p className="mt-5 text-lg leading-relaxed text-warm-200">
