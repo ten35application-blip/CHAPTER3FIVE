@@ -47,7 +47,7 @@ const EXAMPLE_IDENTITIES = [
 const STEPS = [
   {
     title: "Choose your path.",
-    body: "Random from our formula, from a photo you upload, or answered into being by someone you love. Three doors, one place.",
+    body: "Random from our formula, from a photo you upload, or answered into being — by yourself, or by someone you love. Four doors, one place.",
   },
   {
     title: "We build the person.",
@@ -295,85 +295,63 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── 4 · THE FOUR PATHS ───────────────────────────────────
-          Four flows, equally weighted. Card A coral (self), Card B
-          middle (photo), Card C teal (legacy), Card D teal (inherit). */}
+      {/* ── 4 · WHO IS THIS FOR ──────────────────────────────────
+          Four ways to make a companion. Card 1 coral (quick self),
+          Card 2 warm (photo), Cards 3+4 teal (legacy — you or them). */}
       <section className="px-6 py-24 md:py-32">
         <div className="mx-auto flex w-full max-w-6xl flex-col items-center">
           <Rule />
           <h2 className="mt-8 text-center text-4xl font-bold leading-[1.05] tracking-[-0.03em] text-warm-50 md:text-5xl">
-            Four ways in.
+            Who is this for?
           </h2>
+          <p className="mt-5 text-center text-xl leading-relaxed text-warm-200 md:text-2xl">
+            Four ways to make one.
+          </p>
 
           <div className="mt-16 grid w-full grid-cols-1 gap-6 md:grid-cols-2">
-            {/* Card A — for yourself (coral) */}
+            {/* Card 1 — Add a companion (coral) */}
             <div className="flex flex-col rounded-3xl border border-warm-700 bg-ink-soft p-8 shadow-[0_10px_36px_-16px_rgba(28,28,26,0.18)] md:p-8">
-              <p className="text-sm font-bold uppercase tracking-[0.14em] text-coral-strong">
-                For yourself
-              </p>
-              <h3 className="text-gradient-cta mt-4 text-2xl font-bold leading-[1.1] tracking-[-0.02em] md:text-3xl">
-                One tap. A whole person.
+              <h3 className="text-gradient-cta text-2xl font-bold leading-[1.1] tracking-[-0.02em] md:text-3xl">
+                Add a companion
               </h3>
               <p className="mt-5 text-lg leading-relaxed text-warm-200">
-                We roll the formula and a companion takes shape &mdash; a name,
-                a way of talking, a past, opinions, jokes that are theirs. Made
-                for you, in about a minute. You get who you get.
+                Our AI rolls a random personality and writes them in about a
+                minute. No questions, no photo &mdash; you get who you get.
               </p>
             </div>
 
-            {/* Card B — from a photo (middle of the gradient) */}
+            {/* Card 2 — Create one from a photo (warm neutral) */}
             <div className="flex flex-col rounded-3xl border border-warm-700 bg-ink-soft p-8 shadow-[0_10px_36px_-16px_rgba(28,28,26,0.18)] md:p-8">
-              <p className="text-sm font-bold uppercase tracking-[0.14em] text-warm-200">
-                From a photo
-              </p>
-              <h3 className="mt-4 text-2xl font-bold leading-[1.1] tracking-[-0.02em] text-warm-50 md:text-3xl">
-                Upload a face. Meet the person.
+              <h3 className="text-2xl font-bold leading-[1.1] tracking-[-0.02em] text-warm-50 md:text-3xl">
+                Create one from a photo
               </h3>
               <p className="mt-5 text-lg leading-relaxed text-warm-200">
-                Give us a portrait &mdash; a photo of anyone, real or dreamt up.
-                Our AI actually sees it: age, features, style, the mood in the
-                eyes. From that reading we build the person behind the picture.
-                The photo you gave us is the face you&apos;ll see.
+                Upload a portrait. Our AI reads the face and builds an identity
+                to match. The photo itself becomes their face.
               </p>
             </div>
 
-            {/* Card C — for someone to keep (teal) */}
+            {/* Card 3 — Create your own identity to pass down (teal) */}
             <div className="flex flex-col rounded-3xl border border-warm-700 bg-ink-soft p-8 shadow-[0_10px_36px_-16px_rgba(28,28,26,0.18)] md:p-8">
-              <div className="flex items-center gap-2">
-                <p className="text-sm font-bold uppercase tracking-[0.14em] text-teal-strong">
-                  For someone to keep
-                </p>
-              </div>
-              <h3 className="mt-4 text-2xl font-bold leading-[1.1] tracking-[-0.02em] text-teal-strong md:text-3xl">
-                Sit with someone you love.
+              <h3 className="text-2xl font-bold leading-[1.1] tracking-[-0.02em] text-teal-strong md:text-3xl">
+                Create your own identity to pass down
               </h3>
               <p className="mt-5 text-lg leading-relaxed text-warm-200">
-                Answer warm, specific questions together &mdash; how they
-                laugh, what they&apos;d fight for, the day they knew who
-                they were. When you&apos;re done, you get an inherit
-                code to share &mdash; a written archive in their own
-                words, to reach for when the room feels too quiet.
-              </p>
-              <p className="mt-6 text-base italic leading-relaxed text-warm-400">
-                It isn&apos;t them. It&apos;s a portrait, painted from what they
-                chose to leave. But sometimes a portrait is enough.
+                Free. Forty warm questions about YOU, in your own voice.
+                Produces a code your family can hold onto so they can talk with
+                you later.
               </p>
             </div>
 
-            {/* Card D — from an inherit code (teal) */}
+            {/* Card 4 — Create an identity for someone you love (teal) */}
             <div className="flex flex-col rounded-3xl border border-warm-700 bg-ink-soft p-8 shadow-[0_10px_36px_-16px_rgba(28,28,26,0.18)] md:p-8">
-              <p className="text-sm font-bold uppercase tracking-[0.14em] text-teal-strong">
-                From an inherit code
-              </p>
-              <h3 className="mt-4 text-2xl font-bold leading-[1.1] tracking-[-0.02em] text-teal-strong md:text-3xl">
-                Someone left you a chapter.
+              <h3 className="text-2xl font-bold leading-[1.1] tracking-[-0.02em] text-teal-strong md:text-3xl">
+                Create an identity for someone you love
               </h3>
               <p className="mt-5 text-lg leading-relaxed text-warm-200">
-                If a friend or family member shared an inherit code with you,
-                redeem it and their archive lands in your account &mdash; same
-                person, same voice, ready to sit with you whenever the room
-                feels too quiet. Their code stays yours to keep, even if they
-                close their own account down the road.
+                $5 when you finish. Forty questions about a real person &mdash;
+                a parent, a partner, a friend. Lands in your contacts, plus a
+                code you can share with family.
               </p>
             </div>
           </div>
