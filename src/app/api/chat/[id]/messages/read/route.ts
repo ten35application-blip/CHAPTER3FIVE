@@ -48,5 +48,19 @@ export async function POST(
     // Soft-deleted messages don't render; don't touch their receipts.
     .is("deleted_at", null);
 
+  // Cross-device read state (0121): stamp "this thread was open now"
+  // so the mobile dashboard + Home Screen widget clear their red dot
+  // for this conversation. User-scoped client on purpose — RLS pins
+  // the row to auth.uid(), no service role needed. Best-effort: a
+  // failed upsert just means the dot lingers one extra open.
+  await supabase.from("oracle_read_state").upsert(
+    {
+      user_id: user.id,
+      oracle_id: oracleId,
+      last_read_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id,oracle_id" },
+  );
+
   return new NextResponse(null, { status: 204 });
 }

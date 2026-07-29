@@ -139,18 +139,30 @@ export default async function DashboardPage({
   // from the dashboard Messages view (Trail A) while staying in
   // Contacts. Two thin queries — cheap and index-friendly under the new
   // messages_user_oracle_deleted_idx.
-  const [{ data: activeMsgOracleRows }, { data: anyMsgOracleRows }] =
-    await Promise.all([
-      supabase
-        .from("messages")
-        .select("oracle_id")
-        .eq("user_id", user.id)
-        .is("deleted_at", null),
-      supabase
-        .from("messages")
-        .select("oracle_id")
-        .eq("user_id", user.id),
-    ]);
+  const [
+    { data: activeMsgOracleRows },
+    { data: anyMsgOracleRows },
+    { data: readStateRows },
+  ] = await Promise.all([
+    supabase
+      .from("messages")
+      // role + created_at ride along so automatic unread (below) can
+      // reduce newest-message-per-oracle without a third messages query.
+      .select("oracle_id, role, created_at")
+      .eq("user_id", user.id)
+      .is("deleted_at", null),
+    supabase
+      .from("messages")
+      .select("oracle_id")
+      .eq("user_id", user.id),
+    // Cross-device read state (0121) — written on every conversation
+    // open from web and mobile. RLS scopes to the caller; the eq is
+    // for query-planner clarity.
+    supabase
+      .from("oracle_read_state")
+      .select("oracle_id, last_read_at")
+      .eq("user_id", user.id),
+  ]);
   const activeThreadOracleIds = new Set(
     (activeMsgOracleRows ?? [])
       .map((r) => r.oracle_id as string | null)
@@ -161,6 +173,38 @@ export default async function DashboardPage({
       .map((r) => r.oracle_id as string | null)
       .filter((v): v is string => !!v),
   );
+
+  // Automatic unread (same rule as mobile + the iOS widget): newest
+  // active message in the thread is from the assistant AND newer than
+  // oracle_read_state.last_read_at (or never read). Distinct from
+  // manually_unread — the explicit Mark-as-unread flag — the two are
+  // OR-ed at render in DashboardContent, never merged in data.
+  const lastMsgByOracle = new Map<string, { role: string; created_at: string }>();
+  for (const r of activeMsgOracleRows ?? []) {
+    const oid = r.oracle_id as string | null;
+    if (!oid) continue;
+    const created = r.created_at as string;
+    const prev = lastMsgByOracle.get(oid);
+    // Same-column string compare is safe here (uniform PostgREST format).
+    if (!prev || created > prev.created_at) {
+      lastMsgByOracle.set(oid, { role: r.role as string, created_at: created });
+    }
+  }
+  const lastReadByOracle = new Map<string, string>();
+  for (const r of readStateRows ?? []) {
+    if (typeof r.oracle_id === "string" && typeof r.last_read_at === "string") {
+      lastReadByOracle.set(r.oracle_id, r.last_read_at);
+    }
+  }
+  const isAutoUnread = (oracleId: string): boolean => {
+    const last = lastMsgByOracle.get(oracleId);
+    if (!last || last.role !== "assistant") return false;
+    const lastRead = lastReadByOracle.get(oracleId);
+    if (!lastRead) return true;
+    // Cross-source timestamps — compare epoch millis, not strings
+    // (ISO "+00:00" vs "Z" suffixes break lexicographic ordering).
+    return new Date(last.created_at).getTime() > new Date(lastRead).getTime();
+  };
 
   // Dashboard = messages inbox. Hide (1) conversation-archived threads
   // — they live in the Archived sub-panel until unarchived — and (2)
@@ -173,7 +217,8 @@ export default async function DashboardPage({
       const hasAny = anyThreadOracleIds.has(c.id);
       const hasActive = activeThreadOracleIds.has(c.id);
       return !hasAny || hasActive;
-    });
+    })
+    .map((c) => ({ ...c, auto_unread: isAutoUnread(c.id) }));
 
   // Archived conversations — for the archive sub-panel. The identity
   // is still in Contacts; only the thread is hidden from the inbox.

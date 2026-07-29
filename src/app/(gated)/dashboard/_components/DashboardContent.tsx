@@ -15,6 +15,10 @@ export type Identity = {
   avatar_url: string | null;
   is_starred: boolean;
   manually_unread: boolean;
+  /** Computed server-side from oracle_read_state: newest assistant
+   *  message is newer than the caller's last_read_at. Distinct from
+   *  manually_unread (explicit Mark-as-unread) — OR-ed only at render. */
+  auto_unread: boolean;
   /** For legacy identities THIS user created, the inherit code so the
    *  dashboard row can show a "share" chip. Null for everything else
    *  (formula/photo identities, inherited-not-created legacy ones). */
@@ -292,7 +296,7 @@ function ConversationList({
                 <Avatar name={p.name} url={p.avatar_url} />
                 <span className="flex min-w-0 flex-1 flex-col">
                   <span className="flex items-center gap-2">
-                    {p.manually_unread ? (
+                    {p.manually_unread || p.auto_unread ? (
                       <span
                         aria-label="Unread"
                         className="h-2 w-2 flex-shrink-0 rounded-full bg-coral"
