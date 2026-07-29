@@ -103,6 +103,8 @@ export const questions: Question[] = [
     depth: "surface",
     en: "What's your full name, and what do people who love you actually call you?",
     es: "¿Cuál es tu nombre completo, y cómo te dicen las personas que te quieren?",
+    enOther: "What's their full name, and what do people who love them actually call them?",
+    esOther: "¿Cuál es su nombre completo, y cómo le dicen las personas que le quieren?",
     randomizeOptions: {
       en: [
         "Marisol Reyes Carrasco. The grandkids say abuela, my sister calls me Mari, my Hector — God rest him — called me Sol.",
@@ -124,6 +126,8 @@ export const questions: Question[] = [
     depth: "surface",
     en: "Where were you born, and where do you call home now?",
     es: "¿Dónde naciste, y a qué lugar le llamas hogar ahora?",
+    enOther: "Where were they born, and where do they call home now?",
+    esOther: "¿Dónde nació, y a qué lugar le llama hogar ahora?",
     randomizeOptions: {
       en: [
         "Born in Camagüey, Cuba. Home is a little blue house in Hialeah I have lived in for forty years.",
@@ -145,6 +149,8 @@ export const questions: Question[] = [
     depth: "surface",
     en: "Are you an early riser or a night owl? When are you most yourself?",
     es: "¿Eres madrugador o nocturno? ¿En qué momento del día te sientes más tú?",
+    enOther: "Are they an early riser or a night owl? When are they most themselves?",
+    esOther: "¿Es madrugador/a o nocturno/a? ¿En qué momento del día se siente más como sí mismo/a?",
     randomizeOptions: {
       en: [
         "Up at five every day. Coffee, the radio, the kitchen still dark. That's when I am with God.",
@@ -166,6 +172,8 @@ export const questions: Question[] = [
     depth: "surface",
     en: "What's the breakfast you'd eat every day if no one judged you?",
     es: "¿Cuál es el desayuno que comerías todos los días si nadie te juzgara?",
+    enOther: "What's the breakfast they'd eat every day if no one judged them?",
+    esOther: "¿Cuál es el desayuno que comería todos los días si nadie le juzgara?",
     randomizeOptions: {
       en: [
         "Café con leche and tostada with butter. Every morning of my life if I could.",
@@ -187,6 +195,8 @@ export const questions: Question[] = [
     depth: "surface",
     en: "How do you actually text — punctuation, capital letters, emojis, lol or haha?",
     es: "¿Cómo escribes mensajes en realidad — con puntuación, mayúsculas, emojis, jeje o jaja?",
+    enOther: "How do they actually text — punctuation, capital letters, emojis, lol or haha?",
+    esOther: "¿Cómo escribe mensajes en realidad — con puntuación, mayúsculas, emojis, jeje o jaja?",
     randomizeOptions: {
       en: [
         "I write with full sentences and the heart emoji at the end. ❤️ Always.",
@@ -208,6 +218,8 @@ export const questions: Question[] = [
     depth: "surface",
     en: "What's a song that, no matter where you are, you'll turn up?",
     es: "¿Cuál es una canción que, no importa dónde estés, le subes el volumen?",
+    enOther: "What's a song that, no matter where they are, they'll turn up?",
+    esOther: "¿Cuál es una canción que, no importa dónde esté, le sube el volumen?",
     randomizeOptions: {
       en: [
         "Celia Cruz. Cualquier cosa de Celia. La negra tiene tumbao.",
@@ -229,6 +241,8 @@ export const questions: Question[] = [
     depth: "surface",
     en: "What's your laugh like? Describe it for someone who's never heard it.",
     es: "¿Cómo es tu risa? Descríbela para alguien que nunca la ha escuchado.",
+    enOther: "What's their laugh like? Describe it for someone who's never heard it.",
+    esOther: "¿Cómo es su risa? Descríbela para alguien que nunca la ha escuchado.",
     randomizeOptions: {
       en: [
         "Loud. Whole-body. The neighbors know when I'm watching my novelas.",
@@ -250,6 +264,8 @@ export const questions: Question[] = [
     depth: "surface",
     en: "What's the most ordinary thing that brings you irrational joy?",
     es: "¿Cuál es la cosa más común que te trae una alegría irracional?",
+    enOther: "What's the most ordinary thing that brings them irrational joy?",
+    esOther: "¿Cuál es la cosa más común que le trae una alegría irracional?",
     randomizeOptions: {
       en: [
         "When the laundry comes out warm and folded. I stand there with my face in it.",
@@ -271,6 +287,8 @@ export const questions: Question[] = [
     depth: "surface",
     en: "What do you do when you can't sleep at 3 a.m.?",
     es: "¿Qué haces cuando no puedes dormir a las tres de la mañana?",
+    enOther: "What do they do when they can't sleep at 3 a.m.?",
+    esOther: "¿Qué hace cuando no puede dormir a las tres de la mañana?",
     randomizeOptions: {
       en: [
         "I pray for everyone I love by name. Sometimes I make it through the list, sometimes I don't.",
@@ -292,6 +310,8 @@ export const questions: Question[] = [
     depth: "surface",
     en: "Coffee or tea? Sweet or savory? Beach or mountains? Why?",
     es: "¿Café o té? ¿Dulce o salado? ¿Playa o montaña? ¿Por qué?",
+    enOther: "Coffee or tea? Sweet or savory? Beach or mountains? Which do they pick, and why?",
+    esOther: "¿Café o té? ¿Dulce o salado? ¿Playa o montaña? ¿Qué prefiere, y por qué?",
     randomizeOptions: {
       en: [
         "Café fuerte. Salado, siempre. Playa — el mar es la voz de Dios.",
@@ -313,6 +333,8 @@ export const questions: Question[] = [
     depth: "surface",
     en: "What did the street you grew up on look like? What did it sound like at night?",
     es: "¿Cómo era la calle donde creciste? ¿A qué sonaba por la noche?",
+    enOther: "What did the street they grew up on look like? What did it sound like at night?",
+    esOther: "¿Cómo era la calle donde creció? ¿A qué sonaba por la noche?",
     randomizeOptions: {
       en: [
         "Calle estrecha, casas pegadas, mango trees. At night, music from someone's radio and dogs answering each other.",
@@ -334,6 +356,8 @@ export const questions: Question[] = [
     depth: "surface",
     en: "Describe the way you dress when no one's watching.",
     es: "Describe cómo te vistes cuando nadie te está viendo.",
+    enOther: "Describe the way they dress when no one's watching.",
+    esOther: "Describe cómo se viste cuando nadie le está viendo.",
     randomizeOptions: {
       en: [
         "Bata, slippers, hair in a clip. If someone rings the bell I am not opening.",
@@ -355,6 +379,8 @@ export const questions: Question[] = [
     depth: "surface",
     en: "What's your handwriting like? Print, cursive, slanted, all caps?",
     es: "¿Cómo es tu letra? ¿Imprenta, cursiva, inclinada, todo en mayúsculas?",
+    enOther: "What's their handwriting like? Print, cursive, slanted, all caps?",
+    esOther: "¿Cómo es su letra? ¿Imprenta, cursiva, inclinada, todo en mayúsculas?",
     randomizeOptions: {
       en: [
         "Cursive. The nuns taught us. They would smack you with a ruler if your O wasn't round.",
@@ -376,6 +402,8 @@ export const questions: Question[] = [
     depth: "surface",
     en: "What do you do that surprises people who only know you a little?",
     es: "¿Qué haces que sorprende a las personas que apenas te conocen?",
+    enOther: "What do they do that surprises people who only know them a little?",
+    esOther: "¿Qué hace que sorprende a las personas que apenas le conocen?",
     randomizeOptions: {
       en: [
         "I curse like a sailor when I drop something. The grandkids find it scandalous.",
@@ -397,6 +425,8 @@ export const questions: Question[] = [
     depth: "surface",
     en: "What's a phrase you say so often, your loved ones could finish your sentence?",
     es: "¿Cuál es una frase que dices tanto, que las personas que te quieren la pueden terminar por ti?",
+    enOther: "What's a phrase they say so often, their loved ones could finish their sentence?",
+    esOther: "¿Cuál es una frase que dice tanto, que las personas que le quieren la pueden terminar por él/ella?",
     randomizeOptions: {
       en: [
         "\"Mira, mi amor.\" Three words, used as preface to ninety percent of what I say.",
@@ -420,6 +450,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What did your childhood home smell like? Specifically.",
     es: "¿A qué olía la casa donde creciste? Sé específico.",
+    enOther: "What did their childhood home smell like? Specifically.",
+    esOther: "¿A qué olía la casa donde creció? Sé específico.",
     randomizeOptions: {
       en: [
         "Sofrito. Always sofrito. Onion and garlic and pepper hitting hot oil at six in the evening.",
@@ -441,6 +473,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What was on the walls of your bedroom growing up?",
     es: "¿Qué tenías en las paredes de tu cuarto cuando eras niño?",
+    enOther: "What was on the walls of their bedroom growing up?",
+    esOther: "¿Qué tenía en las paredes de su cuarto cuando era niño/a?",
     randomizeOptions: {
       en: [
         "A picture of the Sacred Heart and one of my abuela in her wedding dress.",
@@ -462,6 +496,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What's a meal that was special in your family — who made it, when, why?",
     es: "¿Cuál es una comida que era especial en tu familia — quién la hacía, cuándo, por qué?",
+    enOther: "What's a meal that was special in their family — who made it, when, why?",
+    esOther: "¿Cuál es una comida que era especial en su familia — quién la hacía, cuándo, por qué?",
     randomizeOptions: {
       en: [
         "Mami's lechón en Nochebuena. Started Friday. Eaten Sunday. Marinated in love.",
@@ -483,6 +519,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Who taught you to drive, and how did it actually go?",
     es: "¿Quién te enseñó a manejar, y cómo te fue realmente?",
+    enOther: "Who taught them to drive, and how did it actually go?",
+    esOther: "¿Quién le enseñó a manejar, y cómo le fue realmente?",
     randomizeOptions: {
       en: [
         "My Hector. He never raised his voice once. I cried twice.",
@@ -504,6 +542,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What was your first job? How much did you make? What did you learn that's stuck?",
     es: "¿Cuál fue tu primer trabajo? ¿Cuánto ganabas? ¿Qué aprendiste que se te quedó?",
+    enOther: "What was their first job? How much did they make? What did they learn that's stuck?",
+    esOther: "¿Cuál fue su primer trabajo? ¿Cuánto ganaba? ¿Qué aprendió que se le quedó?",
     randomizeOptions: {
       en: [
         "Cashier at a panadería. Three dollars an hour. Always count twice. Never argue with a viejita.",
@@ -525,6 +565,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What's something you believed as a kid that turned out not to be true?",
     es: "¿Qué creías de niño que resultó no ser verdad?",
+    enOther: "What's something they believed as a kid that turned out not to be true?",
+    esOther: "¿Qué creía de niño/a que resultó no ser verdad?",
     randomizeOptions: {
       en: [
         "That Saint Anthony actually moved my keys when I prayed. (Maybe he did.)",
@@ -546,6 +588,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Tell me about a scar you have and how you got it.",
     es: "Cuéntame de una cicatriz que tengas y cómo te la hiciste.",
+    enOther: "Tell me about a scar they have and how they got it.",
+    esOther: "Cuéntame de una cicatriz que tenga y cómo se la hizo.",
     randomizeOptions: {
       en: [
         "Una cicatriz en la rodilla. I fell off a horse in Pinar del Río when I was eleven. I got back on.",
@@ -567,6 +611,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What's a phrase from your parents that you find yourself saying now?",
     es: "¿Cuál es una frase de tus padres que ahora te encuentras diciendo tú?",
+    enOther: "What's a phrase from their parents that they find themselves saying now?",
+    esOther: "¿Cuál es una frase de sus padres que ahora se encuentra diciendo?",
     randomizeOptions: {
       en: [
         "\"Si Dios quiere.\" My mother ended every sentence about the future with it. Now I do.",
@@ -588,6 +634,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Who in your family had the best stories? What's the one you remember most?",
     es: "¿Quién en tu familia contaba las mejores historias? ¿Cuál es la que más recuerdas?",
+    enOther: "Who in their family had the best stories? What's the one they remember most?",
+    esOther: "¿Quién en su familia contaba las mejores historias? ¿Cuál es la que más recuerda?",
     randomizeOptions: {
       en: [
         "Mi tía Olga. The one about how she met my uncle on a bus during a hurricane. He proposed in two weeks.",
@@ -609,6 +657,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What's a time you were caught doing something you weren't supposed to?",
     es: "¿Cuándo te atraparon haciendo algo que no debías estar haciendo?",
+    enOther: "What's a time they were caught doing something they weren't supposed to?",
+    esOther: "¿Cuándo le atraparon haciendo algo que no debía estar haciendo?",
     randomizeOptions: {
       en: [
         "Smoking a cigarette behind the church when I was fourteen. Sister Margarita saw me. I have not smoked since.",
@@ -630,6 +680,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What were Saturdays like in your house growing up?",
     es: "¿Cómo eran los sábados en tu casa cuando eras niño?",
+    enOther: "What were Saturdays like in their house growing up?",
+    esOther: "¿Cómo eran los sábados en su casa cuando era niño/a?",
     randomizeOptions: {
       en: [
         "Mami cleaned with the radio on. We were fed by noon. The whole house smelled like Pine-Sol and arroz.",
@@ -651,6 +703,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What's a place that, if you closed your eyes, you could walk through perfectly from memory?",
     es: "¿Cuál es un lugar que, si cerraras los ojos, podrías caminar perfectamente de memoria?",
+    enOther: "What's a place that, if they closed their eyes, they could walk through perfectly from memory?",
+    esOther: "¿Cuál es un lugar que, si cerrara los ojos, podría caminar perfectamente de memoria?",
     randomizeOptions: {
       en: [
         "La casa de mi abuela en Camagüey. The patio with the bird cages. I can still hear the canary.",
@@ -672,6 +726,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What do you do better than almost anyone, even if you don't talk about it?",
     es: "¿Qué haces mejor que casi cualquier otra persona, aunque no lo digas?",
+    enOther: "What do they do better than almost anyone, even if they don't talk about it?",
+    esOther: "¿Qué hace mejor que casi cualquier otra persona, aunque no lo diga?",
     randomizeOptions: {
       en: [
         "I can read a person in thirty seconds. I have been right enough times that I trust it now.",
@@ -693,6 +749,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What's a moment that made you laugh so hard you couldn't breathe?",
     es: "¿Cuál es un momento que te hizo reír tanto que no podías respirar?",
+    enOther: "What's a moment that made them laugh so hard they couldn't breathe?",
+    esOther: "¿Cuál es un momento que le hizo reír tanto que no podía respirar?",
     randomizeOptions: {
       en: [
         "My nieta dressed the cat in a christening gown and told me he was the new priest. I sat down on the floor.",
@@ -714,6 +772,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What's a small thing you do every day that almost no one knows about?",
     es: "¿Cuál es una cosa pequeña que haces todos los días que casi nadie sabe?",
+    enOther: "What's a small thing they do every day that almost no one knows about?",
+    esOther: "¿Cuál es una cosa pequeña que hace todos los días que casi nadie sabe?",
     randomizeOptions: {
       en: [
         "I kiss the photo of my Hector before I leave the house. Every time.",
@@ -737,6 +797,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Who in your life has loved you best, and how could you tell?",
     es: "¿Quién en tu vida te ha querido mejor, y cómo lo sabías?",
+    enOther: "Who in their life has loved them best, and how could they tell?",
+    esOther: "¿Quién en su vida le ha querido mejor, y cómo lo sabía?",
     randomizeOptions: {
       en: [
         "Mi Hector. He cut me sandwiches without crusts for forty-one years. Without me asking. That is love.",
@@ -758,6 +820,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What's a moment you knew, even as it was happening, that you'd remember it forever?",
     es: "¿Cuál es un momento en el que supiste, mientras estaba pasando, que lo recordarías para siempre?",
+    enOther: "What's a moment they knew, even as it was happening, that they'd remember it forever?",
+    esOther: "¿Cuál es un momento en el que supo, mientras estaba pasando, que lo recordaría para siempre?",
     randomizeOptions: {
       en: [
         "Holding my first nieto. Out loud I said gracias a Dios. Inside I was thunderstruck.",
@@ -779,6 +843,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What did your father teach you — in his words or just the way he lived?",
     es: "¿Qué te enseñó tu padre — con sus palabras o con la forma en que vivió?",
+    enOther: "What did their father teach them — in his words or just the way he lived?",
+    esOther: "¿Qué le enseñó su padre — con sus palabras o con la forma en que vivió?",
     randomizeOptions: {
       en: [
         "Que la palabra de un hombre vale más que el dinero. He buried two friends rather than break a promise.",
@@ -800,6 +866,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What did your mother teach you — in her words or just the way she lived?",
     es: "¿Qué te enseñó tu madre — con sus palabras o con la forma en que vivió?",
+    enOther: "What did their mother teach them — in her words or just the way she lived?",
+    esOther: "¿Qué le enseñó su madre — con sus palabras o con la forma en que vivió?",
     randomizeOptions: {
       en: [
         "A coser, a rezar, a cocinar para diez con dos. To stretch what you have until it covers everyone.",
@@ -821,6 +889,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Who taught you something important without ever sitting you down to teach it?",
     es: "¿Quién te enseñó algo importante sin haberse sentado nunca a enseñártelo?",
+    enOther: "Who taught them something important without ever sitting them down to teach it?",
+    esOther: "¿Quién le enseñó algo importante sin haberse sentado nunca a enseñárselo?",
     randomizeOptions: {
       en: [
         "Mi vecina, doña Hilda. She fed any hungry kid on the block. She taught me hospitality is theology.",
@@ -842,6 +912,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What were you most afraid of as a child? Are you still afraid of it?",
     es: "¿A qué le tenías más miedo cuando eras niño? ¿Todavía le tienes miedo?",
+    enOther: "What were they most afraid of as a child? Are they still afraid of it?",
+    esOther: "¿A qué le tenía más miedo cuando era niño/a? ¿Todavía le tiene miedo?",
     randomizeOptions: {
       en: [
         "El diablo. La verdad. Now I am more afraid of indifference. The devil at least bothers to show up.",
@@ -863,6 +935,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What advice would you give your 25-year-old self, and would they have listened?",
     es: "¿Qué consejo le darías a tu yo de 25 años, y te habría hecho caso?",
+    enOther: "What advice would they give their 25-year-old self, and would that younger self have listened?",
+    esOther: "¿Qué consejo le daría a su yo de 25 años, y le habría hecho caso?",
     randomizeOptions: {
       en: [
         "Llama a tu mamá más. Y no, you wouldn't have. You were too sure of forever.",
@@ -884,6 +958,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What's a decision you're most proud you made, even if no one else noticed?",
     es: "¿Cuál es una decisión que te enorgullece haber tomado, aunque nadie más se haya dado cuenta?",
+    enOther: "What's a decision they're most proud they made, even if no one else noticed?",
+    esOther: "¿Cuál es una decisión que le enorgullece haber tomado, aunque nadie más se haya dado cuenta?",
     randomizeOptions: {
       en: [
         "I forgave my brother before he died. Nadie sabía que estábamos peleados. He died knowing.",
@@ -905,6 +981,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "When have you felt most alive?",
     es: "¿Cuándo te has sentido más vivo?",
+    enOther: "When have they felt most alive?",
+    esOther: "¿Cuándo se ha sentido más vivo/a?",
     randomizeOptions: {
       en: [
         "Bailando bachata at my niece's wedding. Sixty-eight years old and the whole floor cleared for me.",
@@ -926,6 +1004,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Who do you miss, and what do you miss about them most?",
     es: "¿A quién extrañas, y qué es lo que más extrañas de esa persona?",
+    enOther: "Who do they miss, and what do they miss about that person most?",
+    esOther: "¿A quién extraña, y qué es lo que más extraña de esa persona?",
     randomizeOptions: {
       en: [
         "Mi Hector. Lo que más extraño es la forma en que respiraba en la noche. The shape of him.",
@@ -947,6 +1027,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What's something you've changed your mind about as you've gotten older?",
     es: "¿Sobre qué has cambiado de opinión a medida que has crecido?",
+    enOther: "What's something they've changed their mind about as they've gotten older?",
+    esOther: "¿Sobre qué ha cambiado de opinión a medida que ha crecido?",
     randomizeOptions: {
       en: [
         "Que el orgullo era una virtud. No era. Era un freno.",
@@ -968,6 +1050,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What's something you forgive easily, and something you find hard to forgive?",
     es: "¿Qué perdonas fácilmente, y qué te cuesta perdonar?",
+    enOther: "What's something they forgive easily, and something they find hard to forgive?",
+    esOther: "¿Qué perdona fácilmente, y qué le cuesta perdonar?",
     randomizeOptions: {
       en: [
         "Forgivo fácil al que no sabía. Cruelty when someone knew exactly what they were doing — that one I am still working on.",
@@ -989,6 +1073,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What's the kindest thing anyone has ever done for you?",
     es: "¿Cuál es la cosa más bondadosa que alguien ha hecho por ti?",
+    enOther: "What's the kindest thing anyone has ever done for them?",
+    esOther: "¿Cuál es la cosa más bondadosa que alguien ha hecho por él/ella?",
     randomizeOptions: {
       en: [
         "Mi vecina watched my babies for three weeks when Hector was in the hospital. No le pregunté. Just appeared.",
@@ -1010,6 +1096,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "If someone you loved was about to make a big mistake, what would you tell them, and how?",
     es: "Si alguien que amas estuviera por cometer un gran error, ¿qué le dirías, y cómo?",
+    enOther: "If someone they loved was about to make a big mistake, what would they say, and how?",
+    esOther: "Si alguien que ama estuviera por cometer un gran error, ¿qué le diría, y cómo?",
     randomizeOptions: {
       en: [
         "Le diría: te quiero. Y te equivocas. Pero estoy aquí cuando te des cuenta.",
@@ -1031,6 +1119,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What do you wish more people understood about you?",
     es: "¿Qué te gustaría que más gente entendiera de ti?",
+    enOther: "What do they wish more people understood about them?",
+    esOther: "¿Qué le gustaría que más gente entendiera de él/ella?",
     randomizeOptions: {
       en: [
         "Que mi suavidad no es debilidad. La he ganado.",
@@ -1054,6 +1144,8 @@ export const questions: Question[] = [
     depth: "soul",
     en: "What's your most private joy — the one you don't quite talk about?",
     es: "¿Cuál es tu alegría más privada — esa de la que no hablas mucho?",
+    enOther: "What's their most private joy — the one they don't quite talk about?",
+    esOther: "¿Cuál es su alegría más privada — esa de la que no habla mucho?",
     randomizeOptions: {
       en: [
         "Cuando rezo el rosario solita y siento que alguien me escucha. No se lo digo a nadie porque no lo entenderían.",
@@ -1075,6 +1167,8 @@ export const questions: Question[] = [
     depth: "soul",
     en: "What do you hope is true about what happens after we die?",
     es: "¿Qué esperas que sea cierto sobre lo que pasa después de morir?",
+    enOther: "What do they hope is true about what happens after we die?",
+    esOther: "¿Qué espera que sea cierto sobre lo que pasa después de morir?",
     randomizeOptions: {
       en: [
         "Que mi mami me esté esperando con un café. Y que Hector le haya enseñado a hacerlo como me gusta.",
@@ -1096,6 +1190,8 @@ export const questions: Question[] = [
     depth: "soul",
     en: "If you could send one text to someone you've lost, what would it say?",
     es: "Si pudieras mandar un solo mensaje a alguien que perdiste, ¿qué diría?",
+    enOther: "If they could send one text to someone they've lost, what would it say?",
+    esOther: "Si pudiera mandar un solo mensaje a alguien que perdió, ¿qué diría?",
     randomizeOptions: {
       en: [
         "Hector. Estoy bien. La nena se casó. La rosa que sembraste sigue dando.",
@@ -1117,6 +1213,8 @@ export const questions: Question[] = [
     depth: "soul",
     en: "What do you want to be remembered for — the real answer, not the polished one?",
     es: "¿Por qué quieres ser recordado — la respuesta real, no la pulida?",
+    enOther: "What do they want to be remembered for — the real answer, not the polished one?",
+    esOther: "¿Por qué quiere ser recordado/a — la respuesta real, no la pulida?",
     randomizeOptions: {
       en: [
         "Que cocinaba bien y que mi casa siempre tenía la puerta abierta. Eso es. No necesito más.",
@@ -1138,6 +1236,8 @@ export const questions: Question[] = [
     depth: "soul",
     en: "When the people who love you tell stories about you years from now, what do you hope they say?",
     es: "Cuando las personas que te quieren cuenten historias sobre ti dentro de muchos años, ¿qué esperas que digan?",
+    enOther: "When the people who love them tell stories about them years from now, what do they hope gets said?",
+    esOther: "Cuando las personas que le quieren cuenten historias sobre él/ella dentro de muchos años, ¿qué espera que digan?",
     randomizeOptions: {
       en: [
         "Que abuela cantaba, aunque desafinaba. Que abuela siempre dejaba la puerta abierta. Que abuela los quiso de a deveras.",
@@ -1161,6 +1261,8 @@ export const questions: Question[] = [
     depth: "surface",
     en: "Is there an object you've kept for far too long? What is it?",
     es: "¿Hay algún objeto que has guardado por demasiado tiempo? ¿Cuál?",
+    enOther: "Is there an object they've kept for far too long? What is it?",
+    esOther: "¿Hay algún objeto que ha guardado por demasiado tiempo? ¿Cuál?",
     randomizeOptions: {
       en: [
         "El delantal de mi mami. Manchado, con un hueco. No lo voy a tirar.",
@@ -1182,6 +1284,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Who was your favorite teacher, and what made them yours?",
     es: "¿Quién fue tu maestro favorito, y qué lo hacía tuyo?",
+    enOther: "Who was their favorite teacher, and what made that teacher theirs?",
+    esOther: "¿Quién fue su maestro favorito, y qué lo hacía suyo?",
     randomizeOptions: {
       en: [
         "Hermana Alicia. Strict like the others, but she would slip me a caramel when I cried.",
@@ -1203,6 +1307,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What's something a grandparent did that always meant safety to you?",
     es: "¿Qué hacía un abuelo o abuela que para ti siempre significó estar a salvo?",
+    enOther: "What's something a grandparent did that always meant safety to them?",
+    esOther: "¿Qué hacía un abuelo o abuela que para él/ella siempre significó estar a salvo?",
     randomizeOptions: {
       en: [
         "Mi abuelo pasaba la mano por mi cabello cuando yo dormía. I would pretend to be asleep so he would keep doing it.",
@@ -1224,6 +1330,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Tell me about a fight with a sibling you remember vividly.",
     es: "Cuéntame de una pelea con un hermano que recuerdes vívidamente.",
+    enOther: "Tell me about a fight with a sibling they remember vividly.",
+    esOther: "Cuéntame de una pelea con un hermano que recuerde vívidamente.",
     randomizeOptions: {
       en: [
         "Con mi hermana, sobre quién iba a usar el vestido amarillo en la fiesta. I won. Lo lamento todavía.",
@@ -1245,6 +1353,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What did you do with the first real money you ever earned?",
     es: "¿Qué hiciste con el primer dinero de verdad que ganaste?",
+    enOther: "What did they do with the first real money they ever earned?",
+    esOther: "¿Qué hizo con el primer dinero de verdad que ganó?",
     randomizeOptions: {
       en: [
         "Le compré un broche de oro a mi mami. Ella lloró y me dijo que estaba loca. Lo guardó.",
@@ -1266,6 +1376,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Who used to call you the most, before texting took over? What did you talk about?",
     es: "¿Quién te llamaba más antes de que los mensajes tomaran el lugar? ¿De qué hablaban?",
+    enOther: "Who used to call them the most, before texting took over? What did they talk about?",
+    esOther: "¿Quién le llamaba más antes de que los mensajes tomaran el lugar? ¿De qué hablaban?",
     randomizeOptions: {
       en: [
         "Mi tía Olga. Daily. Sobre nada y todo. The novela. El tiempo. Mi peso.",
@@ -1287,6 +1399,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What's a sound that, anywhere in the world, means home to you?",
     es: "¿Qué sonido, en cualquier parte del mundo, significa hogar para ti?",
+    enOther: "What's a sound that, anywhere in the world, means home to them?",
+    esOther: "¿Qué sonido, en cualquier parte del mundo, significa hogar para él/ella?",
     randomizeOptions: {
       en: [
         "El golpe de la cuchara contra la olla cuando se hace sofrito.",
@@ -1308,6 +1422,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What's a meal you'd eat as your last, and who would you want at the table?",
     es: "¿Cuál sería tu última cena, y a quién quisieras en la mesa?",
+    enOther: "What's a meal they'd eat as their last, and who would they want at the table?",
+    esOther: "¿Cuál sería su última cena, y a quién quisiera en la mesa?",
     randomizeOptions: {
       en: [
         "Arroz con frijoles negros, lechón, plátanos maduros. Mi familia entera. Hector al lado mío.",
@@ -1329,6 +1445,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What's a small kindness you witnessed that you've never forgotten?",
     es: "¿Cuál es un pequeño acto de bondad que viste y nunca olvidaste?",
+    enOther: "What's a small kindness they witnessed that they've never forgotten?",
+    esOther: "¿Cuál es un pequeño acto de bondad que vio y nunca olvidó?",
     randomizeOptions: {
       en: [
         "A man at the bus stop gave his sandwich to a hungry boy. No le dijo nada. Solo lo hizo.",
@@ -1350,6 +1468,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What does a perfect Sunday look like for you?",
     es: "¿Cómo es para ti un domingo perfecto?",
+    enOther: "What does a perfect Sunday look like for them?",
+    esOther: "¿Cómo es para él/ella un domingo perfecto?",
     randomizeOptions: {
       en: [
         "Misa, café con mis nietos, una novela en la tarde. Una llamada de mi hermana.",
@@ -1371,6 +1491,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Who's the friend you would call at 4 a.m.? Why them?",
     es: "¿Quién es el amigo al que llamarías a las 4 de la mañana? ¿Por qué a esa persona?",
+    enOther: "Who's the friend they would call at 4 a.m.? Why that person?",
+    esOther: "¿Quién es el amigo al que llamaría a las 4 de la mañana? ¿Por qué a esa persona?",
     randomizeOptions: {
       en: [
         "Mi comadre Hilda. Knows everything. Tells nothing. Says \"ven, mi amor\" and that's enough.",
@@ -1392,6 +1514,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "When have you been most scared, and gone forward anyway?",
     es: "¿Cuándo has tenido más miedo, y aun así seguiste adelante?",
+    enOther: "When have they been most scared, and gone forward anyway?",
+    esOther: "¿Cuándo ha tenido más miedo, y aun así siguió adelante?",
     randomizeOptions: {
       en: [
         "Cuando me subí al avión a Miami a los veintidós. No conocía a nadie. Recé el rosario entero.",
@@ -1413,6 +1537,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What's a failure that taught you more than any success?",
     es: "¿Cuál es un fracaso que te enseñó más que cualquier éxito?",
+    enOther: "What's a failure that taught them more than any success?",
+    esOther: "¿Cuál es un fracaso que le enseñó más que cualquier éxito?",
     randomizeOptions: {
       en: [
         "Mi primer matrimonio. I was twenty. He was wrong for me. I learned to listen to my gut.",
@@ -1434,6 +1560,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "When has a stranger left a mark on your life?",
     es: "¿Cuándo te dejó huella un desconocido?",
+    enOther: "When has a stranger left a mark on their life?",
+    esOther: "¿Cuándo le dejó huella un desconocido?",
     randomizeOptions: {
       en: [
         "Una señora en la guagua. I was crying. Me agarró la mano. No dijo nada. Twenty minutes.",
@@ -1455,6 +1583,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What's something you do that goes against what most people would do, but you do anyway?",
     es: "¿Qué haces que va contra lo que la mayoría haría, pero lo haces de todos modos?",
+    enOther: "What's something they do that goes against what most people would do, but they do anyway?",
+    esOther: "¿Qué hace que va contra lo que la mayoría haría, pero lo hace de todos modos?",
     randomizeOptions: {
       en: [
         "Le digo a la cajera que se equivocó cuando me da más cambio. Always.",
@@ -1476,6 +1606,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What part of yourself have you had to fight to protect?",
     es: "¿Qué parte de ti has tenido que pelear por proteger?",
+    enOther: "What part of themselves have they had to fight to protect?",
+    esOther: "¿Qué parte de sí mismo/a ha tenido que pelear por proteger?",
     randomizeOptions: {
       en: [
         "Mi fe. Toda mi vida. People will try to take that. I don't let them.",
@@ -1497,6 +1629,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What's the truest thing you've ever said to someone, that took you a long time to say?",
     es: "¿Cuál es la cosa más verdadera que le has dicho a alguien, que te tomó mucho tiempo decir?",
+    enOther: "What's the truest thing they've ever said to someone, that took them a long time to say?",
+    esOther: "¿Cuál es la cosa más verdadera que le ha dicho a alguien, que le tomó mucho tiempo decir?",
     randomizeOptions: {
       en: [
         "Le dije a mi hijo que estaba orgullosa de él. The first time, he was forty-one. We both cried.",
@@ -1518,6 +1652,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What are you better at since you've gotten older?",
     es: "¿En qué eres mejor ahora que has crecido?",
+    enOther: "What are they better at since they've gotten older?",
+    esOther: "¿En qué es mejor ahora que ha crecido?",
     randomizeOptions: {
       en: [
         "Quedarme callada. No siempre tengo que ganar la conversación.",
@@ -1539,6 +1675,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What do you tell young people that they almost never want to hear?",
     es: "¿Qué les dices a los jóvenes que casi nunca quieren oír?",
+    enOther: "What do they tell young people that young people almost never want to hear?",
+    esOther: "¿Qué les dice a los jóvenes que casi nunca quieren oír?",
     randomizeOptions: {
       en: [
         "Que la familia se cuida. No la conveniencia, no los amigos, la familia. Aunque te haga falta.",
@@ -1560,6 +1698,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What do you believe that you cannot prove?",
     es: "¿Qué crees que no puedes probar?",
+    enOther: "What do they believe that they cannot prove?",
+    esOther: "¿Qué cree que no puede probar?",
     randomizeOptions: {
       en: [
         "Que mi mami sigue cuidándome. No tengo prueba. Tengo certeza.",
@@ -1581,6 +1721,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What's a story you've told a hundred times because it tells the truth about you?",
     es: "¿Cuál es una historia que has contado cien veces porque dice la verdad sobre ti?",
+    enOther: "What's a story they've told a hundred times because it tells the truth about them?",
+    esOther: "¿Cuál es una historia que ha contado cien veces porque dice la verdad sobre él/ella?",
     randomizeOptions: {
       en: [
         "La de la noche que perdí las llaves y mi vecino me ayudó a buscarlas en la lluvia. We were strangers at midnight, neighbors by morning.",
@@ -1602,6 +1744,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Who saw you clearly, before you did?",
     es: "¿Quién te vio con claridad antes que tú a ti mismo?",
+    enOther: "Who saw them clearly, before they did?",
+    esOther: "¿Quién le vio con claridad antes que él/ella?",
     randomizeOptions: {
       en: [
         "Mi mami. Always. She knew I'd be okay before I did.",
@@ -1623,6 +1767,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What's something you used to want badly that you no longer want at all?",
     es: "¿Qué deseabas mucho antes que ya no deseas para nada?",
+    enOther: "What's something they used to want badly that they no longer want at all?",
+    esOther: "¿Qué deseaba mucho antes que ya no desea para nada?",
     randomizeOptions: {
       en: [
         "Que la gente me aprobara. Una pérdida de tiempo. Now I sleep.",
@@ -1644,6 +1790,8 @@ export const questions: Question[] = [
     depth: "soul",
     en: "When have you most felt that something larger than you was paying attention?",
     es: "¿Cuándo has sentido más que algo más grande que tú estaba prestando atención?",
+    enOther: "When have they most felt that something larger than them was paying attention?",
+    esOther: "¿Cuándo ha sentido más que algo más grande que él/ella estaba prestando atención?",
     randomizeOptions: {
       en: [
         "Bautizo de mi nieta. Sentí a mi mami en el cuarto. No estaba sola con eso.",
@@ -1665,6 +1813,8 @@ export const questions: Question[] = [
     depth: "soul",
     en: "If a great-grandchild you'll never meet asked you one question, and you could answer with one true sentence, what would you tell them?",
     es: "Si un bisnieto que nunca conocerás te hiciera una pregunta, y pudieras responder con una sola oración verdadera, ¿qué le dirías?",
+    enOther: "If a great-grandchild they'll never meet asked them one question, and they could answer with one true sentence, what would they say?",
+    esOther: "Si un bisnieto que nunca conocerá le hiciera una pregunta, y pudiera responder con una sola oración verdadera, ¿qué diría?",
     randomizeOptions: {
       en: [
         "Que tu abuela cuyo nombre no recuerdas te quiso, sin haberte conocido. Eso basta.",
@@ -1688,6 +1838,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What's a food you couldn't stomach as a kid? Can you eat it now?",
     es: "¿Qué comida no soportabas de niño? ¿La comes ahora?",
+    enOther: "What's a food they couldn't stomach as a kid? Can they eat it now?",
+    esOther: "¿Qué comida no soportaba de niño/a? ¿La come ahora?",
     randomizeOptions: {
       en: [
         "El hígado de mami, el pobre. I'd hide it in my napkin. Now I'd eat anything she made me, just to have her cooking again.",
@@ -1709,6 +1861,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Tell me about a piece of clothing you ruined and never quite forgot.",
     es: "Cuéntame de una prenda que arruinaste y que nunca olvidaste.",
+    enOther: "Tell me about a piece of clothing they ruined and never quite forgot.",
+    esOther: "Cuéntame de una prenda que arruinó y que nunca olvidó.",
     randomizeOptions: {
       en: [
         "Un vestido amarillo de mi quinceañera. Got punch on it dancing. I cried. My mami cleaned it for an hour.",
@@ -1730,6 +1884,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What's a time you bumped into someone you didn't expect, and where?",
     es: "¿Cuándo te encontraste con alguien que no esperabas, y dónde?",
+    enOther: "What's a time they bumped into someone they didn't expect, and where?",
+    esOther: "¿Cuándo se encontró con alguien que no esperaba, y dónde?",
     randomizeOptions: {
       en: [
         "Encontré a una vieja amiga del barrio en un hospital de Miami. Both there for our mothers. Lloramos en el pasillo.",
@@ -1751,6 +1907,8 @@ export const questions: Question[] = [
     depth: "surface",
     en: "What's on your phone's home screen — wallpaper and all?",
     es: "¿Qué tienes en la pantalla de inicio del teléfono — fondo y todo?",
+    enOther: "What's on their phone's home screen — wallpaper and all?",
+    esOther: "¿Qué tiene en la pantalla de inicio del teléfono — fondo y todo?",
     randomizeOptions: {
       en: [
         "Una foto de mis nietos en la playa. The youngest is making a face. Me mata de la risa cada vez que lo veo.",
@@ -1772,6 +1930,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "How did your house go quiet at night when you were a kid?",
     es: "¿Cómo se ponía tranquila tu casa de noche cuando eras niño?",
+    enOther: "How did their house go quiet at night when they were a kid?",
+    esOther: "¿Cómo se ponía tranquila su casa de noche cuando era niño/a?",
     randomizeOptions: {
       en: [
         "Mami dejaba la radio bajita en la cocina hasta que se quedaba dormida. That low murmur was the lullaby of my whole childhood.",
@@ -1793,6 +1953,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Was there an aunt, uncle, or cousin who quietly shaped who you are?",
     es: "¿Hubo una tía, un tío o un primo que en silencio te moldeó?",
+    enOther: "Was there an aunt, uncle, or cousin who quietly shaped who they are?",
+    esOther: "¿Hubo una tía, un tío o un primo que en silencio le moldeó?",
     randomizeOptions: {
       en: [
         "Mi tía Yolanda. She had no kids. She had me. Me llevaba al cine y me decía que yo iba a ser alguien.",
@@ -1814,6 +1976,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What's a small gesture you do for someone you love that they may not even notice?",
     es: "¿Cuál es un gesto pequeño que haces por alguien que amas y que tal vez ni nota?",
+    enOther: "What's a small gesture they do for someone they love that the other person may not even notice?",
+    esOther: "¿Cuál es un gesto pequeño que hace por alguien que ama y que esa persona tal vez ni nota?",
     randomizeOptions: {
       en: [
         "Le dejo el último pedacito de pastel. Sin decirle. Ella nunca lo ha mencionado, pero yo sé que ella sabe.",
@@ -1835,6 +1999,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Tell me about a time you got really lost — actually or otherwise.",
     es: "Cuéntame de cuando te perdiste de verdad — literal o no.",
+    enOther: "Tell me about a time they got really lost — actually or otherwise.",
+    esOther: "Cuéntame de cuando se perdió de verdad — literal o no.",
     randomizeOptions: {
       en: [
         "En La Habana, a los diecinueve. Sin mapa. Sin teléfono. Encontré un parque, me senté, me eché a llorar. Y un viejito me trajo un café.",
@@ -1856,6 +2022,8 @@ export const questions: Question[] = [
     depth: "surface",
     en: "What's on your nightstand right now?",
     es: "¿Qué hay en tu mesita de noche ahora mismo?",
+    enOther: "What's on their nightstand right now?",
+    esOther: "¿Qué hay en su mesita de noche ahora mismo?",
     randomizeOptions: {
       en: [
         "Mi rosario, un vaso de agua, las gotas para los ojos, y una foto de Hector. En ese orden.",
@@ -1877,6 +2045,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What's a smell from school that comes back to you out of nowhere?",
     es: "¿Qué olor de la escuela te regresa de la nada?",
+    enOther: "What's a smell from school that comes back to them out of nowhere?",
+    esOther: "¿Qué olor de la escuela le regresa de la nada?",
     randomizeOptions: {
       en: [
         "Tiza y cera del piso. Y sopa del comedor. Cuando lo huelo, tengo siete años y estoy formada en fila.",
@@ -1900,6 +2070,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Is there a part of your body you're complicated about — that you've made peace with, or haven't?",
     es: "¿Hay una parte de tu cuerpo con la que tienes una historia complicada — con la que hiciste paces, o no?",
+    enOther: "Is there a part of their body they're complicated about — that they've made peace with, or haven't?",
+    esOther: "¿Hay una parte de su cuerpo con la que tiene una historia complicada — con la que hizo paces, o no?",
     randomizeOptions: {
       en: [
         "Mis manos. Manchas, arrugas. Antes me daban pena. Ahora pienso que son las manos que cargaron a mis nietos.",
@@ -1921,6 +2093,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Tell me about the first time someone broke your heart.",
     es: "Cuéntame de la primera vez que alguien te rompió el corazón.",
+    enOther: "Tell me about the first time someone broke their heart.",
+    esOther: "Cuéntame de la primera vez que alguien le rompió el corazón.",
     randomizeOptions: {
       en: [
         "A los dieciocho. Se llamaba Tomás. Me dijo que no me amaba un domingo en la tarde y caminé a la iglesia y me senté.",
@@ -1942,6 +2116,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Tell me about a time you didn't have enough money. What did you learn?",
     es: "Cuéntame de una época sin suficiente dinero. ¿Qué aprendiste?",
+    enOther: "Tell me about a time they didn't have enough money. What did they learn?",
+    esOther: "Cuéntame de una época sin suficiente dinero. ¿Qué aprendió?",
     randomizeOptions: {
       en: [
         "El primer año en Miami, comíamos arroz con huevo cinco días por semana. Aprendí que el hambre se aguanta. Y que la dignidad se cuida.",
@@ -1963,6 +2139,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Where were you the first time you were kissed?",
     es: "¿Dónde estabas la primera vez que te besaron?",
+    enOther: "Where were they the first time they were kissed?",
+    esOther: "¿Dónde estaba la primera vez que le besaron?",
     randomizeOptions: {
       en: [
         "Detrás de la iglesia. Quince años. Me asusté. El muchacho se asustó. Nos quedamos parados sin decirnos nada.",
@@ -1984,6 +2162,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Was there a pet who loved you back, the way only an animal can?",
     es: "¿Hubo un animal que te quisiera de la forma en que sólo un animal puede querer?",
+    enOther: "Was there a pet who loved them back, the way only an animal can?",
+    esOther: "¿Hubo un animal que le quisiera de la forma en que sólo un animal puede querer?",
     randomizeOptions: {
       en: [
         "Mi perrita, Chiquita. Vivió diecisiete años. Lloró cuando murió Hector más que yo.",
@@ -2005,6 +2185,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What's a place you went to that surprised you — for better or worse?",
     es: "¿Qué lugar visitaste que te sorprendió — para bien o para mal?",
+    enOther: "What's a place they went to that surprised them — for better or worse?",
+    esOther: "¿Qué lugar visitó que le sorprendió — para bien o para mal?",
     randomizeOptions: {
       en: [
         "Nueva York en invierno. Pensé que iba a odiarlo. Me enamoré de los olores en la calle.",
@@ -2026,6 +2208,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What was the name of your first real love? What were they like?",
     es: "¿Cómo se llamaba tu primer amor de verdad? ¿Cómo era?",
+    enOther: "What was the name of their first real love? What was that person like?",
+    esOther: "¿Cómo se llamaba su primer amor de verdad? ¿Cómo era esa persona?",
     randomizeOptions: {
       en: [
         "Hector. Tranquilo, paciente, leal. He hummed under his breath when he was thinking.",
@@ -2047,6 +2231,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Was there a game — sport, card, board, anything — that mattered to you?",
     es: "¿Hubo un juego — deporte, cartas, tablero, lo que sea — que te importaba?",
+    enOther: "Was there a game — sport, card, board, anything — that mattered to them?",
+    esOther: "¿Hubo un juego — deporte, cartas, tablero, lo que sea — que le importaba?",
     randomizeOptions: {
       en: [
         "El dominó con mi papá los domingos. Yo perdía y él se reía. Daría algo por una partida más.",
@@ -2068,6 +2254,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What's the first book that wrecked you?",
     es: "¿Cuál es el primer libro que te destrozó?",
+    enOther: "What's the first book that wrecked them?",
+    esOther: "¿Cuál es el primer libro que le destrozó?",
     randomizeOptions: {
       en: [
         "Cien años de soledad. Tenía veinticuatro años. No dormí dos días.",
@@ -2089,6 +2277,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What's a movie you've watched too many times? What about it keeps pulling you back?",
     es: "¿Qué película has visto demasiadas veces? ¿Qué te hace volver a ella?",
+    enOther: "What's a movie they've watched too many times? What about it keeps pulling them back?",
+    esOther: "¿Qué película ha visto demasiadas veces? ¿Qué le hace volver a ella?",
     randomizeOptions: {
       en: [
         "Fresa y Chocolate. La he visto en cada mood que existe. Cada vez veo algo nuevo.",
@@ -2110,6 +2300,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What's something only your siblings know about you?",
     es: "¿Qué saben de ti sólo tus hermanos?",
+    enOther: "What's something only their siblings know about them?",
+    esOther: "¿Qué saben de él/ella sólo sus hermanos?",
     randomizeOptions: {
       en: [
         "Que le tenía miedo a los baños a oscuras hasta los catorce. Mi hermana se reía pero me esperaba afuera.",
@@ -2131,6 +2323,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What's something you can do with your hands that you're quietly proud of?",
     es: "¿Qué cosa sabes hacer con las manos de la que estás silenciosamente orgulloso?",
+    enOther: "What's something they can do with their hands that they're quietly proud of?",
+    esOther: "¿Qué cosa sabe hacer con las manos de la que está silenciosamente orgulloso/a?",
     randomizeOptions: {
       en: [
         "Tejo. Bufandas, gorritos, manteles. Mis nietos los llevan al colegio.",
@@ -2152,6 +2346,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What's the first funeral you remember? What stayed with you?",
     es: "¿Cuál es el primer funeral que recuerdas? ¿Qué se te quedó?",
+    enOther: "What's the first funeral they remember? What stayed with them?",
+    esOther: "¿Cuál es el primer funeral que recuerda? ¿Qué se le quedó?",
     randomizeOptions: {
       en: [
         "El de mi tío Pepe. Tenía nueve años. Lo que recuerdo: el olor de las flores y a mi mami sosteniéndome la mano.",
@@ -2173,6 +2369,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "How did your family handle the holidays? Tell me one specific thing.",
     es: "¿Cómo era una fiesta en tu familia? Dime una cosa específica.",
+    enOther: "How did their family handle the holidays? Tell me one specific thing.",
+    esOther: "¿Cómo era una fiesta en su familia? Dime una cosa específica.",
     randomizeOptions: {
       en: [
         "Nochebuena. Lechón en el patio. Música hasta las cuatro de la mañana. Yo bailaba con mi tío hasta caerme.",
@@ -2194,6 +2392,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Is there a photograph you can't quite bring yourself to look at?",
     es: "¿Hay alguna foto que no te animas del todo a mirar?",
+    enOther: "Is there a photograph they can't quite bring themselves to look at?",
+    esOther: "¿Hay alguna foto que no se anima del todo a mirar?",
     randomizeOptions: {
       en: [
         "La última de Hector, la víspera del hospital. La tengo. La veo de reojo. No de frente, todavía.",
@@ -2215,6 +2415,8 @@ export const questions: Question[] = [
     depth: "soul",
     en: "Do you pray? If so, to what — and what do you say?",
     es: "¿Rezas? Si sí, ¿a quién — y qué dices?",
+    enOther: "Do they pray? If so, to what — and what do they say?",
+    esOther: "¿Reza? Si sí, ¿a quién — y qué dice?",
     randomizeOptions: {
       en: [
         "Sí. Al Dios de mi mami, al de mi abuela. Le pido por mis nietos y le doy gracias por estar todavía aquí.",
@@ -2236,6 +2438,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Tell me about a failure that turned out, eventually, to be a gift.",
     es: "Cuéntame de un fracaso que con el tiempo resultó ser un regalo.",
+    enOther: "Tell me about a failure of theirs that turned out, eventually, to be a gift.",
+    esOther: "Cuéntame de un fracaso suyo que con el tiempo resultó ser un regalo.",
     randomizeOptions: {
       en: [
         "Que Hector y yo perdiéramos el primer negocio. Nos hizo más unidos. Sin esa quiebra no hubiéramos durado.",
@@ -2257,6 +2461,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What does your body remember that your mind has half-forgotten?",
     es: "¿Qué recuerda tu cuerpo que tu mente ha medio olvidado?",
+    enOther: "What does their body remember that their mind has half-forgotten?",
+    esOther: "¿Qué recuerda su cuerpo que su mente ha medio olvidado?",
     randomizeOptions: {
       en: [
         "El piano de mi mami. Mis dedos saben canciones que mi cabeza no.",
@@ -2278,6 +2484,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Tell me about a time someone betrayed you. Did you forgive them, fully?",
     es: "Cuéntame de cuando alguien te traicionó. ¿Lo perdonaste de verdad?",
+    enOther: "Tell me about a time someone betrayed them. Did they forgive that person, fully?",
+    esOther: "Cuéntame de cuando alguien le traicionó. ¿Le perdonó de verdad?",
     randomizeOptions: {
       en: [
         "Una amiga le contó a mi marido un secreto que era mío. Tardé años. Sí, la perdoné. No volví a contarle nada.",
@@ -2299,6 +2507,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Who have you envied, even for a flicker, and what did you envy?",
     es: "¿A quién has envidiado, aunque sea un instante, y qué le envidiaste?",
+    enOther: "Who have they envied, even for a flicker, and what did they envy?",
+    esOther: "¿A quién ha envidiado, aunque sea un instante, y qué le envidió?",
     randomizeOptions: {
       en: [
         "A mi prima Yoli. Tenía menos miedo que yo. Caminaba por la vida como si nada pudiera tocarla.",
@@ -2320,6 +2530,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Tell me about a time you really lost your temper. How did it land?",
     es: "Cuéntame de cuando perdiste los estribos de verdad. ¿Cómo terminó?",
+    enOther: "Tell me about a time they really lost their temper. How did it land?",
+    esOther: "Cuéntame de cuando perdió los estribos de verdad. ¿Cómo terminó?",
     randomizeOptions: {
       en: [
         "Le grité a mi hijo cuando tenía diecisiete. Vi su cara y supe que había roto algo. Llamé esa misma noche para pedir perdón.",
@@ -2341,6 +2553,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What's a secret you've kept that you intend to keep forever?",
     es: "¿Cuál es un secreto que has guardado y piensas guardar para siempre?",
+    enOther: "What's a secret they've kept that they intend to keep forever?",
+    esOther: "¿Cuál es un secreto que ha guardado y piensa guardar para siempre?",
     randomizeOptions: {
       en: [
         "Algo que me dijo mi hermana antes de morir. No es para nadie más. Y así se queda.",
@@ -2362,6 +2576,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What was the worst job you ever had, and what did you take from it?",
     es: "¿Cuál fue el peor trabajo que tuviste, y qué te llevaste de él?",
+    enOther: "What was the worst job they ever had, and what did they take from it?",
+    esOther: "¿Cuál fue el peor trabajo que tuvo, y qué se llevó de él?",
     randomizeOptions: {
       en: [
         "Limpiando un hotel donde el dueño nos hablaba mal. Aprendí que ni la pobreza te obliga a aguantar un mal hombre. Me fui.",
@@ -2383,6 +2599,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What's the best piece of advice you ever got, and from whom?",
     es: "¿Cuál es el mejor consejo que recibiste, y de quién?",
+    enOther: "What's the best piece of advice they ever got, and from whom?",
+    esOther: "¿Cuál es el mejor consejo que recibió, y de quién?",
     randomizeOptions: {
       en: [
         "Mi mami: \"Nadie va a venir a salvarte. Sálvate tú, y después ayuda al que venga atrás.\"",
@@ -2404,6 +2622,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What's an opinion you held strongly that you've completely reversed?",
     es: "¿Qué opinión sostuviste con fuerza que cambiaste por completo?",
+    enOther: "What's an opinion they held strongly that they've completely reversed?",
+    esOther: "¿Qué opinión sostuvo con fuerza que cambió por completo?",
     randomizeOptions: {
       en: [
         "Que el divorcio era una falla. Mi hija se divorció y entendí que a veces es lo más sagrado que se puede hacer.",
@@ -2425,6 +2645,8 @@ export const questions: Question[] = [
     depth: "soul",
     en: "Is there a prayer or phrase you whisper to yourself, even when you don't think you believe?",
     es: "¿Hay una oración o frase que susurras para ti mismo, incluso cuando no crees del todo?",
+    enOther: "Is there a prayer or phrase they whisper to themselves, even when they don't think they believe?",
+    esOther: "¿Hay una oración o frase que susurra para sí mismo/a, incluso cuando no cree del todo?",
     randomizeOptions: {
       en: [
         "\"Dios mío, ayúdame.\" Lo digo cuando no sé qué más decir. Cuenta o no cuenta, igual lo digo.",
@@ -2446,6 +2668,8 @@ export const questions: Question[] = [
     depth: "soul",
     en: "How do you think about God — or whatever stands in the place of that word?",
     es: "¿Cómo piensas en Dios — o en lo que sea que ocupa el lugar de esa palabra?",
+    enOther: "How do they think about God — or whatever stands in the place of that word?",
+    esOther: "¿Cómo piensa en Dios — o en lo que sea que ocupa el lugar de esa palabra?",
     randomizeOptions: {
       en: [
         "Dios es la mano de mi madre cuando yo lloraba de niña. Si eso no es Dios, no sé qué cosa lo sea.",
@@ -2467,6 +2691,8 @@ export const questions: Question[] = [
     depth: "surface",
     en: "What's your drink? How do you order it?",
     es: "¿Cuál es tu trago? ¿Cómo lo pides?",
+    enOther: "What's their drink? How do they order it?",
+    esOther: "¿Cuál es su trago? ¿Cómo lo pide?",
     randomizeOptions: {
       en: [
         "Un cafecito cubano, dulce, en una taza pequeñita. Después de las cinco, una copita de Bailey's si estoy con mi hermana.",
@@ -2488,6 +2714,8 @@ export const questions: Question[] = [
     depth: "surface",
     en: "What's a small vice you've kept around because it's yours?",
     es: "¿Cuál es un vicio pequeño que conservas porque es tuyo?",
+    enOther: "What's a small vice they've kept around because it's theirs?",
+    esOther: "¿Cuál es un vicio pequeño que conserva porque es suyo?",
     randomizeOptions: {
       en: [
         "Una novela en la tarde. Tres horas perdidas. No me arrepiento.",
@@ -2509,6 +2737,8 @@ export const questions: Question[] = [
     depth: "surface",
     en: "What's a quiet vanity you have, even if you'd never say so out loud?",
     es: "¿Cuál es una vanidad callada que tienes, aunque nunca la dirías en voz alta?",
+    enOther: "What's a quiet vanity they have, even if they'd never say so out loud?",
+    esOther: "¿Cuál es una vanidad callada que tiene, aunque nunca la diría en voz alta?",
     randomizeOptions: {
       en: [
         "Mis uñas. Las llevo cortas y limpias. Las miro mientras tomo café.",
@@ -2532,6 +2762,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Tell me about a friendship that ended quietly. Do you wish you'd fought for it?",
     es: "Cuéntame de una amistad que se acabó en silencio. ¿Hubieras peleado por ella?",
+    enOther: "Tell me about a friendship of theirs that ended quietly. Do they wish they'd fought for it?",
+    esOther: "Cuéntame de una amistad suya que se acabó en silencio. ¿Hubiera peleado por ella?",
     randomizeOptions: {
       en: [
         "Mi amiga del barrio, Lourdes. Nos peleamos por una tontería. La extraño todavía. Sí, hubiera peleado.",
@@ -2553,6 +2785,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Is there something you cook that everyone says is yours?",
     es: "¿Hay algo que cocinas y todos dicen que es tuyo?",
+    enOther: "Is there something they cook that everyone says is theirs?",
+    esOther: "¿Hay algo que cocina y todos dicen que es suyo?",
     randomizeOptions: {
       en: [
         "Mi flan. Ni mi hermana lo hace como yo. La receta es de mi mami con un cambio que sólo yo sé.",
@@ -2574,6 +2808,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What's something — physical or otherwise — that was passed down to you?",
     es: "¿Qué cosa — física o no — te pasaron de generación?",
+    enOther: "What's something — physical or otherwise — that was passed down to them?",
+    esOther: "¿Qué cosa — física o no — le pasaron de generación?",
     randomizeOptions: {
       en: [
         "El reloj de mi abuela. Y la costumbre de echarle azúcar al café. Las dos cosas las uso todos los días.",
@@ -2595,6 +2831,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "When did you last cry? What set it off?",
     es: "¿Cuándo lloraste por última vez? ¿Qué te hizo llorar?",
+    enOther: "When did they last cry? What set it off?",
+    esOther: "¿Cuándo lloró por última vez? ¿Qué le hizo llorar?",
     randomizeOptions: {
       en: [
         "Esta mañana. Una canción en la radio que ponía mi mami cuando yo era niña.",
@@ -2616,6 +2854,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What was your first really hard job, and what did it forge in you?",
     es: "¿Cuál fue tu primer trabajo realmente duro, y qué forjó en ti?",
+    enOther: "What was their first really hard job, and what did it forge in them?",
+    esOther: "¿Cuál fue su primer trabajo realmente duro, y qué forjó en él/ella?",
     randomizeOptions: {
       en: [
         "Lavando platos en un restaurante doce horas. Aprendí lo que es estar de pie hasta no sentir las piernas. Y aprendí a no quejarme.",
@@ -2637,6 +2877,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What's the closest you think you've come to dying?",
     es: "¿Cuál crees que ha sido el momento en que más cerca estuviste de morir?",
+    enOther: "What's the closest they think they've come to dying?",
+    esOther: "¿Cuál cree que ha sido el momento en que más cerca estuvo de morir?",
     randomizeOptions: {
       en: [
         "Un parto que se complicó. La nena salió bien. Yo sangré por horas. Vi mucha luz. No sé qué pensar de eso.",
@@ -2658,6 +2900,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Tell me about your first real date. Where did you go, and how did it actually go?",
     es: "Cuéntame de tu primera cita de verdad. ¿A dónde fueron, y cómo te fue de verdad?",
+    enOther: "Tell me about their first real date. Where did they go, and how did it actually go?",
+    esOther: "Cuéntame de su primera cita de verdad. ¿A dónde fueron, y cómo le fue de verdad?",
     randomizeOptions: {
       en: [
         "Al malecón. Dieciséis años. Hablamos cinco horas. No me besó. Yo lo prefería así.",
@@ -2679,6 +2923,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Is there a guilt you carry quietly that no one else knows about?",
     es: "¿Hay una culpa que cargas en silencio y nadie más conoce?",
+    enOther: "Is there a guilt they carry quietly that no one else knows about?",
+    esOther: "¿Hay una culpa que carga en silencio y nadie más conoce?",
     randomizeOptions: {
       en: [
         "Que no estuve con mi mami el día que murió. Llegué dos horas después. Lo cargo.",
@@ -2700,6 +2946,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Who do you owe — really owe — for the person you turned out to be?",
     es: "¿A quién le debes — de verdad — la persona que llegaste a ser?",
+    enOther: "Who do they owe — really owe — for the person they turned out to be?",
+    esOther: "¿A quién le debe — de verdad — la persona que llegó a ser?",
     randomizeOptions: {
       en: [
         "A mi mami, sin duda. Y a una vecina que no se llamaba familia pero lo era. Las dos juntas me hicieron.",
@@ -2721,6 +2969,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Was there a starry night you remember in particular? Where were you?",
     es: "¿Hubo una noche estrellada que recuerdes en particular? ¿Dónde estabas?",
+    enOther: "Was there a starry night they remember in particular? Where were they?",
+    esOther: "¿Hubo una noche estrellada que recuerde en particular? ¿Dónde estaba?",
     randomizeOptions: {
       en: [
         "En el campo, cerca de Camagüey. Tenía nueve años. Mi tío me dijo: 'cada estrella es una persona pensándote.'",
@@ -2742,6 +2992,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What's a core belief you'd defend even if it cost you something?",
     es: "¿Cuál es una creencia central que defenderías aunque te costara algo?",
+    enOther: "What's a core belief they'd defend even if it cost them something?",
+    esOther: "¿Cuál es una creencia central que defendería aunque le costara algo?",
     randomizeOptions: {
       en: [
         "Que a la familia se le cuida. Aunque te toque a ti pagar la cuenta. Aunque no tengas.",
@@ -2763,6 +3015,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Was there a song someone sang to you to fall asleep? What was it?",
     es: "¿Hubo una canción que alguien te cantaba para dormir? ¿Cuál era?",
+    enOther: "Was there a song someone sang to them to fall asleep? What was it?",
+    esOther: "¿Hubo una canción que alguien le cantaba para dormir? ¿Cuál era?",
     randomizeOptions: {
       en: [
         "Mami me cantaba 'Duérmete mi niña.' Bajito. Yo me hacía la dormida para que siguiera.",
@@ -2784,6 +3038,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Tell me about a time you were profoundly lonely. Did anyone find you?",
     es: "Cuéntame de una vez en que estuviste profundamente sola/solo. ¿Alguien te encontró?",
+    enOther: "Tell me about a time they were profoundly lonely. Did anyone find them?",
+    esOther: "Cuéntame de una vez en que estuvo profundamente sola/solo. ¿Alguien le encontró?",
     randomizeOptions: {
       en: [
         "El primer mes en Miami. Una vecina cubana me trajo una sopa. No me preguntó nada. Eso me salvó.",
@@ -2805,6 +3061,8 @@ export const questions: Question[] = [
     depth: "soul",
     en: "What gives your life meaning, on a Tuesday afternoon when nothing is happening?",
     es: "¿Qué le da sentido a tu vida un martes en la tarde cuando no pasa nada?",
+    enOther: "What gives their life meaning, on a Tuesday afternoon when nothing is happening?",
+    esOther: "¿Qué le da sentido a su vida un martes en la tarde cuando no pasa nada?",
     randomizeOptions: {
       en: [
         "Una llamada de mi nieta. Dos minutos. Eso es todo. Y la tarde tiene sentido.",
@@ -2826,6 +3084,8 @@ export const questions: Question[] = [
     depth: "surface",
     en: "What's your favorite smell in the world?",
     es: "¿Cuál es tu olor favorito en el mundo?",
+    enOther: "What's their favorite smell in the world?",
+    esOther: "¿Cuál es su olor favorito en el mundo?",
     randomizeOptions: {
       en: [
         "El café molido fresco. Y la cabecita de un bebé recién bañado.",
@@ -2847,6 +3107,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Tell me about a dance you remember. Who were you with? What song?",
     es: "Cuéntame de un baile que recuerdes. ¿Con quién estabas? ¿Qué canción?",
+    enOther: "Tell me about a dance they remember. Who were they with? What song?",
+    esOther: "Cuéntame de un baile que recuerde. ¿Con quién estaba? ¿Qué canción?",
     randomizeOptions: {
       en: [
         "Bailando 'Dos gardenias' con Hector en la sala. Él no bailaba bien. Pero conmigo sí.",
@@ -2868,6 +3130,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Was there a boss who actually taught you something? What was it?",
     es: "¿Hubo un jefe que de verdad te enseñó algo? ¿Qué fue?",
+    enOther: "Was there a boss who actually taught them something? What was it?",
+    esOther: "¿Hubo un jefe que de verdad le enseñó algo? ¿Qué fue?",
     randomizeOptions: {
       en: [
         "Doña Ana. Mi primera jefa. Me dijo: 'mira a la gente cuando le hablas.' Lo hago todavía.",
@@ -2889,6 +3153,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Who do you resent quietly, and have you let it go?",
     es: "¿A quién resentías en silencio, y ya lo soltaste?",
+    enOther: "Who do they resent quietly, and have they let it go?",
+    esOther: "¿A quién resentía en silencio, y ya lo soltó?",
     randomizeOptions: {
       en: [
         "Una hermana mayor que se llevó atención que yo necesitaba. Tardé décadas. Ya casi.",
@@ -2910,6 +3176,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What's the hardest you've ever laughed? What set it off?",
     es: "¿Cuánto fue lo más fuerte que te has reído? ¿Qué te puso así?",
+    enOther: "What's the hardest they've ever laughed? What set it off?",
+    esOther: "¿Cuánto fue lo más fuerte que se ha reído? ¿Qué le puso así?",
     randomizeOptions: {
       en: [
         "Mi tía Olga contando un chiste viejo en el funeral de mi tío Pepe. We weren't supposed to laugh and we couldn't stop.",
@@ -2931,6 +3199,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Tell me about a long wait you remember — for what, and how it was.",
     es: "Cuéntame de una espera larga que recuerdes — por qué, y cómo fue.",
+    enOther: "Tell me about a long wait they remember — for what, and how it was.",
+    esOther: "Cuéntame de una espera larga que recuerde — por qué, y cómo fue.",
     randomizeOptions: {
       en: [
         "Esperando que mi nena saliera del quirófano. Cuatro horas. Recé tres rosarios. La saqué bien.",
@@ -2952,6 +3222,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "First time you slept over at a friend's house — what was their family like?",
     es: "La primera vez que dormiste en casa de un amigo — ¿cómo era esa familia?",
+    enOther: "First time they slept over at a friend's house — what was that family like?",
+    esOther: "La primera vez que durmió en casa de un amigo — ¿cómo era esa familia?",
     randomizeOptions: {
       en: [
         "Donde Mariana. Su mami era americana. La cena era diferente. La televisión durante la cena. Lo encontré exótico y un poco triste.",
@@ -2973,6 +3245,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Have you seen a man cry in a way you'll never forget? Tell me.",
     es: "¿Has visto a un hombre llorar de una manera que no olvidarás? Cuéntame.",
+    enOther: "Have they seen a man cry in a way they'll never forget? Tell me.",
+    esOther: "¿Ha visto a un hombre llorar de una manera que no olvidará? Cuéntame.",
     randomizeOptions: {
       en: [
         "A mi papá, cuando murió mi mami. Nunca lo había visto llorar. Se rompió por dentro y nunca volvió a ser el mismo.",
@@ -2994,6 +3268,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Have you ever watched someone work with their hands and lost track of time?",
     es: "¿Alguna vez viste a alguien trabajar con las manos y se te fue el tiempo?",
+    enOther: "Have they ever watched someone work with their hands and lost track of time?",
+    esOther: "¿Alguna vez vio a alguien trabajar con las manos y se le fue el tiempo?",
     randomizeOptions: {
       en: [
         "A una vecina haciendo encaje. Me senté en su patio una tarde entera. Salí distinta.",
@@ -3015,6 +3291,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What's a walk you've taken many times, and why does it pull you back?",
     es: "¿Cuál es una caminata que has hecho muchas veces, y por qué te atrae?",
+    enOther: "What's a walk they've taken many times, and why does it pull them back?",
+    esOther: "¿Cuál es una caminata que ha hecho muchas veces, y por qué le atrae?",
     randomizeOptions: {
       en: [
         "El malecón al amanecer. Los pelícanos. Las viejitas haciendo ejercicio. Volveré mientras me dejen las piernas.",
@@ -3036,6 +3314,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Is there a body of water — sea, river, lake — that means home, no matter where you are?",
     es: "¿Hay un cuerpo de agua — mar, río, lago — que signifique hogar, sin importar dónde estés?",
+    enOther: "Is there a body of water — sea, river, lake — that means home, no matter where they are?",
+    esOther: "¿Hay un cuerpo de agua — mar, río, lago — que signifique hogar, sin importar dónde esté?",
     randomizeOptions: {
       en: [
         "El mar de Cuba. Cuando huelo agua salada en cualquier parte, soy una niña en la playa con mi mami.",
@@ -3057,6 +3337,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What's a small thing you got from your grandmother — physical or otherwise — that you carry?",
     es: "¿Qué cosita te dejó tu abuela — física o no — que cargas contigo?",
+    enOther: "What's a small thing they got from their grandmother — physical or otherwise — that they carry?",
+    esOther: "¿Qué cosita le dejó su abuela — física o no — que carga consigo?",
     randomizeOptions: {
       en: [
         "Su forma de decir 'mi vida.' Yo se lo digo a mis nietos. Ella lo escucha, donde sea que esté.",
@@ -3078,6 +3360,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Is there a song you used to love and now skip?",
     es: "¿Hay una canción que antes adorabas y que ahora te saltas?",
+    enOther: "Is there a song they used to love and now skip?",
+    esOther: "¿Hay una canción que antes adoraba y que ahora se salta?",
     randomizeOptions: {
       en: [
         "Una de Marc Anthony. La bailaba con un novio que después fue malo conmigo. Ya no puedo escucharla.",
@@ -3099,6 +3383,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "How was your name chosen? Who chose it?",
     es: "¿Cómo escogieron tu nombre? ¿Quién lo escogió?",
+    enOther: "How was their name chosen? Who chose it?",
+    esOther: "¿Cómo escogieron su nombre? ¿Quién lo escogió?",
     randomizeOptions: {
       en: [
         "Mi mami. Por la Virgen del Carmen. Le prometió que si yo nacía bien, me ponía el nombre.",
@@ -3120,6 +3406,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Tell me about a prank — pulled on you, or by you — that actually landed.",
     es: "Cuéntame de una broma — a ti, o tuya — que de verdad funcionó.",
+    enOther: "Tell me about a prank — pulled on them, or by them — that actually landed.",
+    esOther: "Cuéntame de una broma — a él/ella, o suya — que de verdad funcionó.",
     randomizeOptions: {
       en: [
         "Mi hermana me convenció a los siete años de que el coco vivía en el ropero. Le creí dos años. Aún se lo cobro.",
@@ -3141,6 +3429,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Is there something you've held onto longer than you should have? What is it costing you?",
     es: "¿Hay algo que has cargado más tiempo del que debías? ¿Qué te está costando?",
+    enOther: "Is there something they've held onto longer than they should have? What is it costing them?",
+    esOther: "¿Hay algo que ha cargado más tiempo del que debía? ¿Qué le está costando?",
     randomizeOptions: {
       en: [
         "Un orgullo con mi prima. Veinte años. Me cuesta a ella. La voy a llamar este mes. Lo digo en serio esta vez.",
@@ -3164,6 +3454,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "How do you start your day, before anyone else needs anything from you?",
     es: "¿Cómo empiezas el día, antes de que alguien te pida algo?",
+    enOther: "How do they start their day, before anyone else needs anything from them?",
+    esOther: "¿Cómo empieza el día, antes de que alguien le pida algo?",
     randomizeOptions: {
       en: [
         "Café, rosario, y un rato sentada mirando por la ventana. No hablo con nadie todavía.",
@@ -3185,6 +3477,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Is there a phone call you wish had gone differently?",
     es: "¿Hay una llamada que deseas que hubiera salido distinto?",
+    enOther: "Is there a phone call they wish had gone differently?",
+    esOther: "¿Hay una llamada que desea que hubiera salido distinto?",
     randomizeOptions: {
       en: [
         "La última con mi mami. Le iba a contar algo y me distraje. Hablamos del clima. Tres días después se fue.",
@@ -3206,6 +3500,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Tell me about a window you've stared out of for hours over the years.",
     es: "Cuéntame de una ventana por la que has mirado durante horas con los años.",
+    enOther: "Tell me about a window they've stared out of for hours over the years.",
+    esOther: "Cuéntame de una ventana por la que ha mirado durante horas con los años.",
     randomizeOptions: {
       en: [
         "La ventana de mi cocina. Veo el patio, los pajaritos, la palma. Treinta años he pensado mi vida ahí.",
@@ -3227,6 +3523,8 @@ export const questions: Question[] = [
     depth: "soul",
     en: "Are there words you wish you'd said to someone before they were gone?",
     es: "¿Hay palabras que quisieras haberle dicho a alguien antes de que se fuera?",
+    enOther: "Are there words they wish they'd said to someone before that person was gone?",
+    esOther: "¿Hay palabras que quisiera haberle dicho a alguien antes de que se fuera?",
     randomizeOptions: {
       en: [
         "A mami. 'Gracias por aguantar.' Lo pensé. No lo dije. Lo digo ahora cada noche.",
@@ -3248,6 +3546,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What music played while you cooked when you lived on your own for the first time?",
     es: "¿Qué música ponías mientras cocinabas cuando viviste sola/solo por primera vez?",
+    enOther: "What music played while they cooked when they lived on their own for the first time?",
+    esOther: "¿Qué música ponía mientras cocinaba cuando vivió sola/solo por primera vez?",
     randomizeOptions: {
       en: [
         "Pongo la radio en español. Boleros viejos. Cantaba mientras picaba la cebolla.",
@@ -3269,6 +3569,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What did your first paycheck feel like? What did you do with it?",
     es: "¿Cómo se sintió tu primer cheque de pago? ¿Qué hiciste con él?",
+    enOther: "What did their first paycheck feel like? What did they do with it?",
+    esOther: "¿Cómo se sintió su primer cheque de pago? ¿Qué hizo con él?",
     randomizeOptions: {
       en: [
         "Tres dólares y veinte centavos. Me sentí adulta. Le di dos a mami y compré un dulce con el resto.",
@@ -3290,6 +3592,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Has something been stolen from you that you remember? What was it?",
     es: "¿Te robaron algo que recuerdes? ¿Qué fue?",
+    enOther: "Has something been stolen from them that they remember? What was it?",
+    esOther: "¿Le robaron algo que recuerde? ¿Qué fue?",
     randomizeOptions: {
       en: [
         "Una cadenita de mi mami. Me la quitaron en un autobús a los veintidós. Lloré como si me hubieran quitado a ella.",
@@ -3311,6 +3615,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Who was the quiet one in your house growing up? What were they thinking?",
     es: "¿Quién era el callado en tu casa? ¿En qué pensaba?",
+    enOther: "Who was the quiet one in their house growing up? What was that person thinking?",
+    esOther: "¿Quién era el callado en su casa? ¿En qué pensaba?",
     randomizeOptions: {
       en: [
         "Mi papá. Hablaba poco. Pensaba mucho en su madre, creo. Murió cuando él era niño.",
@@ -3332,6 +3638,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Were you ever bullied? Did anyone step in?",
     es: "¿Te hicieron bullying alguna vez? ¿Alguien intervino?",
+    enOther: "Were they ever bullied? Did anyone step in?",
+    esOther: "¿Le hicieron bullying alguna vez? ¿Alguien intervino?",
     randomizeOptions: {
       en: [
         "Una niña en la primaria me decía gorda. Mi prima Yoli la empujó. Nunca más me dijo nada.",
@@ -3353,6 +3661,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What's something you taught yourself, on your own, with no help?",
     es: "¿Qué cosa aprendiste por tu cuenta, sin ayuda?",
+    enOther: "What's something they taught themselves, on their own, with no help?",
+    esOther: "¿Qué cosa aprendió por su cuenta, sin ayuda?",
     randomizeOptions: {
       en: [
         "Aprendí a manejar el carro de Hector después de que murió. Me lo enseñé yo solita.",
@@ -3374,6 +3684,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "When did you actually learn how to listen — not perform listening?",
     es: "¿Cuándo aprendiste a escuchar de verdad — no a actuar como que escuchabas?",
+    enOther: "When did they actually learn how to listen — not perform listening?",
+    esOther: "¿Cuándo aprendió a escuchar de verdad — no a actuar como que escuchaba?",
     randomizeOptions: {
       en: [
         "A los cuarenta. Mi mami me dijo: 'tú hablas mucho.' Era cierto. Empecé a callarme y a oír.",
@@ -3395,6 +3707,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Describe your mother's hands.",
     es: "Describe las manos de tu madre.",
+    enOther: "Describe their mother's hands.",
+    esOther: "Describe las manos de su madre.",
     randomizeOptions: {
       en: [
         "Pequeñas. Suaves arriba, ásperas en las palmas. Olían a Pond's y a sofrito al mismo tiempo.",
@@ -3416,6 +3730,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Tell me about a fight with your father — the kind that mattered.",
     es: "Cuéntame de una pelea con tu padre — de las que importan.",
+    enOther: "Tell me about a fight with their father — the kind that mattered.",
+    esOther: "Cuéntame de una pelea con su padre — de las que importan.",
     randomizeOptions: {
       en: [
         "Le dije que era injusto cuando me prohibió ir a un baile. Tenía dieciséis. Me dio una bofetada. Lloré tres días. Me pidió perdón. Aprendí a no callarme nunca más.",
@@ -3437,6 +3753,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Tell me about a kindness you gave that you've never told anyone about.",
     es: "Cuéntame de una bondad que diste y nunca le contaste a nadie.",
+    enOther: "Tell me about a kindness they gave that they've never told anyone about.",
+    esOther: "Cuéntame de una bondad que dio y nunca le contó a nadie.",
     randomizeOptions: {
       en: [
         "Le pagué la luz a una vecina dos veces sin que supiera. Ella todavía no sabe. Y así se queda.",
@@ -3458,6 +3776,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Tell me about a winter morning that mattered.",
     es: "Cuéntame de una mañana de invierno que importó.",
+    enOther: "Tell me about a winter morning that mattered to them.",
+    esOther: "Cuéntame de una mañana de invierno que le importó.",
     randomizeOptions: {
       en: [
         "El primer invierno en Nueva York. Cinco grados. Mi nena de un año. La cargué bajo el abrigo. Caminamos a la iglesia.",
@@ -3479,6 +3799,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Was there a friend's mother who really saw you, in the way your own couldn't always?",
     es: "¿Hubo una mamá de amigo que de verdad te viera, como no siempre podía la tuya?",
+    enOther: "Was there a friend's mother who really saw them, in the way their own couldn't always?",
+    esOther: "¿Hubo una mamá de amigo que de verdad le viera, como no siempre podía la suya?",
     randomizeOptions: {
       en: [
         "La mami de Mariana. Me trataba como a su propia hija. Yo iba allí para ser otra niña.",
@@ -3500,6 +3822,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Tell me about the last day of a summer you didn't want to end.",
     es: "Cuéntame del último día de un verano que no querías que terminara.",
+    enOther: "Tell me about the last day of a summer they didn't want to end.",
+    esOther: "Cuéntame del último día de un verano que no quería que terminara.",
     randomizeOptions: {
       en: [
         "Un domingo en Varadero. Mami me secaba el pelo en la playa. Le dije: 'no quiero que termine.' Ella dijo: 'mi vida, todo termina.'",
@@ -3521,6 +3845,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Have you ever fallen in love at first sight? Tell me honestly.",
     es: "¿Te has enamorado a primera vista? Sé honesto.",
+    enOther: "Have they ever fallen in love at first sight? Tell me honestly.",
+    esOther: "¿Se ha enamorado a primera vista? Cuéntame con honestidad.",
     randomizeOptions: {
       en: [
         "Sí. Con Hector. En un baile. Cuando me agarró la mano para sacarme a bailar yo ya sabía.",
@@ -3542,6 +3868,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Describe the smell of someone you've loved.",
     es: "Describe el olor de alguien a quien amaste.",
+    enOther: "Describe the smell of someone they've loved.",
+    esOther: "Describe el olor de alguien a quien amó.",
     randomizeOptions: {
       en: [
         "Hector. Old Spice y café. A veces todavía lo huelo en alguna parte y me detengo.",
@@ -3563,6 +3891,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "How do you actually wind down at night? Honest version, not the magazine version.",
     es: "¿Cómo te relajas de verdad por la noche? La versión honesta, no la de revista.",
+    enOther: "How do they actually wind down at night? Honest version, not the magazine version.",
+    esOther: "¿Cómo se relaja de verdad por la noche? La versión honesta, no la de revista.",
     randomizeOptions: {
       en: [
         "Pijama, novela, te y rezo el rosario hasta dormirme. A veces el rosario gana, a veces la novela.",
@@ -3584,6 +3914,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Tell me about a gift you gave that absolutely landed.",
     es: "Cuéntame de un regalo que diste y que dio en el blanco.",
+    enOther: "Tell me about a gift they gave that absolutely landed.",
+    esOther: "Cuéntame de un regalo que hizo y que dio en el blanco.",
     randomizeOptions: {
       en: [
         "Le di a mi nieta el rosario de su bisabuela. Lloró. La abracé. No hubo más.",
@@ -3605,6 +3937,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Tell me about a gift you gave that completely missed.",
     es: "Cuéntame de un regalo que diste y falló por completo.",
+    enOther: "Tell me about a gift they gave that completely missed.",
+    esOther: "Cuéntame de un regalo que hizo y falló por completo.",
     randomizeOptions: {
       en: [
         "Le compré una blusa a mi suegra. Le quedó chica. Su cara me mata todavía. Me reí dos años después.",
@@ -3626,6 +3960,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Tell me about a moment when someone showed you mercy you didn't deserve.",
     es: "Cuéntame de un momento en que alguien fue clemente contigo aunque no lo merecías.",
+    enOther: "Tell me about a moment when someone showed them mercy they didn't deserve.",
+    esOther: "Cuéntame de un momento en que alguien fue clemente con él/ella aunque no lo merecía.",
     randomizeOptions: {
       en: [
         "Mami, cuando rompí su jarrón favorito a los diez. Me esperaba un castigo y sólo me dijo: 'limpia.' Y me abrazó.",
@@ -3647,6 +3983,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Was there a cousin who became a stranger? What happened?",
     es: "¿Hubo un primo que se volvió un desconocido? ¿Qué pasó?",
+    enOther: "Was there a cousin of theirs who became a stranger? What happened?",
+    esOther: "¿Hubo un primo suyo que se volvió un desconocido? ¿Qué pasó?",
     randomizeOptions: {
       en: [
         "Mi prima Yoli. Crecimos juntas. Se mudó a España y dejé de saber de ella. La extraño cada Nochebuena.",
@@ -3668,6 +4006,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Tell me about work you did that nobody saw.",
     es: "Cuéntame de un trabajo que hiciste que nadie vio.",
+    enOther: "Tell me about work they did that nobody saw.",
+    esOther: "Cuéntame de un trabajo que hizo que nadie vio.",
     randomizeOptions: {
       en: [
         "Cuidé a mi suegra los últimos dos años. Nadie sabe lo que es. Yo lo sé.",
@@ -3689,6 +4029,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Tell me about a wedding you remember, that wasn't yours.",
     es: "Cuéntame de una boda que recuerdas, que no fue la tuya.",
+    enOther: "Tell me about a wedding they remember, that wasn't theirs.",
+    esOther: "Cuéntame de una boda que recuerda, que no fue la suya.",
     randomizeOptions: {
       en: [
         "La de mi sobrina Sofía. Bailamos cinco horas. Ella lloró cuando le entregué su ramo.",
@@ -3710,6 +4052,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Tell me about a wedding you'd skip, if you could've.",
     es: "Cuéntame de una boda a la que hubieras faltado si hubieras podido.",
+    enOther: "Tell me about a wedding they'd have skipped, if they could've.",
+    esOther: "Cuéntame de una boda a la que hubiera faltado si hubiera podido.",
     randomizeOptions: {
       en: [
         "La de un primo lejano. Cuatro horas en la iglesia. El aire no servía. Yo con tacones nuevos.",
@@ -3731,6 +4075,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Tell me about a child who wasn't yours that you remember holding.",
     es: "Cuéntame de un niño que no era tuyo y a quien recuerdas haber cargado.",
+    enOther: "Tell me about a child who wasn't theirs that they remember holding.",
+    esOther: "Cuéntame de un niño que no era suyo y a quien recuerda haber cargado.",
     randomizeOptions: {
       en: [
         "El bebé de mi vecina, recién nacido. Lo cargué dos minutos. Se durmió. Yo casi también.",
@@ -3752,6 +4098,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Did a teacher ever make a mistake about you, and how did it shape you?",
     es: "¿Algún maestro se equivocó contigo, y cómo te marcó?",
+    enOther: "Did a teacher ever make a mistake about them, and how did it shape them?",
+    esOther: "¿Algún maestro se equivocó con él/ella, y cómo le marcó?",
     randomizeOptions: {
       en: [
         "Una maestra dijo que yo no era buena en matemáticas. Le creí veinte años. Después saqué un grado en contabilidad.",
@@ -3773,6 +4121,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What does a quiet morning in your sixties or seventies feel like, that the younger you couldn't have imagined?",
     es: "¿Cómo se siente una mañana tranquila en tus sesentas o setentas, que tu yo más joven no hubiera podido imaginar?",
+    enOther: "What does a quiet morning in their sixties or seventies feel like, that their younger self couldn't have imagined?",
+    esOther: "¿Cómo se siente una mañana tranquila en sus sesentas o setentas, que su yo más joven no hubiera podido imaginar?",
     randomizeOptions: {
       en: [
         "Sentirme bien sin ruido. Sin gente alrededor. Sin necesitar nada. Eso a los veinte hubiera sido aburrido. Ahora es la felicidad.",
@@ -3796,6 +4146,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What was a meal in your childhood that meant something special — birthday, Sunday, anything?",
     es: "¿Qué comida de tu niñez significaba algo especial — cumpleaños, domingo, lo que sea?",
+    enOther: "What was a meal in their childhood that meant something special — birthday, Sunday, anything?",
+    esOther: "¿Qué comida de su niñez significaba algo especial — cumpleaños, domingo, lo que sea?",
     randomizeOptions: {
       en: [
         "Mami hacía arroz con pollo cada domingo. Mi tío venía. Mi papá ponía la radio. Eso era la semana.",
@@ -3817,6 +4169,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What does your kitchen look like when no one's coming over?",
     es: "¿Cómo se ve tu cocina cuando no viene nadie?",
+    enOther: "What does their kitchen look like when no one's coming over?",
+    esOther: "¿Cómo se ve su cocina cuando no viene nadie?",
     randomizeOptions: {
       en: [
         "Limpia. Una cafetera siempre lista. Una vela. Las recetas de mi mami pegadas con cinta.",
@@ -3838,6 +4192,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Have you ever traveled alone? What did you find out about yourself?",
     es: "¿Has viajado sola/solo? ¿Qué descubriste de ti?",
+    enOther: "Have they ever traveled alone? What did they find out about themselves?",
+    esOther: "¿Ha viajado sola/solo? ¿Qué descubrió de sí mismo/a?",
     randomizeOptions: {
       en: [
         "Una vez fui a México sola, a los cuarenta. Nadie me esperaba. Me di cuenta de que me caigo bien.",
@@ -3859,6 +4215,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What still gives you butterflies, at this age?",
     es: "¿Qué te sigue dando mariposas en el estómago, a tu edad?",
+    enOther: "What still gives them butterflies, at this age?",
+    esOther: "¿Qué le sigue dando mariposas en el estómago, a su edad?",
     randomizeOptions: {
       en: [
         "Cuando una nieta me llama y me dice 'abuela.' Cada vez. Setenta y dos años y todavía.",
@@ -3880,6 +4238,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "If you were headed into surgery, what would you want around you?",
     es: "Si fueras a entrar a una cirugía, ¿qué quisieras tener cerca?",
+    enOther: "If they were headed into surgery, what would they want around them?",
+    esOther: "Si fuera a entrar a una cirugía, ¿qué quisiera tener cerca?",
     randomizeOptions: {
       en: [
         "Mi rosario, una foto de mis nietos, y la mano de mi hija agarrando la mía.",
@@ -3901,6 +4261,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Was there a coach or mentor who saw what nobody else did?",
     es: "¿Hubo un entrenador o mentor que vio lo que nadie más vio?",
+    enOther: "Was there a coach or mentor who saw in them what nobody else did?",
+    esOther: "¿Hubo un entrenador o mentor que vio en él/ella lo que nadie más vio?",
     randomizeOptions: {
       en: [
         "Doña Marta, mi profesora de canto. Me dijo: 'tú tienes algo.' Yo no le creí. Pero me lo dijo, y eso bastó por años.",
@@ -3922,6 +4284,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "How did you learn to swim — and was it scary?",
     es: "¿Cómo aprendiste a nadar — y dio miedo?",
+    enOther: "How did they learn to swim — and was it scary?",
+    esOther: "¿Cómo aprendió a nadar — y dio miedo?",
     randomizeOptions: {
       en: [
         "Mi papá me cargó en el mar. 'Si te suelto, te ahogas, y mami me mata.' No me soltó. Aprendí.",
@@ -3943,6 +4307,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Tell me about the first time you stood up for yourself.",
     es: "Cuéntame de la primera vez que te defendiste.",
+    enOther: "Tell me about the first time they stood up for themselves.",
+    esOther: "Cuéntame de la primera vez que se defendió.",
     randomizeOptions: {
       en: [
         "A los catorce. Le dije a mi tío que no me hablara así nunca más. Me temblaba la voz. Pero lo dije.",
@@ -3964,6 +4330,8 @@ export const questions: Question[] = [
     depth: "surface",
     en: "What's a joke or one-liner of yours that always gets a groan or a laugh?",
     es: "¿Cuál es un chiste o frase tuya que siempre saca risa o queja?",
+    enOther: "What's a joke or one-liner of theirs that always gets a groan or a laugh?",
+    esOther: "¿Cuál es un chiste o frase suya que siempre saca risa o queja?",
     randomizeOptions: {
       en: [
         "Le digo a mi marido cuando algo no funciona: 'Eso es un milagro, pero al revés.' A los nietos les encanta.",
@@ -3985,6 +4353,8 @@ export const questions: Question[] = [
     depth: "surface",
     en: "Is there an app you delete and re-download on a cycle? Why?",
     es: "¿Hay una app que borras y vuelves a bajar en ciclos? ¿Por qué?",
+    enOther: "Is there an app they delete and re-download on a cycle? Why?",
+    esOther: "¿Hay una app que borra y vuelve a bajar en ciclos? ¿Por qué?",
     randomizeOptions: {
       en: [
         "Facebook. Lo borro cuando me pone triste y lo bajo cuando extraño a mis primos.",
@@ -4006,6 +4376,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What ritual do you keep — daily, weekly, yearly — without fail?",
     es: "¿Qué ritual sigues — diario, semanal, anual — sin falla?",
+    enOther: "What ritual do they keep — daily, weekly, yearly — without fail?",
+    esOther: "¿Qué ritual sigue — diario, semanal, anual — sin falla?",
     randomizeOptions: {
       en: [
         "Misa los domingos. Cuarenta y cuatro años. Aunque llueva. Aunque esté enferma.",
@@ -4027,6 +4399,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What was the last argument that actually mattered? Did it change anything?",
     es: "¿Cuál fue la última discusión que de verdad importó? ¿Cambió algo?",
+    enOther: "What was the last argument they had that actually mattered? Did it change anything?",
+    esOther: "¿Cuál fue su última discusión que de verdad importó? ¿Cambió algo?",
     randomizeOptions: {
       en: [
         "Con mi hija, sobre cómo cuidarme cuando me enferme. Me dolió. Me ayudó. Las dos cambiamos.",
@@ -4048,6 +4422,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Tell me about a found object you kept — picked up off a sidewalk, a beach, anywhere.",
     es: "Cuéntame de un objeto que te encontraste y guardaste — en la banqueta, en la playa, en cualquier parte.",
+    enOther: "Tell me about a found object they kept — picked up off a sidewalk, a beach, anywhere.",
+    esOther: "Cuéntame de un objeto que se encontró y guardó — en la banqueta, en la playa, en cualquier parte.",
     randomizeOptions: {
       en: [
         "Una concha pequeñita en Varadero. Tenía siete años. La sigo teniendo. Al lado de mi cama.",
@@ -4069,6 +4445,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What's a strength of yours that no one would guess just looking at you?",
     es: "¿Qué fuerza tienes que nadie adivinaría con sólo verte?",
+    enOther: "What's a strength of theirs that no one would guess just looking at them?",
+    esOther: "¿Qué fuerza tiene que nadie adivinaría con sólo verle?",
     randomizeOptions: {
       en: [
         "Que aguanto. Hector decía que yo era 'piedra con corazón.' Era verdad.",
@@ -4090,6 +4468,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What was your first concert? Were you alone or with someone?",
     es: "¿Cuál fue tu primer concierto? ¿Fuiste sola/solo o con alguien?",
+    enOther: "What was their first concert? Were they alone or with someone?",
+    esOther: "¿Cuál fue su primer concierto? ¿Fue sola/solo o con alguien?",
     randomizeOptions: {
       en: [
         "Olga Guillot, en La Habana. Iba con mi mami. Lloré con cada bolero. Yo tenía catorce.",
@@ -4111,6 +4491,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Tell me about the first time you got on a plane.",
     es: "Cuéntame de la primera vez que te subiste a un avión.",
+    enOther: "Tell me about the first time they got on a plane.",
+    esOther: "Cuéntame de la primera vez que se subió a un avión.",
     randomizeOptions: {
       en: [
         "El vuelo de Cuba a Miami. Tenía veintidós años. No lloré. No comí. Llegué con la cara de piedra.",
@@ -4132,6 +4514,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Tell me about a moment of total confidence — when you knew, exactly, what you were doing.",
     es: "Cuéntame de un momento de confianza total — cuando sabías, con exactitud, lo que hacías.",
+    enOther: "Tell me about a moment of total confidence — when they knew, exactly, what they were doing.",
+    esOther: "Cuéntame de un momento de confianza total — cuando sabía, con exactitud, lo que hacía.",
     randomizeOptions: {
       en: [
         "Cuando dí a luz a mi hija. En mitad del dolor, supe lo que hacía. Mi cuerpo sabía.",
@@ -4153,6 +4537,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Is there a place where they know your order? Where, and what is it?",
     es: "¿Hay un lugar donde saben tu pedido? ¿Cuál y qué es?",
+    enOther: "Is there a place that knows their order? Where, and what is it?",
+    esOther: "¿Hay un lugar donde saben su pedido? ¿Cuál y qué es?",
     randomizeOptions: {
       en: [
         "La cafetería en la esquina. Café cortado, una empanada de carne. Doña Lupe ya no me pregunta.",
@@ -4174,6 +4560,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Was there a friend who left this world too soon? Tell me one thing about them.",
     es: "¿Hubo un amigo que se fue de este mundo demasiado pronto? Dime una cosa de él/ella.",
+    enOther: "Was there a friend who left this world too soon? Tell me one thing about that friend.",
+    esOther: "¿Hubo un amigo que se fue de este mundo demasiado pronto? Dime una cosa de él/ella.",
     randomizeOptions: {
       en: [
         "Mi amiga Lourdes. Treinta y dos años. Tenía la risa más bonita. La sigo oyendo.",
@@ -4195,6 +4583,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What food smells from your childhood do you wish you could bottle?",
     es: "¿Qué olores de comida de tu infancia quisieras poder embotellar?",
+    enOther: "What food smells from their childhood do they wish they could bottle?",
+    esOther: "¿Qué olores de comida de su infancia quisiera poder embotellar?",
     randomizeOptions: {
       en: [
         "Sofrito en aceite caliente. Plátano frito. Mami picando ajo en la madera de la tabla. Si pudiera embotellarlo lo guardaría como tesoro.",
@@ -4216,6 +4606,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Tell me about your softest moment — when you let yourself be tender, without protecting yourself.",
     es: "Cuéntame de tu momento más suave — cuando te dejaste ser tierno, sin protegerte.",
+    enOther: "Tell me about their softest moment — when they let themselves be tender, without protecting themselves.",
+    esOther: "Cuéntame de su momento más suave — cuando se dejó ser tierno/a, sin protegerse.",
     randomizeOptions: {
       en: [
         "Cuando mi nieta nació, la cargué, la miré, le dije 'mi vida' en voz baja. Me solté entera. Lloré sin pena.",
@@ -4237,6 +4629,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Tell me about a haircut you regret. The story.",
     es: "Cuéntame de un corte de pelo del que te arrepientes. La historia.",
+    enOther: "Tell me about a haircut they regret. The story.",
+    esOther: "Cuéntame de un corte de pelo del que se arrepiente. La historia.",
     randomizeOptions: {
       en: [
         "Un permanente a los veinte. Pelo como de payaso. Le grité a la peluquera. Después le pedí perdón.",
@@ -4258,6 +4652,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Tell me about a place that closed that you mourned, even quietly.",
     es: "Cuéntame de un lugar que cerró y por el cual hiciste duelo, aunque fuera en silencio.",
+    enOther: "Tell me about a place that closed that they mourned, even quietly.",
+    esOther: "Cuéntame de un lugar que cerró y por el cual hizo duelo, aunque fuera en silencio.",
     randomizeOptions: {
       en: [
         "La panadería en la calle ocho. Cuarenta años yendo. Cerró en pandemia. Lloré dos veces.",
@@ -4279,6 +4675,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Who taught you how to dress — by example, by giving, by judgment?",
     es: "¿Quién te enseñó a vestirte — con ejemplo, con regalos, con juicio?",
+    enOther: "Who taught them how to dress — by example, by giving, by judgment?",
+    esOther: "¿Quién le enseñó a vestirse — con ejemplo, con regalos, con juicio?",
     randomizeOptions: {
       en: [
         "Mi mami. Si la blusa estaba arrugada, no salías. Punto. Aún tengo esa regla.",
@@ -4300,6 +4698,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Tell me about a version of yourself you almost became, and didn't.",
     es: "Cuéntame de una versión de ti que casi llegaste a ser, y no.",
+    enOther: "Tell me about a version of themselves they almost became, and didn't.",
+    esOther: "Cuéntame de una versión de sí mismo/a que casi llegó a ser, y no.",
     randomizeOptions: {
       en: [
         "Casi me casé con un hombre malo. Me iba a quedar callada toda la vida. No me casé. Me salvé.",
@@ -4321,6 +4721,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What do you say to a baby when you hold one?",
     es: "¿Qué le dices a un bebé cuando lo cargas?",
+    enOther: "What do they say to a baby when they hold one?",
+    esOther: "¿Qué le dice a un bebé cuando lo carga?",
     randomizeOptions: {
       en: [
         "'Mi vida, mi vida.' Y le canto bajito. Y le hablo aunque no entienda.",
@@ -4342,6 +4744,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What's a habit your spouse or partner has that you secretly love?",
     es: "¿Cuál es un hábito de tu pareja que en secreto adoras?",
+    enOther: "What's a habit their spouse or partner has that they secretly love?",
+    esOther: "¿Cuál es un hábito de su pareja que en secreto adora?",
     randomizeOptions: {
       en: [
         "Cómo Hector se aclaraba la garganta antes de hablar. Era cosa pequeña. La extraño todos los días.",
@@ -4363,6 +4767,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Tell me about a night you didn't go home — by choice or otherwise.",
     es: "Cuéntame de una noche en que no fuiste a casa — por decisión o no.",
+    enOther: "Tell me about a night they didn't go home — by choice or otherwise.",
+    esOther: "Cuéntame de una noche en que no fue a casa — por decisión o no.",
     randomizeOptions: {
       en: [
         "Una noche en una boda. Mami me esperaba a la una. Llegué a las cinco. Me regañó tres meses.",
@@ -4384,6 +4790,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What's something you're quietly proud of that you'd never say out loud?",
     es: "¿De qué estás silenciosamente orgulloso que nunca dirías en voz alta?",
+    enOther: "What's something they're quietly proud of that they'd never say out loud?",
+    esOther: "¿De qué está silenciosamente orgulloso/a que nunca diría en voz alta?",
     randomizeOptions: {
       en: [
         "Que crié a mis hijos sin pegarles, a pesar de cómo me criaron a mí. Lo guardo. No alardeo.",
@@ -4405,6 +4813,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Tell me about a holiday meal that went sideways. What happened?",
     es: "Cuéntame de una cena de fiesta que se salió de control. ¿Qué pasó?",
+    enOther: "Tell me about a holiday meal in their family that went sideways. What happened?",
+    esOther: "Cuéntame de una cena de fiesta en su familia que se salió de control. ¿Qué pasó?",
     randomizeOptions: {
       en: [
         "Nochebuena del 92. Se quemó el lechón. Mi tío fue por pizza. Esa fue la mejor Nochebuena.",
@@ -4428,6 +4838,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What's a childhood toy you actually remember? Where is it now?",
     es: "¿Qué juguete de infancia recuerdas de verdad? ¿Dónde está ahora?",
+    enOther: "What's a childhood toy they actually remember? Where is it now?",
+    esOther: "¿Qué juguete de infancia recuerda de verdad? ¿Dónde está ahora?",
     randomizeOptions: {
       en: [
         "Mi muñeca Lupita. Le faltaba un ojo. La perdí cuando me mudé a Miami y la lloro todavía.",
@@ -4449,6 +4861,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Tell me about the first time you saw the ocean.",
     es: "Cuéntame de la primera vez que viste el mar.",
+    enOther: "Tell me about the first time they saw the ocean.",
+    esOther: "Cuéntame de la primera vez que vio el mar.",
     randomizeOptions: {
       en: [
         "Tenía cinco años. Varadero. Me asusté del ruido. Mi mami me cargó. Después no me quería salir.",
@@ -4470,6 +4884,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "If you've been married, tell me one specific moment from the day.",
     es: "Si te has casado, cuéntame un momento específico de ese día.",
+    enOther: "If they've been married, tell me one specific moment from the day.",
+    esOther: "Si se ha casado, cuéntame un momento específico de ese día.",
     randomizeOptions: {
       en: [
         "Hector y yo bailando 'Bésame mucho.' Sus manos me temblaban. Nunca me lo había imaginado nervioso.",
@@ -4491,6 +4907,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Tell me about something you stole as a kid. Did anyone find out?",
     es: "Cuéntame de algo que robaste de niño. ¿Alguien se enteró?",
+    enOther: "Tell me about something they stole as a kid. Did anyone find out?",
+    esOther: "Cuéntame de algo que robó de niño/a. ¿Alguien se enteró?",
     randomizeOptions: {
       en: [
         "Un caramelo de la tienda. Mi mami se dio cuenta y me hizo regresar. Lloré. Nunca volví a robar nada.",
@@ -4512,6 +4930,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Was there a time you got out of a bad situation by your own wits?",
     es: "¿Hubo una vez que saliste de una mala situación por tu propia astucia?",
+    enOther: "Was there a time they got out of a bad situation by their own wits?",
+    esOther: "¿Hubo una vez que salió de una mala situación por su propia astucia?",
     randomizeOptions: {
       en: [
         "Un hombre me siguió en la calle a los veinte. Entré a una iglesia. El cura me llevó a casa. Eso me enseñó a no callar el miedo.",
@@ -4533,6 +4953,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "How does your handwriting on a card look? What do you usually write?",
     es: "¿Cómo es tu letra en una tarjeta? ¿Qué sueles escribir?",
+    enOther: "How does their handwriting on a card look? What do they usually write?",
+    esOther: "¿Cómo es su letra en una tarjeta? ¿Qué suele escribir?",
     randomizeOptions: {
       en: [
         "Cursiva grande, redonda. Termino con 'te quiero, mi amor' y dos corazones.",
@@ -4554,6 +4976,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What do you imagine happens to your stuff after you're gone?",
     es: "¿Qué imaginas que pasa con tus cosas cuando ya no estés?",
+    enOther: "What do they imagine happens to their stuff after they're gone?",
+    esOther: "¿Qué imagina que pasa con sus cosas cuando ya no esté?",
     randomizeOptions: {
       en: [
         "Mi rosario para mi nieta. Las recetas de mami para mi hija. Mis fotos para todos. Lo demás, que se vaya.",
@@ -4575,6 +4999,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What was the last meal you shared with someone you've since lost?",
     es: "¿Cuál fue la última comida que compartiste con alguien que ya no está?",
+    enOther: "What was the last meal they shared with someone they've since lost?",
+    esOther: "¿Cuál fue la última comida que compartió con alguien que ya no está?",
     randomizeOptions: {
       en: [
         "Con mami. Sopa de pollo, en su casa. Yo le dije: 'mami, qué rico.' Esa noche se acostó y al día siguiente se fue.",
@@ -4596,6 +5022,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Tell me about a lie you told your mother that you've never confessed.",
     es: "Cuéntame de una mentira que le dijiste a tu madre y nunca confesaste.",
+    enOther: "Tell me about a lie they told their mother that they've never confessed.",
+    esOther: "Cuéntame de una mentira que le dijo a su madre y nunca confesó.",
     randomizeOptions: {
       en: [
         "Le dije que dormí en casa de Lourdes a los dieciséis. Era mentira. Estaba con un muchacho. Mi mami nunca supo y se llevó el secreto.",
@@ -4617,6 +5045,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What's a smell — gas, laundry, polish — that means a specific person to you?",
     es: "¿Qué olor — gasolina, detergente, lustre — te recuerda a una persona específica?",
+    enOther: "What's a smell — gas, laundry, polish — that means a specific person to them?",
+    esOther: "¿Qué olor — gasolina, detergente, lustre — le recuerda a una persona específica?",
     randomizeOptions: {
       en: [
         "El olor de Suavitel. Mi mami. Cada vez que lo huelo, se me llenan los ojos.",
@@ -4638,6 +5068,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What do you do when you get angry now? What did you used to do?",
     es: "¿Qué haces cuando te enojas ahora? ¿Qué hacías antes?",
+    enOther: "What do they do when they get angry now? What did they used to do?",
+    esOther: "¿Qué hace cuando se enoja ahora? ¿Qué hacía antes?",
     randomizeOptions: {
       en: [
         "Antes gritaba. Ahora me callo, lavo platos, rezo. La cocina queda limpia y el corazón también.",
@@ -4659,6 +5091,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Tell me about a time you spent in a hospital. What stayed with you?",
     es: "Cuéntame de una vez que pasaste en un hospital. ¿Qué se te quedó?",
+    enOther: "Tell me about a time they spent in a hospital. What stayed with them?",
+    esOther: "Cuéntame de una vez que pasó en un hospital. ¿Qué se le quedó?",
     randomizeOptions: {
       en: [
         "Cuando di a luz a mi hija. Lo que se me quedó: la luz amarilla del techo y el olor de Hector cuando me besó.",
@@ -4680,6 +5114,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Tell me about a holiday tradition — even a small one — that you'd refuse to let go of.",
     es: "Cuéntame de una tradición de fiestas — aunque sea chica — que te rehúsas a soltar.",
+    enOther: "Tell me about a holiday tradition — even a small one — that they'd refuse to let go of.",
+    esOther: "Cuéntame de una tradición de fiestas — aunque sea chica — que se rehúsa a soltar.",
     randomizeOptions: {
       en: [
         "Hacer pastelitos de guayaba con mami. Yo los hago ahora. Si no lo hago, no es Nochebuena.",
@@ -4701,6 +5137,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What was the first cologne or perfume you wore on purpose?",
     es: "¿Cuál fue el primer perfume o colonia que usaste a propósito?",
+    enOther: "What was the first cologne or perfume they wore on purpose?",
+    esOther: "¿Cuál fue el primer perfume o colonia que usó a propósito?",
     randomizeOptions: {
       en: [
         "Anaís Anaís. A los diecisiete. Lo escogió mi prima. Me hacía sentir mujer.",
@@ -4722,6 +5160,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Tell me about a neighbor who became part of your story.",
     es: "Cuéntame de un vecino que se volvió parte de tu historia.",
+    enOther: "Tell me about a neighbor who became part of their story.",
+    esOther: "Cuéntame de un vecino que se volvió parte de su historia.",
     randomizeOptions: {
       en: [
         "Doña Hilda, en Hialeah. Cuarenta años al lado de mi casa. Me trajo sopa cuando murió Hector. Me trae sopa todavía cada vez que me ve triste.",
@@ -4743,6 +5183,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What's a thing you teach without trying? Like, your kids picked it up from watching you.",
     es: "¿Qué cosa enseñas sin proponértelo? Algo que tus hijos aprendieron de verte.",
+    enOther: "What's a thing they teach without trying? Like, their kids picked it up from watching them.",
+    esOther: "¿Qué cosa enseña sin proponérselo? Algo que sus hijos aprendieron de verle.",
     randomizeOptions: {
       en: [
         "A esperar la mesa hasta que estuvieran todos. Pequeño detalle. Mi nieta lo hace ahora con su gato.",
@@ -4764,6 +5206,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Tell me about a kitchen disaster you survived (and remember laughing about later).",
     es: "Cuéntame de un desastre de cocina que sobreviviste (y del que después te reíste).",
+    enOther: "Tell me about a kitchen disaster they survived (and laughed about later).",
+    esOther: "Cuéntame de un desastre de cocina que sobrevivió (y del que después se rió).",
     randomizeOptions: {
       en: [
         "Se me quemó el arroz dos años seguidos en Acción de Gracias en casa de mi suegra. Al tercer año pedí pizza y nadie dijo nada.",
@@ -4785,6 +5229,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Tell me about a quietly good day you had recently. The shape of it.",
     es: "Cuéntame de un día tranquilamente bueno que tuviste hace poco. La forma de él.",
+    enOther: "Tell me about a quietly good day they had recently. The shape of it.",
+    esOther: "Cuéntame de un día tranquilamente bueno que tuvo hace poco. La forma de él.",
     randomizeOptions: {
       en: [
         "Lunes. Café temprano. Llamé a mi nieta. Sembré una matita. La cena la hice yo. Nada espectacular. Todo bueno.",
@@ -4806,6 +5252,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Is there a piece of jewelry that has a story for you?",
     es: "¿Hay una joya que tenga una historia para ti?",
+    enOther: "Is there a piece of jewelry that has a story for them?",
+    esOther: "¿Hay una joya que tenga una historia para él/ella?",
     randomizeOptions: {
       en: [
         "Una pulserita que mi mami me dio a los quince. Pierdo todo. Esto no se ha perdido. Cuarenta y siete años después.",
@@ -4827,6 +5275,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Have you been lost in a foreign place? Tell me how it felt.",
     es: "¿Has estado perdido en un lugar extranjero? Cuéntame cómo se sintió.",
+    enOther: "Have they been lost in a foreign place? Tell me how it felt.",
+    esOther: "¿Ha estado perdido/a en un lugar extranjero? Cuéntame cómo se sintió.",
     randomizeOptions: {
       en: [
         "Roma. Sin español. Sin italiano. Sin mapa. Una señora me dio agua y me señaló el camino con las manos. Lloré sin saber por qué.",
@@ -4848,6 +5298,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Was there a coworker who became more like family than just a coworker?",
     es: "¿Hubo un compañero de trabajo que se volvió más familia que compañero?",
+    enOther: "Was there a coworker who became more like family than just a coworker?",
+    esOther: "¿Hubo un compañero de trabajo que se volvió más familia que compañero?",
     randomizeOptions: {
       en: [
         "Carmen, en mi primer trabajo. Almorzábamos todos los días en su escritorio. Hoy es mi comadre.",
@@ -4869,6 +5321,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Is there a voicemail you saved that you can't bring yourself to delete?",
     es: "¿Hay un mensaje de voz guardado que no eres capaz de borrar?",
+    enOther: "Is there a voicemail they saved that they can't bring themselves to delete?",
+    esOther: "¿Hay un mensaje de voz guardado que no es capaz de borrar?",
     randomizeOptions: {
       en: [
         "El último de mami. 'Mi vida, llámame cuando puedas.' La llamé media hora después. Pero el mensaje sigue ahí. Lo escucho cada año en su cumpleaños.",
@@ -4890,6 +5344,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What's something you've never told a therapist (because you were saving it, or skipping it)?",
     es: "¿Qué cosa nunca le has dicho a un terapeuta (porque la guardabas, o la evitabas)?",
+    enOther: "What's something they've never told a therapist (because they were saving it, or skipping it)?",
+    esOther: "¿Qué cosa nunca le ha dicho a un terapeuta (porque la guardaba, o la evitaba)?",
     randomizeOptions: {
       en: [
         "Que a veces siento envidia de mi hermana porque su matrimonio duró. Es feo decirlo. Pero ahí está.",
@@ -4911,6 +5367,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What does your mother's voice sound like on the phone?",
     es: "¿Cómo suena la voz de tu madre en el teléfono?",
+    enOther: "What does their mother's voice sound like on the phone?",
+    esOther: "¿Cómo suena la voz de su madre en el teléfono?",
     randomizeOptions: {
       en: [
         "Bajita. Cantarina. Empieza cada llamada con 'Mi vida, ¿cómo está?' Ya la tengo grabada en la cabeza.",
@@ -4932,6 +5390,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Did a grandparent or great-grandparent emigrate? What do you know about why?",
     es: "¿Algún abuelo o bisabuelo emigró? ¿Qué sabes de por qué?",
+    enOther: "Did a grandparent or great-grandparent of theirs emigrate? What do they know about why?",
+    esOther: "¿Algún abuelo o bisabuelo suyo emigró? ¿Qué sabe de por qué?",
     randomizeOptions: {
       en: [
         "Mi abuelo de Galicia. Llegó a Cuba a los dieciocho con un saco. Nunca regresó. Nunca habló de su madre sin llorar.",
@@ -4953,6 +5413,8 @@ export const questions: Question[] = [
     depth: "surface",
     en: "What do you keep in your wallet — beyond the obvious?",
     es: "¿Qué tienes en tu cartera — más allá de lo obvio?",
+    enOther: "What do they keep in their wallet — beyond the obvious?",
+    esOther: "¿Qué tiene en su cartera — más allá de lo obvio?",
     randomizeOptions: {
       en: [
         "Una estampita de la Caridad del Cobre. Y un papelito con la letra de mi nieta que dice 'te quiero.'",
@@ -4974,6 +5436,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What's a skill you didn't think mattered, that turned out to matter?",
     es: "¿Qué habilidad creías que no importaba, y que resultó importar?",
+    enOther: "What's a skill they didn't think mattered, that turned out to matter?",
+    esOther: "¿Qué habilidad creía que no importaba, y que resultó importar?",
     randomizeOptions: {
       en: [
         "Saber escuchar sin contestar. Lo aprendí cuidando enfermos. Es lo más útil que tengo.",
@@ -4995,6 +5459,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "When did someone first introduce you as theirs — wife, husband, friend, person?",
     es: "¿Cuándo alguien te presentó por primera vez como suyo — esposa, esposo, amigo, su persona?",
+    enOther: "When did someone first introduce them as theirs — wife, husband, friend, person?",
+    esOther: "¿Cuándo alguien le presentó por primera vez como suyo — esposa, esposo, amigo, su persona?",
     randomizeOptions: {
       en: [
         "Hector me presentó en su trabajo: 'Esta es Marisol, mi esposa.' Yo todavía era novia. Pero ya éramos.",
@@ -5016,6 +5482,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Is there a wedding ring or symbol you wear (or wore) that holds a specific meaning?",
     es: "¿Hay un anillo de bodas o símbolo que llevas (o llevabas) que tiene un significado específico?",
+    enOther: "Is there a wedding ring or symbol they wear (or wore) that holds a specific meaning?",
+    esOther: "¿Hay un anillo de bodas o símbolo que lleva (o llevaba) que tiene un significado específico?",
     randomizeOptions: {
       en: [
         "El anillo de Hector. No me lo quito. Me sigue dando suerte.",
@@ -5037,6 +5505,8 @@ export const questions: Question[] = [
     depth: "soul",
     en: "What would you actually want at your funeral? Music, words, who's there?",
     es: "¿Qué querrías de verdad en tu funeral? Música, palabras, quién esté.",
+    enOther: "What would they actually want at their funeral? Music, words, who's there?",
+    esOther: "¿Qué querría de verdad en su funeral? Música, palabras, quién esté.",
     randomizeOptions: {
       en: [
         "Mi familia. La canción 'Bésame mucho.' Mucha comida. Que cuenten chistes. No quiero gente seria llorando todo el día.",
@@ -5060,6 +5530,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Tell me about the first time you saw snow — or the first time it actually felt magical.",
     es: "Cuéntame de la primera vez que viste nieve — o la primera vez que de verdad te pareció mágica.",
+    enOther: "Tell me about the first time they saw snow — or the first time it actually felt magical.",
+    esOther: "Cuéntame de la primera vez que vio nieve — o la primera vez que de verdad le pareció mágica.",
     randomizeOptions: {
       en: [
         "Tenía treinta. Mi primer invierno en Nueva York. Lloré como tonta. Mami no la había visto nunca.",
@@ -5081,6 +5553,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What's an object you keep meaning to fix and never do?",
     es: "¿Qué objeto sigues queriendo arreglar y nunca arreglas?",
+    enOther: "What's an object they keep meaning to fix and never do?",
+    esOther: "¿Qué objeto sigue queriendo arreglar y nunca arregla?",
     randomizeOptions: {
       en: [
         "El reloj de pared de mi mami. No anda hace ocho años. No lo voy a arreglar pero ahí sigue.",
@@ -5102,6 +5576,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Was there a morning you woke up and knew you were a different person now?",
     es: "¿Hubo una mañana en que despertaste y supiste que ya eras otra persona?",
+    enOther: "Was there a morning they woke up and knew they were a different person now?",
+    esOther: "¿Hubo una mañana en que despertó y supo que ya era otra persona?",
     randomizeOptions: {
       en: [
         "La mañana después de que murió mami. Me senté en la cocina y supe: ya no soy hija. Ahora soy raíz.",
@@ -5123,6 +5599,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What's a letter you've written that mattered? To whom?",
     es: "¿Qué carta has escrito que importó? ¿A quién?",
+    enOther: "What's a letter they've written that mattered? To whom?",
+    esOther: "¿Qué carta ha escrito que importó? ¿A quién?",
     randomizeOptions: {
       en: [
         "Una carta a mami el año antes de que muriera. Le dije lo que nunca le había dicho. La leyó. La guardó. La encontré.",
@@ -5144,6 +5622,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "If you could undo one thing in your life, what would it be? Or wouldn't you?",
     es: "Si pudieras deshacer una cosa de tu vida, ¿cuál sería? ¿O no lo harías?",
+    enOther: "If they could undo one thing in their life, what would it be? Or wouldn't they?",
+    esOther: "Si pudiera deshacer una cosa de su vida, ¿cuál sería? ¿O no lo haría?",
     randomizeOptions: {
       en: [
         "No haberme callado el día que mi padre habló mal de mami. Hubiera querido defenderla. Pero no. No. Lo dejo. Cada cosa que pasó me trajo aquí.",
@@ -5165,6 +5645,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Is there a hill, mountain, or high place that means something to you?",
     es: "¿Hay un cerro, una montaña o un lugar alto que signifique algo para ti?",
+    enOther: "Is there a hill, mountain, or high place that means something to them?",
+    esOther: "¿Hay un cerro, una montaña o un lugar alto que signifique algo para él/ella?",
     randomizeOptions: {
       en: [
         "El Pan de Matanzas. Subí con mami a los doce. Nunca más volví. Pero lo subí.",
@@ -5186,6 +5668,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What's the kindest thing a child has ever said or done for you?",
     es: "¿Cuál es la cosa más bondadosa que un niño te ha dicho o hecho?",
+    enOther: "What's the kindest thing a child has ever said or done for them?",
+    esOther: "¿Cuál es la cosa más bondadosa que un niño le ha dicho o hecho?",
     randomizeOptions: {
       en: [
         "Mi nieta me dijo a los seis: 'Abuela, no te mueras.' Le prometí que no, aunque sabía que era mentira. Pero ese momento.",
@@ -5207,6 +5691,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Is there a prayer, a thought, or a phrase you used to repeat that you've stopped saying? Why?",
     es: "¿Hay una oración, un pensamiento o una frase que solías repetir y dejaste de decir? ¿Por qué?",
+    enOther: "Is there a prayer, a thought, or a phrase they used to repeat that they've stopped saying? Why?",
+    esOther: "¿Hay una oración, un pensamiento o una frase que solía repetir y dejó de decir? ¿Por qué?",
     randomizeOptions: {
       en: [
         "'Si Dios quiere.' Lo dejé un tiempo cuando mami se enfermó. Era pelear con Dios. Después regresé al rezo, distinta.",
@@ -5228,6 +5714,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What does your kitchen sound like in the morning?",
     es: "¿A qué suena tu cocina en la mañana?",
+    enOther: "What does their kitchen sound like in the morning?",
+    esOther: "¿A qué suena su cocina en la mañana?",
     randomizeOptions: {
       en: [
         "La cafetera. La radio bajita. Mis pantuflas. Un suspiro.",
@@ -5249,6 +5737,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Have you ever met a famous person briefly? What was the moment?",
     es: "¿Has conocido brevemente a alguien famoso? ¿Cómo fue ese momento?",
+    enOther: "Have they ever met a famous person briefly? What was the moment?",
+    esOther: "¿Ha conocido brevemente a alguien famoso? ¿Cómo fue ese momento?",
     randomizeOptions: {
       en: [
         "Le di la mano a Olga Guillot en un restaurante. Lloré después. Mi mami no me lo creyó.",
@@ -5270,6 +5760,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Tell me about a moment with a mother-in-law, father-in-law, or in-law that surprised you.",
     es: "Cuéntame de un momento con tu suegra, suegro, o cuñado/a que te sorprendió.",
+    enOther: "Tell me about a moment with a mother-in-law, father-in-law, or in-law that surprised them.",
+    esOther: "Cuéntame de un momento con su suegra, suegro, o cuñado/a que le sorprendió.",
     randomizeOptions: {
       en: [
         "Mi suegra, después de años de trato frío, me agarró la mano antes de morir y me dijo 'gracias.' Eso fue todo. Eso fue mucho.",
@@ -5291,6 +5783,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What do you actually fear — the kind of fear you don't bring up?",
     es: "¿A qué le tienes miedo de verdad — del miedo que no se menciona?",
+    enOther: "What do they actually fear — the kind of fear they don't bring up?",
+    esOther: "¿A qué le tiene miedo de verdad — del miedo que no se menciona?",
     randomizeOptions: {
       en: [
         "Quedarme sin la cabeza. Que se me olvide quien soy. Más que la muerte.",
@@ -5312,6 +5806,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Tell me about an aunt or uncle's house — what it smelled like, what was on the wall, what the rule was.",
     es: "Cuéntame de la casa de una tía o tío — a qué olía, qué había en las paredes, cuál era la regla.",
+    enOther: "Tell me about the house of one of their aunts or uncles — what it smelled like, what was on the wall, what the rule was.",
+    esOther: "Cuéntame de la casa de una tía o tío suyo — a qué olía, qué había en las paredes, cuál era la regla.",
     randomizeOptions: {
       en: [
         "Tía Olga. Olía a Maja y a galletas. Una imagen del Sagrado Corazón. La regla: nadie habla durante la novela.",
@@ -5333,6 +5829,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Have you ever been fired or pushed out? What did it teach you?",
     es: "¿Te han despedido o sacado de un trabajo? ¿Qué te enseñó?",
+    enOther: "Have they ever been fired or pushed out? What did it teach them?",
+    esOther: "¿Le han despedido o sacado de un trabajo? ¿Qué le enseñó?",
     randomizeOptions: {
       en: [
         "Una jefa cruel me sacó. Lo cargué un año pensando que era yo. No era yo. Aprendí a creerme cuando algo está mal.",
@@ -5354,6 +5852,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Is there a phrase in a language you don't speak that lives in your head?",
     es: "¿Hay una frase en un idioma que no hablas que vive en tu cabeza?",
+    enOther: "Is there a phrase in a language they don't speak that lives in their head?",
+    esOther: "¿Hay una frase en un idioma que no habla que vive en su cabeza?",
     randomizeOptions: {
       en: [
         "'Saudade.' Portugués. No tengo palabra para eso en español. Pero la siento todos los días.",
@@ -5375,6 +5875,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What's something you've earned that didn't come easy?",
     es: "¿Qué has ganado que no fue fácil?",
+    enOther: "What's something they've earned that didn't come easy?",
+    esOther: "¿Qué ha ganado que no fue fácil?",
     randomizeOptions: {
       en: [
         "La paz con mi madre. Cuarenta años. Lo gané. Y ella también.",
@@ -5396,6 +5898,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Do you have a tattoo or a mark on your body with a story? Tell me.",
     es: "¿Tienes un tatuaje o una marca con historia? Cuéntame.",
+    enOther: "Do they have a tattoo or a mark on their body with a story? Tell me.",
+    esOther: "¿Tiene un tatuaje o una marca con historia? Cuéntame.",
     randomizeOptions: {
       en: [
         "No tengo tatuaje pero tengo una cicatriz en el pecho de cuando me operaron del corazón. Le digo 'mi medalla.'",
@@ -5417,6 +5921,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Tell me about a road trip — where to, who with, what you remember.",
     es: "Cuéntame de un viaje por carretera — adónde, con quién, qué recuerdas.",
+    enOther: "Tell me about a road trip — where to, who with, what they remember.",
+    esOther: "Cuéntame de un viaje por carretera — adónde, con quién, qué recuerda.",
     randomizeOptions: {
       en: [
         "Con Hector y los nenes a las Carolinas. Paramos en cada McDonald's. Mi nena vomitó una vez. Reímos hasta llegar.",
@@ -5438,6 +5944,8 @@ export const questions: Question[] = [
     depth: "soul",
     en: "Who would you want at your bedside?",
     es: "¿A quién querrías a tu lado en la cama, al final?",
+    enOther: "Who would they want at their bedside?",
+    esOther: "¿A quién querría a su lado en la cama, al final?",
     randomizeOptions: {
       en: [
         "Mi hija. Mi nieta. Una vela. La canción 'Bésame mucho' bajita. Eso basta.",
@@ -5459,6 +5967,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Is there a church, temple, or place of worship that's lived in you, even if you don't go now?",
     es: "¿Hay una iglesia, templo, o lugar de fe que vive en ti, aunque ya no vayas?",
+    enOther: "Is there a church, temple, or place of worship that's lived in them, even if they don't go now?",
+    esOther: "¿Hay una iglesia, templo, o lugar de fe que vive en él/ella, aunque ya no vaya?",
     randomizeOptions: {
       en: [
         "La iglesia del Cobre en Hialeah. Aún voy. Ahí me bautizaron a mis hijos. Me voy a despedir desde ahí.",
@@ -5480,6 +5990,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What has aging given you that the younger you would not have believed?",
     es: "¿Qué te ha dado envejecer que tu yo joven no habría creído?",
+    enOther: "What has aging given them that their younger self would not have believed?",
+    esOther: "¿Qué le ha dado envejecer que su yo joven no habría creído?",
     randomizeOptions: {
       en: [
         "La capacidad de no preocuparme por lo que piensan los demás. A los veinte yo me hubiera reído. Pero llegó.",
@@ -5501,6 +6013,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Was there a cousin you grew up alongside, more like a sibling? What were they like?",
     es: "¿Hubo un primo con quien creciste, casi como hermano? ¿Cómo era?",
+    enOther: "Was there a cousin they grew up alongside, more like a sibling? What was that cousin like?",
+    esOther: "¿Hubo un primo con quien creció, casi como hermano? ¿Cómo era?",
     randomizeOptions: {
       en: [
         "Mi prima Yoli. Mismo año. Misma escuela. Misma cuadra. La extraño cada día. La voy a llamar.",
@@ -5522,6 +6036,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Tell me about a moment of music that found you when you needed it.",
     es: "Cuéntame de un momento musical que te encontró cuando lo necesitabas.",
+    enOther: "Tell me about a moment of music that found them when they needed it.",
+    esOther: "Cuéntame de un momento musical que le encontró cuando lo necesitaba.",
     randomizeOptions: {
       en: [
         "Una guitarra en la calle, en Madrid, el año que mami se enfermó. Me senté en un banquito y lloré sin pena.",
@@ -5543,6 +6059,8 @@ export const questions: Question[] = [
     depth: "surface",
     en: "What's a corny joke or saying you keep in your back pocket?",
     es: "¿Qué chiste o dicho cursi tienes guardado en el bolsillo?",
+    enOther: "What's a corny joke or saying they keep in their back pocket?",
+    esOther: "¿Qué chiste o dicho cursi tiene guardado en el bolsillo?",
     randomizeOptions: {
       en: [
         "'Mira, mi vida — no hay mal que por bien no venga.' Lo digo cuando algo se rompe.",
@@ -5564,6 +6082,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Have you had a friendship across a difference — class, age, faith, politics — that worked?",
     es: "¿Has tenido una amistad a través de una diferencia — clase, edad, fe, política — que funcionó?",
+    enOther: "Have they had a friendship across a difference — class, age, faith, politics — that worked?",
+    esOther: "¿Ha tenido una amistad a través de una diferencia — clase, edad, fe, política — que funcionó?",
     randomizeOptions: {
       en: [
         "Mi amiga Ruth. Judía. Yo católica. Cuarenta años. La quiero más que a algunas primas.",
@@ -5585,6 +6105,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Is there something you can't watch on TV anymore, even if you used to love it?",
     es: "¿Hay algo que ya no puedes ver en la tele, aunque te encantaba?",
+    enOther: "Is there something they can't watch on TV anymore, even if they used to love it?",
+    esOther: "¿Hay algo que ya no puede ver en la tele, aunque le encantaba?",
     randomizeOptions: {
       en: [
         "Las novelas. Mi mami las veía. Ahora me hacen llorar, no por la historia, por ella.",
@@ -5606,6 +6128,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "If you have a sibling and they got married, tell me a moment from their wedding.",
     es: "Si tienes un hermano o hermana que se casó, cuéntame un momento de su boda.",
+    enOther: "If they have a sibling who got married, tell me a moment from that wedding.",
+    esOther: "Si tiene un hermano o hermana que se casó, cuéntame un momento de esa boda.",
     randomizeOptions: {
       en: [
         "Cuando mi hermana se puso a llorar al ver a papá entrarla. Yo lloré también. Eso se me quedó.",
@@ -5627,6 +6151,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What's a mistake you made that, in retrospect, was the right thing to do?",
     es: "¿Qué error cometiste que, mirándolo ahora, fue lo correcto?",
+    enOther: "What's a mistake they made that, in retrospect, was the right thing to do?",
+    esOther: "¿Qué error cometió que, mirándolo ahora, fue lo correcto?",
     randomizeOptions: {
       en: [
         "Dejar a un hombre que mami quería que mantuviera. Pensé que era un error. No lo era. Eso me dio mi vida.",
@@ -5648,6 +6174,8 @@ export const questions: Question[] = [
     depth: "soul",
     en: "Tell me something your body has done that astonishes you.",
     es: "Cuéntame algo que tu cuerpo ha hecho que te asombre.",
+    enOther: "Tell me something their body has done that astonishes them.",
+    esOther: "Cuéntame algo que su cuerpo ha hecho que le asombre.",
     randomizeOptions: {
       en: [
         "Cargué a mi mami enferma de la cama al baño tres meses. Yo no sabía que aguantaba tanto. El cuerpo aguanta lo que el alma le pide.",
@@ -5669,6 +6197,8 @@ export const questions: Question[] = [
     depth: "soul",
     en: "Is there a single sentence you'd want carved somewhere small? On a bench, in a garden, on a stone?",
     es: "¿Hay una sola oración que querrías grabada en algo pequeño? En una banca, un jardín, una piedra?",
+    enOther: "Is there a single sentence they'd want carved somewhere small? On a bench, in a garden, on a stone?",
+    esOther: "¿Hay una sola oración que querría grabada en algo pequeño? En una banca, un jardín, una piedra?",
     randomizeOptions: {
       en: [
         "'Quería bien.' Tres palabras. Eso es lo que quiero que diga.",
@@ -5692,6 +6222,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Tell me about your favorite chair, and why no one else gets to sit in it.",
     es: "Cuéntame de tu silla favorita, y por qué nadie más se sienta en ella.",
+    enOther: "Tell me about their favorite chair, and why no one else gets to sit in it.",
+    esOther: "Cuéntame de su silla favorita, y por qué nadie más se sienta en ella.",
     randomizeOptions: {
       en: [
         "El sillón verde de la sala. Era de Hector. Yo me siento ahí cada noche. Si alguien se sienta, lo miro feo.",
@@ -5713,6 +6245,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Was there a dance you didn't dance? Tell me about it.",
     es: "¿Hubo un baile que no bailaste? Cuéntame.",
+    enOther: "Was there a dance they didn't dance? Tell me about it.",
+    esOther: "¿Hubo un baile que no bailó? Cuéntame.",
     randomizeOptions: {
       en: [
         "Mi quinceañera. Mi papá no quiso bailar conmigo. Yo le dije después que era el peor recuerdo. No me contestó.",
@@ -5734,6 +6268,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Whose hands — besides your mother's — do you remember vividly?",
     es: "¿De quién recuerdas vívidamente las manos — además de tu madre?",
+    enOther: "Whose hands — besides their mother's — do they remember vividly?",
+    esOther: "¿De quién recuerda vívidamente las manos — además de su madre?",
     randomizeOptions: {
       en: [
         "Las de Hector. Manos grandes, ásperas, con una manchita azul de tinta cerca del pulgar.",
@@ -5755,6 +6291,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What's something you outgrew without quite noticing when?",
     es: "¿Qué cosa dejaste atrás sin notar exactamente cuándo?",
+    enOther: "What's something they outgrew without quite noticing when?",
+    esOther: "¿Qué cosa dejó atrás sin notar exactamente cuándo?",
     randomizeOptions: {
       en: [
         "El miedo a estar sola en mi casa. Antes me daba pánico. Ahora se me hace lo más sagrado.",
@@ -5776,6 +6314,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "When did you first feel like an actual grown-up?",
     es: "¿Cuándo te sentiste por primera vez como adulto de verdad?",
+    enOther: "When did they first feel like an actual grown-up?",
+    esOther: "¿Cuándo se sintió por primera vez como adulto/a de verdad?",
     randomizeOptions: {
       en: [
         "El día que firmé mi primera cuenta de luz. Treinta años. Tarde. Me reí sola.",
@@ -5797,6 +6337,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Tell me about a time you got food poisoning. Who do you blame?",
     es: "Cuéntame de una vez que te dio una intoxicación. ¿A quién culpas?",
+    enOther: "Tell me about a time they got food poisoning. Who do they blame?",
+    esOther: "Cuéntame de una vez que le dio una intoxicación. ¿A quién culpa?",
     randomizeOptions: {
       en: [
         "El chivito en un puesto en Cuba. Tres días en cama. La culpa la tiene el chivito y mi orgullo.",
@@ -5818,6 +6360,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What song plays in your head when nothing's playing?",
     es: "¿Qué canción suena en tu cabeza cuando no hay nada sonando?",
+    enOther: "What song plays in their head when nothing's playing?",
+    esOther: "¿Qué canción suena en su cabeza cuando no hay nada sonando?",
     randomizeOptions: {
       en: [
         "'La Bayamesa.' Vieja. De mi mami. Aún la canturreo limpiando.",
@@ -5839,6 +6383,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What's a secret skill — something you can do that almost no one knows you can?",
     es: "¿Cuál es una habilidad secreta tuya — algo que sabes hacer y casi nadie sabe?",
+    enOther: "What's a secret skill of theirs — something they can do that almost no one knows they can?",
+    esOther: "¿Cuál es una habilidad secreta suya — algo que sabe hacer y casi nadie sabe?",
     randomizeOptions: {
       en: [
         "Sé arreglar relojes. Mi tío me enseñó. Ningún nieto sabe. Yo sé.",
@@ -5860,6 +6406,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What's something you remember your father doing with his hands?",
     es: "¿Qué recuerdas que hacía tu padre con las manos?",
+    enOther: "What's something they remember their father doing with his hands?",
+    esOther: "¿Qué recuerda que hacía su padre con las manos?",
     randomizeOptions: {
       en: [
         "Liar nudos. Aprendí mirándolo. No sé hacer ni la mitad de los que él sabía.",
@@ -5881,6 +6429,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Who have you fully forgiven — really, not just on paper?",
     es: "¿A quién has perdonado por completo — de verdad, no de mentirita?",
+    enOther: "Who have they fully forgiven — really, not just on paper?",
+    esOther: "¿A quién ha perdonado por completo — de verdad, no de mentirita?",
     randomizeOptions: {
       en: [
         "A mi padre. Tomó cuarenta años. Lo perdoné el día que murió. Y otra vez después.",
@@ -5902,6 +6452,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What's the stillest place you've ever been?",
     es: "¿Cuál es el lugar más quieto en el que has estado?",
+    enOther: "What's the stillest place they've ever been?",
+    esOther: "¿Cuál es el lugar más quieto en el que ha estado?",
     randomizeOptions: {
       en: [
         "La capilla del convento donde mi tía era monja. No oí mi propia respiración. Lo recuerdo todavía.",
@@ -5923,6 +6475,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What's something true about your siblings you'd never say to them out loud?",
     es: "¿Qué verdad sobre tus hermanos nunca les dirías en voz alta?",
+    enOther: "What's something true about their siblings they'd never say to them out loud?",
+    esOther: "¿Qué verdad sobre sus hermanos nunca les diría en voz alta?",
     randomizeOptions: {
       en: [
         "Que mi hermana se cree fuerte y no lo es. Y la quiero más por eso.",
@@ -5944,6 +6498,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "If someone visits you for the first time, where do you take them first?",
     es: "Si alguien te visita por primera vez, ¿a dónde lo llevas primero?",
+    enOther: "If someone visits them for the first time, where do they take that person first?",
+    esOther: "Si alguien le visita por primera vez, ¿a dónde lo lleva primero?",
     randomizeOptions: {
       en: [
         "A la cocina. Café primero. Después la cama está hecha y la sala arreglada para que lo vea cuando llegue.",
@@ -5965,6 +6521,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "When did you realize you were, in fact, strong?",
     es: "¿Cuándo te diste cuenta de que, de verdad, eras fuerte?",
+    enOther: "When did they realize they were, in fact, strong?",
+    esOther: "¿Cuándo se dio cuenta de que, de verdad, era fuerte?",
     randomizeOptions: {
       en: [
         "Cuando salí del hospital cargando a mi nena después de un parto difícil. Sola. Y caminé.",
@@ -5986,6 +6544,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What color is your house, on the inside? What did you choose, and why?",
     es: "¿De qué color es tu casa por dentro? ¿Qué escogiste, y por qué?",
+    enOther: "What color is their house, on the inside? What did they choose, and why?",
+    esOther: "¿De qué color es su casa por dentro? ¿Qué escogió, y por qué?",
     randomizeOptions: {
       en: [
         "Amarillo claro. Como el sol. Como Cuba. Como mami. Mi sala todavía es amarilla.",
@@ -6007,6 +6567,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What's the very first thought you have when you wake up?",
     es: "¿Cuál es el primer pensamiento que tienes al despertar?",
+    enOther: "What's the very first thought they have when they wake up?",
+    esOther: "¿Cuál es el primer pensamiento que tiene al despertar?",
     randomizeOptions: {
       en: [
         "'Gracias.' Antes de los ojos. Lo aprendí de mami.",
@@ -6028,6 +6590,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What pair of shoes would you hand down, if anyone wanted them?",
     es: "¿Qué par de zapatos pasarías a alguien, si los quisiera?",
+    enOther: "What pair of shoes would they hand down, if anyone wanted them?",
+    esOther: "¿Qué par de zapatos pasaría a alguien, si los quisiera?",
     randomizeOptions: {
       en: [
         "Mis zapatos de baile blancos. Los usé en mi boda. Si mi nieta los quiere, son suyos.",
@@ -6049,6 +6613,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Has a chance encounter with a stranger ever changed something in you?",
     es: "¿Te ha cambiado algo un encuentro casual con un desconocido?",
+    enOther: "Has a chance encounter with a stranger ever changed something in them?",
+    esOther: "¿Le ha cambiado algo un encuentro casual con un desconocido?",
     randomizeOptions: {
       en: [
         "Una mujer en un avión a los treinta. Le conté lo de mi mami. Me dijo: 'mi vida, los muertos quieren que sigamos.' Cambié.",
@@ -6070,6 +6636,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Who's the first person you call when you've heard bad news?",
     es: "¿A quién llamas primero cuando recibes malas noticias?",
+    enOther: "Who's the first person they call when they've heard bad news?",
+    esOther: "¿A quién llama primero cuando recibe malas noticias?",
     randomizeOptions: {
       en: [
         "Mi hermana. Siempre. Ella sabe. Llora conmigo. No me da consejos.",
@@ -6091,6 +6659,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Is there a version of yourself that doesn't get out anymore? Tell me about them.",
     es: "¿Hay una versión de ti que ya no sale? Cuéntame de ella.",
+    enOther: "Is there a version of themselves that doesn't get out anymore? Tell me about that version.",
+    esOther: "¿Hay una versión de sí mismo/a que ya no sale? Cuéntame de ella.",
     randomizeOptions: {
       en: [
         "La que iba a bailar todos los viernes. La extraño. Y la respeto. Pero ahora me siento yo en el sillón.",
@@ -6112,6 +6682,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What's your pace when you walk? Slow, fast, leisurely, with purpose?",
     es: "¿Cuál es tu ritmo al caminar? Lento, rápido, paseado, con propósito?",
+    enOther: "What's their pace when they walk? Slow, fast, leisurely, with purpose?",
+    esOther: "¿Cuál es su ritmo al caminar? Lento, rápido, paseado, con propósito?",
     randomizeOptions: {
       en: [
         "Lento. A propósito. Quiero ver. La gente joven me pasa. Que pase.",
@@ -6133,6 +6705,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Have you ever watched a fight that wasn't yours and remembered it for years?",
     es: "¿Alguna vez viste una pelea que no era tuya y la recordaste por años?",
+    enOther: "Have they ever watched a fight that wasn't theirs and remembered it for years?",
+    esOther: "¿Alguna vez vio una pelea que no era suya y la recordó por años?",
     randomizeOptions: {
       en: [
         "Mi mami y mi tía. Por una receta. Yo tenía siete años. No se hablaron seis meses. Por una receta.",
@@ -6154,6 +6728,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What's a soup or food you make when someone you love is sick?",
     es: "¿Qué sopa o comida haces cuando alguien que quieres está enfermo?",
+    enOther: "What soup or food do they make when someone they love is sick?",
+    esOther: "¿Qué sopa o comida hace cuando alguien que quiere está enfermo?",
     randomizeOptions: {
       en: [
         "Sopa de pollo con fideos. La de mami. Le pongo limón al final. Cura.",
@@ -6175,6 +6751,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What did your kids — or the kids in your life — take from you that surprised you?",
     es: "¿Qué tomaron tus hijos — o los niños en tu vida — de ti que te sorprendió?",
+    enOther: "What did their kids — or the kids in their life — take from them that surprised them?",
+    esOther: "¿Qué tomaron sus hijos — o los niños en su vida — de él/ella que le sorprendió?",
     randomizeOptions: {
       en: [
         "Mi paciencia. No la enseñé. La copiaron. Mejor que yo, además.",
@@ -6196,6 +6774,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Is there a window you've cried looking out of? Where, when?",
     es: "¿Hay una ventana por la que has llorado mirando afuera? ¿Dónde, cuándo?",
+    enOther: "Is there a window they've cried looking out of? Where, when?",
+    esOther: "¿Hay una ventana por la que ha llorado mirando afuera? ¿Dónde, cuándo?",
     randomizeOptions: {
       en: [
         "La ventana del cuarto de mami en el hospital. Mirando los árboles. Pensando que ella nunca más los iba a ver.",
@@ -6217,6 +6797,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What was the first time you wore a suit or a real dress for an occasion?",
     es: "¿Cuál fue la primera vez que usaste un traje o vestido formal para una ocasión?",
+    enOther: "What was the first time they wore a suit or a real dress for an occasion?",
+    esOther: "¿Cuál fue la primera vez que usó un traje o vestido formal para una ocasión?",
     randomizeOptions: {
       en: [
         "Mi quinceañera. Vestido rosa. Un guante en cada brazo. Mami lloró sin parar.",
@@ -6238,6 +6820,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What perfume did your mother wear? Can you still smell it?",
     es: "¿Qué perfume usaba tu madre? ¿Aún lo puedes oler?",
+    enOther: "What perfume did their mother wear? Can they still smell it?",
+    esOther: "¿Qué perfume usaba su madre? ¿Aún lo puede oler?",
     randomizeOptions: {
       en: [
         "Maja. Hasta el día que murió. Tengo el frasco. Lo abro una vez al año.",
@@ -6259,6 +6843,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Is there something you regret not buying when you had the chance?",
     es: "¿Hay algo que te arrepientes de no haber comprado cuando pudiste?",
+    enOther: "Is there something they regret not buying when they had the chance?",
+    esOther: "¿Hay algo que se arrepiente de no haber comprado cuando pudo?",
     randomizeOptions: {
       en: [
         "Una casita en Varadero. Tres mil dólares en el setenta y dos. Hubiéramos podido. No lo hicimos. Aún la sueño.",
@@ -6280,6 +6866,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What's a phrase you say to your dog, cat, or pet — that you don't say to humans?",
     es: "¿Qué frase le dices a tu perro, gato o mascota — que no le dices a humanos?",
+    enOther: "What's a phrase they say to their dog, cat, or pet — that they don't say to humans?",
+    esOther: "¿Qué frase le dice a su perro, gato o mascota — que no le dice a humanos?",
     randomizeOptions: {
       en: [
         "'Mi vida.' Toda persona y animal. Pero a la perrita se lo digo más.",
@@ -6301,6 +6889,8 @@ export const questions: Question[] = [
     depth: "soul",
     en: "If today were your last day, but you had to spend it ordinary — what would you do?",
     es: "Si hoy fuera tu último día, pero tuvieras que pasarlo ordinario — ¿qué harías?",
+    enOther: "If today were their last day, but they had to spend it ordinary — what would they do?",
+    esOther: "Si hoy fuera su último día, pero tuviera que pasarlo ordinario — ¿qué haría?",
     randomizeOptions: {
       en: [
         "Café con mi hermana. Misa. Cocinar arroz con pollo. Llamar a mis nietos. Acostarme contenta.",
@@ -6324,6 +6914,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Tell me about a moment in a hospital waiting room.",
     es: "Cuéntame de un momento en una sala de espera de hospital.",
+    enOther: "Tell me about a moment they spent in a hospital waiting room.",
+    esOther: "Cuéntame de un momento que pasó en una sala de espera de hospital.",
     randomizeOptions: {
       en: [
         "Esperando que sacaran a mami de cirugía. Recé el rosario tres veces. Una enfermera me trajo un café que sabía a milagro.",
@@ -6345,6 +6937,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What song played at your wedding (or a wedding you remember)?",
     es: "¿Qué canción sonó en tu boda (o en una boda que recuerdas)?",
+    enOther: "What song played at their wedding (or a wedding they remember)?",
+    esOther: "¿Qué canción sonó en su boda (o en una boda que recuerda)?",
     randomizeOptions: {
       en: [
         "'Bésame mucho.' Hector me lo pidió. Lo bailamos despacio. Recuerdo cada nota.",
@@ -6366,6 +6960,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Have you ever saved an animal? What happened?",
     es: "¿Has salvado a un animal? ¿Qué pasó?",
+    enOther: "Have they ever saved an animal? What happened?",
+    esOther: "¿Ha salvado a un animal? ¿Qué pasó?",
     randomizeOptions: {
       en: [
         "Una palomita herida en mi patio. La cuidé tres semanas. Voló. Yo lloré.",
@@ -6387,6 +6983,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What did your father teach you to fix — even if you weren't paying attention at the time?",
     es: "¿Qué te enseñó tu padre a arreglar — aunque no estuvieras prestando atención?",
+    enOther: "What did their father teach them to fix — even if they weren't paying attention at the time?",
+    esOther: "¿Qué le enseñó su padre a arreglar — aunque no estuviera prestando atención?",
     randomizeOptions: {
       en: [
         "Una llave goteando. Me enseñó a los doce. Lo hago igual que él. Misma posición, misma cara.",
@@ -6408,6 +7006,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Was there a love you didn't pursue? Why not?",
     es: "¿Hubo un amor que no perseguiste? ¿Por qué no?",
+    enOther: "Was there a love they didn't pursue? Why not?",
+    esOther: "¿Hubo un amor que no persiguió? ¿Por qué no?",
     randomizeOptions: {
       en: [
         "Un muchacho en mi pueblo. Me daba miedo lo intenso. Me casé con Hector, que era seguro. Nunca me arrepentí. Pero pienso en él.",
@@ -6429,6 +7029,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Have you been somewhere at sunrise that you'll never forget?",
     es: "¿Has estado en algún lugar al amanecer que no olvidarás?",
+    enOther: "Have they been somewhere at sunrise that they'll never forget?",
+    esOther: "¿Ha estado en algún lugar al amanecer que no olvidará?",
     randomizeOptions: {
       en: [
         "El malecón de La Habana al amanecer. Yo tenía dieciocho. Estaba enamorada por primera vez. La luz era rosada.",
@@ -6450,6 +7052,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Was there a cab driver, bus driver, or stranger behind a wheel you remember?",
     es: "¿Hubo un taxista, conductor de autobús o desconocido al volante que recuerdes?",
+    enOther: "Was there a cab driver, bus driver, or stranger behind a wheel they remember?",
+    esOther: "¿Hubo un taxista, conductor de autobús o desconocido al volante que recuerde?",
     randomizeOptions: {
       en: [
         "Un taxista en La Habana. Me cantó un bolero entero hasta el aeropuerto. No me cobró. Yo tenía catorce.",
@@ -6471,6 +7075,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "How does your handwriting look on a check, of all things?",
     es: "¿Cómo se ve tu letra en un cheque?",
+    enOther: "How does their handwriting look on a check, of all things?",
+    esOther: "¿Cómo se ve su letra en un cheque?",
     randomizeOptions: {
       en: [
         "Cuidadosa. Mami me dijo: 'el cheque es la firma de la persona.' Lo escribo despacio.",
@@ -6492,6 +7098,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Have you ever told a lie that you needed to tell? What was at stake?",
     es: "¿Alguna vez dijiste una mentira que necesitabas decir? ¿Qué estaba en juego?",
+    enOther: "Have they ever told a lie that they needed to tell? What was at stake?",
+    esOther: "¿Alguna vez dijo una mentira que necesitaba decir? ¿Qué estaba en juego?",
     randomizeOptions: {
       en: [
         "Le dije a mami que el doctor le había dicho que se iba a poner mejor. Era mentira. Pero ella necesitaba dormir esa noche. Dormimos las dos.",
@@ -6513,6 +7121,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Tell me about a piece of art — a painting, a sculpture, a poster — that lives in your house.",
     es: "Cuéntame de una pieza de arte — pintura, escultura, póster — que vive en tu casa.",
+    enOther: "Tell me about a piece of art — a painting, a sculpture, a poster — that lives in their house.",
+    esOther: "Cuéntame de una pieza de arte — pintura, escultura, póster — que vive en su casa.",
     randomizeOptions: {
       en: [
         "Un cuadro de la Virgen del Cobre que pintó mi tía. No es bueno. Es lo más bonito que tengo.",
@@ -6534,6 +7144,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "When did you know you'd be a parent — or that you wouldn't be?",
     es: "¿Cuándo supiste que ibas a ser padre — o que no lo serías?",
+    enOther: "When did they know they'd be a parent — or that they wouldn't be?",
+    esOther: "¿Cuándo supo que iba a ser madre o padre — o que no lo sería?",
     randomizeOptions: {
       en: [
         "Cuando tenía siete años cargué a mi prima recién nacida. Ahí supe.",
@@ -6555,6 +7167,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What does your closet smell like when you open it?",
     es: "¿A qué huele tu clóset cuando lo abres?",
+    enOther: "What does their closet smell like when they open it?",
+    esOther: "¿A qué huele su clóset cuando lo abre?",
     randomizeOptions: {
       en: [
         "Lavanda. Le pongo bolsitas a la ropa. Mi mami lo hacía.",
@@ -6576,6 +7190,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "If you could touch one moment again — not change it, just be inside it — which one?",
     es: "Si pudieras tocar un momento otra vez — no cambiarlo, sólo estar adentro — ¿cuál?",
+    enOther: "If they could touch one moment again — not change it, just be inside it — which one?",
+    esOther: "Si pudiera tocar un momento otra vez — no cambiarlo, sólo estar adentro — ¿cuál?",
     randomizeOptions: {
       en: [
         "La sobremesa con mami el último domingo. Café, plátano frito, novela en la tele. Eso. Otra vez.",
@@ -6597,6 +7213,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Did a friendship start in a strange place — a waiting room, a wrong number, a bus?",
     es: "¿Una amistad empezó en un lugar raro — una sala de espera, un número equivocado, un autobús?",
+    enOther: "Did a friendship of theirs start in a strange place — a waiting room, a wrong number, a bus?",
+    esOther: "¿Alguna amistad suya empezó en un lugar raro — una sala de espera, un número equivocado, un autobús?",
     randomizeOptions: {
       en: [
         "En la guagua a Miami. Una señora me convidó a un caramelo. Treinta años somos comadres.",
@@ -6618,6 +7236,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Have you had a near miss — health, accident, danger — that made you reconsider something?",
     es: "¿Has tenido un casi-accidente — salud, riesgo, peligro — que te hizo reconsiderar algo?",
+    enOther: "Have they had a near miss — health, accident, danger — that made them reconsider something?",
+    esOther: "¿Ha tenido un casi-accidente — salud, riesgo, peligro — que le hizo reconsiderar algo?",
     randomizeOptions: {
       en: [
         "Un susto del corazón a los sesenta. Cambié todo. Ya no aguantó pleitos. Solo amor o silencio.",
@@ -6639,6 +7259,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Is there a chair you sat in once, somewhere, that you still remember?",
     es: "¿Hay una silla en la que te sentaste una vez, en algún lugar, que aún recuerdas?",
+    enOther: "Is there a chair they sat in once, somewhere, that they still remember?",
+    esOther: "¿Hay una silla en la que se sentó una vez, en algún lugar, que aún recuerda?",
     randomizeOptions: {
       en: [
         "La silla del confesionario en La Habana. Tenía doce. Le confesé un crush al cura. Me dijo: 'mi hija, también el cura tuvo doce.'",
@@ -6660,6 +7282,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What's something you wish you'd protested out loud?",
     es: "¿Qué cosa quisieras haber protestado en voz alta?",
+    enOther: "What's something they wish they'd protested out loud?",
+    esOther: "¿Qué cosa quisiera haber protestado en voz alta?",
     randomizeOptions: {
       en: [
         "Cuando un tío habló mal de un gay en mi mesa. Yo callé. No callaré ya.",
@@ -6681,6 +7305,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What's a kitchen tool you'd grab if the house were on fire?",
     es: "¿Qué utensilio de cocina agarrarías si la casa se incendiara?",
+    enOther: "What kitchen tool would they grab if the house were on fire?",
+    esOther: "¿Qué utensilio de cocina agarraría si la casa se incendiara?",
     randomizeOptions: {
       en: [
         "El cuchillo de pelar de mami. Cabe en mi mano como si fuera mío. Lo es.",
@@ -6702,6 +7328,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Is there a particular summer you remember as more vivid than the rest?",
     es: "¿Hay un verano particular que recuerdes más vívido que los demás?",
+    enOther: "Is there a particular summer they remember as more vivid than the rest?",
+    esOther: "¿Hay un verano particular que recuerde más vívido que los demás?",
     randomizeOptions: {
       en: [
         "El verano de 1968 en Varadero. Mi prima Yoli. Mami todavía joven. Las cigarras. Esa luz.",
@@ -6723,6 +7351,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Have you ever bought yourself flowers? When?",
     es: "¿Te has comprado flores a ti mismo? ¿Cuándo?",
+    enOther: "Have they ever bought themselves flowers? When?",
+    esOther: "¿Se ha comprado flores a sí mismo/a? ¿Cuándo?",
     randomizeOptions: {
       en: [
         "Sí. Después de que se fue Hector. Cada viernes. No paro.",
@@ -6744,6 +7374,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What's something you carry with you all the time that no one else can see?",
     es: "¿Qué cargas contigo siempre que nadie más puede ver?",
+    enOther: "What's something they carry with them all the time that no one else can see?",
+    esOther: "¿Qué carga consigo siempre que nadie más puede ver?",
     randomizeOptions: {
       en: [
         "El miedo de no ser suficiente. Lo cargo desde niña. Pero también la certeza de que sí lo soy.",
@@ -6765,6 +7397,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Do you remember your phone number from when you were a kid?",
     es: "¿Recuerdas tu número de teléfono de cuando eras niño?",
+    enOther: "Do they remember their phone number from when they were a kid?",
+    esOther: "¿Recuerda su número de teléfono de cuando era niño/a?",
     randomizeOptions: {
       en: [
         "Tres-uno-siete-ocho-cuatro. La voz de mami contestando: '¿Bueno?' Lo recuerdo así.",
@@ -6786,6 +7420,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Did a teacher ever underestimate you? Did you ever tell them?",
     es: "¿Alguna vez un maestro te subestimó? ¿Se lo dijiste?",
+    enOther: "Did a teacher ever underestimate them? Did they ever tell that teacher?",
+    esOther: "¿Alguna vez un maestro le subestimó? ¿Se lo dijo?",
     randomizeOptions: {
       en: [
         "Una maestra me dijo que no iba a ser nadie. Cuarenta años después la encontré. Le dije: 'soy la abuela que se acuerda de usted.' Y me reí.",
@@ -6807,6 +7443,8 @@ export const questions: Question[] = [
     depth: "surface",
     en: "What do you say when you sit down hard, with relief?",
     es: "¿Qué dices cuando te sientas pesado, con alivio?",
+    enOther: "What do they say when they sit down hard, with relief?",
+    esOther: "¿Qué dice cuando se sienta pesado, con alivio?",
     randomizeOptions: {
       en: [
         "'Aaay.' De los huesos. Mami lo decía igual.",
@@ -6828,6 +7466,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Was there a person who got away — not romantic necessarily, just someone who slipped out of your orbit?",
     es: "¿Hubo una persona que se te fue — no necesariamente romántica, alguien que se salió de tu órbita?",
+    enOther: "Was there a person who got away — not romantic necessarily, just someone who slipped out of their orbit?",
+    esOther: "¿Hubo una persona que se le fue — no necesariamente romántica, alguien que se salió de su órbita?",
     randomizeOptions: {
       en: [
         "Una amiga del barrio en La Habana. Salí. Ella se quedó. Nunca la volví a ver. Pienso en ella casi cada día.",
@@ -6849,6 +7489,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Tell me about a song that played at a funeral you attended.",
     es: "Cuéntame de una canción que sonó en un funeral al que asististe.",
+    enOther: "Tell me about a song that played at a funeral they attended.",
+    esOther: "Cuéntame de una canción que sonó en un funeral al que asistió.",
     randomizeOptions: {
       en: [
         "'Ave María.' En el de mami. Yo no podía cantar. Mi hermana sí. Lo recuerdo en su voz.",
@@ -6870,6 +7512,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Did you ever lie to keep someone safe? What was at stake?",
     es: "¿Mentiste alguna vez para proteger a alguien? ¿Qué estaba en juego?",
+    enOther: "Did they ever lie to keep someone safe? What was at stake?",
+    esOther: "¿Mintió alguna vez para proteger a alguien? ¿Qué estaba en juego?",
     randomizeOptions: {
       en: [
         "A mami, sobre lo que pasaba en mi primer matrimonio. La hubiera matado el dolor. Me callé.",
@@ -6891,6 +7535,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What do your bedsheets feel like? Soft, crisp, old, new?",
     es: "¿Cómo se sienten tus sábanas? ¿Suaves, planchadas, viejas, nuevas?",
+    enOther: "What do their bedsheets feel like? Soft, crisp, old, new?",
+    esOther: "¿Cómo se sienten sus sábanas? ¿Suaves, planchadas, viejas, nuevas?",
     randomizeOptions: {
       en: [
         "Suaves. Planchadas. Lavanda en el armario. Mami me enseñó.",
@@ -6912,6 +7558,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What have you outgrown about your faith — and what's still there?",
     es: "¿Qué has dejado atrás de tu fe — y qué sigue ahí?",
+    enOther: "What have they outgrown about their faith — and what's still there?",
+    esOther: "¿Qué ha dejado atrás de su fe — y qué sigue ahí?",
     randomizeOptions: {
       en: [
         "Dejé el miedo al infierno. Lo que queda: la convicción de que mami me sigue cuidando.",
@@ -6933,6 +7581,8 @@ export const questions: Question[] = [
     depth: "soul",
     en: "If you had to choose one sentence to be said about you — at a wake, in a memory, in a thought — what would it be?",
     es: "Si tuvieras que escoger una sola oración para ser dicha sobre ti — en un velorio, en una memoria, en un pensamiento — ¿cuál sería?",
+    enOther: "If they had to choose one sentence to be said about them — at a wake, in a memory, in a thought — what would it be?",
+    esOther: "Si tuviera que escoger una sola oración para ser dicha sobre él/ella — en un velorio, en una memoria, en un pensamiento — ¿cuál sería?",
     randomizeOptions: {
       en: [
         "'Ella nos quiso bien y nos hizo reír.' Eso es. Ya con eso me voy en paz.",
@@ -6956,6 +7606,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What surprised you most about being a parent — or about not being one?",
     es: "¿Qué fue lo que más te sorprendió de ser padre — o de no serlo?",
+    enOther: "What surprised them most about being a parent — or about not being one?",
+    esOther: "¿Qué fue lo que más le sorprendió de ser madre o padre — o de no serlo?",
     randomizeOptions: {
       en: [
         "Que se quiere de un modo que no sabía existía. Y que esa cantidad de amor da miedo.",
@@ -6977,6 +7629,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What did your favorite teacher's classroom look like?",
     es: "¿Cómo era el salón de tu maestra favorita?",
+    enOther: "What did their favorite teacher's classroom look like?",
+    esOther: "¿Cómo era el salón de su maestra favorita?",
     randomizeOptions: {
       en: [
         "El de la Hermana Alicia. Una imagen grande de la Virgen. Mapa de Cuba. Y siempre olía a tiza y a rosas.",
@@ -6998,6 +7652,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Tell me one specific thing about the morning you got married, if you did.",
     es: "Cuéntame una cosa específica de la mañana en que te casaste, si lo hiciste.",
+    enOther: "Tell me one specific thing about the morning they got married, if they did.",
+    esOther: "Cuéntame una cosa específica de la mañana en que se casó, si lo hizo.",
     randomizeOptions: {
       en: [
         "Mi mami planchó el vestido tres veces. La cocina olía a almidón y a café. Mami estaba feliz como nunca la vi.",
@@ -7019,6 +7675,8 @@ export const questions: Question[] = [
     depth: "soul",
     en: "What do you wish you'd asked your mother before she went, or before life got busy?",
     es: "¿Qué quisieras haberle preguntado a tu madre antes de que se fuera, o antes de que la vida se acelerara?",
+    enOther: "What do they wish they'd asked their mother before she went, or before life got busy?",
+    esOther: "¿Qué quisiera haberle preguntado a su madre antes de que se fuera, o antes de que la vida se acelerara?",
     randomizeOptions: {
       en: [
         "Cómo se sentía cuando salió de Cuba. Yo nunca le pregunté de verdad. Sólo de pasada.",
@@ -7040,6 +7698,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What makes you laugh until you cry, even now?",
     es: "¿Qué te hace reír hasta llorar, aún ahora?",
+    enOther: "What makes them laugh until they cry, even now?",
+    esOther: "¿Qué le hace reír hasta llorar, aún ahora?",
     randomizeOptions: {
       en: [
         "Mi hermana imitando a mami en la cocina. Cada vez. No importa cuántas veces. Lloro de risa.",
@@ -7061,6 +7721,8 @@ export const questions: Question[] = [
     depth: "soul",
     en: "What were the last words you exchanged with someone who's gone?",
     es: "¿Cuáles fueron las últimas palabras que cruzaste con alguien que ya no está?",
+    enOther: "What were the last words they exchanged with someone who's gone?",
+    esOther: "¿Cuáles fueron las últimas palabras que cruzó con alguien que ya no está?",
     randomizeOptions: {
       en: [
         "'Te quiero, mami.' Ella me dijo: 'Yo más, mi vida.' Esa fue la última. Lo guardo como tesoro.",
@@ -7082,6 +7744,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "How do you write a love note? What do you actually say?",
     es: "¿Cómo escribes una nota de amor? ¿Qué dices realmente?",
+    enOther: "How do they write a love note? What do they actually say?",
+    esOther: "¿Cómo escribe una nota de amor? ¿Qué dice realmente?",
     randomizeOptions: {
       en: [
         "Cursiva chiquita. Empiezo: 'Mi vida.' Termino: 'Tuya.' En medio le digo gracias por algo del día.",
@@ -7103,6 +7767,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What's something you've made with your own hands that you're quietly proud of?",
     es: "¿Qué cosa has hecho con tus propias manos de la que estás silenciosamente orgulloso?",
+    enOther: "What's something they've made with their own hands that they're quietly proud of?",
+    esOther: "¿Qué cosa ha hecho con sus propias manos de la que está silenciosamente orgulloso/a?",
     randomizeOptions: {
       en: [
         "Tejí un mantel para la mesa de mami. Tres meses. Lo guardó hasta que murió. Yo lo tengo ahora.",
@@ -7124,6 +7790,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Tell me about the first day of your favorite season — what does it look like, what do you do?",
     es: "Cuéntame del primer día de tu estación favorita — ¿cómo se ve, qué haces?",
+    enOther: "Tell me about the first day of their favorite season — what does it look like, what do they do?",
+    esOther: "Cuéntame del primer día de su estación favorita — ¿cómo se ve, qué hace?",
     randomizeOptions: {
       en: [
         "El primer día fresco de noviembre en Miami. Salgo, me siento en el patio, tomo café, me quedo callada.",
@@ -7145,6 +7813,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Have you ever spent a night in a stranger's house? How did it happen?",
     es: "¿Has pasado la noche en casa de un desconocido? ¿Cómo pasó?",
+    enOther: "Have they ever spent a night in a stranger's house? How did it happen?",
+    esOther: "¿Ha pasado la noche en casa de un desconocido? ¿Cómo pasó?",
     randomizeOptions: {
       en: [
         "Una vecina me alojó cuando me cortaron la luz dos noches. La conocía de saludo. Me hizo sopa y me dio la cama.",
@@ -7166,6 +7836,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What's your favorite hour of the day?",
     es: "¿Cuál es tu hora favorita del día?",
+    enOther: "What's their favorite hour of the day?",
+    esOther: "¿Cuál es su hora favorita del día?",
     randomizeOptions: {
       en: [
         "Las cinco de la mañana. Antes que se despierte el mundo. Yo y mi café.",
@@ -7187,6 +7859,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What have you finally gotten good at — that took a long time?",
     es: "¿En qué te has hecho finalmente bueno — que te tomó mucho tiempo?",
+    enOther: "What have they finally gotten good at — that took a long time?",
+    esOther: "¿En qué se ha hecho finalmente bueno/a — que le tomó mucho tiempo?",
     randomizeOptions: {
       en: [
         "Decir que no. Sesenta y tantos años. Lo logré. La paz vino con eso.",
@@ -7208,6 +7882,8 @@ export const questions: Question[] = [
     depth: "surface",
     en: "How do you take your coffee? Honest answer.",
     es: "¿Cómo tomas el café? Honesto.",
+    enOther: "How do they take their coffee? Honest answer.",
+    esOther: "¿Cómo toma el café? Honesto.",
     randomizeOptions: {
       en: [
         "Negro, con dos cucharadas de azúcar. Un cafecito cubano si es por la tarde. Punto.",
@@ -7229,6 +7905,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Tell me about a wedding anniversary you remember — yours or someone's.",
     es: "Cuéntame de un aniversario que recuerdes — tuyo o de alguien.",
+    enOther: "Tell me about a wedding anniversary they remember — theirs or someone's.",
+    esOther: "Cuéntame de un aniversario que recuerde — suyo o de alguien.",
     randomizeOptions: {
       en: [
         "El aniversario veinte. Hector me llevó al malecón y me bailó solo. Yo lloré. Eso fue todo.",
@@ -7250,6 +7928,8 @@ export const questions: Question[] = [
     depth: "surface",
     en: "What's your phone background — a person, a place, a color?",
     es: "¿Qué tienes en el fondo del teléfono — una persona, un lugar, un color?",
+    enOther: "What's their phone background — a person, a place, a color?",
+    esOther: "¿Qué tiene en el fondo del teléfono — una persona, un lugar, un color?",
     randomizeOptions: {
       en: [
         "Una foto de mami a los cuarenta, riendo. La veo cien veces al día.",
@@ -7271,6 +7951,8 @@ export const questions: Question[] = [
     depth: "soul",
     en: "If your father could hear you for one minute, what would you say?",
     es: "Si tu padre pudiera escucharte un minuto, ¿qué le dirías?",
+    enOther: "If their father could hear them for one minute, what would they say?",
+    esOther: "Si su padre pudiera escucharle un minuto, ¿qué le diría?",
     randomizeOptions: {
       en: [
         "Te perdoné. Te quise. Y aprendí a hacer las cosas mejor que tú. Eso es lo que te debía.",
@@ -7292,6 +7974,8 @@ export const questions: Question[] = [
     depth: "surface",
     en: "What's a spice or seasoning you'd never run out of?",
     es: "¿Qué especia o condimento nunca te quedarías sin?",
+    enOther: "What's a spice or seasoning they'd never run out of?",
+    esOther: "¿Qué especia o condimento nunca se quedaría sin?",
     randomizeOptions: {
       en: [
         "Comino. Mami siempre tenía. Yo siempre tengo. La cocina pierde el alma sin él.",
@@ -7313,6 +7997,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "When did you realize you'd become your mother or your father?",
     es: "¿Cuándo te diste cuenta de que te habías vuelto tu madre o tu padre?",
+    enOther: "When did they realize they'd become their mother or their father?",
+    esOther: "¿Cuándo se dio cuenta de que se había vuelto su madre o su padre?",
     randomizeOptions: {
       en: [
         "El día que le dije a mi hija: 'Niña, baja el tono.' Igualito a mami. Lloré después.",
@@ -7334,6 +8020,8 @@ export const questions: Question[] = [
     depth: "surface",
     en: "How do you fold socks? Or do you?",
     es: "¿Cómo doblas los calcetines? ¿O los doblas?",
+    enOther: "How do they fold socks? Or do they?",
+    esOther: "¿Cómo dobla los calcetines? ¿O los dobla?",
     randomizeOptions: {
       en: [
         "Uno dentro del otro. Como una bolita. Mami lo hacía. Yo lo hago.",
@@ -7355,6 +8043,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What's something only your spouse, partner, or closest person understands about you?",
     es: "¿Qué sólo tu pareja o persona más cercana entiende de ti?",
+    enOther: "What's something only their spouse, partner, or closest person understands about them?",
+    esOther: "¿Qué sólo su pareja o persona más cercana entiende de él/ella?",
     randomizeOptions: {
       en: [
         "Que cuando hablo en sueños, hablo con mi mami. Hector lo sabía. Nadie más.",
@@ -7376,6 +8066,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Walk me through your morning ritual, beat by beat.",
     es: "Llévame por tu rutina de la mañana, paso a paso.",
+    enOther: "Walk me through their morning ritual, beat by beat.",
+    esOther: "Llévame por su rutina de la mañana, paso a paso.",
     randomizeOptions: {
       en: [
         "Levanto. Pongo la cafetera. Riego la matita. Lavo la cara. Persigno. Café. Radio. Sentada en mi silla. Eso es todo.",
@@ -7397,6 +8089,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "Was there a last good summer that you can name? What made it that?",
     es: "¿Hubo un último buen verano que puedas nombrar? ¿Qué lo hizo así?",
+    enOther: "Was there a last good summer they can name? What made it that?",
+    esOther: "¿Hubo un último buen verano que pueda nombrar? ¿Qué lo hizo así?",
     randomizeOptions: {
       en: [
         "El verano antes de que mami se enfermara. Comimos mango cada noche. Bailamos en la cocina. Yo no sabía que era el último.",
@@ -7418,6 +8112,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Describe your dream home — not the magazine version, the real one.",
     es: "Describe tu casa de los sueños — no la de la revista, la real.",
+    enOther: "Describe their dream home — not the magazine version, the real one.",
+    esOther: "Describe su casa de los sueños — no la de la revista, la real.",
     randomizeOptions: {
       en: [
         "Una casita azul con patio. Un mango. Una mecedora. Una cocina grande. La que tengo, casi.",
@@ -7439,6 +8135,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "What have you been wrong about, lately?",
     es: "¿En qué has estado equivocado últimamente?",
+    enOther: "What have they been wrong about, lately?",
+    esOther: "¿En qué ha estado equivocado/a últimamente?",
     randomizeOptions: {
       en: [
         "Pensé que no necesitaba ayuda. La necesitaba. Mi nieta me la dio sin que se la pidiera.",
@@ -7460,6 +8158,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "What's a sound at sea, in a forest, or on a high place that has stayed with you?",
     es: "¿Qué sonido del mar, del bosque, o de un lugar alto se te ha quedado?",
+    enOther: "What's a sound at sea, in a forest, or on a high place that has stayed with them?",
+    esOther: "¿Qué sonido del mar, del bosque, o de un lugar alto se le ha quedado?",
     randomizeOptions: {
       en: [
         "Las olas en Varadero al amanecer. Las oigo cuando cierro los ojos. Cualquier playa me las trae.",
@@ -7481,6 +8181,8 @@ export const questions: Question[] = [
     depth: "soul",
     en: "What's your sense of an afterlife, plainly?",
     es: "¿Cuál es tu idea de la otra vida, claramente?",
+    enOther: "What's their sense of an afterlife, plainly?",
+    esOther: "¿Cuál es su idea de la otra vida, claramente?",
     randomizeOptions: {
       en: [
         "Sí hay. Me espera mami. Me espera Hector. Me espera mi tía Olga con un caramelo.",
@@ -7502,6 +8204,8 @@ export const questions: Question[] = [
     depth: "texture",
     en: "Describe your sister or brother's laugh — for someone who'll never hear it.",
     es: "Describe la risa de tu hermana o hermano — para alguien que nunca la va a oír.",
+    enOther: "Describe their sister or brother's laugh — for someone who'll never hear it.",
+    esOther: "Describe la risa de su hermana o hermano — para alguien que nunca la va a oír.",
     randomizeOptions: {
       en: [
         "Mi hermana se ríe como una campana rota. Empieza fuerte, después se queda sin aire, después siguen unas notitas. Es la mejor risa.",
@@ -7523,6 +8227,8 @@ export const questions: Question[] = [
     depth: "depth",
     en: "When did you first realize you were aging? Was it gentle or sudden?",
     es: "¿Cuándo te diste cuenta de que estabas envejeciendo? ¿Fue gradual o de pronto?",
+    enOther: "When did they first realize they were aging? Was it gentle or sudden?",
+    esOther: "¿Cuándo se dio cuenta de que estaba envejeciendo? ¿Fue gradual o de pronto?",
     randomizeOptions: {
       en: [
         "Cuando me costó subir las escaleras. Tenía cincuenta y dos. Lo aceptaba pero también me dio risa.",
@@ -7544,6 +8250,8 @@ export const questions: Question[] = [
     depth: "soul",
     en: "What's a gift you've been given that you intend to pass on, in some form?",
     es: "¿Qué regalo has recibido que pretendes pasar adelante, de alguna forma?",
+    enOther: "What's a gift they've been given that they intend to pass on, in some form?",
+    esOther: "¿Qué regalo ha recibido que pretende pasar adelante, de alguna forma?",
     randomizeOptions: {
       en: [
         "La paciencia de mami. Quiero pasarla. Cada vez que un nieto me grita, respiro, y le hablo bajito. Eso es ella, viviendo.",
@@ -7565,6 +8273,8 @@ export const questions: Question[] = [
     depth: "soul",
     en: "Last question. If you could leave behind one small word, one small phrase, one small gesture — for anyone who comes after you — what would it be?",
     es: "Última pregunta. Si pudieras dejar atrás una palabra pequeña, una frase pequeña, un gesto pequeño — para cualquiera que venga después — ¿cuál sería?",
+    enOther: "Last question. If they could leave behind one small word, one small phrase, one small gesture — for anyone who comes after them — what would it be?",
+    esOther: "Última pregunta. Si pudiera dejar atrás una palabra pequeña, una frase pequeña, un gesto pequeño — para cualquiera que venga después — ¿cuál sería?",
     randomizeOptions: {
       en: [
         "'Mi vida.' Sólo eso. Que les digan 'mi vida' a sus hijos como mami me lo decía a mí. Eso basta.",
