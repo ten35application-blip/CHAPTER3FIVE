@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CollapsibleSection } from "@/components/collapsible-section";
@@ -131,7 +132,15 @@ export function HubSheet({
           aria-expanded={open}
           className="fixed bottom-6 right-6 z-50 flex h-16 w-16 items-center justify-center rounded-full bg-ink-soft shadow-[0_20px_48px_-10px_rgba(232,138,118,0.5),_0_10px_28px_-6px_rgba(126,196,196,0.45)] ring-2 ring-warm-700/50 transition-all hover:-translate-y-0.5 active:scale-95"
         >
-          <InfinityIcon />
+          {/* Two-dots chapter3five mark (was the infinity glyph — Wilson,
+              2026-07-29). Same transparent asset the hero + mobile use. */}
+          <Image
+            src="/logo-transparent.png"
+            alt=""
+            width={32}
+            height={32}
+            className="h-8 w-8 object-contain"
+          />
         </button>
       ) : null}
 
@@ -155,7 +164,13 @@ export function HubSheet({
           />
           <div className="animate-popover-in absolute bottom-24 right-6 z-10 w-64 rounded-2xl bg-ink-soft p-2 shadow-[0_20px_48px_-10px_rgba(28,28,26,0.18),_0_8px_24px_-6px_rgba(232,138,118,0.15)] ring-1 ring-warm-700/60">
             <div className="flex items-center justify-center py-2">
-              <InfinityIcon />
+              <Image
+                src="/logo-transparent.png"
+                alt=""
+                width={28}
+                height={28}
+                className="h-7 w-7 object-contain"
+              />
             </div>
             <ul>
               <MenuRow
@@ -1072,29 +1087,6 @@ function relativeDate(iso: string): string {
 /* ================================================================== */
 /* Icons.                                                              */
 /* ================================================================== */
-
-function InfinityIcon() {
-  // Infinity glyph, dual-color: left loop coral, right loop teal —
-  // echoes the two-dots logo palette. Stroke drawn as one continuous
-  // figure-8 path; two overlapping stroked paths give each loop its
-  // own hue while sharing the center crossing.
-  return (
-    <svg viewBox="0 0 32 16" width="32" height="18" fill="none" aria-hidden>
-      <path
-        d="M16 8 C 16 2, 8 2, 8 8 C 8 14, 16 14, 16 8"
-        stroke="#e88a76"
-        strokeWidth="2.6"
-        strokeLinecap="round"
-      />
-      <path
-        d="M16 8 C 16 2, 24 2, 24 8 C 24 14, 16 14, 16 8"
-        stroke="#7ec4c4"
-        strokeWidth="2.6"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
 
 function PeopleIcon() {
   return (
