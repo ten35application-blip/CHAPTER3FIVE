@@ -1,4 +1,4 @@
--- 0114_tighten_profiles_column_grants
+-- 0115_tighten_profiles_column_grants
 --
 -- Fable payment audit 2026-07-28 finding: profiles has blanket column
 -- grants for every column, on both anon and authenticated. Credit

@@ -134,12 +134,20 @@ export async function POST(request: NextRequest) {
     // stripe_subscription_id gets overwritten by the second webhook.
     // The 409 tells the client to send the user to the billing portal
     // (Manage subscription) instead of starting a new one.
-    if (
+    //
+    // Fable Low: previously we also required subscription_status to
+    // be truthy. A missed subscription.created webhook (Stripe outage,
+    // signature verification failure, DB write hiccup) can leave
+    // stripe_subscription_id set with subscription_status still null,
+    // so the guard evaluated false and a second subscription got
+    // minted. Gate on stripe_subscription_id alone; treat 'canceled' /
+    // 'incomplete_expired' as null-equivalent so a genuinely-ended
+    // subscription can be replaced.
+    const activeSubscription =
       profile?.stripe_subscription_id &&
-      profile.subscription_status &&
       profile.subscription_status !== "canceled" &&
-      profile.subscription_status !== "incomplete_expired"
-    ) {
+      profile.subscription_status !== "incomplete_expired";
+    if (activeSubscription) {
       return NextResponse.json(
         { error: "already_subscribed" },
         { status: 409 },
