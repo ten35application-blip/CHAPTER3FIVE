@@ -16,6 +16,7 @@ import {
 } from "@/lib/spendGovernor";
 import { isProByUserId } from "@/lib/subscription";
 import { sendWebPushToUser } from "@/lib/webPush";
+import { sendPushToUser } from "@/lib/push";
 
 /**
  * Hourly persona-outreach worker. For each opted-in user we pick at
@@ -459,6 +460,26 @@ export async function GET(request: NextRequest) {
           },
         }).catch((e) =>
           console.error(`[persona-outreach] push failed for ${profile.id}`, e),
+        );
+        // Mobile devices too (Expo push). Same payload contract as the
+        // check-in / anniversary crons: title = companion name, body =
+        // the exact reply (truncated), companion_message category for
+        // the lock-screen Reply action, oracle-scoped thread so iOS /
+        // Android stack notifications per conversation.
+        await sendPushToUser({
+          userId: profile.id,
+          title: (pick.oracle.name as string) ?? "your identity",
+          body: truncated,
+          data: { oracle_id: pick.oracleId, kind: "companion_message" },
+          categoryId: "companion_message",
+          threadIdentifier: pick.oracleId,
+          channelId: "companion",
+          badge: 1,
+        }).catch((e) =>
+          console.error(
+            `[persona-outreach] mobile push failed for ${profile.id}`,
+            e,
+          ),
         );
       });
 

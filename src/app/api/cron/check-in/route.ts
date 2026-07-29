@@ -188,7 +188,7 @@ ${variety}`;
       sendPushToUser({
         userId: row.user_id,
         title: oracleName,
-        body: reply,
+        body: reply.length > 140 ? reply.slice(0, 140) + "…" : reply,
         data: { oracle_id: row.oracle_id, kind: "companion_message" },
         categoryId: "companion_message",
         threadIdentifier: row.oracle_id,
