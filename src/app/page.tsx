@@ -295,17 +295,17 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── 4 · THE THREE PATHS ──────────────────────────────────
-          Three flows, equally weighted. Card A coral (self), Card B
-          middle (photo), Card C teal (legacy). */}
+      {/* ── 4 · THE FOUR PATHS ───────────────────────────────────
+          Four flows, equally weighted. Card A coral (self), Card B
+          middle (photo), Card C teal (legacy), Card D teal (inherit). */}
       <section className="px-6 py-24 md:py-32">
         <div className="mx-auto flex w-full max-w-6xl flex-col items-center">
           <Rule />
           <h2 className="mt-8 text-center text-4xl font-bold leading-[1.05] tracking-[-0.03em] text-warm-50 md:text-5xl">
-            Three ways in.
+            Four ways in.
           </h2>
 
-          <div className="mt-16 grid w-full grid-cols-1 gap-6 md:grid-cols-3">
+          <div className="mt-16 grid w-full grid-cols-1 gap-6 md:grid-cols-2">
             {/* Card A — for yourself (coral) */}
             <div className="flex flex-col rounded-3xl border border-warm-700 bg-ink-soft p-8 shadow-[0_10px_36px_-16px_rgba(28,28,26,0.18)] md:p-8">
               <p className="text-sm font-bold uppercase tracking-[0.14em] text-coral-strong">
@@ -357,6 +357,23 @@ export default function Home() {
               <p className="mt-6 text-base italic leading-relaxed text-warm-400">
                 It isn&apos;t them. It&apos;s a portrait, painted from what they
                 chose to leave. But sometimes a portrait is enough.
+              </p>
+            </div>
+
+            {/* Card D — from an inherit code (teal) */}
+            <div className="flex flex-col rounded-3xl border border-warm-700 bg-ink-soft p-8 shadow-[0_10px_36px_-16px_rgba(28,28,26,0.18)] md:p-8">
+              <p className="text-sm font-bold uppercase tracking-[0.14em] text-teal-strong">
+                From an inherit code
+              </p>
+              <h3 className="mt-4 text-2xl font-bold leading-[1.1] tracking-[-0.02em] text-teal-strong md:text-3xl">
+                Someone left you a chapter.
+              </h3>
+              <p className="mt-5 text-lg leading-relaxed text-warm-200">
+                If a friend or family member shared an inherit code with you,
+                redeem it and their archive lands in your account &mdash; same
+                person, same voice, ready to sit with you whenever the room
+                feels too quiet. Their code stays yours to keep, even if they
+                close their own account down the road.
               </p>
             </div>
           </div>
