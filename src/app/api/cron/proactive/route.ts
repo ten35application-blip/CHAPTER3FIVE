@@ -4,7 +4,6 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { recordAnthropicSpend } from "@/lib/spendGovernor";
 import { openerVarietyBlock } from "@/lib/identity/opener";
 import { arcToPromptBlock, currentArc } from "@/lib/identity/arc";
-import { questions } from "@/content/questions";
 import { sendPushToUser } from "@/lib/push";
 
 /**
@@ -95,24 +94,16 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-      const { data: answerRows } = await admin
-        .from("answers")
-        .select("question_id, body")
-        .eq("oracle_id", profile.active_oracle_id)
-        .eq("variant", 1);
-      if (!answerRows || answerRows.length === 0) continue;
-
+      // Archive pull was tied to the old answers table + 355-question
+      // set, ripped out in the 2026-07-29 old-app nuke. Proactive
+      // outreach is intentionally paused until legacy_answers JSONB
+      // rewire lands (follow-up phase); for every user we skip cleanly
+      // so the cron loop stays healthy and the schedule doesn't rot.
+      continue;
+      // Unreachable placeholder to keep the rest of the try body
+      // type-valid until the rewire replaces this block wholesale.
       const language = (profile.preferred_language ?? "en") as "en" | "es";
-      const archiveBlock = answerRows
-        .slice(0, 80) // cap context to keep prompt small
-        .map((row) => {
-          const q = questions.find((x) => x.id === row.question_id);
-          if (!q) return null;
-          const promptText = language === "es" ? q.es : q.en;
-          return `Q: ${promptText}\nA: ${row.body}`;
-        })
-        .filter(Boolean)
-        .join("\n\n");
+      const archiveBlock = "";
 
       const langInstruction =
         language === "es" ? "Respond in Spanish." : "Respond in English.";

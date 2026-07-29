@@ -7,7 +7,6 @@ import { arcToPromptBlock, currentArc } from "@/lib/identity/arc";
 import { buildConciergePricingBlock } from "@/lib/identity/concierge";
 import { moodOfTheDay, moodToPromptBlock } from "@/lib/identity/mood";
 import { openerVarietyBlock } from "@/lib/identity/opener";
-import { questions } from "@/content/questions";
 
 export const runtime = "nodejs";
 
@@ -242,23 +241,14 @@ ${buildConciergePricingBlock()}`;
     }
   }
 
-  // Pull a few archive answers to anchor voice.
-  const { data: answerRows } = await admin
-    .from("answers")
-    .select("question_id, body")
-    .eq("oracle_id", oracleId)
-    .eq("variant", 1)
-    .neq("body", "")
-    .limit(8);
-
-  const archiveSnippet = (answerRows ?? [])
-    .map((a) => {
-      const q = questions.find((x) => x.id === a.question_id);
-      if (!q) return null;
-      return `Q: ${preferredLanguage === "es" ? q.es : q.en}\nA: ${a.body}`;
-    })
-    .filter((x): x is string => x !== null)
-    .join("\n\n");
+  // Archive-snippet lookup deferred: the old answers table + 355-
+  // question set was ripped out in the 2026-07-29 old-app nuke.
+  // New formula stores 40 legacy answers as legacy_answers JSONB on
+  // the oracle row (see identity/legacy/new/actions.ts). Wire that
+  // JSONB into the archive snippet in a follow-up. For now the
+  // prompts fall through to their `"no answers recorded"` branch,
+  // which produces a warm ambiguous first text.
+  const archiveSnippet = "";
 
   const stylePart = textingStyle ? `Texting style: ${textingStyle}.` : "";
 

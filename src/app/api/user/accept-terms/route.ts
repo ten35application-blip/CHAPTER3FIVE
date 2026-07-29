@@ -67,11 +67,38 @@ export async function POST(request: NextRequest) {
   // terms_accepted_at / terms_version_accepted so a mobile client
   // can't PATCH the columns directly. Service role bypasses the
   // trigger — the correct path for an audited acceptance flow.
+  //
+  // Post 2026-07-29 reset: mobile agreements is the LAST step of
+  // onboarding. The 355-question flow was scrapped; new signups
+  // land straight in the Adrian chat. So the server also sets
+  // active_oracle_id + oracle_name + onboarding_completed here in
+  // the same transaction so a fresh mobile user is chat-ready the
+  // moment they tap "I agree." Existing users with an
+  // active_oracle_id keep it (this only fills in missing values).
   const admin = createAdminClient();
+  const { data: existing } = await admin
+    .from("profiles")
+    .select("active_oracle_id, oracle_name, onboarding_completed")
+    .eq("id", user.id)
+    .maybeSingle<{
+      active_oracle_id: string | null;
+      oracle_name: string | null;
+      onboarding_completed: boolean | null;
+    }>();
+
+  const CONCIERGE_ORACLE_ID = "1648e299-748a-488b-95c2-9d040673d36b";
+  const CONCIERGE_NAME = "Adrian";
+
   const { error: upsertErr } = await admin.from("profiles").upsert({
     id: user.id,
     terms_accepted_at: new Date().toISOString(),
     terms_version_accepted: CURRENT_TERMS_VERSION,
+    // Only set defaults if the caller doesn't already have them --
+    // an inherited-code user might have a different active oracle
+    // that we don't want to overwrite.
+    active_oracle_id: existing?.active_oracle_id ?? CONCIERGE_ORACLE_ID,
+    oracle_name: existing?.oracle_name ?? CONCIERGE_NAME,
+    onboarding_completed: true,
   });
   if (upsertErr) {
     console.error("[accept-terms] profile upsert failed:", upsertErr);

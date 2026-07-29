@@ -3,7 +3,6 @@ import { createClient as createPlainClient } from "@supabase/supabase-js";
 import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { createClient } from "@/lib/supabase/server";
 import { requireTermsAccepted } from "@/lib/legal/gate";
-import { questions } from "@/content/questions";
 import {
   PERSONALITY_DESCRIPTIONS,
   FLAVOR_DESCRIPTIONS,
@@ -630,42 +629,31 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ reply: sleepReply, asleep: true });
   }
 
-  // Pull this oracle's answers — keyed by active oracle so multi-oracle
-  // users see only the right archive per character.
+  // Non-help identity archive lookup.
+  //
+  // POST 2026-07-29 OLD-APP NUKE: the answers table + integer
+  // question_id + 355-question set was ripped out entirely (Wilson:
+  // "all things from the old application need to be deleted").
+  // The NEW formula stores 40 open-ended answers on the oracle row
+  // as `legacy_answers` JSONB (see src/app/(gated)/identity/legacy/
+  // new/actions.ts). Wiring that JSONB into the chat archive block
+  // is a follow-up -- for now, non-help chat returns a graceful
+  // "not set up yet" reply so the route compiles + doesn't leak
+  // dead-code error stacks. Adrian (mode=help) is handled above
+  // by the help-mode short-circuit and is the only chat surface
+  // shipped in the current mobile app; legacy-identity chat gets
+  // rewired when Wilson green-lights that phase.
   const oracleId = profile.active_oracle_id;
-  let answersQuery = supabase
-    .from("answers")
-    .select("question_id, variant, body");
-  if (oracleId) {
-    answersQuery = answersQuery.eq("oracle_id", oracleId);
-  } else {
-    answersQuery = answersQuery.eq("user_id", user.id);
-  }
-  const { data: answerRows } = await answersQuery;
-
-  const byQuestion = new Map<number, string[]>();
-  for (const row of answerRows ?? []) {
-    const list = byQuestion.get(row.question_id) ?? [];
-    list.push(row.body);
-    byQuestion.set(row.question_id, list);
-  }
-
+  void oracleId; // placeholder until legacy_answers wiring lands
   const archive: { prompt: string; answer: string }[] = [];
-  for (const [qid, bodies] of byQuestion) {
-    const q = questions.find((x) => x.id === qid);
-    if (!q) continue;
-    const promptText = language === "es" ? q.es : q.en;
-    const chosen = bodies[Math.floor(Math.random() * bodies.length)];
-    archive.push({ prompt: promptText, answer: chosen });
-  }
 
   if (archive.length === 0) {
     return NextResponse.json(
       {
         reply:
           language === "es"
-            ? "Todavía no tengo respuestas tuyas para usar. Termina algunas preguntas primero."
-            : "I don't have any of your answers to draw from yet. Answer a few questions first.",
+            ? "Este chat todavía no está listo -- vuelve pronto."
+            : "This chat isn't set up yet — check back soon.",
       },
       { status: 200 },
     );
