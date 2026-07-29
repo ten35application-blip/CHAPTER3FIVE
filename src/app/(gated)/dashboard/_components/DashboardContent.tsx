@@ -296,13 +296,22 @@ function ConversationList({
                 <Avatar name={p.name} url={p.avatar_url} />
                 <span className="flex min-w-0 flex-1 flex-col">
                   <span className="flex items-center gap-2">
-                    {p.manually_unread || p.auto_unread ? (
-                      <span
-                        aria-label="Unread"
-                        className="h-2 w-2 flex-shrink-0 rounded-full bg-coral"
-                      />
-                    ) : null}
-                    <span className="truncate text-base font-semibold text-warm-50">
+                    {/* Unread signal: name goes bold when unread instead
+                        of showing a leading coral dot (Wilson 2026-07-29:
+                        "no dots next to the name"). iMessage does the
+                        same. aria-label preserves screen-reader signal. */}
+                    <span
+                      className={`truncate text-base text-warm-50 ${
+                        p.manually_unread || p.auto_unread
+                          ? "font-bold"
+                          : "font-semibold"
+                      }`}
+                      aria-label={
+                        p.manually_unread || p.auto_unread
+                          ? `${p.name} — unread`
+                          : p.name
+                      }
+                    >
                       {p.name}
                     </span>
                     {isLocked(p.id) ? <ProChip /> : null}
