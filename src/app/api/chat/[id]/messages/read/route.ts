@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -61,6 +62,13 @@ export async function POST(
     },
     { onConflict: "user_id,oracle_id" },
   );
+
+  // Invalidate the dashboard's RSC cache so back-navigation shows the
+  // freshly-cleared unread state (Wilson 2026-07-29: "I go into it
+  // and leave it and there is STILL the dot"). Without this, the
+  // router-cache keeps yesterday's payload and the bold-name signal
+  // never clears until a hard refresh.
+  revalidatePath("/dashboard");
 
   return new NextResponse(null, { status: 204 });
 }
