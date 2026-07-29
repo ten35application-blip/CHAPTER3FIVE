@@ -1,12 +1,15 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "Account deleted · chapter3five",
+  title: "Account scheduled for deletion · chapter3five",
+  robots: { index: false },
 };
 
 /**
  * Post-deletion landing. Not gated (the user is signed out by the
- * time they arrive). Deliberately quiet.
+ * time they arrive). Deliberately quiet. Copy matches the mobile
+ * app's post-delete Alert exactly so a user who deleted from either
+ * surface sees the same 30-day grace framing.
  */
 export default function AccountDeletedPage() {
   return (
@@ -16,18 +19,20 @@ export default function AccountDeletedPage() {
           You&rsquo;re out.
         </h1>
         <p className="mt-4 text-base leading-relaxed text-warm-200">
-          Your account and everything in it has been ended. We won&rsquo;t
-          contact you again unless you come back and start over.
+          Your account is scheduled for permanent deletion in{" "}
+          <strong className="text-warm-100">30 days</strong>. Sign back
+          in during that window and it reactivates &mdash; nothing is
+          lost.
         </p>
         <p className="mt-3 text-sm text-warm-400">
-          If you deleted by accident, write to{" "}
-          <a
-            href="mailto:support@chapter3five.app"
+          Questions, or need to cancel the deletion outside the app?{" "}
+          <Link
+            href="/support"
             className="font-semibold underline underline-offset-4 hover:text-coral-strong"
           >
-            support@chapter3five.app
-          </a>{" "}
-          quickly and we&rsquo;ll do what we can.
+            Reach us here
+          </Link>
+          .
         </p>
         <Link
           href="/"
