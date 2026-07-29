@@ -25,7 +25,7 @@ const JOBS: Record<string, { cadenceHours: number; graceHours: number }> = {
   purge:               { cadenceHours: 24, graceHours: 48 },
   reflect:             { cadenceHours: 24 * 7, graceHours: 24 * 9 },
   anniversaries:       { cadenceHours: 24, graceHours: 48 },
-  "daily-question":    { cadenceHours: 24, graceHours: 48 },
+  // daily-question job removed in the 2026-07-29 old-app nuke.
   // vercel.json runs check-in daily at 16:00 UTC (Vercel Hobby's
   // once-per-day cron limit). It's HOURLY-shaped internally
   // (walks chat_blocks whose cooldown expired) but its INVOCATION

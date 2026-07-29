@@ -1,10 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { recordAnthropicSpend } from "@/lib/spendGovernor";
-import { openerVarietyBlock } from "@/lib/identity/opener";
-import { arcToPromptBlock, currentArc } from "@/lib/identity/arc";
-import { sendPushToUser } from "@/lib/push";
+// anthropic / spendGovernor / opener / arc / sendPushToUser imports
+// removed with the neuter -- they'll come back with the legacy_answers
+// rewire when the compose+push body returns.
 
 /**
  * Daily proactive outreach via chat — your identity sometimes texts you
@@ -93,136 +91,14 @@ export async function GET(request: NextRequest) {
       continue;
     }
 
-    try {
-      // Archive pull was tied to the old answers table + 355-question
-      // set, ripped out in the 2026-07-29 old-app nuke. Proactive
-      // outreach is intentionally paused until legacy_answers JSONB
-      // rewire lands (follow-up phase); for every user we skip cleanly
-      // so the cron loop stays healthy and the schedule doesn't rot.
-      continue;
-      // Unreachable placeholder to keep the rest of the try body
-      // type-valid until the rewire replaces this block wholesale.
-      const language = (profile.preferred_language ?? "en") as "en" | "es";
-      const archiveBlock = "";
-
-      const langInstruction =
-        language === "es" ? "Respond in Spanish." : "Respond in English.";
-      const stylePart = profile.texting_style
-        ? `\n\nThis person's texting style: "${profile.texting_style}". Match it.`
-        : "";
-
-      const variety = openerVarietyBlock(profile.active_oracle_id as string);
-
-      // Formula v5 — pull the persona's ongoing-arc + pet_name so an
-      // unsolicited text can be about something HAPPENING to them
-      // ("wedding's Saturday and my sister has lost her whole mind")
-      // rather than generic warmth. Tiny extra read; huge payoff on
-      // the exact surface where the persona feels most alive.
-      //
-      // is_concierge rides along so we can short-circuit -- Adrian's
-      // persona explicitly says "no proactive outreach"; the cron
-      // would violate that if it ever ran with the concierge as the
-      // active oracle (edge case where the concierge is somehow the
-      // last-touched persona for a user).
-      const { data: oracleRow } = await admin
-        .from("oracles")
-        .select("traits, created_at, pet_name, is_concierge")
-        .eq("id", profile.active_oracle_id)
-        .maybeSingle<{
-          traits: { ongoingArcTemplate?: string | null } | null;
-          created_at: string;
-          pet_name: string | null;
-          is_concierge: boolean | null;
-        }>();
-      if (oracleRow?.is_concierge === true) continue;
-      const arcTemplate = oracleRow?.traits?.ongoingArcTemplate;
-      const arcBlock =
-        arcTemplate && oracleRow?.created_at
-          ? arcToPromptBlock(
-              currentArc(
-                arcTemplate as Parameters<typeof currentArc>[0],
-                profile.active_oracle_id as string,
-                oracleRow.created_at,
-              ),
-            )
-          : "";
-      const petLine = oracleRow?.pet_name
-        ? `\n\nYour pet's name is ${oracleRow.pet_name} — reference by name when they come up.`
-        : "";
-
-      const systemPrompt = `You are ${profile.oracle_name ?? "a identity"}. The user has been quiet for a while. Send them a short, in-character text — the way a real person who cares would. Keep it brief — usually one sentence. Do NOT explain that you're proactively reaching out. Do NOT mention being an AI or archive. Just text them like a friend would. ${langInstruction}${stylePart}${petLine}\n\nARCHIVE (reach for concrete specifics — a place, a name, a habit — not just tone):\n${archiveBlock}\n${variety}\n${arcBlock}`;
-
-      const response = await anthropic.messages.create({
-        model: ANTHROPIC_MODEL,
-        max_tokens: 200,
-        system: systemPrompt,
-        messages: [
-          {
-            role: "user",
-            content:
-              "(system) Send a short proactive text now. Don't reply to this prompt — just write the message.",
-          },
-        ],
-      });
-
-      void recordAnthropicSpend({
-        userId: profile.id,
-        model: ANTHROPIC_MODEL,
-        usage: response.usage as unknown as Parameters<
-          typeof recordAnthropicSpend
-        >[0]["usage"],
-        route: "cron_proactive",
-      });
-
-      const reply = response.content
-        .filter((b) => b.type === "text")
-        .map((b) => (b.type === "text" ? b.text : ""))
-        .join("")
-        .trim();
-
-      if (!reply) continue;
-
-      await admin.from("messages").insert({
-        user_id: profile.id,
-        oracle_id: profile.active_oracle_id,
-        role: "assistant",
-        content: reply,
-        initiated_by_oracle: true,
-      });
-
-      await admin
-        .from("profiles")
-        .update({ last_proactive_at: new Date().toISOString() })
-        .eq("id", profile.id);
-
-      // Wake the device. Best-effort — failure here doesn't block the
-      // cron, the message is already in the DB and will show up on next
-      // app open either way. Companion category + oracle-scoped thread
-      // = iOS renders a Reply text action on the lock screen (looks
-      // like iMessage) and stacks multiple messages from the same
-      // companion. channelId targets Android's dedicated "companion"
-      // channel. data.oracle_id is required for the mobile REPLY
-      // handler to know which oracle to send the reply to.
-      sendPushToUser({
-        userId: profile.id,
-        title: profile.oracle_name ?? "your identity",
-        body: reply.length > 140 ? reply.slice(0, 140) + "…" : reply,
-        data: {
-          oracle_id: profile.active_oracle_id,
-          kind: "companion_message",
-        },
-        categoryId: "companion_message",
-        threadIdentifier: profile.active_oracle_id ?? undefined,
-        channelId: "companion",
-        badge: 1,
-      }).catch((err) =>
-        console.error(`proactive push failed for ${profile.id}`, err),
-      );
-
-      sent++;
-    } catch (err) {
-      console.error(`proactive: failed for ${profile.id}`, err);
-    }
+    // Proactive outreach is intentionally paused (Fable audit follow-
+    // up). The old body pulled context from the deleted answers table
+    // + 355-question set; the new legacy_answers JSONB rewire is a
+    // follow-up phase. Skip cleanly for every user so the cron loop
+    // stays healthy and the schedule doesn't rot. The whole compose /
+    // Anthropic / persist / push block will come back when the rewire
+    // reads from oracles.legacy_answers instead.
+    continue;
   }
 
   await admin.from("cron_runs").insert({

@@ -73,35 +73,45 @@ export async function POST(request: NextRequest) {
   // land straight in the Adrian chat. So the server also sets
   // active_oracle_id + oracle_name + onboarding_completed here in
   // the same transaction so a fresh mobile user is chat-ready the
-  // moment they tap "I agree." Existing users with an
-  // active_oracle_id keep it (this only fills in missing values).
+  // moment they tap "I agree."
   const admin = createAdminClient();
-  const { data: existing } = await admin
-    .from("profiles")
-    .select("active_oracle_id, oracle_name, onboarding_completed")
-    .eq("id", user.id)
-    .maybeSingle<{
-      active_oracle_id: string | null;
-      oracle_name: string | null;
-      onboarding_completed: boolean | null;
-    }>();
 
-  const CONCIERGE_ORACLE_ID = "1648e299-748a-488b-95c2-9d040673d36b";
-  const CONCIERGE_NAME = "Adrian";
+  // Fable H-2: resolve the concierge oracle id dynamically instead
+  // of hardcoding a per-deployment UUID. Migration 0096 inserts the
+  // concierge row with a DB-generated id, so the value differs
+  // between dev / staging / prod. If the row is somehow missing we
+  // fail loud (better than silently pointing new users at a dead
+  // active_oracle_id and having every chat return "not set up yet").
+  const { data: concierge } = await admin
+    .from("oracles")
+    .select("id, name")
+    .eq("is_concierge", true)
+    .limit(1)
+    .maybeSingle<{ id: string; name: string | null }>();
+  if (!concierge) {
+    console.error(
+      "[accept-terms] concierge oracle not found (is_concierge=true). " +
+        "Migration 0096_concierge_and_trial_kill.sql must be applied.",
+    );
+    return NextResponse.json(
+      { error: "concierge_missing" },
+      { status: 500 },
+    );
+  }
 
-  const { error: upsertErr } = await admin.from("profiles").upsert({
-    id: user.id,
-    terms_accepted_at: new Date().toISOString(),
-    terms_version_accepted: CURRENT_TERMS_VERSION,
-    // Only set defaults if the caller doesn't already have them --
-    // an inherited-code user might have a different active oracle
-    // that we don't want to overwrite.
-    active_oracle_id: existing?.active_oracle_id ?? CONCIERGE_ORACLE_ID,
-    oracle_name: existing?.oracle_name ?? CONCIERGE_NAME,
-    onboarding_completed: true,
+  // Fable M-1: coalesce via 0120 SECURITY DEFINER RPC so a
+  // just-redeemed inherited-code active_oracle_id survives an
+  // agreements accept that happens to land a millisecond later. The
+  // RPC's UPDATE uses coalesce(active_oracle_id, p_concierge_id) so
+  // the concierge default only fills a null column.
+  const rpcRes = await admin.rpc("accept_terms_and_default_oracle", {
+    p_user_id: user.id,
+    p_terms_version: CURRENT_TERMS_VERSION,
+    p_concierge_id: concierge.id,
+    p_concierge_name: concierge.name ?? "Adrian",
   });
-  if (upsertErr) {
-    console.error("[accept-terms] profile upsert failed:", upsertErr);
+  if (rpcRes.error) {
+    console.error("[accept-terms] RPC failed:", rpcRes.error);
     return NextResponse.json(
       { error: "profile_update_failed" },
       { status: 500 },

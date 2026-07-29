@@ -23,10 +23,6 @@
       "schedule": "0 13 * * *"
     },
     {
-      "path": "/api/cron/daily-question",
-      "schedule": "0 15 * * *"
-    },
-    {
       "path": "/api/cron/check-in",
       "schedule": "0 16 * * *"
     },

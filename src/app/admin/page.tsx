@@ -232,7 +232,6 @@ export default async function AdminOverviewPage() {
     "purge",
     "reflect",
     "anniversaries",
-    "daily-question",
     "check-in",
     "persona-outreach",
     "passing",
