@@ -13,13 +13,20 @@
  * prompt, using the SAME SDK + model + timeouts as the battle-tested
  * generateAndSaveFace pipeline in src/lib/faces/generate.ts -- the
  * only difference is the prompt (hard-coded, not trait-derived) and
- * the storage path (concierge/adrian.webp, fixed).
+ * the storage path (concierge/adrian.png, fixed).
  *
  * Idempotent: if avatar_url is already set, returns immediately unless
  * opts.force is passed. Concurrent callers race benignly -- one wins
  * the write, the loser's second SELECT returns the winner's URL.
  * Fire-and-forget safe: NEVER throws; every failure returns
  * { ok: false, error }.
+ *
+ * Manual-upload protection: if face_generation_status is 'manual'
+ * (set by scripts/set-adrian-avatar.mjs when Wilson hand-picks a
+ * portrait), this function refuses to regenerate even with
+ * opts.force=true, unless opts.overrideManual=true is also passed.
+ * Prevents the admin regen route from silently clobbering the
+ * hand-picked image on a stray click.
  */
 
 import { createHash } from "node:crypto";
@@ -40,20 +47,41 @@ export type AdrianAvatarResult =
 
 export async function ensureAdrianAvatar(opts?: {
   force?: boolean;
+  overrideManual?: boolean;
 }): Promise<AdrianAvatarResult> {
   try {
     const admin = createAdminClient();
 
     const { data: concierge, error: lookupErr } = await admin
       .from("oracles")
-      .select("id, avatar_url")
+      .select("id, avatar_url, face_generation_status")
       .eq("is_concierge", true)
-      .maybeSingle<{ id: string; avatar_url: string | null }>();
+      .maybeSingle<{
+        id: string;
+        avatar_url: string | null;
+        face_generation_status: string | null;
+      }>();
     if (lookupErr) {
       return { ok: false, error: `concierge lookup: ${lookupErr.message}` };
     }
     if (!concierge) {
       return { ok: false, error: "concierge oracle not found" };
+    }
+    // Manual-upload guard: if Wilson (or ops) set the avatar via the
+    // scripts/set-adrian-avatar.mjs path, refuse to regenerate even
+    // with force=true unless the caller explicitly acknowledges the
+    // override. Prevents the admin regen route (which passes force
+    // but not overrideManual) from silently clobbering the hand-
+    // picked image.
+    if (
+      concierge.face_generation_status === "manual" &&
+      !opts?.overrideManual
+    ) {
+      return {
+        ok: true,
+        url: concierge.avatar_url ?? "",
+        alreadySet: true,
+      };
     }
     if (concierge.avatar_url && !opts?.force) {
       return { ok: true, url: concierge.avatar_url, alreadySet: true };

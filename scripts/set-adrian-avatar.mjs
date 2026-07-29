@@ -110,7 +110,12 @@ async function main() {
     .update({
       avatar_url: publicUrl,
       avatar_hash: avatarHash,
-      face_generation_status: "succeeded",
+      // 'manual' status guards against ensureAdrianAvatar overwriting
+      // this hand-picked image, even when called with force=true
+      // (see src/lib/faces/adrian.ts). The admin regen route hits
+      // ensureAdrianAvatar with force but not overrideManual, so a
+      // stray admin click can no longer clobber the upload.
+      face_generation_status: "manual",
       face_generation_error: null,
     })
     .eq("id", concierge.id);
