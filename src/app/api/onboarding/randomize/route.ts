@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient as createPlainClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import {
   questions,
   eligibleAnswerIndexes,
@@ -96,7 +97,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: insertError.message }, { status: 500 });
   }
 
-  await supabase
+  // 0118 revoked user-role writes on randomize_credits +
+  // randomize_count (Fable M1 -- 0116 had accidentally re-granted
+  // them, letting a user PATCH randomize_credits=999 and skip the
+  // 402 above). This is the one legitimate PostgREST-role writer,
+  // so it moves to the admin client. personality_type +
+  // emotional_flavor stay user-writable and could theoretically
+  // stay on the user client, but keeping the whole write atomic
+  // through admin makes the intent clearer.
+  const admin = createAdminClient();
+  await admin
     .from("profiles")
     .update({
       personality_type: pickPersonality(),
