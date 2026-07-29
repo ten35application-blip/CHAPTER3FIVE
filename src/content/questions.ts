@@ -51,8 +51,16 @@ export type Question = {
   id: number;
   category: Category;
   depth: Depth;
+  /** Self-mode prompt (user answering for themselves). Second person. */
   en: string;
   es: string;
+  /** Optional other-mode prompt (user answering for someone else --
+   *  loved one, still-living or passed). Third person, they/them by
+   *  default. Falls back to `en`/`es` if not present so the flow
+   *  keeps working during content rollout. Fable rewrites these on
+   *  a per-question basis to preserve tone + tense. */
+  enOther?: string;
+  esOther?: string;
   randomizeOptions: {
     en: string[];
     es: string[];
