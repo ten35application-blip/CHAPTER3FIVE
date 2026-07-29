@@ -349,9 +349,9 @@ export default function Home() {
                 Create an identity for someone you love
               </h3>
               <p className="mt-5 text-lg leading-relaxed text-warm-200">
-                $5 when you finish. Forty questions about a real person &mdash;
-                a parent, a partner, a friend. Lands in your contacts, plus a
-                code you can share with family.
+                Forty questions about a real person &mdash; a parent, a
+                partner, a friend. Lands in your contacts, plus a code you can
+                share with family.
               </p>
             </div>
           </div>
