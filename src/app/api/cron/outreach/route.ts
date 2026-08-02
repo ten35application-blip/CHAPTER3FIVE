@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
+import { normalizeLanguage } from "@/lib/i18n/language";
 import { sendOutreachEmail } from "@/lib/notifications";
 
 /**
@@ -110,7 +111,7 @@ export async function GET(request: NextRequest) {
       await sendOutreachEmail({
         to: email,
         oracleName: profile.oracle_name ?? "your identity",
-        language: (profile.preferred_language ?? "en") as "en" | "es",
+        language: normalizeLanguage(profile.preferred_language),
       });
 
       await supabase

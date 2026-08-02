@@ -11,6 +11,7 @@
  * archive where grief looks a lot like hostility.
  */
 
+import type { SupportedLanguage } from "@/lib/i18n/language";
 import { anthropic, ANTHROPIC_MODEL } from "./anthropic";
 
 const MODERATION_ENDPOINT = "https://api.openai.com/v1/moderations";
@@ -73,7 +74,7 @@ export type JudgeContext = {
   oracleName: string;
   textingStyle: string | null;
   ownerDeceased: boolean;
-  language: "en" | "es";
+  language: SupportedLanguage;
 };
 
 const NEUTRAL: JudgeVerdict = {
@@ -214,7 +215,7 @@ export function cooldownUntil(severity: NonNullable<JudgeVerdict["severity"]>) {
 export async function generateBlockLine(args: {
   oracleName: string;
   textingStyle: string | null;
-  language: "en" | "es";
+  language: SupportedLanguage;
   reason: string | null;
   severity: NonNullable<JudgeVerdict["severity"]>;
   ownerDeceased: boolean;

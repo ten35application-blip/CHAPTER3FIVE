@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getRequestAuth } from "@/lib/api/mobileAuth";
 import { requireTermsAccepted } from "@/lib/legal/gate";
 
 /**
@@ -46,10 +46,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid kind" }, { status: 400 });
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Dual-mode auth: web sends cookies, mobile sends a Bearer token.
+  // Either way the client is scoped to the caller, so RLS (0077)
+  // still gates every reaction row to the caller's own thread.
+  const { supabase, user } = await getRequestAuth(request);
   if (!user) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }

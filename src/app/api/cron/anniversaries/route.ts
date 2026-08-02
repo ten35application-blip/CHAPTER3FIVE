@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
+import { normalizeLanguage } from "@/lib/i18n/language";
 import { recordAnthropicSpend } from "@/lib/spendGovernor";
 import { openerVarietyBlock } from "@/lib/identity/opener";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -201,7 +202,7 @@ export async function GET(request: NextRequest) {
       if (existing) continue;
 
       try {
-        const language = (p.preferred_language ?? "en") as "en" | "es";
+        const language = normalizeLanguage(p.preferred_language);
         const styleNote = p.texting_style
           ? `Texting style: ${p.texting_style}.`
           : "";

@@ -1,3 +1,4 @@
+import type { SupportedLanguage } from "@/lib/i18n/language";
 import { anthropic, ANTHROPIC_MODEL } from "./anthropic";
 import { createAdminClient } from "./supabase/admin";
 import { embedText, toPgVector } from "./embeddings";
@@ -89,7 +90,7 @@ function sanitizeMemoryText(raw: string): string {
 export function memoriesToPromptBlock(
   memories: PersonaMemory[],
   characterName: string,
-  language: "en" | "es",
+  language: SupportedLanguage,
 ): string {
   if (memories.length === 0) return "";
 
@@ -140,7 +141,7 @@ export async function extractAndStoreMemories(opts: {
   oracleId: string;
   userId: string;
   characterName: string;
-  language: "en" | "es";
+  language: SupportedLanguage;
   recentTurns: { role: "user" | "assistant"; content: string }[];
 }): Promise<void> {
   const userTurnsText = opts.recentTurns

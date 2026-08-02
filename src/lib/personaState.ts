@@ -16,6 +16,7 @@
  * win over generated state. State is texture, not biography.
  */
 
+import type { SupportedLanguage } from "@/lib/i18n/language";
 import { anthropic, ANTHROPIC_MODEL } from "./anthropic";
 import type { AmbientCast } from "./cast";
 import type { LocationAnchor } from "./location";
@@ -82,7 +83,7 @@ export function stateToPromptBlock(args: {
 export async function generateConversationState(args: {
   oracleName: string;
   bio: string | null;
-  language: "en" | "es";
+  language: SupportedLanguage;
   location: LocationAnchor | null;
   cast: AmbientCast | null;
   textingStyle: string | null;
@@ -159,7 +160,7 @@ Output the JSON only, no prose.`;
 export async function generateWeeklyContext(args: {
   oracleName: string;
   bio: string | null;
-  language: "en" | "es";
+  language: SupportedLanguage;
   location: LocationAnchor | null;
   cast: AmbientCast | null;
 }): Promise<WeeklyContext | null> {

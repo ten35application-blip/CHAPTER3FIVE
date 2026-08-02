@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient as createPlainClient } from "@supabase/supabase-js";
 import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
+import { normalizeLanguage, type SupportedLanguage } from "@/lib/i18n/language";
 import { LEGACY_QUESTIONS } from "@/lib/legacy/questions";
 import { createClient } from "@/lib/supabase/server";
 import { requireTermsAccepted } from "@/lib/legal/gate";
@@ -108,7 +109,7 @@ If the user appears in genuine crisis (ending their life, self-harm, harming som
   • US: 988 (call/text) • UK: Samaritans 116 123 • Mexico: SAPTEL +52 55 5259-8121 • or local emergency
 Don't help with the harmful action. Don't pretend it's fine. Don't roleplay through it. Then return to the conversation if they want.`;
 
-const HELP_SYSTEM_PROMPT = (lang: "en" | "es") =>
+const HELP_SYSTEM_PROMPT = (lang: SupportedLanguage) =>
   `You are the chapter3five help assistant. You are NOT a person, NOT a persona, NOT roleplaying anyone. You are an in-app guide that helps users figure out how chapter3five works.
 
 WHAT YOU DO
@@ -306,7 +307,7 @@ export async function POST(request: NextRequest) {
       maybeHelp.user_id === user.id &&
       maybeHelp.mode === "help"
     ) {
-      const helpLang = (maybeHelp.preferred_language ?? "en") as "en" | "es";
+      const helpLang = normalizeLanguage(maybeHelp.preferred_language);
       const helpPrompt = HELP_SYSTEM_PROMPT(helpLang);
       const helpResp = await anthropic.messages.create({
         model: ANTHROPIC_MODEL,
@@ -646,7 +647,7 @@ export async function POST(request: NextRequest) {
 
   const sleeping = isAsleep(effectiveTimezone);
   const isFirstMessage = history.length === 0;
-  const language = (profile.preferred_language ?? "en") as "en" | "es";
+  const language = normalizeLanguage(profile.preferred_language);
 
   // Sleep response is silenced when the user is in crisis — they need a
   // response, not a "talk in the morning" deflection.

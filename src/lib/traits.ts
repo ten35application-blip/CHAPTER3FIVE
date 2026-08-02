@@ -21,6 +21,7 @@
  *  - The user's "not like that" always closes the romantic register.
  */
 
+import type { SupportedLanguage } from "@/lib/i18n/language";
 import { anthropic, ANTHROPIC_MODEL } from "./anthropic";
 
 export type Orientation =
@@ -295,7 +296,7 @@ export function traitsToPromptBlock(
  */
 export async function extractTraitsFromArchive(args: {
   oracleName: string;
-  language: "en" | "es";
+  language: SupportedLanguage;
   answers: { question: string; body: string }[];
 }): Promise<Traits | null> {
   if (args.answers.length === 0) return null;

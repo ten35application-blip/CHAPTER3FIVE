@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { after } from "next/server";
 import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
+import { normalizeLanguage } from "@/lib/i18n/language";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   coerceTextFirstFrequency,
@@ -345,7 +346,7 @@ export async function GET(request: NextRequest) {
       // Compose the opener. Persona prompt is the authoritative voice
       // — we tag it with the outreach framing so Claude writes an
       // opener, not a reply.
-      const language = (profile.preferred_language ?? "en") as "en" | "es";
+      const language = normalizeLanguage(profile.preferred_language);
       const langInstruction =
         language === "es" ? "Respond in Spanish." : "Respond in English.";
 

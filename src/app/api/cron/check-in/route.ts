@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
+import { normalizeLanguage } from "@/lib/i18n/language";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { recordAnthropicSpend } from "@/lib/spendGovernor";
 import { openerVarietyBlock } from "@/lib/identity/opener";
@@ -73,7 +74,7 @@ export async function GET(request: NextRequest) {
         .maybeSingle();
       const ownerDeceased = Boolean(ownerProfile?.deceased_at);
 
-      const language = (oracle.preferred_language ?? "en") as "en" | "es";
+      const language = normalizeLanguage(oracle.preferred_language);
       const oracleName = oracle.name ?? "your identity";
       const stylePart = oracle.texting_style
         ? `Texting style: ${oracle.texting_style}.`

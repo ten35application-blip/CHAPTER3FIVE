@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { after } from "next/server";
 import { notifyAdminsOfReport } from "@/lib/safety/report-notify";
-import { createClient } from "@/lib/supabase/server";
+import { getRequestAuth } from "@/lib/api/mobileAuth";
 import { requireTermsAccepted } from "@/lib/legal/gate";
 
 /**
@@ -44,10 +44,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid reason" }, { status: 400 });
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Dual-mode auth: web sends cookies, mobile sends a Bearer token.
+  // RLS on message_reports still pins reporter_user_id to auth.uid()
+  // and requires the reported message to live in the caller's thread.
+  const { supabase, user } = await getRequestAuth(request);
   if (!user) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }

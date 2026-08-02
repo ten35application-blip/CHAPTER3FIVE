@@ -11,6 +11,7 @@
  * are the only person in their world. Real people are surrounded.
  */
 
+import type { SupportedLanguage } from "@/lib/i18n/language";
 import { anthropic, ANTHROPIC_MODEL } from "./anthropic";
 
 export type CastMember = {
@@ -193,7 +194,7 @@ export function castToPromptBlock(cast: AmbientCast | null | undefined): string 
  */
 export async function extractCastFromArchive(args: {
   oracleName: string;
-  language: "en" | "es";
+  language: SupportedLanguage;
   answers: { question: string; body: string }[];
 }): Promise<AmbientCast | null> {
   if (args.answers.length === 0) return null;

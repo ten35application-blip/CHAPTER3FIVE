@@ -1,3 +1,4 @@
+import type { SupportedLanguage } from "@/lib/i18n/language";
 import { resend } from "./resend";
 import { createAdminClient } from "./supabase/admin";
 
@@ -358,7 +359,7 @@ https://chapter3five.app`;
 export async function sendOutreachEmail(opts: {
   to: string;
   oracleName: string;
-  language: "en" | "es";
+  language: SupportedLanguage;
   userId?: string | null;
 }) {
   const subject =

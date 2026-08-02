@@ -3,6 +3,7 @@ import { getRequestAuth } from "@/lib/api/mobileAuth";
 import { requireTermsAccepted } from "@/lib/legal/gate";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
+import { normalizeLanguage, type SupportedLanguage } from "@/lib/i18n/language";
 import { arcToPromptBlock, currentArc } from "@/lib/identity/arc";
 import { buildConciergePricingBlock } from "@/lib/identity/concierge";
 import { moodOfTheDay, moodToPromptBlock } from "@/lib/identity/mood";
@@ -51,7 +52,7 @@ export async function POST(request: NextRequest) {
   let oracleId: string | null = bodyOracleId;
   let isBeneficiary = false;
   let isConcierge = false;
-  let preferredLanguage: "en" | "es" = "en";
+  let preferredLanguage: SupportedLanguage = "en";
   let oracleName = "your identity";
   let textingStyle: string | null = null;
   let ownerDeceased = false;
@@ -108,7 +109,7 @@ export async function POST(request: NextRequest) {
       textingStyle = ownProfile?.texting_style ?? null;
     }
 
-    preferredLanguage = (oracle.preferred_language ?? "en") as "en" | "es";
+    preferredLanguage = normalizeLanguage(oracle.preferred_language);
     oracleName = oracle.name ?? "your identity";
     memoryStyle = (oracle.memory_style as string | null) ?? null;
   } else {
@@ -135,7 +136,7 @@ export async function POST(request: NextRequest) {
     }
 
     oracleId = profile.active_oracle_id;
-    preferredLanguage = (profile.preferred_language ?? "en") as "en" | "es";
+    preferredLanguage = normalizeLanguage(profile.preferred_language);
     oracleName = profile.oracle_name ?? "your identity";
     textingStyle = profile.texting_style ?? null;
   }

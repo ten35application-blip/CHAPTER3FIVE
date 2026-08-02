@@ -11,6 +11,7 @@
  * just being totally indifferent when the user brings up sports.
  */
 
+import type { SupportedLanguage } from "@/lib/i18n/language";
 import { anthropic, ANTHROPIC_MODEL } from "./anthropic";
 
 export type Intensity = "casual" | "die-hard" | "season tickets" | "lapsed";
@@ -177,7 +178,7 @@ export function sportsToPromptBlock(
  */
 export async function extractSportsFromArchive(args: {
   oracleName: string;
-  language: "en" | "es";
+  language: SupportedLanguage;
   answers: { question: string; body: string }[];
 }): Promise<SportsFandom | null> {
   if (args.answers.length === 0) return null;

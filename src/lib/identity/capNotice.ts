@@ -34,6 +34,7 @@ import { NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { recordPendingPaymentOrThrow } from "@/lib/billing/pendingPayment";
+import type { SupportedLanguage } from "@/lib/i18n/language";
 import { getConciergeId } from "@/lib/identity/concierge";
 import { sendWebPushToUser } from "@/lib/webPush";
 import { getStripe } from "@/lib/stripe";
@@ -71,7 +72,7 @@ export function requestOrigin(request: {
 /* Piece 1 + 2 — Adrian's cap-hit message + push                       */
 /* ------------------------------------------------------------------ */
 
-type Lang = "en" | "es";
+type Lang = SupportedLanguage;
 
 function tierLabel(tier: PlanTier, lang: Lang): string {
   if (tier === "basic") return "Basic";
