@@ -1074,6 +1074,7 @@ ${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${s
         content: string;
         image_url?: string | null;
         image_storage_path?: string | null;
+        read_by_oracle_at?: string | null;
       }[] = [
         {
           user_id: user.id,
@@ -1082,6 +1083,12 @@ ${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${s
           content: userMessage,
           image_url: payload.image_url ?? null,
           image_storage_path: payload.image_storage_path ?? null,
+          // Stamp read_by_oracle_at at persist time — the persona has
+          // already "read" this turn (their reply is composed and
+          // about to land in the same insert). Mobile receipt UI
+          // flips from Sent → Read on the next resync. Web stream
+          // route does the same at stream/route.ts:533.
+          read_by_oracle_at: new Date().toISOString(),
         },
       ];
       replies.forEach((r, i) => {

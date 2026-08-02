@@ -315,7 +315,7 @@ export default function Home() {
                 Add a companion
               </h3>
               <p className="mt-5 text-lg leading-relaxed text-warm-200">
-                Our AI rolls a random personality and writes them in about a
+                We roll a random personality and write them in about a
                 minute. No questions, no photo &mdash; you get who you get.
               </p>
             </div>
@@ -326,7 +326,7 @@ export default function Home() {
                 Create one from a photo
               </h3>
               <p className="mt-5 text-lg leading-relaxed text-warm-200">
-                Upload a portrait. Our AI reads the face and builds an identity
+                Upload a portrait. We read the face and build an identity
                 to match. The photo itself becomes their face.
               </p>
             </div>
