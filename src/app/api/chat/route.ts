@@ -503,6 +503,16 @@ export async function POST(request: NextRequest) {
   };
   // Hoisted so the persona photo pipeline (later in the function)
   // can read avatar_url + mode without a second query.
+  // Sync profile.active_oracle_id ↔ conversationOracleId. If the
+  // caller sent oracle_id but the override branch above didn't run
+  // (e.g. because payload.oracle_id === profile.active_oracle_id
+  // when both are null, OR any other edge), we still know the target
+  // via conversationOracleId. Everything downstream keys off
+  // profile.active_oracle_id, so populate it from conversation-
+  // OracleId if it's still empty.
+  if (!profile.active_oracle_id && conversationOracleId) {
+    profile.active_oracle_id = conversationOracleId;
+  }
   let ownOracle: OracleRow | null = null;
   if (profile.active_oracle_id) {
     const { data } = await supabase
