@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getRequestAuth } from "@/lib/api/mobileAuth";
 import { requireTermsAccepted } from "@/lib/legal/gate";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
@@ -27,10 +27,7 @@ export const runtime = "nodejs";
  */
 
 export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user } = await getRequestAuth(request);
   if (!user) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
