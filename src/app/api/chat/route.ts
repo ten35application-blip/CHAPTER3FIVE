@@ -533,12 +533,17 @@ export async function POST(request: NextRequest) {
   // expires. Self-unblocks here when the cooldown passes so users
   // don't have to wait for the daily cron just to send again — the
   // cron only handles the persona-initiated comeback message.
-  if (profile.active_oracle_id) {
+  //
+  // Key off conversationOracleId (body's oracle_id ?? active), not
+  // profile.active_oracle_id — otherwise a block on convo A can gate
+  // a send to convo B (Fable audit, 2026-07-30). Stream route already
+  // does this correctly.
+  if (conversationOracleId) {
     const blockClient = createAdminClient();
     const { data: activeBlock } = await blockClient
       .from("chat_blocks")
       .select("id, blocked_until, severity")
-      .eq("oracle_id", profile.active_oracle_id)
+      .eq("oracle_id", conversationOracleId)
       .eq("user_id", user.id)
       .is("unblocked_at", null)
       .order("blocked_at", { ascending: false })

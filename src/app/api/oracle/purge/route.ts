@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getRequestAuth } from "@/lib/api/mobileAuth";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -19,12 +19,13 @@ export const runtime = "nodejs";
  * "identity" — hard-delete a soft-deleted oracle from the caller's
  * trash. Uses the user-scoped client; RLS enforces auth.uid() =
  * user_id and the deleted_at check keeps live oracles safe.
+ *
+ * Accepts both cookie auth (web) and Bearer auth (mobile) via the
+ * shared getRequestAuth helper. Was cookie-only 2026-07-30, which
+ * 401'd every mobile Delete-forever tap — Fable audit finding.
  */
 export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user } = await getRequestAuth(request);
   if (!user) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }

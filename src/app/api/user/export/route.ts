@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { NextResponse, type NextRequest } from "next/server";
+import { getRequestAuth } from "@/lib/api/mobileAuth";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -11,12 +11,13 @@ export const runtime = "nodejs";
  *
  * Service-role admin client is used only for auth.users metadata
  * (created_at, last_sign_in_at, email) which RLS hides.
+ *
+ * Accepts both cookie auth (web browser download) and Bearer auth
+ * (mobile fetch) via the shared getRequestAuth helper. Was cookie-only
+ * 2026-07-30 which 401'd every mobile Data-export tap.
  */
-export async function GET() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+export async function GET(request: NextRequest) {
+  const { supabase, user } = await getRequestAuth(request);
   if (!user) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
