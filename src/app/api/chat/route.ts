@@ -320,18 +320,24 @@ export async function POST(request: NextRequest) {
         .map((b) => (b.type === "text" ? b.text : ""))
         .join("")
         .trim();
+      // Distinct created_at per row — a pair insert shares one now()
+      // default, and created_at ties render in plan-dependent order
+      // on read (see the main persist below for the full story).
+      const helpBase = Date.now();
       await adminEarly.from("messages").insert([
         {
           user_id: user.id,
           oracle_id: maybeHelp.id,
           role: "user",
           content: userMessage,
+          created_at: new Date(helpBase).toISOString(),
         },
         {
           user_id: user.id,
           oracle_id: maybeHelp.id,
           role: "assistant",
           content: reply,
+          created_at: new Date(helpBase + 1).toISOString(),
         },
       ]);
       return NextResponse.json({ reply, helpMode: true });
@@ -1078,6 +1084,14 @@ ${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${s
     // photo was generated, attach it to the LAST assistant message
     // so the visual lands at the end of the reply rhythm.
     if (profile.active_oracle_id) {
+      // Explicit, strictly-increasing created_at per row. All rows of
+      // a turn land in ONE insert, so the column default (now(), frozen
+      // per statement) stamped IDENTICAL timestamps — and any
+      // created_at-ordered read (mobile history/resync, exports) got
+      // plan-dependent tie order: replies rendered ABOVE the user
+      // message they answer (Wilson mobile report 2026-08-02). 1ms
+      // steps keep user → burst-1 → burst-2 order stable everywhere.
+      const persistBase = Date.now();
       const rows: {
         user_id: string;
         oracle_id: string;
@@ -1086,6 +1100,7 @@ ${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${s
         image_url?: string | null;
         image_storage_path?: string | null;
         read_by_oracle_at?: string | null;
+        created_at?: string;
       }[] = [
         {
           user_id: user.id,
@@ -1100,6 +1115,7 @@ ${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${s
           // flips from Sent → Read on the next resync. Web stream
           // route does the same at stream/route.ts:533.
           read_by_oracle_at: new Date().toISOString(),
+          created_at: new Date(persistBase).toISOString(),
         },
       ];
       replies.forEach((r, i) => {
@@ -1110,6 +1126,7 @@ ${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${s
           role: "assistant",
           content: r,
           image_url: isLast && personaPhotoUrl ? personaPhotoUrl : null,
+          created_at: new Date(persistBase + 1 + i).toISOString(),
         });
       });
       // Assistant rows are written server-side: clients may only insert
