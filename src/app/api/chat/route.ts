@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient as createPlainClient } from "@supabase/supabase-js";
 import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
+import { LEGACY_QUESTIONS } from "@/lib/legacy/questions";
 import { createClient } from "@/lib/supabase/server";
 import { requireTermsAccepted } from "@/lib/legal/gate";
 import {
@@ -474,6 +475,12 @@ export async function POST(request: NextRequest) {
     weekly_context_until: string | null;
     sports_fandom: SportsFandom | null;
     sports_extracted_at: string | null;
+    // Legacy identity payload (2026-07-30 chat-rewire). Contains
+    // {subject: {mode, ...}, answers: {[question_id]: text}} for
+    // 40-question oracles. Absent (null) for randomize/from-photo
+    // oracles — those chat off persona_prompt directly.
+    legacy_answers: { subject?: { mode?: string }; answers?: Record<string, string> } | null;
+    is_legacy: boolean | null;
   };
   // Hoisted so the persona photo pipeline (later in the function)
   // can read avatar_url + mode without a second query.
@@ -482,7 +489,7 @@ export async function POST(request: NextRequest) {
     const { data } = await supabase
       .from("oracles")
       .select(
-        "bio, avatar_url, location_anchor, location_extracted_at, orientation, relationship_openness, identity_quirks, traits_extracted_at, mode, ambient_cast, cast_extracted_at, weekly_context, weekly_context_until, sports_fandom, sports_extracted_at",
+        "bio, avatar_url, location_anchor, location_extracted_at, orientation, relationship_openness, identity_quirks, traits_extracted_at, mode, ambient_cast, cast_extracted_at, weekly_context, weekly_context_until, sports_fandom, sports_extracted_at, legacy_answers, is_legacy",
       )
       .eq("id", profile.active_oracle_id)
       .maybeSingle();
@@ -634,25 +641,48 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ reply: sleepReply, asleep: true });
   }
 
-  // Non-help identity archive lookup.
+  // Non-help identity archive lookup (2026-07-30 rewire).
   //
-  // POST 2026-07-29 OLD-APP NUKE: the answers table + integer
-  // question_id + 355-question set was ripped out entirely (Wilson:
-  // "all things from the old application need to be deleted").
-  // The NEW formula stores 40 open-ended answers on the oracle row
-  // as `legacy_answers` JSONB (see src/app/(gated)/identity/legacy/
-  // new/actions.ts). Wiring that JSONB into the chat archive block
-  // is a follow-up -- for now, non-help chat returns a graceful
-  // "not set up yet" reply so the route compiles + doesn't leak
-  // dead-code error stacks. Adrian (mode=help) is handled above
-  // by the help-mode short-circuit and is the only chat surface
-  // shipped in the current mobile app; legacy-identity chat gets
-  // rewired when Wilson green-lights that phase.
-  const oracleId = profile.active_oracle_id;
-  void oracleId; // placeholder until legacy_answers wiring lands
+  // The NEW formula stores 40 open-ended answers on the oracle row as
+  // `legacy_answers` JSONB — {subject: {mode: "self" | "other"},
+  // answers: {[question_id]: text}}. Reconstruct the {prompt, answer}
+  // array the downstream pipeline expects from that JSONB, picking
+  // the promptSelf variant for self-legacy oracles (owner writing as
+  // themselves) and the third-person prompt for other-mode oracles.
+  //
+  // Randomize + from-photo oracles have no legacy_answers; they chat
+  // off the persona_prompt column instead (which is server-only —
+  // fetched via admin below).
   const archive: { prompt: string; answer: string }[] = [];
+  const legacyMode: "self" | "other" =
+    ownOracle?.legacy_answers?.subject?.mode === "self" ? "self" : "other";
+  const answersMap = ownOracle?.legacy_answers?.answers ?? {};
+  if (ownOracle?.is_legacy && Object.keys(answersMap).length > 0) {
+    for (const q of LEGACY_QUESTIONS) {
+      const answer = answersMap[q.id];
+      if (typeof answer !== "string" || !answer.trim()) continue;
+      archive.push({
+        prompt: legacyMode === "self" ? (q.promptSelf ?? q.prompt) : q.prompt,
+        answer: answer.trim(),
+      });
+    }
+  }
 
-  if (archive.length === 0) {
+  // Fallback for randomize/from-photo oracles: they don't carry
+  // legacy_answers but do have a synthesized persona_prompt. That
+  // column is server-only (0067+ RLS), so fetch via admin. If we
+  // land here without either signal, return the graceful placeholder.
+  let personaPromptOverride: string | null = null;
+  if (archive.length === 0 && profile.active_oracle_id) {
+    const { data: promptRow } = await createAdminClient()
+      .from("oracles")
+      .select("persona_prompt")
+      .eq("id", profile.active_oracle_id)
+      .maybeSingle();
+    personaPromptOverride = (promptRow?.persona_prompt as string | null) ?? null;
+  }
+
+  if (archive.length === 0 && !personaPromptOverride) {
     return NextResponse.json(
       {
         reply:
@@ -796,7 +826,16 @@ export async function POST(request: NextRequest) {
   // string only carries the dynamic parts (name, archive, traits,
   // mode-specific blocks). Trimming redundant emphasis cut ~15-20%
   // of system-prompt tokens without measurable quality regression.
-  const systemPrompt = `You are ${characterName}. Not an assistant. Not a chatbot. Not an AI. A person, and you stay a person.
+  // Two shapes of system prompt:
+  // - Legacy oracles: full assembly with archive + style + bio + traits
+  //   + location + cast + state + memories (this branch's original).
+  // - Randomize / from-photo oracles: no legacy_answers, so archive is
+  //   empty. Use the synthesized persona_prompt column directly as the
+  //   character description (stream route already works this way for
+  //   web chat). Dynamic wrappers (language, memories, sleeping) still
+  //   layer on top.
+  const systemPrompt = archive.length > 0
+    ? `You are ${characterName}. Not an assistant. Not a chatbot. A person, and you stay a person.
 
 This is a chapter3five archive — built from the answers ${characterName} gave to a curated set of questions. 18+. The user knows ${characterName} and texts them like they'd text any friend.
 
@@ -806,7 +845,12 @@ ${langInstruction}${stylePart}${personalityPart}${flavorPart}${bioPart}${locatio
 
 ARCHIVE — the actual answers ${characterName} gave. This is who you are. Stay close.
 
-${archiveBlock}`;
+${archiveBlock}`
+    : `${personaPromptOverride}
+
+${PERSONA_RULES}
+
+${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${sportsPart}${castPart}${statePart}${wokenPart}${memorialPart}${memoriesBlock}`;
 
   // Tone judge — never overrides a crisis message. Decides whether
   // the persona walks away from this conversation. Permissive by
