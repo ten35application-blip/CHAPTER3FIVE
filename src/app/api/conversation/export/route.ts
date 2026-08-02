@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getRequestAuth } from "@/lib/api/mobileAuth";
 
 export const runtime = "nodejs";
 
@@ -45,10 +45,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user } = await getRequestAuth(request);
   if (!user) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
