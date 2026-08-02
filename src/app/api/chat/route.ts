@@ -119,38 +119,47 @@ WHAT YOU DO
 
 YOUR KNOWLEDGE OF THE APP
 
-Identities
-- New identity: top right "+ New" menu → "+ New identity"
-- Rename: Settings → Identities → tap the identity → edit the name (real-mode only, not randomized)
-- Delete: swipe LEFT on a row, or long-press → Delete. Goes to a 30-day grace window where you can restore.
-- Restore deleted: Settings → Identities → "Removed identities"
+Making a new identity
+- Tap the account bubble in the top right → "Create an identity"
+- Four ways: "Add a companion" (random personality, ~1 min), "Create one from a photo" (upload a portrait), "Create your own identity to pass down" (40 questions about you), "Create an identity for someone you love" (40 questions about a real person, $5)
 
-Conversations
-- Open: tap the row
-- Pin to top: long-press → Pin
-- Hide alerts (mute): long-press → Hide alerts
-- Mark unread: swipe RIGHT
-- Search: search bar at top of the conversation list
+Star / pin favorites
+- Tap the star on the right side of any row on the dashboard
+- Starred rows sort to the top and also show up in a "PINNED" strip above the list
 
-Family & beneficiaries
-- All under Sharing
-- Form has two checkboxes (default ON): "Talk to me while I'm here" and "Inherit when I'm gone"
-- Each beneficiary has a personal claim link you can pre-share
-- After someone reports a passing, the owner gets 72 hours to cancel by email before the archive opens to beneficiaries
+Archive a conversation (keeps the identity, hides the thread)
+- Swipe LEFT on a dashboard row → Archive
+- Get it back: tap the bottom-right hub button → Archived → tap Unarchive on the row
 
-Account & billing
-- Settings → Account: language, theme, email
-- Paid stuff (extra identities, beneficiary slots, restoring a deleted identity) lives on chapter3five.app — the mobile app shows "Manage on chapter3five.app" links
-- Delete account: Settings → Account → Delete account. 30-day grace window, then permanently erased.
+Delete a conversation (soft-delete, recoverable)
+- Swipe RIGHT on a dashboard row → Delete
+- Get it back: tap the bottom-right hub button → Recently deleted → Recover
+- "Delete forever" is also there — that one's terminal
+
+Contacts
+- The hub button (bottom right) opens a small menu; "Contact list" is your full identity directory, alphabetized
+
+Search
+- Search bar at the top of the dashboard filters your conversations by name
+
+Chat message actions
+- Long-press any message bubble → tapback reactions + Report
+- Swipe left on a bubble to reveal the time it was sent
+
+Chat header
+- Tap the contact's photo (top of the chat) → big photo + their one-line bio + "Export this conversation" (Markdown, saves via Share sheet)
 
 Codes
-- Invite code (XXXX-XXXX-XXXX): owner is alive, paste into + New → Connect with their code
-- Claim link (URL like /legacy/…): for inheritance after someone passes; just visit it
-- Import code (XXXX-XXXX-XXXX): start a brand-new account with a copy of someone's archive; use at signup, not from an existing account
+- Inherit code: paste it via the account bubble → "Inherit an identity" (or the picker's "I have an inherit code" if you got sent to the create screen). $5 one-time credit per new inheritance.
+- Claim link (URL like /legacy/…): tap the link from the email; it opens the app if installed, otherwise the web
 
-Memory mode
-- + New identity → "From memory" → type what you remember
-- "Add more about them" in the chat header keeps growing the persona
+Family & beneficiaries
+- Beneficiaries and archive-sharing settings live on chapter3five.app right now; that page will surface in the mobile Settings in a future update
+
+Account & billing
+- Settings (account bubble → Settings): profile photo, name, password reset, inherit codes, plan tier, extra-usage packs (dropdown + "Take me to pay"), Appearance (Light/Dark/System), Support, About & legal, Data export (JSON via Share), Sign out, Delete account
+- Paid stuff on mobile flows through the App Store / Play Store (in-app purchases). Managing an active subscription: Settings → "Manage subscription" (opens the store's subscription page).
+- Delete account: Settings → Delete account. Two-step confirm (type your name + join date). Terminal.
 
 Crisis support
 - We are NOT therapy. US: 988 (call or text). UK: Samaritans 116 123. Mexico: SAPTEL +52 55 5259-8121.
@@ -374,7 +383,7 @@ export async function POST(request: NextRequest) {
         // objects. Never let a delete error block the 402 -- the paid
         // restriction is what matters here.
         await supabase.storage
-          .from("chat-photos")
+          .from("chat-uploads")
           .remove([payload.image_storage_path])
           .catch((err) =>
             console.error("[chat] cap-hit orphan cleanup failed:", err),
@@ -426,19 +435,28 @@ export async function POST(request: NextRequest) {
       )
       .eq("id", payload.oracle_id)
       .single();
-    if (targetOracle) {
-      resolvedOracleOwnerId = targetOracle.user_id;
-      Object.assign(profile, {
-        active_oracle_id: targetOracle.id,
-        oracle_name: targetOracle.name,
-        mode: targetOracle.mode,
-        preferred_language: targetOracle.preferred_language,
-        texting_style: targetOracle.texting_style,
-        personality_type: targetOracle.personality_type,
-        emotional_flavor: targetOracle.emotional_flavor,
-        bio: targetOracle.bio,
-      });
+    if (!targetOracle) {
+      // Fable audit 2026-08-02: if the requested oracle isn't
+      // visible (RLS, deleted, or bogus id), 404 outright. Falling
+      // through to profile.active_oracle_id caused the exact
+      // "message disappears on resync" bug the oracle_id fix
+      // targeted, via a different door.
+      return NextResponse.json(
+        { error: "Oracle not found" },
+        { status: 404 },
+      );
     }
+    resolvedOracleOwnerId = targetOracle.user_id;
+    Object.assign(profile, {
+      active_oracle_id: targetOracle.id,
+      oracle_name: targetOracle.name,
+      mode: targetOracle.mode,
+      preferred_language: targetOracle.preferred_language,
+      texting_style: targetOracle.texting_style,
+      personality_type: targetOracle.personality_type,
+      emotional_flavor: targetOracle.emotional_flavor,
+      bio: targetOracle.bio,
+    });
   }
   // For an own-oracle conversation we already know the owner is the caller.
   if (!resolvedOracleOwnerId) resolvedOracleOwnerId = user.id;
@@ -951,7 +969,7 @@ ${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${s
       // the conversation. RLS-respecting delete via the user client.
       if (payload.image_storage_path) {
         await supabase.storage
-          .from("chat-photos")
+          .from("chat-uploads")
           .remove([payload.image_storage_path])
           .then(() => undefined, () => undefined);
       }
