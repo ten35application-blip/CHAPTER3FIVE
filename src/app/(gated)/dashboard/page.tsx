@@ -91,7 +91,7 @@ export default async function DashboardPage({
   const { data: contactsRaw } = await supabase
     .from("oracles")
     .select(
-      "id, name, avatar_url, is_starred, manually_unread, created_at, conversation_archived_at, is_legacy, user_id, inherited_at",
+      "id, name, avatar_url, is_starred, manually_unread, created_at, conversation_archived_at, is_legacy, user_id, inherited_at, is_concierge",
     )
     .is("deleted_at", null)
     .order("is_starred", { ascending: false })
@@ -134,6 +134,7 @@ export default async function DashboardPage({
     manually_unread: Boolean(r.manually_unread),
     conversation_archived_at: (r.conversation_archived_at as string | null) ?? null,
     inherit_code: codesByOracle.get(r.id as string) ?? null,
+    is_concierge: Boolean(r.is_concierge),
   }));
 
   // Which contacts have "all messages soft-deleted"? Those disappear
@@ -428,10 +429,11 @@ export default async function DashboardPage({
           Contacts uses the FULL directory (Trail A doesn't drop the
           identity from Contacts, only from the Messages view). */}
       <HubSheet
-        contacts={contacts.map(({ id, name, avatar_url }) => ({
+        contacts={contacts.map(({ id, name, avatar_url, is_concierge }) => ({
           id,
           name,
           avatar_url,
+          is_concierge,
         }))}
         archived={archived}
         deletedIdentities={deletedIdentities}

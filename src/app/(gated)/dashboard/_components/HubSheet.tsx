@@ -18,6 +18,7 @@ type Contact = {
   id: string;
   name: string;
   avatar_url: string | null;
+  is_concierge: boolean;
 };
 
 type ArchivedIdentity = {
@@ -450,51 +451,71 @@ function ContactsPanel({
                   {letter}
                 </div>
                 <ul>
-                  {group.map((p) => (
-                    <li key={p.id}>
-                      <SwipeRow
-                        leftAction={{
-                          icon: (
-                            <svg
-                              viewBox="0 0 24 24"
-                              width="16"
-                              height="16"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              aria-hidden
-                            >
-                              <path d="M3 6h18" />
-                              <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                            </svg>
-                          ),
-                          label: "Delete",
-                          bgClassName:
-                            "bg-gradient-to-r from-coral-strong/90 to-coral-strong",
-                          onCommit: () => softDeleteIdentity(p.id),
-                        }}
-                        confirmLeft={() =>
-                          window.confirm(
-                            `Delete ${p.name}? Restoring later is a one-time ${RESTORE_IDENTITY_PRICE_LABEL} — the conversation is preserved either way.`,
-                          )
-                        }
+                  {group.map((p) => {
+                    // Concierge (Adrian) rows render without a swipe
+                    // wrapper. softDeleteIdentity carries an
+                    // .eq("is_concierge", false) filter and the
+                    // oracles UPDATE RLS policy already prevents a
+                    // non-owner from soft-deleting his row — but the
+                    // swipe affordance used to appear on his row,
+                    // return {ok: true}, and read as "deleted then
+                    // reappeared" on the next revalidation. Not
+                    // wrapping him in SwipeRow removes the misleading
+                    // affordance entirely; he's still tappable to open
+                    // the chat.
+                    const row = (
+                      <Link
+                        href={`/chat/${p.id}`}
+                        onClick={onClose}
+                        className="flex items-center gap-3 bg-ink-soft px-6 py-2.5 transition-colors hover:bg-coral/5"
                       >
-                        <Link
-                          href={`/chat/${p.id}`}
-                          onClick={onClose}
-                          className="flex items-center gap-3 bg-ink-soft px-6 py-2.5 transition-colors hover:bg-coral/5"
-                        >
-                          <Avatar name={p.name} url={p.avatar_url} />
-                          <span className="text-base text-warm-50">
-                            {p.name}
-                          </span>
-                        </Link>
-                      </SwipeRow>
-                    </li>
-                  ))}
+                        <Avatar name={p.name} url={p.avatar_url} />
+                        <span className="text-base text-warm-50">
+                          {p.name}
+                        </span>
+                      </Link>
+                    );
+                    return (
+                      <li key={p.id}>
+                        {p.is_concierge ? (
+                          row
+                        ) : (
+                          <SwipeRow
+                            leftAction={{
+                              icon: (
+                                <svg
+                                  viewBox="0 0 24 24"
+                                  width="16"
+                                  height="16"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  aria-hidden
+                                >
+                                  <path d="M3 6h18" />
+                                  <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                                </svg>
+                              ),
+                              label: "Delete",
+                              bgClassName:
+                                "bg-gradient-to-r from-coral-strong/90 to-coral-strong",
+                              onCommit: () => softDeleteIdentity(p.id),
+                            }}
+                            confirmLeft={() =>
+                              window.confirm(
+                                `Delete ${p.name}? Restoring later is a one-time ${RESTORE_IDENTITY_PRICE_LABEL} — the conversation is preserved either way.`,
+                              )
+                            }
+                          >
+                            {row}
+                          </SwipeRow>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               </section>
             ))
