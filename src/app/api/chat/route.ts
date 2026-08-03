@@ -11,7 +11,7 @@ import {
   type PersonalityType,
   type EmotionalFlavor,
 } from "@/content/personality";
-import { isAsleep, localTimeLabel } from "@/lib/sleep";
+import { isAsleep, localDateLabel, localTimeLabel } from "@/lib/sleep";
 import { detectCrisis } from "@/lib/crisis";
 import { sendCrisisAlert } from "@/lib/notifications";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -805,6 +805,16 @@ export async function POST(request: NextRequest) {
   const rawAboutThem = await fetchAboutThemBlock(user.id);
   const aboutThemPart = rawAboutThem ? `\n\n${rawAboutThem}` : "";
 
+  // Today's date — the persona uses this to know whether an event the
+  // user mentioned ("interview Thursday", "wedding on the 4th") has
+  // already happened. The OPEN LOOPS beat in CORE_BEHAVIOR_RULES asks
+  // the persona to notice past events and ask how they went, once.
+  // Suppressed in memorial mode: a deceased persona doesn't have a
+  // "today."
+  const todayPart = memorialMode
+    ? ""
+    : `\n\n== Today ==\nToday is ${localDateLabel(effectiveTimezone)}. Use this to notice when something they mentioned is coming up has already passed — ask how it went, once, when the moment fits.`;
+
   const wokenPart = sleeping && !memorialMode
     ? `\n\nIt is currently ${localTimeLabel(effectiveTimezone)} where you live. You were asleep, but the user kept messaging until you replied. You're groggy, slightly short. Acknowledge that briefly — the way a real person would when woken up — then engage with what they're saying. Don't be cheerful about being awake.`
     : "";
@@ -916,7 +926,7 @@ This is a chapter3five archive — built from the answers ${characterName} gave 
 
 ${PERSONA_RULES}
 
-${langInstruction}${stylePart}${personalityPart}${flavorPart}${bioPart}${locationPart}${traitsPart}${sportsPart}${castPart}${statePart}${wokenPart}${memorialPart}${inheritedPart}${aboutThemPart}${memoriesBlock}
+${langInstruction}${stylePart}${personalityPart}${flavorPart}${bioPart}${locationPart}${traitsPart}${sportsPart}${castPart}${statePart}${wokenPart}${memorialPart}${inheritedPart}${aboutThemPart}${todayPart}${memoriesBlock}
 
 ARCHIVE — the actual answers ${characterName} gave. This is who you are. Stay close.
 
@@ -925,7 +935,7 @@ ${archiveBlock}`
 
 ${PERSONA_RULES}
 
-${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${sportsPart}${castPart}${statePart}${wokenPart}${memorialPart}${inheritedPart}${aboutThemPart}${memoriesBlock}`;
+${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${sportsPart}${castPart}${statePart}${wokenPart}${memorialPart}${inheritedPart}${aboutThemPart}${todayPart}${memoriesBlock}`;
 
   // Tone judge — never overrides a crisis message. Decides whether
   // the persona walks away from this conversation. Permissive by

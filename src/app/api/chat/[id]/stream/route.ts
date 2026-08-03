@@ -42,6 +42,7 @@ import {
   INHERITED_ARCHIVE_RULES,
 } from "@/lib/personaRules";
 import { requireTermsAccepted } from "@/lib/legal/gate";
+import { localDateLabel } from "@/lib/sleep";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -678,6 +679,20 @@ export async function POST(
   }
   if (aboutThemBlock) {
     system.push({ type: "text", text: aboutThemBlock });
+  }
+  // Today's date, so the persona can notice when something the user
+  // told them was coming up ("interview Thursday") has already
+  // happened — the OPEN LOOPS beat in CORE_BEHAVIOR_RULES depends on
+  // this cue. Skipped for the concierge — Adrian doesn't hold open
+  // loops on personal events. Server-side date (America/New_York
+  // default when no user timezone is stored on this route); off by
+  // ≤24h in far timezones, close enough for "did this day pass?"
+  // reasoning without introducing a new profiles read.
+  if (!isConciergeOracle) {
+    system.push({
+      type: "text",
+      text: `== Today ==\nToday is ${localDateLabel(null)}. Use this to notice when something they mentioned is coming up has already passed — ask how it went, once, when the moment fits.`,
+    });
   }
   if (residueBlock) {
     system.push({ type: "text", text: residueBlock });

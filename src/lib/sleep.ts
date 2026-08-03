@@ -45,3 +45,21 @@ export function localTimeLabel(timezone: string | null | undefined): string {
     hour12: true,
   }).format(new Date());
 }
+
+/**
+ * "Wednesday, August 3, 2026" in the given timezone (or the server
+ * default when none is known). Used by the chat routes to inject a
+ * "== Today ==" cue so personas can reason about whether an event the
+ * user mentioned ("interview Thursday") has already happened — the
+ * OPEN LOOPS beat in CORE_BEHAVIOR_RULES depends on this.
+ */
+export function localDateLabel(timezone: string | null | undefined): string {
+  const tz = safeTimezone(timezone);
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: tz,
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  }).format(new Date());
+}
