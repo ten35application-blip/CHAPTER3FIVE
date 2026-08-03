@@ -201,6 +201,8 @@ export default function ChatSurface({
   initialMessages,
   initialBlocked,
   isConcierge,
+  isSelfArchive,
+  inheritCode,
   initialMuted,
   initialAiAcked,
 }: {
@@ -221,6 +223,19 @@ export default function ChatSurface({
    *  concierge — it's not a persona users interact with romantically
    *  or file conduct complaints about. */
   isConcierge: boolean;
+  /** True when this oracle is the caller's Me identity
+   *  (oracles.is_self_archive, 0125). Rewires the send handler to
+   *  the echo endpoint (no LLM, no cost — the app repeats the user's
+   *  message back at them, iOS/Android-parity behavior) and surfaces
+   *  the inherit code prominently in the zoom modal. */
+  isSelfArchive: boolean;
+  /** Inherit code for this identity, when one exists (legacy identity
+   *  the user minted). Rendered inside the zoom modal below the
+   *  one-line bio with a copy affordance and a soft "share this with
+   *  the person you're leaving it to" caption. Null for random /
+   *  photo companions (they have no code) and inherited copies (the
+   *  code belongs to the original creator). */
+  inheritCode: string | null;
   /** Whether the user has already muted this identity
    *  (profiles.muted_conversations). Drives the initial Block/Unblock
    *  label in the header menu. */
@@ -324,6 +339,10 @@ export default function ChatSurface({
     if (welcomeTriedRef.current) return;
     if (initialMessages.length > 0) return;
     if (isStreaming) return;
+    // Me identity is an echo, not a persona — no Anthropic welcome to
+    // fire (Wilson: "you cannot talk to yourself"). Empty state stays
+    // empty until the user types.
+    if (isSelfArchive) return;
     welcomeTriedRef.current = true;
     (async () => {
       try {
@@ -344,7 +363,7 @@ export default function ChatSurface({
         // Silent — the empty-thread state is still fine as a fallback.
       }
     })();
-  }, [initialMessages.length, isStreaming, oracleId]);
+  }, [initialMessages.length, isSelfArchive, isStreaming, oracleId]);
 
   /** Core send/stream loop. `text === null` means retry: regenerate
    *  the reply for the already-persisted last user message. */
@@ -832,12 +851,114 @@ export default function ChatSurface({
     [identityReportBusy, oracleId],
   );
 
+  /** Me-identity echo: POST /api/chat/echo. No streaming, no persona
+   *  pipeline — the server inserts the user turn AND an identical
+   *  assistant echo, both scoped to the caller. Optimistic bubbles
+   *  land immediately; the response swaps them for real DB rows so
+   *  long-press (reactions/report) attaches to real message_ids.
+   *
+   *  Wilson's Phase-2 lock: "You cannot talk to yourself — anything
+   *  you said will repeat back to you, like iOS and Android do now." */
+  const runEcho = useCallback(
+    async (text: string, image: OutgoingImage | null) => {
+      const nowIso = new Date().toISOString();
+      const tempUserId = `optimistic-user-${Date.now()}`;
+      const tempEchoId = `optimistic-echo-${Date.now()}`;
+      // Land BOTH the user bubble AND the mirrored echo bubble in the
+      // same setState so React doesn't stagger them across two paints
+      // — the whole point of echo is that they feel simultaneous.
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: tempUserId,
+          role: "user",
+          content: text,
+          createdAt: nowIso,
+          readByOracleAt: null,
+          pending: true,
+          imageUrl: image?.previewUrl ?? null,
+          myReaction: null,
+          theirReaction: null,
+        },
+        {
+          id: tempEchoId,
+          role: "assistant",
+          content: text,
+          createdAt: nowIso,
+          readByOracleAt: null,
+          pending: false,
+          imageUrl: image?.previewUrl ?? null,
+          myReaction: null,
+          theirReaction: null,
+        },
+      ]);
+      try {
+        const res = await fetch("/api/chat/echo", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            oracle_id: oracleId,
+            message: text,
+            ...(image ? { image_storage_path: image.storagePath } : {}),
+          }),
+        });
+        if (!res.ok) {
+          // Roll back both optimistic bubbles so the user can retry.
+          setMessages((prev) =>
+            prev.filter((m) => m.id !== tempUserId && m.id !== tempEchoId),
+          );
+          setStreamFailed(true);
+          return;
+        }
+        const body = (await res.json().catch(() => null)) as {
+          user?: { id?: string; created_at?: string };
+          echo?: { id?: string; created_at?: string } | null;
+        } | null;
+        // Swap optimistic ids for the real DB ids so long-press
+        // (reactions, report) attaches to something the server knows
+        // about. Falls back to keeping the temp id if the response
+        // shape ever drifts — the bubble still renders, just isn't
+        // long-pressable until the next natural refresh.
+        setMessages((prev) =>
+          prev.map((m) => {
+            if (m.id === tempUserId && body?.user?.id) {
+              return {
+                ...m,
+                id: body.user.id,
+                pending: false,
+                createdAt: body.user.created_at ?? m.createdAt,
+              };
+            }
+            if (m.id === tempEchoId && body?.echo?.id) {
+              return {
+                ...m,
+                id: body.echo.id,
+                createdAt: body.echo.created_at ?? m.createdAt,
+              };
+            }
+            return m;
+          }),
+        );
+      } catch {
+        setMessages((prev) =>
+          prev.filter((m) => m.id !== tempUserId && m.id !== tempEchoId),
+        );
+        setStreamFailed(true);
+      }
+    },
+    [oracleId],
+  );
+
   const handleSend = useCallback(
     (text: string, image: OutgoingImage | null) => {
       if (isStreaming || blocked) return;
+      if (isSelfArchive) {
+        void runEcho(text, image);
+        return;
+      }
       void runStream(text, image);
     },
-    [blocked, isStreaming, runStream],
+    [blocked, isSelfArchive, isStreaming, runEcho, runStream],
   );
 
   const handleRetry = useCallback(() => {
@@ -921,8 +1042,10 @@ export default function ChatSurface({
               same App Store 1.2 / Play UGC affordances in the same
               place per persona. Suppressed for the concierge oracle
               (Adrian) — he's the help surface, not a persona to
-              block or report. */}
-          {isConcierge ? (
+              block or report. Also suppressed for the Me identity:
+              you can't block or report yourself; the actions read as
+              nonsense on the echo-back surface. */}
+          {isConcierge || isSelfArchive ? (
             <div />
           ) : (
             <div className="relative flex justify-end">
@@ -990,7 +1113,11 @@ export default function ChatSurface({
           // Just a soft prompt line, low in the pane.
           <div className="flex h-full items-end justify-center pb-8">
             <p className="text-sm text-warm-400">
-              {blocked ? "" : `Say something to ${name}.`}
+              {blocked
+                ? ""
+                : isSelfArchive
+                  ? "Anything you write will echo back to you."
+                  : `Say something to ${name}.`}
             </p>
           </div>
         ) : (
@@ -1376,14 +1503,29 @@ export default function ChatSurface({
           {/* Bio card — shown only when the user zoomed the persona's
               avatar (not an in-chat attachment). Name + one-line hook,
               in the same warm voice as elsewhere. Whole modal remains a
-              button that dismisses on click; the bio is decorative. */}
+              button that dismisses on click; the bio is decorative.
+              Phase-4 (2026-08-03): for legacy identities the user
+              minted, the inherit code lands here too so it lives WITH
+              the identity, not just in Settings (parity between Me
+              and "for someone you love"). The InheritCodeBlock is
+              interactive (copy button); it stops propagation so a tap
+              on the code doesn't dismiss the modal. */}
           {zoomUrl === avatarUrl && (
-            <div className="pointer-events-none max-w-md text-center">
-              <p className="text-lg font-semibold text-white">{name}</p>
+            <div className="max-w-md text-center">
+              <p className="pointer-events-none text-lg font-semibold text-white">
+                {name}
+              </p>
               {oneLineHook ? (
-                <p className="mt-2 text-sm leading-relaxed text-white/80">
+                <p className="pointer-events-none mt-2 text-sm leading-relaxed text-white/80">
                   {oneLineHook}
                 </p>
+              ) : null}
+              {inheritCode ? (
+                <InheritCodeBlock
+                  code={inheritCode}
+                  name={name}
+                  isSelfArchive={isSelfArchive}
+                />
               ) : null}
             </div>
           )}
@@ -1447,6 +1589,77 @@ function PendingDots() {
         style={{ animationDelay: "300ms" }}
       />
     </span>
+  );
+}
+
+/**
+ * Inherit-code panel inside the avatar zoom modal. Renders the code
+ * with a copy-to-clipboard button and a soft caption reminding the
+ * user this is the code they share with the person they're leaving
+ * the identity to. Copy for the Me identity is slightly different
+ * from the "for someone you love" case — same code, different framing.
+ *
+ * Wilson's Phase-4 spec:
+ *   "The zoom modal on the Me identity shows the inherit code — the
+ *    same code that appears in Settings. Since Me shows the inherit
+ *    code in the zoom modal, and the 'For someone you love' legacy
+ *    path ALSO produces an inherit code, the code should be visible
+ *    on those identity's zoom modals too."
+ */
+function InheritCodeBlock({
+  code,
+  name,
+  isSelfArchive,
+}: {
+  code: string;
+  name: string;
+  isSelfArchive: boolean;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  async function onCopy(e: React.MouseEvent) {
+    // The zoom modal is a full-viewport button that dismisses on
+    // click; stop propagation so tapping Copy doesn't close the modal
+    // out from under the user.
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    } catch {
+      // Clipboard unavailable — the code is still visible above the
+      // button so the user can hand-select.
+    }
+  }
+
+  const caption = isSelfArchive
+    ? "Share this with the people you're leaving it to. They'll meet you when they redeem it."
+    : `Share this with the person you're leaving ${name} to. They'll meet them when they redeem it.`;
+
+  return (
+    <div
+      onClick={(e) => e.stopPropagation()}
+      className="mt-5 rounded-2xl bg-white/10 p-4 text-left ring-1 ring-white/15 backdrop-blur"
+    >
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-coral-strong">
+        Inherit code
+      </p>
+      <div className="mt-2 flex items-center justify-between gap-3">
+        <p className="min-w-0 flex-1 truncate font-mono text-sm text-white">
+          {code}
+        </p>
+        <button
+          type="button"
+          onClick={onCopy}
+          className="bg-gradient-cta shrink-0 rounded-full px-3.5 py-1.5 text-xs font-semibold text-white shadow-[0_4px_10px_-2px_rgba(232,138,118,0.35)] transition-transform hover:-translate-y-0.5"
+        >
+          {copied ? "Copied" : "Copy"}
+        </button>
+      </div>
+      <p className="mt-3 text-[11px] leading-relaxed text-white/70">
+        {caption}
+      </p>
+    </div>
   );
 }
 

@@ -1,0 +1,26 @@
+-- ============================================================
+-- 0127_grant_is_self_archive_select
+-- ============================================================
+-- Phase 4 (2026-08-03): the chat surface needs to detect "Me"
+-- identities client-side so it can:
+--   (a) branch to the echo-back behavior (the send handler skips
+--       /api/chat and instead calls /api/chat/echo, which inserts
+--       both the user turn AND an identical assistant echo — no
+--       LLM, no Anthropic spend),
+--   (b) render the inherit code prominently in the zoom modal so
+--       the user can share their own Me code from the identity
+--       itself (parity with Settings).
+--
+-- oracles.is_self_archive was added in 0125 but no SELECT grant
+-- was issued. 0070 (per-column allowlist) means an ungranted
+-- column is unreadable by anon/authenticated even when RLS would
+-- otherwise pass. Same pattern as 0100 (is_concierge grant) and
+-- 0126 (is_photo_placeholder grant) — a targeted per-column grant
+-- that keeps the wider allowlist posture intact.
+--
+-- The column is server-controlled (protect_oracle_columns denylist
+-- in 0125) — this grant only opens READS, not writes.
+--
+-- Idempotent. Safe to run twice.
+
+grant select (is_self_archive) on public.oracles to anon, authenticated;

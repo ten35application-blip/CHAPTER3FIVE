@@ -53,6 +53,32 @@ function fail(message: string, status = 400) {
  *   6. → { id } — client reveals via the same card as the random path
  *
  * Error copy matches the web action string-for-string.
+ *
+ * Phase 4 (2026-08-03) — placeholder-fill mode. When the multipart
+ * body carries a `placeholder_id` string field, the route flips into
+ * "fill the existing photo-companion slot" mode instead of creating
+ * a new row:
+ *
+ *   - Quota gate is SKIPPED: the placeholder row already exists and
+ *     the user has already paid for it via subscription; no new slot
+ *     is being consumed.
+ *   - Ownership is enforced server-side (row.user_id === auth.uid()
+ *     AND row.is_photo_placeholder === true). A crafted call naming
+ *     someone else's oracle 404s. A call naming an already-filled
+ *     row 409s (no double-fill).
+ *   - Rather than INSERTing a second row, the synthesized persona
+ *     fields (name, traits, fingerprint, persona_prompt, one_line_hook,
+ *     significant_events, voice_examples, pet_name, all the trait
+ *     detail columns) are written onto the existing row in ONE update,
+ *     with is_photo_placeholder flipped to false. Same id survives, so
+ *     the chat surface simply re-renders as the live persona.
+ *   - The avatar upload path is identical to the create case (same
+ *     avatars bucket + hash stamping), just keyed by the existing id.
+ *
+ * Idempotency-friendly: because the update is gated on
+ * is_photo_placeholder = true, a repeat POST after a successful fill
+ * lands as a 409 rather than silently re-generating. The caller can
+ * treat 409 like success (the row is filled — refresh).
  */
 export async function POST(request: NextRequest) {
   const { supabase, user } = await getRequestAuth(request);
@@ -63,8 +89,46 @@ export async function POST(request: NextRequest) {
   const legal = await requireTermsAccepted(supabase, user.id);
   if (!legal.ok) return legal.response;
 
-  // ---- 0. Quota gate — refuse BEFORE paying for vision/synthesis ----
-  {
+  // ---- 1a. Read the multipart body up-front so we can inspect
+  //          placeholder_id BEFORE spending vision/synthesis + BEFORE
+  //          checking the quota (placeholders skip the quota gate).
+  let formData: FormData;
+  try {
+    formData = await request.formData();
+  } catch {
+    return fail("Pick a photo first.");
+  }
+  const rawPlaceholderId = formData.get("placeholder_id");
+  const placeholderId =
+    typeof rawPlaceholderId === "string" && rawPlaceholderId.trim().length > 0
+      ? rawPlaceholderId.trim()
+      : null;
+
+  // Phase-4 placeholder-fill: verify ownership + placeholder state
+  // BEFORE spending vision/synthesis. A stale placeholder_id, a
+  // non-owned row, or an already-filled row all short-circuit here.
+  if (placeholderId) {
+    const { data: placeholderRow } = await supabase
+      .from("oracles")
+      .select("id, user_id, is_photo_placeholder")
+      .eq("id", placeholderId)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (!placeholderRow || placeholderRow.user_id !== user.id) {
+      return fail("Couldn't find that identity to update.", 404);
+    }
+    if (!placeholderRow.is_photo_placeholder) {
+      return NextResponse.json(
+        {
+          error: "This identity has already been created.",
+          code: "already_filled",
+        },
+        { status: 409 },
+      );
+    }
+  } else {
+    // ---- 0. Quota gate (create-mode only) — refuse BEFORE paying
+    //          for vision/synthesis.
     const gate = await canCreateOracle(user.id);
     if (!gate.ok) {
       if (gate.reason === "upgrade_required") {
@@ -87,12 +151,6 @@ export async function POST(request: NextRequest) {
   }
 
   // ---- 1. Validate the upload -------------------------------------------
-  let formData: FormData;
-  try {
-    formData = await request.formData();
-  } catch {
-    return fail("Pick a photo first.");
-  }
   const file = formData.get("photo");
   if (!(file instanceof File) || file.size === 0) {
     return fail("Pick a photo first.");
@@ -187,40 +245,79 @@ export async function POST(request: NextRequest) {
     return fail("Couldn't finish meeting them. Try again.", 502);
   }
 
-  // ---- 5. Insert + avatar upload ----------------------------------------
+  // ---- 5. Insert (or fill placeholder) + avatar upload ------------------
   const admin = createAdminClient();
-  const { data: inserted, error: insertError } = await admin
-    .from("oracles")
-    .insert({
-      user_id: user.id,
-      traits,
-      fingerprint,
-      name: persona.name,
-      one_line_hook: persona.one_line_hook,
-      persona_prompt: persona.persona_prompt,
-      significant_events: persona.significant_events,
-      creation_source: "photo",
-      disclosure_pace: traits.disclosurePace ?? null,
-      silence_style: traits.silenceStyle ?? null,
-      punctuation_habit: traits.punctuationHabit ?? null,
-      memory_style: traits.memoryStyle ?? null,
-      text_burst_style: traits.textBurstStyle ?? null,
-      chronotype: traits.chronotype ?? null,
-      voice_examples: persona.voice_examples,
-      texting_fluency: traits.textingFluency ?? null,
-      pet_name: persona.pet_name ?? null,
-    })
-    .select("id")
-    .single();
-  if (insertError || !inserted) {
-    console.error("[api/identity/from-photo] insert failed:", insertError);
-    return fail("Couldn't save them. Try again.", 500);
-  }
-  const oracleId = inserted.id as string;
+  const personaFields = {
+    traits,
+    fingerprint,
+    name: persona.name,
+    one_line_hook: persona.one_line_hook,
+    persona_prompt: persona.persona_prompt,
+    significant_events: persona.significant_events,
+    creation_source: "photo" as const,
+    disclosure_pace: traits.disclosurePace ?? null,
+    silence_style: traits.silenceStyle ?? null,
+    punctuation_habit: traits.punctuationHabit ?? null,
+    memory_style: traits.memoryStyle ?? null,
+    text_burst_style: traits.textBurstStyle ?? null,
+    chronotype: traits.chronotype ?? null,
+    voice_examples: persona.voice_examples,
+    texting_fluency: traits.textingFluency ?? null,
+    pet_name: persona.pet_name ?? null,
+  };
 
-  // First identity created claims the post-trial Free-tier slot —
-  // before the avatar upload, whose soft-failure path returns early.
-  await claimFreeIdentitySlot(user.id, oracleId);
+  let oracleId: string;
+  if (placeholderId) {
+    // Placeholder-fill: flip is_photo_placeholder=false and write the
+    // synthesized persona onto the existing row in ONE update. The
+    // .eq("is_photo_placeholder", true) guard makes this idempotent —
+    // a repeat call after a successful fill matches 0 rows and returns
+    // "already filled" without generating a second persona from a new
+    // vision pass. (The earlier 409 short-circuit handles the common
+    // case; this belt covers a concurrent double-tap that raced past
+    // the pre-check.)
+    const { data: updated, error: updateError } = await admin
+      .from("oracles")
+      .update({
+        ...personaFields,
+        is_photo_placeholder: false,
+      })
+      .eq("id", placeholderId)
+      .eq("user_id", user.id)
+      .eq("is_photo_placeholder", true)
+      .is("deleted_at", null)
+      .select("id")
+      .single();
+    if (updateError || !updated) {
+      console.error(
+        "[api/identity/from-photo] placeholder fill failed:",
+        updateError,
+      );
+      return fail("Couldn't save them. Try again.", 500);
+    }
+    oracleId = updated.id as string;
+  } else {
+    const { data: inserted, error: insertError } = await admin
+      .from("oracles")
+      .insert({
+        user_id: user.id,
+        ...personaFields,
+      })
+      .select("id")
+      .single();
+    if (insertError || !inserted) {
+      console.error("[api/identity/from-photo] insert failed:", insertError);
+      return fail("Couldn't save them. Try again.", 500);
+    }
+    oracleId = inserted.id as string;
+
+    // First identity created claims the post-trial Free-tier slot —
+    // before the avatar upload, whose soft-failure path returns early.
+    // Placeholder-fill mode skips this: the placeholder was created by
+    // the auto-populate helper post-subscribe; the free-slot claim
+    // doesn't apply to a paid-tier row.
+    await claimFreeIdentitySlot(user.id, oracleId);
+  }
 
   // The user's photo IS the avatar — no Replicate for this path.
   const storagePath = `user-uploaded/${oracleId}.png`;
@@ -237,7 +334,7 @@ export async function POST(request: NextRequest) {
     // The identity exists but has no face — soft failure; the reveal
     // shows the initial-letter avatar, exactly like the web path.
     console.error("[api/identity/from-photo] avatar upload failed:", uploadError);
-    return NextResponse.json({ id: oracleId });
+    return NextResponse.json({ id: oracleId, filled: placeholderId !== null });
   }
   const { data: pub } = admin.storage.from("avatars").getPublicUrl(storagePath);
   const publicUrl = `${pub.publicUrl}?v=${Date.now()}`;
@@ -270,5 +367,8 @@ export async function POST(request: NextRequest) {
   }
 
   // ---- 6. Reveal ----------------------------------------------------------
-  return NextResponse.json({ id: oracleId });
+  // `filled: true` on the placeholder-fill path lets the client tell
+  // "the placeholder is now a live persona, refresh the current chat"
+  // apart from "brand new identity, navigate to the reveal card".
+  return NextResponse.json({ id: oracleId, filled: placeholderId !== null });
 }

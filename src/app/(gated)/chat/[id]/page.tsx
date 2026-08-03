@@ -3,6 +3,7 @@ import { canChatWithOracle } from "@/lib/subscription";
 import { createClient } from "@/lib/supabase/server";
 import { isReactionKind, type ReactionKind } from "@/lib/reactions";
 import ChatSurface, { type ChatMessage } from "./ChatSurface";
+import PhotoPlaceholderScreen from "./PhotoPlaceholderScreen";
 
 /**
  * /chat/[id] — the conversation with one persona.
@@ -31,10 +32,19 @@ export default async function ChatPage({
     redirect("/auth/signin");
   }
 
+  // is_self_archive (0125 + 0127 grant): the Me identity — the user's
+  // own self-archive. Chat surface renders the echo-back behavior
+  // instead of the normal /api/chat pipeline, and the zoom modal
+  // surfaces the inherit code so the user can share their own Me code
+  // from the identity itself (parity with Settings).
+  // is_legacy: any legacy identity (Me + "someone you love"). Used to
+  // decide whether to fetch and surface the inherit code on the zoom
+  // modal for that identity (Wilson: "wherever the identity lives,
+  // its code lives with it").
   const { data: oracle } = await supabase
     .from("oracles")
     .select(
-      "id, name, avatar_url, one_line_hook, blocked_at, block_reason, is_concierge, is_photo_placeholder",
+      "id, name, avatar_url, one_line_hook, blocked_at, block_reason, is_concierge, is_photo_placeholder, is_self_archive, is_legacy, inherited_at",
     )
     .eq("id", id)
     .is("deleted_at", null)
@@ -45,10 +55,17 @@ export default async function ChatPage({
 
   // Phase 3 (0126): the row IS a photo-companion slot but the user
   // hasn't uploaded a photo yet — the persona doesn't exist to chat
-  // with. Show a soft placeholder screen that prompts the upload;
-  // Phase 4 replaces this stub with the real photo-upload sheet.
+  // with. Phase 4 (2026-08-03): the client screen posts to
+  // /api/identity/from-photo with a placeholder_id, which UPDATE-in-
+  // place fills the row and flips is_photo_placeholder=false; a
+  // router.refresh() then re-renders the page as the live persona.
   if (oracle.is_photo_placeholder) {
-    return <PhotoPlaceholderScreen name={oracle.name as string} />;
+    return (
+      <PhotoPlaceholderScreen
+        oracleId={oracle.id as string}
+        name={oracle.name as string}
+      />
+    );
   }
 
   // Whether the user has muted this identity (Bundle A "Block" —
@@ -160,6 +177,25 @@ export default async function ChatPage({
       theirReaction: reactionsByMessage.get(m.id)?.theirs ?? null,
     }));
 
+  // Phase-4 (2026-08-03): fetch the inherit code for this identity so
+  // the zoom modal can surface it. Only legacy identities THIS user
+  // MINTED (is_legacy = true AND inherited_at IS NULL — an inherited
+  // copy's code belongs to whoever minted it, not the redeemer) have
+  // a code to surface. RLS on inherit_codes is creator-only reads so
+  // this can never leak someone else's code even if the filter drifts.
+  let inheritCode: string | null = null;
+  if (oracle.is_legacy && !oracle.inherited_at) {
+    const { data: codeRow } = await supabase
+      .from("inherit_codes")
+      .select("code")
+      .eq("oracle_id", oracle.id)
+      .is("revoked_at", null)
+      .maybeSingle();
+    if (codeRow && typeof codeRow.code === "string") {
+      inheritCode = codeRow.code;
+    }
+  }
+
   // Marking the persona's messages as read happens client-side on
   // mount via POST /api/chat/[id]/messages/read — not here, so a
   // prefetch of this route can't silently clear unread state.
@@ -173,42 +209,11 @@ export default async function ChatPage({
       initialBlocked={!!oracle.blocked_at}
       blockReason={oracle.block_reason ?? null}
       isConcierge={!!oracle.is_concierge}
+      isSelfArchive={!!oracle.is_self_archive}
+      inheritCode={inheritCode}
       initialMuted={initialMuted}
       initialAiAcked={initialAiAcked}
     />
   );
 }
 
-/** Phase-3 (0126) photo-placeholder chat surface. The user tapped a
- *  placeholder row on the dashboard — there's no persona to talk to
- *  yet, so instead of a broken composer we render a hint and the
- *  camera-glyph avatar. Phase 4 replaces this stub with the real
- *  upload sheet (file picker + generate-from-photo flow). */
-function PhotoPlaceholderScreen({ name }: { name: string }) {
-  return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col items-center justify-center px-6 py-24 text-center">
-      <span
-        aria-hidden
-        className="mb-6 flex h-24 w-24 items-center justify-center rounded-full border-2 border-dashed border-coral/40 bg-ink text-coral-strong"
-      >
-        <svg
-          viewBox="0 0 24 24"
-          width="36"
-          height="36"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M4 8h3l2-2h6l2 2h3v10H4z" />
-          <circle cx="12" cy="13" r="3.5" />
-        </svg>
-      </span>
-      <h1 className="text-lg font-semibold text-warm-50">{name}</h1>
-      <p className="mt-3 text-sm leading-relaxed text-warm-300">
-        Tap the avatar to upload a photo — this identity will be created once you do.
-      </p>
-    </main>
-  );
-}
