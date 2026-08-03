@@ -22,7 +22,10 @@ import {
   recordAnthropicSpend,
 } from "@/lib/spendGovernor";
 import { extractMemoriesFromMessage } from "@/lib/memory/extract";
-import { fetchMemoriesForContext } from "@/lib/memory/retrieve";
+import {
+  fetchAboutThemBlock,
+  fetchMemoriesForContext,
+} from "@/lib/memory/retrieve";
 import { shouldPersonaBlock } from "@/lib/safety/block-detector";
 import { handleBlockDecision } from "@/lib/safety/block-notify";
 import { checkForCrisis } from "@/lib/safety/crisis-detector";
@@ -34,7 +37,10 @@ import {
   consumePackCredit,
   getPlanTier,
 } from "@/lib/subscription";
-import { CORE_BEHAVIOR_RULES } from "@/lib/personaRules";
+import {
+  CORE_BEHAVIOR_RULES,
+  INHERITED_ARCHIVE_RULES,
+} from "@/lib/personaRules";
 import { requireTermsAccepted } from "@/lib/legal/gate";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -150,11 +156,22 @@ export async function POST(
   const promptClient = createAdminClient();
   const { data: promptRow } = await promptClient
     .from("oracles")
-    .select("persona_prompt, is_concierge")
+    .select(
+      "persona_prompt, is_concierge, creation_source, inherited_from_code_id",
+    )
     .eq("id", oracleId)
     .maybeSingle();
   const personaPrompt = promptRow?.persona_prompt ?? null;
   const isConciergeOracle = promptRow?.is_concierge === true;
+  // Inherited-copy signal: POST /api/identity/inherit (and its web
+  // twin action) stamps creation_source = 'inherited' AND
+  // inherited_from_code_id on redeemed copies; either counts. A
+  // passed-down archive is a memoir surface — the romantic register
+  // is closed entirely (same posture as memorial mode on the mobile
+  // route). Memory + warmth stay fully on.
+  const isInheritedOracle =
+    promptRow?.creation_source === "inherited" ||
+    promptRow?.inherited_from_code_id != null;
 
   // Block enforcement — checked BEFORE the rate-limit bump so a blocked
   // send never counts against the user's daily usage. The persona set
@@ -543,6 +560,16 @@ export async function POST(
   // cache breakpoint. Empty string when no memories exist yet.
   let memoriesBlock = await fetchMemoriesForContext(oracleId, user.id);
 
+  // Who the user is (name they go by, pronouns, partner…) — learned in
+  // conversation by ANY of their identities, remembered by all of them
+  // (user-wide read; identity keys are excluded from the per-oracle
+  // block above so nothing renders twice). The flirt-consent formula
+  // keys off these instead of guessing. Skipped for the concierge —
+  // Adrian answers product questions, he doesn't know you.
+  const aboutThemBlock = isConciergeOracle
+    ? ""
+    : await fetchAboutThemBlock(user.id);
+
   // Fable humanization #5 — session emotional residue. Read + inject
   // BEFORE the memory block so the persona opens the session carrying
   // the last exchange's temperature (empty on first-ever chat, or if
@@ -630,6 +657,13 @@ export async function POST(
       ]
     : [
         { type: "text", text: personaPrompt },
+        // Inherited-copy no-flirt lock rides INSIDE the cached prefix
+        // (static per oracle) so it costs cache-read tokens. It also
+        // suppresses the FLIRTING permission in CORE_BEHAVIOR_RULES —
+        // that rule now names inherited archives as a closed door.
+        ...(isInheritedOracle
+          ? [{ type: "text" as const, text: INHERITED_ARCHIVE_RULES }]
+          : []),
         {
           type: "text",
           text: CORE_BEHAVIOR_RULES,
@@ -641,6 +675,9 @@ export async function POST(
   }
   if (userNameCue) {
     system.push({ type: "text", text: userNameCue });
+  }
+  if (aboutThemBlock) {
+    system.push({ type: "text", text: aboutThemBlock });
   }
   if (residueBlock) {
     system.push({ type: "text", text: residueBlock });

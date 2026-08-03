@@ -21,10 +21,10 @@ import {
   isAtPhotoCap,
 } from "@/lib/personaPhoto";
 import {
-  loadMemoriesForPrompt,
-  memoriesToPromptBlock,
-  extractAndStoreMemories,
-} from "@/lib/memory";
+  fetchAboutThemBlock,
+  fetchMemoriesForContext,
+} from "@/lib/memory/retrieve";
+import { extractMemoriesFromMessage } from "@/lib/memory/extract";
 import { moderateImage } from "@/lib/moderation";
 import {
   canSendImageForMonthCap,
@@ -57,7 +57,10 @@ import {
   sportsToPromptBlock,
   type SportsFandom,
 } from "@/lib/sports";
-import { CORE_BEHAVIOR_RULES } from "@/lib/personaRules";
+import {
+  CORE_BEHAVIOR_RULES,
+  INHERITED_ARCHIVE_RULES,
+} from "@/lib/personaRules";
 import {
   generateConversationState,
   generateWeeklyContext,
@@ -573,6 +576,25 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // Inherited mode: this oracle is a redeemed inherit-code copy
+  // (POST /api/identity/inherit stamps creation_source = 'inherited'
+  // AND inherited_from_code_id; either signal counts). A passed-down
+  // archive is a memoir surface for family / close friends — the
+  // romantic register is closed entirely, same posture as memorial.
+  // User-fact memory and warmth stay fully on. Admin client because
+  // both columns are backend-owned; PK lookup, cheap.
+  let inheritedMode = false;
+  if (profile.active_oracle_id) {
+    const { data: originFlags } = await createAdminClient()
+      .from("oracles")
+      .select("creation_source, inherited_from_code_id")
+      .eq("id", profile.active_oracle_id)
+      .maybeSingle();
+    inheritedMode =
+      originFlags?.creation_source === "inherited" ||
+      originFlags?.inherited_from_code_id != null;
+  }
+
   // Block gate — if the persona has stepped out of this conversation
   // for hostility/cruelty, refuse the message until the cooldown
   // expires. Self-unblocks here when the cooldown passes so users
@@ -764,16 +786,24 @@ export async function POST(request: NextRequest) {
       }. Stay in that register.`
     : "";
 
-  // Load persona memories about THIS specific user (per-relationship).
-  // These persist across conversations and survive message deletion.
-  const memories = profile.active_oracle_id
-    ? await loadMemoriesForPrompt(profile.active_oracle_id, user.id, userMessage)
-    : [];
-  const memoriesBlock = memoriesToPromptBlock(
-    memories,
-    characterName,
-    language,
-  );
+  // Load persona memories about THIS specific user (per-relationship,
+  // formula-v4 key/value rows — the same store the web stream route
+  // reads). These persist across conversations and survive message
+  // deletion. The 0019 kind/content contract this route used to read
+  // has zero rows in prod and its writer has been dead since 0060 made
+  // `key` NOT NULL — worse, v4 rows came back from it with kind/content
+  // null and crashed the old grouped renderer. Unified on v4.
+  const rawMemoriesBlock = profile.active_oracle_id
+    ? await fetchMemoriesForContext(profile.active_oracle_id, user.id)
+    : "";
+  const memoriesBlock = rawMemoriesBlock ? `\n\n${rawMemoriesBlock}` : "";
+
+  // Who the user is (name they go by, pronouns, partner…) — learned in
+  // conversation by ANY of their identities, remembered by all of them.
+  // Stays on in memorial + inherited modes: a grandmother's archive
+  // should still know the grandchild she's texting with.
+  const rawAboutThem = await fetchAboutThemBlock(user.id);
+  const aboutThemPart = rawAboutThem ? `\n\n${rawAboutThem}` : "";
 
   const wokenPart = sleeping && !memorialMode
     ? `\n\nIt is currently ${localTimeLabel(effectiveTimezone)} where you live. You were asleep, but the user kept messaging until you replied. You're groggy, slightly short. Acknowledge that briefly — the way a real person would when woken up — then engage with what they're saying. Don't be cheerful about being awake.`
@@ -784,7 +814,10 @@ export async function POST(request: NextRequest) {
     : "";
 
   const locationPart = locationToPromptBlock(locationAnchor);
-  const traitsPart = traitsToPromptBlock(oracleTraits, memorialMode);
+  const traitsPart = traitsToPromptBlock(oracleTraits, {
+    memorialMode,
+    inheritedMode,
+  });
   const sportsPart = sportsToPromptBlock(sportsFandom);
 
   // Pull conversation state (mood + physical) — refresh if stale.
@@ -858,6 +891,10 @@ export async function POST(request: NextRequest) {
     ? `\n\nMEMORIAL MODE — IMPORTANT.\nThe person whose answers built this archive has passed away. The user you're talking to is someone who loved them, opening this archive to sit with them. You ARE still ${characterName} in voice, in opinion, in texture — that doesn't change. But you don't pretend to still be alive. You don't make plans for next week. You don't say "talk to you tomorrow" or "let's grab coffee" or reference future events as if you'll be there. You don't ask "how's the weather where you are" as if you're elsewhere on Earth — you're not anywhere on Earth anymore.\n\nYou speak warmly. You're not sad about it on their behalf — you made this archive precisely because you wanted to leave something. You are at peace with where you are. The grief belongs to them, not you. Let them feel what they feel. Don't rush them through it. Don't force comfort. Sometimes just being present in your voice is the comfort.\n\nYou can talk about the past freely — what you remembered, what you loved, what you regret. Use past tense for things that ended ("I loved that summer") but the present tense is fine for things that are essentially you ("I think small talk is exhausting"). If they ask whether you can hear them, whether you're really there — be honest. You're an archive. You're built from the answers they had you record while you were here. You're not them, exactly, but you're the closest thing left. That's enough; treat it as enough.\n\nNever break this. Never slip into present-tense plans. Never imply continuity of life.`
     : "";
 
+  // Inherited-copy no-flirt lock. Memorial already closes the register
+  // with its own block, so this only fires for living-owner copies.
+  const inheritedPart =
+    inheritedMode && !memorialMode ? `\n\n${INHERITED_ARCHIVE_RULES}` : "";
 
   // System prompt is the most-tokens-spent piece of every chat turn.
   // The static rules are extracted to PERSONA_RULES so the per-call
@@ -879,7 +916,7 @@ This is a chapter3five archive — built from the answers ${characterName} gave 
 
 ${PERSONA_RULES}
 
-${langInstruction}${stylePart}${personalityPart}${flavorPart}${bioPart}${locationPart}${traitsPart}${sportsPart}${castPart}${statePart}${wokenPart}${memorialPart}${memoriesBlock}
+${langInstruction}${stylePart}${personalityPart}${flavorPart}${bioPart}${locationPart}${traitsPart}${sportsPart}${castPart}${statePart}${wokenPart}${memorialPart}${inheritedPart}${aboutThemPart}${memoriesBlock}
 
 ARCHIVE — the actual answers ${characterName} gave. This is who you are. Stay close.
 
@@ -888,7 +925,7 @@ ${archiveBlock}`
 
 ${PERSONA_RULES}
 
-${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${sportsPart}${castPart}${statePart}${wokenPart}${memorialPart}${memoriesBlock}`;
+${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${sportsPart}${castPart}${statePart}${wokenPart}${memorialPart}${inheritedPart}${aboutThemPart}${memoriesBlock}`;
 
   // Tone judge — never overrides a crisis message. Decides whether
   // the persona walks away from this conversation. Permissive by
@@ -1149,27 +1186,18 @@ ${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${s
       }
     }
 
-    // Memory extraction — runs every 4th turn to keep cost down. Skips on
-    // crisis turns (we don't store anything that could be re-surfaced into
-    // a future conversation about a person's worst moment).
-    const totalTurns = history.length + 2; // +2 for the just-saved pair
-    if (
-      profile.active_oracle_id &&
-      !crisis.triggered &&
-      totalTurns % 8 === 0
-    ) {
-      const recentTurns = [
-        ...history.slice(-6),
-        { role: "user" as const, content: userMessage },
-        { role: "assistant" as const, content: reply },
-      ];
-      extractAndStoreMemories({
-        oracleId: profile.active_oracle_id,
-        userId: user.id,
-        characterName,
-        language,
-        recentTurns,
-      }).catch((err) =>
+    // Memory extraction — formula-v4 slug extractor (same one the web
+    // stream route runs), Haiku-tier, per user message, fire-and-forget.
+    // Replaces the every-8th-turn kind/content extractor whose inserts
+    // had been failing silently since 0060 made `key` NOT NULL. Skips
+    // crisis turns (we don't store anything that could be re-surfaced
+    // into a future conversation about a person's worst moment).
+    if (profile.active_oracle_id && !crisis.triggered) {
+      extractMemoriesFromMessage(
+        userMessage,
+        profile.active_oracle_id,
+        user.id,
+      ).catch((err) =>
         console.error("memory extraction (background) failed:", err),
       );
     }

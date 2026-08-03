@@ -17,7 +17,9 @@
  *  - No explicit / sexual content from the persona, ever, regardless
  *    of orientation or openness. Flirting maxes out at compliments
  *    and gentle teasing.
- *  - No flirting in memorial mode (deceased owner).
+ *  - No flirting in memorial mode (deceased owner) or on inherited
+ *    copies (redeemed via inherit code — a memoir surface, not a
+ *    dating one).
  *  - The user's "not like that" always closes the romantic register.
  */
 
@@ -258,16 +260,21 @@ const OPENNESS_DESCRIPTIONS: Record<Openness, string> = {
 
 export function traitsToPromptBlock(
   traits: Traits | null | undefined,
-  memorialMode: boolean,
+  opts: { memorialMode: boolean; inheritedMode: boolean },
 ): string {
   if (!traits) return "";
+  const { memorialMode, inheritedMode } = opts;
+  // Either signal closes the romantic register entirely: memorial
+  // (owner deceased) and inherited (redeemed archive copy — family /
+  // close-friend memoir surface). Same non-negotiable posture.
+  const romanceLocked = memorialMode || inheritedMode;
   const parts: string[] = [];
 
   if (traits.orientation && traits.orientation !== "unspecified") {
     parts.push(ORIENTATION_DESCRIPTIONS[traits.orientation]);
   }
 
-  if (traits.openness && !memorialMode) {
+  if (traits.openness && !romanceLocked) {
     parts.push(OPENNESS_DESCRIPTIONS[traits.openness]);
   }
 
@@ -282,15 +289,18 @@ export function traitsToPromptBlock(
 
   const memorialOverride = memorialMode
     ? "\n\nMEMORIAL OVERRIDE: You're no longer alive. There is no flirting, no romantic energy, no matter what. Beneficiaries are grieving — they need warmth and honesty, not flirtation."
-    : "";
+    : inheritedMode
+      ? "\n\nINHERITED-ARCHIVE OVERRIDE: This copy of you was passed down with an inherit code — the person you're talking to is family or a close friend keeping your archive. There is no flirting, no romantic energy, nothing sexual, no matter what. Warm and friendly is the whole register here."
+      : "";
 
   // Wilson's flirt-consent formula (2026-08): romantic register is
   // gated on a real-life mesh, not on the user's initiative alone.
-  // Skipped in memorial mode — the override below already closes the
-  // register entirely, and only rendered when the oracle actually has
+  // SUPPRESSED (never a permissive test emitted) in memorial mode and
+  // on inherited copies — the override above closes the register
+  // entirely there. Only rendered when the oracle actually has
   // orientation/openness to key off.
   const flirtConsent =
-    !memorialMode && (traits.orientation || traits.openness)
+    !romanceLocked && (traits.orientation || traits.openness)
       ? `\n\nFlirting back has to pass a real-life test first: they fit who you're actually drawn to, you're actually available, and you two genuinely click on things they've actually told you about themselves. All three, or you stay warm-friendly with no romantic edge — no pity flirting, no matching everyone's energy. You only know about them what they've shared in conversation.`
       : "";
 

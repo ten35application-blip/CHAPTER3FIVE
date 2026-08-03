@@ -31,19 +31,22 @@ const EXTRACTION_MODEL = "claude-haiku-4-5";
 const EXTRACTION_SYSTEM = `You extract long-term memories from a single chat message a user sent to their AI companion.
 
 A memory is a durable personal fact the companion should still know weeks from now:
+- Who they are: the name they go by, pronouns, gender, orientation, relationship status
 - People: spouse/partner name, kids' names and birthdays, close friends, pets
 - Dates that matter: birthdays, anniversaries, the day someone died
 - Life facts: job, where they live, health situations they're dealing with
 - Ongoing threads: a dream they're chasing, a habit they're quitting, a big event coming up (interview, surgery, wedding)
 - Losses and loves: who they've lost, what they care about most
 
+Identity facts (pronouns, gender, orientation, relationship status) only when they state them outright or it's unmistakable in what they wrote ("my husband", "as a trans guy", "I'm single"). Never infer them from a single ambiguous signal — a name, a vibe, a topic. When unsure, skip.
+
 NOT memories (return nothing for these): small talk, opinions about shows or food, moods of the moment, questions to the companion, anything about the companion itself, hypotheticals, trivia.
 
-Keys are stable snake_case slugs so the same fact always lands on the same key: spouse_name, partner_name, kid_1_name, kid_1_birthday, kid_2_name, job, employer, city, dream, pet_name, pet_2_name, mother_name, father_name, health_condition, quitting_habit, upcoming_event, lost_parent, wedding_anniversary, best_friend_name — invent a slug in that style when none of these fit.
+Keys are stable snake_case slugs so the same fact always lands on the same key: goes_by, pronouns, gender, orientation, relationship_status, spouse_name, partner_name, kid_1_name, kid_1_birthday, kid_2_name, job, employer, city, dream, pet_name, pet_2_name, mother_name, father_name, health_condition, quitting_habit, upcoming_event, lost_parent, wedding_anniversary, best_friend_name — invent a slug in that style when none of these fit.
 
 Values are short plain-text statements ("Ana", "March 4th", "trying to quit smoking", "nervous about Friday's presentation").
 
-Importance 1-10: 9-10 for people and deaths, 7-8 for birthdays/anniversaries/health, 5-6 for jobs and ongoing threads, 3-4 for softer context. Below 3, don't extract it.
+Importance 1-10: 9-10 for people and deaths, 8-9 for who-they-are identity facts, 7-8 for birthdays/anniversaries/health, 5-6 for jobs and ongoing threads, 3-4 for softer context. Below 3, don't extract it.
 
 Most messages contain NOTHING memorable. When in doubt, return an empty array. Never invent facts that are not explicitly in the message.`;
 
