@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/api/adminAuth";
-import { isAdmin } from "@/lib/admin/allowlist";
+import { ADMIN_EMAILS, isAdmin } from "@/lib/admin/allowlist";
 import {
   daysAgo,
   fetchPaidPayments,
@@ -102,10 +102,25 @@ export async function GET(request: Request) {
   // trial_ends_at in future = trialer, plan_source='admin_grant' or
   // allowlisted email = comped, else free. Allowlisted admins are
   // checked FIRST so a stale trial_ends_at doesn't inflate "On trial."
+  // Two-step: fetch the admin auth.users ids (email lives on
+  // auth.users, NOT public.profiles — same bug class killed today in
+  // canCreateOracle / isProByUserId / isTrialOnly). Correlate by id
+  // instead of email inside the loop.
+  const { data: adminAuthRows } = await supabase
+    .schema("auth")
+    .from("users")
+    .select("id")
+    .in(
+      "email",
+      ADMIN_EMAILS.map((e) => e.toLowerCase()),
+    )
+    .returns<{ id: string }[]>();
+  const adminUserIds = new Set((adminAuthRows ?? []).map((r) => r.id));
+
   const { data: planRows } = await supabase
     .from("profiles")
     .select(
-      "email, pro_until, trial_ends_at, plan_source, stripe_subscription_id, subscription_status, cancel_at_period_end, deleted_at",
+      "id, pro_until, trial_ends_at, plan_source, stripe_subscription_id, subscription_status, cancel_at_period_end, deleted_at",
     );
   const nowMs = Date.now();
   let paidPro = 0;
@@ -125,7 +140,7 @@ export async function GET(request: Request) {
     const trialActive =
       row.trial_ends_at &&
       new Date(row.trial_ends_at as string).getTime() > nowMs;
-    if (isAdmin(row.email as string | null)) {
+    if (adminUserIds.has(row.id as string)) {
       comped += 1;
     } else if (row.plan_source === "admin_grant" && proActive) {
       comped += 1;

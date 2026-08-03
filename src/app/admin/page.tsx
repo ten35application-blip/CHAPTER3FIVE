@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { isAdmin } from "@/lib/admin/allowlist";
+import { ADMIN_EMAILS, isAdmin } from "@/lib/admin/allowlist";
 import {
   createAdminClient,
   daysAgo,
@@ -101,10 +101,26 @@ export default async function AdminOverviewPage() {
   // carry a stale trial_ends_at from before they were allowlisted —
   // without this they'd inflate "On trial" (and drag the conversion
   // rate) or pad "Free".
+  // Two-step: fetch the admin auth.users ids (email lives on
+  // auth.users, NOT public.profiles — selecting "email" from
+  // profiles PGRST-errors, same bug class as canCreateOracle /
+  // isProByUserId / isTrialOnly killed today). Correlate by id
+  // instead of email inside the loop.
+  const { data: adminAuthRows } = await supabase
+    .schema("auth")
+    .from("users")
+    .select("id")
+    .in(
+      "email",
+      ADMIN_EMAILS.map((e) => e.toLowerCase()),
+    )
+    .returns<{ id: string }[]>();
+  const adminUserIds = new Set((adminAuthRows ?? []).map((r) => r.id));
+
   const { data: planRows } = await supabase
     .from("profiles")
     .select(
-      "email, pro_until, trial_ends_at, plan_source, stripe_subscription_id, subscription_status, cancel_at_period_end, deleted_at",
+      "id, pro_until, trial_ends_at, plan_source, stripe_subscription_id, subscription_status, cancel_at_period_end, deleted_at",
     );
   const nowMs = Date.now();
   let paidPro = 0;
@@ -124,7 +140,7 @@ export default async function AdminOverviewPage() {
     const trialActive =
       row.trial_ends_at &&
       new Date(row.trial_ends_at as string).getTime() > nowMs;
-    if (isAdmin(row.email as string | null)) {
+    if (adminUserIds.has(row.id as string)) {
       comped += 1;
     } else if (row.plan_source === "admin_grant" && proActive) {
       comped += 1;
