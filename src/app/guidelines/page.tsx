@@ -228,9 +228,10 @@ export default function GuidelinesPage() {
           >
             safety@chapter3five.app
           </a>
-          . A person reads every report. Reports are confidential, and
-          reporting in good faith will never get you in trouble, even if
-          we conclude no rule was broken.
+          . A person reads every report, and we aim to respond within
+          24 hours. Reports are confidential, and reporting in good
+          faith will never get you in trouble, even if we conclude no
+          rule was broken.
         </p>
       </LegalSection>
     </LegalShell>

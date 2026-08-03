@@ -33,13 +33,31 @@ export default async function ChatPage({
 
   const { data: oracle } = await supabase
     .from("oracles")
-    .select("id, name, avatar_url, one_line_hook, blocked_at, block_reason")
+    .select("id, name, avatar_url, one_line_hook, blocked_at, block_reason, is_concierge")
     .eq("id", id)
     .is("deleted_at", null)
     .maybeSingle();
   if (!oracle) {
     notFound();
   }
+
+  // Whether the user has muted this identity (Bundle A "Block" —
+  // profiles.muted_conversations, 0047). Drives the initial state of
+  // the Block/Unblock toggle in the ChatSurface header menu.
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("muted_conversations")
+    .eq("id", user.id)
+    .maybeSingle<{ muted_conversations: unknown }>();
+  const initialMuted = Array.isArray(profile?.muted_conversations)
+    ? (profile.muted_conversations as unknown[]).some(
+        (e) =>
+          typeof e === "object" &&
+          e !== null &&
+          (e as { kind?: unknown }).kind === "oracle" &&
+          (e as { id?: unknown }).id === oracle.id,
+      )
+    : false;
 
   // Trial / Free-tier gate: after the trial, only the free identity
   // stays chattable. Locked identities remain on the dashboard but
@@ -137,6 +155,8 @@ export default async function ChatPage({
       initialMessages={initialMessages}
       initialBlocked={!!oracle.blocked_at}
       blockReason={oracle.block_reason ?? null}
+      isConcierge={!!oracle.is_concierge}
+      initialMuted={initialMuted}
     />
   );
 }

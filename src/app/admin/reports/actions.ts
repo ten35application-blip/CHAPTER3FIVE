@@ -44,3 +44,38 @@ export async function resolveReport(
   revalidatePath("/admin/reports");
   return { ok: true };
 }
+
+/**
+ * Sibling to resolveReport — closes an identity-level report row in
+ * public.oracle_reports (0123). Same admin allowlist check, same
+ * service-role update pattern.
+ */
+export async function resolveOracleReport(
+  reportId: string,
+  outcome: "reviewed" | "dismissed",
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user || !isAdmin(user.email)) {
+    return { ok: false, error: "not_admin" };
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("oracle_reports")
+    .update({
+      status: outcome,
+      reviewed_by: user.id,
+      reviewed_at: new Date().toISOString(),
+    })
+    .eq("id", reportId);
+
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+
+  revalidatePath("/admin/reports");
+  return { ok: true };
+}

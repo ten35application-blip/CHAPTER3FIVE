@@ -200,6 +200,8 @@ export default function ChatSurface({
   oneLineHook,
   initialMessages,
   initialBlocked,
+  isConcierge,
+  initialMuted,
 }: {
   oracleId: string;
   name: string;
@@ -213,6 +215,15 @@ export default function ChatSurface({
   /** Internal note on why the block was set — accepted but deliberately
    *  never rendered; the blocked copy is fixed and warm. */
   blockReason: string | null;
+  /** True when this oracle is Adrian (the app's concierge / help
+   *  surface). Block + Report affordances are suppressed for
+   *  concierge — it's not a persona users interact with romantically
+   *  or file conduct complaints about. */
+  isConcierge: boolean;
+  /** Whether the user has already muted this identity
+   *  (profiles.muted_conversations). Drives the initial Block/Unblock
+   *  label in the header menu. */
+  initialMuted: boolean;
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -220,6 +231,14 @@ export default function ChatSurface({
   const [rateLimited, setRateLimited] = useState(false);
   const [streamFailed, setStreamFailed] = useState(false);
   const [blocked, setBlocked] = useState(initialBlocked);
+  // Bundle A: header menu (mirror of mobile zoom-modal actions). Muted
+  // state drives Block/Unblock; identityReportOpen drives the reason
+  // picker; menuOpen drives the "…" dropdown visibility.
+  const [muted, setMuted] = useState(initialMuted);
+  const [mutingBusy, setMutingBusy] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [identityReportOpen, setIdentityReportOpen] = useState(false);
+  const [identityReportBusy, setIdentityReportBusy] = useState(false);
   // Trial ended mid-session and this isn't the free identity — the
   // composer swaps for a warm upgrade nudge. (Fresh opens of a locked
   // chat never get here; the server page redirects to /upgrade first.)
@@ -717,6 +736,72 @@ export default function ChatSurface({
     [],
   );
 
+  // Bundle A: Block/Unblock — same endpoint mobile hits. Optimistic
+  // flip, rollback + alert on failure.
+  const toggleMute = useCallback(async () => {
+    if (mutingBusy) return;
+    setMutingBusy(true);
+    const wasMuted = muted;
+    setMuted(!wasMuted);
+    try {
+      const res = await fetch("/api/user/mute-oracle", {
+        method: wasMuted ? "DELETE" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ oracle_id: oracleId }),
+      });
+      if (!res.ok) {
+        setMuted(wasMuted);
+        alert(
+          wasMuted
+            ? "Couldn't unblock. Please try again in a moment."
+            : "Couldn't block. Please try again in a moment.",
+        );
+      }
+    } catch {
+      setMuted(wasMuted);
+      alert("Network hiccup. Please try again in a moment.");
+    } finally {
+      setMutingBusy(false);
+      setMenuOpen(false);
+    }
+  }, [muted, mutingBusy, oracleId]);
+
+  // Bundle A: identity-level report — sibling of submitReport (per
+  // message). Skips the notes field; the reason alone satisfies App
+  // Store 1.2's "actionable report" bar.
+  const submitIdentityReport = useCallback(
+    async (reason: ReportReason) => {
+      if (identityReportBusy) return;
+      setIdentityReportBusy(true);
+      try {
+        const res = await fetch("/api/reports/identity", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ oracle_id: oracleId, reason }),
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => null);
+          if (body?.error === "already_reported") {
+            alert("Already reported — thanks, we've got it.");
+          } else {
+            alert("Couldn't submit. Please try again in a moment.");
+          }
+        } else {
+          alert(
+            "Report received. A person reads every report — we aim to respond within 24 hours.",
+          );
+        }
+      } catch {
+        alert("Network hiccup. Please try again in a moment.");
+      } finally {
+        setIdentityReportBusy(false);
+        setIdentityReportOpen(false);
+        setMenuOpen(false);
+      }
+    },
+    [identityReportBusy, oracleId],
+  );
+
   const handleSend = useCallback(
     (text: string, image: OutgoingImage | null) => {
       if (isStreaming || blocked) return;
@@ -801,7 +886,69 @@ export default function ChatSurface({
               </span>
             ) : null}
           </div>
-          <div />
+          {/* Header menu — Block/Unblock + Report identity. Mirrors the
+              mobile zoom-modal actions so both surfaces expose the
+              same App Store 1.2 / Play UGC affordances in the same
+              place per persona. Suppressed for the concierge oracle
+              (Adrian) — he's the help surface, not a persona to
+              block or report. */}
+          {isConcierge ? (
+            <div />
+          ) : (
+            <div className="relative flex justify-end">
+              <button
+                type="button"
+                onClick={() => setMenuOpen((v) => !v)}
+                aria-label="Conversation options"
+                aria-expanded={menuOpen}
+                className="flex h-10 w-10 items-center justify-center rounded-full text-warm-200 hover:bg-ink-soft"
+              >
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
+                  <circle cx="4" cy="10" r="1.6" />
+                  <circle cx="10" cy="10" r="1.6" />
+                  <circle cx="16" cy="10" r="1.6" />
+                </svg>
+              </button>
+              {menuOpen ? (
+                <>
+                  {/* Click-outside catcher */}
+                  <button
+                    type="button"
+                    aria-hidden
+                    tabIndex={-1}
+                    onClick={() => setMenuOpen(false)}
+                    className="fixed inset-0 z-20 cursor-default"
+                  />
+                  <div className="absolute right-0 top-11 z-30 flex min-w-[10rem] flex-col overflow-hidden rounded-2xl bg-ink-soft py-1 shadow-lg ring-1 ring-warm-700">
+                    <button
+                      type="button"
+                      onClick={() => void toggleMute()}
+                      disabled={mutingBusy}
+                      className="flex items-center gap-2 px-4 py-2.5 text-left text-sm text-warm-100 hover:bg-warm-700/40 disabled:opacity-50"
+                    >
+                      {muted ? "Unblock" : "Block"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        setIdentityReportOpen(true);
+                      }}
+                      className="flex items-center gap-2 px-4 py-2.5 text-left text-sm text-warm-100 hover:bg-warm-700/40"
+                    >
+                      Report this identity
+                    </button>
+                  </div>
+                </>
+              ) : null}
+            </div>
+          )}
         </div>
       </header>
 
@@ -1073,6 +1220,67 @@ export default function ChatSurface({
           }
           onClose={() => setActionsTarget(null)}
         />
+      )}
+
+      {/* Identity report picker — sibling of MessageActions's per-
+          message report panel, minus the notes textarea. 5 reasons →
+          POST /api/reports/identity → public.oracle_reports. Mirrors
+          the mobile picker byte-for-byte in copy so both surfaces
+          read identically. */}
+      {identityReportOpen && (
+        <button
+          type="button"
+          aria-label="Close report picker"
+          onClick={() => setIdentityReportOpen(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-sm rounded-3xl bg-ink-soft p-6 text-left ring-1 ring-warm-700 shadow-xl cursor-default"
+          >
+            <p className="text-lg font-semibold text-warm-50">
+              Report {name}
+            </p>
+            <p className="mt-2 text-sm leading-relaxed text-warm-300">
+              What&rsquo;s wrong with this identity itself? A person
+              reads every report &mdash; we aim to respond within 24
+              hours.
+            </p>
+            <div className="mt-5 flex flex-col gap-2">
+              {(
+                [
+                  { key: "inappropriate", label: "Inappropriate content" },
+                  { key: "harmful", label: "Harmful or dangerous" },
+                  { key: "off_character", label: "Out of character" },
+                  { key: "spam", label: "Spam or misleading" },
+                  { key: "other", label: "Something else" },
+                ] as const
+              ).map((r) => (
+                <button
+                  key={r.key}
+                  type="button"
+                  onClick={() => void submitIdentityReport(r.key)}
+                  disabled={identityReportBusy}
+                  className="rounded-xl border border-warm-700 px-4 py-3 text-left text-sm font-semibold text-warm-100 transition-colors hover:bg-warm-700/40 disabled:opacity-50"
+                >
+                  {r.label}
+                </button>
+              ))}
+            </div>
+            <div className="mt-4 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setIdentityReportOpen(false)}
+                disabled={identityReportBusy}
+                className="text-sm font-semibold text-warm-400 hover:text-warm-200"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </button>
       )}
 
       {zoomUrl && (
