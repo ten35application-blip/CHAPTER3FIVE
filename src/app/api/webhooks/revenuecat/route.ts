@@ -199,18 +199,56 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Upsert failed" }, { status: 500 });
   }
 
-  // Phase 3: kick off subscribe-time auto-populate when this event
-  // grants (or refreshes) a basic/pro entitlement. Pro wins over
-  // Basic when both are present so a Basic → Pro PRODUCT_CHANGE
-  // populates to the Pro quota. Idempotent helper — a RENEWAL
-  // for an already-populated user creates nothing new.
-  if (AUTO_POPULATE_TRIGGER_TYPES.has(type)) {
-    let tier: "basic" | "pro" | null = null;
-    if (entitlementIds.includes(PRO_ENTITLEMENT_ID)) tier = "pro";
-    else if (entitlementIds.includes(BASIC_ENTITLEMENT_ID)) tier = "basic";
-    if (tier) {
-      scheduleAutoPopulate(appUserId, tier);
+  // Resolve tier from entitlements (Pro wins over Basic when both
+  // are present — matches the Stripe path's ordering). Used by BOTH
+  // the profiles sync below AND the subscribe-time auto-populate.
+  let tier: "basic" | "pro" | null = null;
+  if (entitlementIds.includes(PRO_ENTITLEMENT_ID)) tier = "pro";
+  else if (entitlementIds.includes(BASIC_ENTITLEMENT_ID)) tier = "basic";
+
+  // Blocker fix (2026-08-03 audit): mirror the entitlement into
+  // profiles.pro_until + profiles.subscription_tier so every
+  // server-side tier gate (isPro, canCreateOracle, getPlanTier,
+  // canSendMessageForTierCap, canChatWithOracle) sees the paid
+  // window. Without this the RevenueCat handler upserts
+  // iap_entitlements — which nothing reads — and users who pay via
+  // IAP get their circle auto-populated but read as Free-tier
+  // server-side, then can't chat with the identities we just
+  // created. The 0088 protect_billing_columns trigger blocks
+  // authenticated writes to these columns; admin client bypasses.
+  //
+  // EXPIRATION: the trigger already forced expires_at into the
+  // past above, so setting pro_until = expiresAt naturally
+  // downgrades the user (canCreateOracle etc. read pro_until as
+  // stale). subscription_tier is left as-is so a re-subscribe can
+  // reason about the "was on Basic vs Pro" history.
+  //
+  // CANCELLATION: RevenueCat keeps access until expires_at even
+  // when auto-renew is off — mirror that by writing pro_until to
+  // the future expiry. Cancel-then-resubscribe flows work.
+  if (tier && expiresAt !== null) {
+    const { error: profileErr } = await admin
+      .from("profiles")
+      .update({
+        pro_until: expiresAt,
+        subscription_tier: tier,
+      })
+      .eq("id", appUserId);
+    if (profileErr) {
+      console.error(
+        `[revenuecat-webhook] profile tier sync failed for ${appUserId} (${type}): ${profileErr.message}`,
+      );
+      // Don't 500 the whole request — the entitlement mirror succeeded,
+      // the auto-populate will still try. Ops surface via the log.
     }
+  }
+
+  // Phase 3: kick off subscribe-time auto-populate when this event
+  // grants (or refreshes) a basic/pro entitlement. Idempotent
+  // helper — a RENEWAL for an already-populated user creates
+  // nothing new.
+  if (AUTO_POPULATE_TRIGGER_TYPES.has(type) && tier) {
+    scheduleAutoPopulate(appUserId, tier);
   }
 
   return NextResponse.json({ received: true, type, entitlements: entitlementIds });

@@ -83,7 +83,7 @@ export async function autoPopulateForSubscribe(
 
     const [existingRandom, existingPlaceholder] = await Promise.all([
       countExistingRandom(admin, userId),
-      countExistingPlaceholder(admin, userId),
+      countExistingPhotoCompanion(admin, userId),
     ]);
 
     const randomToCreate = Math.max(0, randomTarget - existingRandom);
@@ -223,10 +223,18 @@ async function countExistingRandom(
   return count ?? 0;
 }
 
-/** Count active photo placeholders (only ever 0 or 1 per user in
- *  practice, but count-based so a doubled row from a legacy
- *  glitch is naturally clamped). */
-async function countExistingPlaceholder(
+/** Count photo companions (unfilled placeholder OR already-filled
+ *  photo persona) so a filled photo doesn't get duplicated by a
+ *  subsequent subscription.updated webhook. Audit 2026-08-03:
+ *  earlier version filtered is_photo_placeholder=true only — once
+ *  the user uploaded, the row no longer matched and every
+ *  subscription.updated event (cancel_at_period_end toggle, coupon,
+ *  price change, dunning) appended a NEW placeholder over the
+ *  quota. Counting by creation_source='photo' catches both states
+ *  and keeps the "at most one photo slot per user" invariant.
+ *  Inherited photo copies (0111) are excluded — those are separate
+ *  ownership. */
+async function countExistingPhotoCompanion(
   admin: AdminClient,
   userId: string,
 ): Promise<number> {
@@ -234,7 +242,8 @@ async function countExistingPlaceholder(
     .from("oracles")
     .select("id", { count: "exact", head: true })
     .eq("user_id", userId)
-    .eq("is_photo_placeholder", true)
+    .eq("creation_source", "photo")
+    .is("inherited_at", null)
     .is("deleted_at", null);
   return count ?? 0;
 }
@@ -355,7 +364,7 @@ async function createPhotoPlaceholder(
   // Belt: recheck under the lock. The outer lock already serializes,
   // but a stale-reclaim can hand the lock to run #2 mid-way through
   // run #1's placeholder insert; the recheck stops doubles.
-  const alreadyExists = await countExistingPlaceholder(admin, userId);
+  const alreadyExists = await countExistingPhotoCompanion(admin, userId);
   if (alreadyExists > 0) return;
 
   const { error } = await admin.from("oracles").insert({

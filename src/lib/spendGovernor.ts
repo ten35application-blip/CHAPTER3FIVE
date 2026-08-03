@@ -192,23 +192,31 @@ export async function overFreeCap(
 export async function isTrialOnly(userId: string): Promise<boolean> {
   try {
     const admin = createAdminClient();
-    const { data, error } = await admin
-      .from("profiles")
-      .select("email, pro_until, trial_ends_at, plan_source")
-      .eq("id", userId)
-      .maybeSingle<{
-        email: string | null;
-        pro_until: string | null;
-        trial_ends_at: string | null;
-        plan_source: string | null;
-      }>();
+    // Email lives on auth.users, NOT public.profiles. The old
+    // select("email, ...") threw at PostgREST level and the catch
+    // returned false, making isTrialOnly ALWAYS false (audit
+    // 2026-08-03, same bug class as canCreateOracle + isProByUserId).
+    // Fetch email from auth.users in parallel so the admin bypass
+    // below actually works.
+    const [{ data: authRes }, { data, error }] = await Promise.all([
+      admin.auth.admin.getUserById(userId),
+      admin
+        .from("profiles")
+        .select("pro_until, trial_ends_at, plan_source")
+        .eq("id", userId)
+        .maybeSingle<{
+          pro_until: string | null;
+          trial_ends_at: string | null;
+          plan_source: string | null;
+        }>(),
+    ]);
     if (error || !data) return false;
     // Allowlisted admins are Pro via isAdmin regardless of what's in
     // their profile row. A stale trial_ends_at from before they were
     // allowlisted must NOT flag them trial-only, or the Free-tier
     // spend cap starts throttling Wilson's own account. Same ordering
     // rule as the settings plan label: admin wins before trial.
-    if (isAdmin(data.email)) return false;
+    if (isAdmin(authRes?.user?.email ?? null)) return false;
     if (data.plan_source === "admin_grant") return false;
     if (data.pro_until && new Date(data.pro_until).getTime() > Date.now()) {
       return false;

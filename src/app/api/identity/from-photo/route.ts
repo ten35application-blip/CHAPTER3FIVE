@@ -276,6 +276,13 @@ export async function POST(request: NextRequest) {
     // vision pass. (The earlier 409 short-circuit handles the common
     // case; this belt covers a concurrent double-tap that raced past
     // the pre-check.)
+    // maybeSingle so a concurrent double-tap that raced past the
+    // pre-check lands as zero rows (data === null, no error) rather
+    // than an ambiguous single-row throw. Zero rows = the other tab
+    // filled first; return 409 already_filled, which the mobile
+    // client's uploadPlaceholderPhoto handler treats as success.
+    // Audit 2026-08-03: was 500 on the race — client rendered
+    // "couldn't save" for a request that in fact succeeded.
     const { data: updated, error: updateError } = await admin
       .from("oracles")
       .update({
@@ -287,13 +294,19 @@ export async function POST(request: NextRequest) {
       .eq("is_photo_placeholder", true)
       .is("deleted_at", null)
       .select("id")
-      .single();
-    if (updateError || !updated) {
+      .maybeSingle();
+    if (updateError) {
       console.error(
         "[api/identity/from-photo] placeholder fill failed:",
         updateError,
       );
       return fail("Couldn't save them. Try again.", 500);
+    }
+    if (!updated) {
+      return NextResponse.json(
+        { error: "already_filled", code: "already_filled" },
+        { status: 409 },
+      );
     }
     oracleId = updated.id as string;
   } else {
