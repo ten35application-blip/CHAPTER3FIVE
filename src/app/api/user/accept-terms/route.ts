@@ -3,6 +3,12 @@ import { createClient as createPlainClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { CURRENT_TERMS_VERSION } from "@/lib/legal/version";
+import {
+  ALLOWED_DOCS,
+  coerceDocs,
+  extractClientNet,
+  writePerDocAgreements,
+} from "@/lib/legal/acceptance";
 
 export const runtime = "nodejs";
 
@@ -50,7 +56,17 @@ export async function POST(request: NextRequest) {
   // Belt-and-suspenders: the mobile client only sends the accept POST
   // after every disclosure checkbox is checked, but a hand-crafted
   // POST shouldn't be able to skip an explicit acknowledgment.
-  let body: { agree?: unknown };
+  //
+  // The forward-going contract sends BOTH `agree: true` AND the full
+  // docs list — the per-doc ledger write in public.agreements is the
+  // audit record for exactly what was consented to. Legacy grace
+  // window: if `docs` is omitted entirely (a mobile bundle that hasn't
+  // OTA'd to the beef-up build yet), we accept the request, stamp the
+  // profile + terms_acceptances ledger as always, and skip the per-doc
+  // write instead of 400ing a user who legitimately checked every box
+  // on the old client. If `docs` IS provided but is incomplete, that's
+  // a hand-crafted bypass attempt and gets rejected.
+  let body: { agree?: unknown; docs?: unknown };
   try {
     body = await request.json();
   } catch {
@@ -59,6 +75,14 @@ export async function POST(request: NextRequest) {
   if (body.agree !== true) {
     return NextResponse.json(
       { error: "agree_required" },
+      { status: 400 },
+    );
+  }
+  const docsProvided = body.docs !== undefined;
+  const docs = docsProvided ? coerceDocs(body.docs) : [];
+  if (docsProvided && docs.length !== ALLOWED_DOCS.length) {
+    return NextResponse.json(
+      { error: "docs_incomplete", required: ALLOWED_DOCS },
       { status: 400 },
     );
   }
@@ -121,12 +145,8 @@ export async function POST(request: NextRequest) {
   // Ledger append with IP + user agent + email — best-effort. The
   // profile column already carries the gate signal, so a ledger
   // failure doesn't block the caller (matches the web action).
+  const { ip, userAgent } = extractClientNet(request.headers);
   try {
-    const forwarded = request.headers.get("x-forwarded-for");
-    const ip = forwarded
-      ? forwarded.split(",")[0].trim()
-      : (request.headers.get("x-real-ip") ?? null);
-    const userAgent = request.headers.get("user-agent");
     // 60-second dedupe against rapid retries (double-tap, refresh).
     const cutoff = new Date(Date.now() - 60_000).toISOString();
     const { data: recent } = await admin
@@ -160,6 +180,10 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     console.error("[accept-terms] terms_acceptances ledger threw:", err);
   }
+
+  // Per-doc ledger write — moved here from mobile's client-side upsert
+  // so IP is captured server-side and the whitelist is enforced.
+  await writePerDocAgreements(admin, user.id, docs);
 
   return NextResponse.json({
     ok: true,

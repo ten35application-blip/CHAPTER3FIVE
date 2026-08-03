@@ -6,6 +6,12 @@ import { redirectWithError } from "@/lib/action-errors";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { CURRENT_TERMS_VERSION } from "@/lib/legal/version";
+import {
+  ALLOWED_DOCS,
+  extractClientNet,
+  writePerDocAgreements,
+  type AllowedDoc,
+} from "@/lib/legal/acceptance";
 import { isAdmin } from "@/lib/admin/allowlist";
 
 /**
@@ -21,12 +27,18 @@ import { isAdmin } from "@/lib/admin/allowlist";
  * survives account deletion (FK is on delete set null, not cascade).
  */
 export async function acceptTerms(formData: FormData) {
-  // Belt-and-suspenders: the checkbox is required client-side, but a
-  // hand-crafted POST shouldn't be able to skip it.
-  if (!formData.get("agree")) {
+  // Belt-and-suspenders: every disclosure checkbox is required
+  // client-side, but a hand-crafted POST shouldn't be able to skip
+  // one. Each checkbox posts as `agree_<doc>=on` when checked; anything
+  // missing bounces back with a clear message.
+  const missing: AllowedDoc[] = [];
+  for (const doc of ALLOWED_DOCS) {
+    if (!formData.get(`agree_${doc}`)) missing.push(doc);
+  }
+  if (missing.length > 0) {
     redirectWithError(
       "/onboarding",
-      "Please confirm you've read and agree before continuing.",
+      "Please check every box to continue.",
     );
   }
 
@@ -63,16 +75,9 @@ export async function acceptTerms(formData: FormData) {
   // Best-effort: a failure here should NOT bounce the user back to
   // /onboarding since the profile column already carries the gate
   // signal. Logged for follow-up.
+  const h = await headers();
+  const { ip, userAgent } = extractClientNet(h);
   try {
-    const h = await headers();
-    // Vercel: x-forwarded-for = "client-ip, proxy1, proxy2". First
-    // entry is the client. Falls back to x-real-ip if the header set
-    // is different in another host.
-    const forwarded = h.get("x-forwarded-for");
-    const ip = forwarded
-      ? forwarded.split(",")[0].trim()
-      : (h.get("x-real-ip") ?? null);
-    const userAgent = h.get("user-agent");
     // Dedupe against rapid retries: if a row already exists for this
     // user + version in the last 60 seconds, skip the insert so a
     // double-click / refresh doesn't flood the ledger with copies.
@@ -110,6 +115,11 @@ export async function acceptTerms(formData: FormData) {
   } catch (err) {
     console.error("[onboarding] terms_acceptances ledger threw:", err);
   }
+
+  // Per-doc ledger write — matches mobile via the shared helper so
+  // both surfaces record identical per-document rows with server-side
+  // IP capture (via terms_acceptances) and whitelist validation.
+  await writePerDocAgreements(admin, user.id, ALLOWED_DOCS);
 
   redirect("/dashboard");
 }
