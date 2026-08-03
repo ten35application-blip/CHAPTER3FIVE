@@ -44,6 +44,14 @@ export async function GET(request: Request) {
     0,
     Number.parseInt(url.searchParams.get("offset") ?? "0", 10) || 0,
   );
+  // Search by identity name OR owner email. Both surfaces run through
+  // this endpoint (mobile identity list). Name filter runs server-side
+  // via ilike; email filter is client-side after the getEmailMap
+  // stitch, so the pre-stitch page can't paginate against email
+  // matches — that's a corner case we accept, matching web behavior.
+  const search =
+    (url.searchParams.get("search") ?? url.searchParams.get("q") ?? "")
+      .trim();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const applyFilter = (q: any) => {
@@ -51,6 +59,7 @@ export async function GET(request: Request) {
     if (filter === "legacy") query = query.eq("is_legacy", true);
     if (filter === "randomized")
       query = query.or("is_legacy.eq.false,is_legacy.is.null");
+    if (search) query = query.ilike("name", `%${search}%`);
     return query;
   };
 

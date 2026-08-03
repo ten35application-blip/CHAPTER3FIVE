@@ -3,6 +3,7 @@ import { requireAdminApi } from "@/lib/api/adminAuth";
 import {
   daysAgo,
   fetchPaidPayments,
+  getEmailMap,
   paymentDate,
   startOfMonth,
   sumCents,
@@ -34,7 +35,10 @@ export async function GET(request: Request) {
     Math.max(1, Number.parseInt(url.searchParams.get("days") ?? "30", 10) || 30),
   );
 
-  const payments = await fetchPaidPayments(supabase);
+  const [payments, emails] = await Promise.all([
+    fetchPaidPayments(supabase),
+    getEmailMap(supabase),
+  ]);
 
   const mtd = sumCents(payments, startOfMonth());
   const allTime = sumCents(payments);
@@ -86,7 +90,12 @@ export async function GET(request: Request) {
       refunded_cents: refundedCents,
       net_all_time_cents: subscriptionCents + oneTimeCents,
     },
-    // Newest first (fetchPaidPayments orders created_at desc).
-    rows: payments,
+    // Newest first (fetchPaidPayments orders created_at desc). Stitch
+    // user_email onto each row so the mobile ledger renders the buyer
+    // instead of a truncated user_id.
+    rows: payments.map((p) => ({
+      ...p,
+      user_email: emails.get(p.user_id) ?? null,
+    })),
   });
 }
