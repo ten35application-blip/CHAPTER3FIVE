@@ -202,6 +202,7 @@ export default function ChatSurface({
   initialBlocked,
   isConcierge,
   initialMuted,
+  initialAiAcked,
 }: {
   oracleId: string;
   name: string;
@@ -224,6 +225,10 @@ export default function ChatSurface({
    *  (profiles.muted_conversations). Drives the initial Block/Unblock
    *  label in the header menu. */
   initialMuted: boolean;
+  /** Whether the user has already acknowledged the one-time AI-nature
+   *  disclosure (profiles.first_launch_ai_ack_at). Drives the
+   *  first-launch modal on the concierge chat only. */
+  initialAiAcked: boolean;
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -239,6 +244,11 @@ export default function ChatSurface({
   const [menuOpen, setMenuOpen] = useState(false);
   const [identityReportOpen, setIdentityReportOpen] = useState(false);
   const [identityReportBusy, setIdentityReportBusy] = useState(false);
+  // Bundle C: first-launch AI-nature ack. Displayed as a blocking
+  // overlay on the concierge chat when the user hasn't ack'd yet.
+  // Once tapped, POSTs /api/user/ack-ai and hides forever.
+  const [aiAcked, setAiAcked] = useState(initialAiAcked);
+  const [aiAckBusy, setAiAckBusy] = useState(false);
   // Trial ended mid-session and this isn't the free identity — the
   // composer swaps for a warm upgrade nudge. (Fresh opens of a locked
   // chat never get here; the server page redirects to /upgrade first.)
@@ -736,6 +746,26 @@ export default function ChatSurface({
     [],
   );
 
+  // Bundle C: acknowledge the AI-nature disclosure and dismiss the
+  // overlay. Optimistic flip; rollback on failure.
+  const ackAi = useCallback(async () => {
+    if (aiAckBusy) return;
+    setAiAckBusy(true);
+    setAiAcked(true);
+    try {
+      const res = await fetch("/api/user/ack-ai", { method: "POST" });
+      if (!res.ok) {
+        setAiAcked(false);
+        alert("Couldn't save. Please try again in a moment.");
+      }
+    } catch {
+      setAiAcked(false);
+      alert("Network hiccup. Please try again in a moment.");
+    } finally {
+      setAiAckBusy(false);
+    }
+  }, [aiAckBusy]);
+
   // Bundle A: Block/Unblock — same endpoint mobile hits. Optimistic
   // flip, rollback + alert on failure.
   const toggleMute = useCallback(async () => {
@@ -1220,6 +1250,53 @@ export default function ChatSurface({
           }
           onClose={() => setActionsTarget(null)}
         />
+      )}
+
+      {/* First-launch AI-nature disclosure — one-time, concierge-only,
+          non-dismissible until acknowledged. Blocks the chat below
+          so the disclosure is unmissable (Google Play Generative AI
+          expectation). Suppressed once first_launch_ai_ack_at is
+          stamped. Mirrors the mobile Modal byte-for-byte in copy. */}
+      {isConcierge && !aiAcked && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 p-6 backdrop-blur-sm"
+        >
+          <div className="w-full max-w-md rounded-3xl bg-ink-soft p-6 ring-1 ring-warm-700 shadow-2xl">
+            <p className="text-xl font-extrabold tracking-tight text-warm-50">
+              Before you say hi
+            </p>
+            <p className="mt-3 text-sm leading-relaxed text-warm-200">
+              The person you&rsquo;re about to text is a companion,
+              not a real person. Every message they send is generated
+              by software. You know this; we&rsquo;re just making sure
+              the first time you meet them, you meet them straight.
+            </p>
+            <p className="mt-3 text-[13px] leading-relaxed text-warm-300">
+              Everything they say is scanned for unsafe content, and
+              you can report or block anyone from their conversation
+              menu. Full details in our{" "}
+              <a
+                href="/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-coral-strong hover:underline"
+              >
+                Privacy Policy
+              </a>
+              .
+            </p>
+            <button
+              type="button"
+              onClick={() => void ackAi()}
+              disabled={aiAckBusy}
+              className="bg-gradient-cta mt-6 flex h-12 w-full items-center justify-center rounded-full text-base font-bold tracking-tight text-white transition-all hover:-translate-y-px disabled:opacity-60 disabled:hover:translate-y-0"
+            >
+              {aiAckBusy ? "Saving…" : "I understand"}
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Identity report picker — sibling of MessageActions's per-

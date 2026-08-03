@@ -44,11 +44,17 @@ export default async function ChatPage({
   // Whether the user has muted this identity (Bundle A "Block" —
   // profiles.muted_conversations, 0047). Drives the initial state of
   // the Block/Unblock toggle in the ChatSurface header menu.
+  // Also carries first_launch_ai_ack_at (Bundle C, 0124): drives
+  // whether the one-time AI-nature disclosure modal fires on the
+  // concierge chat.
   const { data: profile } = await supabase
     .from("profiles")
-    .select("muted_conversations")
+    .select("muted_conversations, first_launch_ai_ack_at")
     .eq("id", user.id)
-    .maybeSingle<{ muted_conversations: unknown }>();
+    .maybeSingle<{
+      muted_conversations: unknown;
+      first_launch_ai_ack_at: string | null;
+    }>();
   const initialMuted = Array.isArray(profile?.muted_conversations)
     ? (profile.muted_conversations as unknown[]).some(
         (e) =>
@@ -58,6 +64,7 @@ export default async function ChatPage({
           (e as { id?: unknown }).id === oracle.id,
       )
     : false;
+  const initialAiAcked = !!profile?.first_launch_ai_ack_at;
 
   // Trial / Free-tier gate: after the trial, only the free identity
   // stays chattable. Locked identities remain on the dashboard but
@@ -157,6 +164,7 @@ export default async function ChatPage({
       blockReason={oracle.block_reason ?? null}
       isConcierge={!!oracle.is_concierge}
       initialMuted={initialMuted}
+      initialAiAcked={initialAiAcked}
     />
   );
 }
