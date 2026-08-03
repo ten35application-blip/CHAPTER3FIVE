@@ -2,8 +2,11 @@ import { NextResponse, type NextRequest } from "next/server";
 import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { recordAnthropicSpend } from "@/lib/spendGovernor";
-import { embedText, toPgVector } from "@/lib/embeddings";
-import type { MemoryKind } from "@/lib/memory";
+import {
+  MEMORY_JSON_SCHEMA,
+  coerceMemories,
+  upsertMemories,
+} from "@/lib/memory/extract";
 
 export const runtime = "nodejs";
 
@@ -22,9 +25,12 @@ export const runtime = "nodejs";
  *   "Mike keeps circling back to whether he should leave his job —
  *    he says he's decided, then walks it back, then comes back to it."
  *
- * Stored as memories with kind='topic' or 'feeling' and weight 0.8,
- * so they show up prominently in future conversations and the
- * persona feels like it's been *thinking about you* between sessions.
+ * Stored in the formula-v4 persona_memories shape (key/value/importance,
+ * upserted on stable slug keys like `current_preoccupation`), importance
+ * 7-9 so they surface prominently in retrieval and the persona feels
+ * like it's been *thinking about you* between sessions. Because keys
+ * are stable, next week's reflection on the same thread updates the
+ * row in place instead of piling up duplicates.
  */
 
 const ONE_DAY = 24 * 60 * 60 * 1000;
@@ -32,7 +38,8 @@ const SEVEN_DAYS = 7 * ONE_DAY;
 const BATCH = 30;
 const MIN_TURNS_TO_REFLECT = 6; // skip relationships without enough recent activity
 
-type ReflectionMemory = { kind: MemoryKind; content: string; weight: number };
+/** Reflections should outrank concrete facts; drop anything weaker. */
+const MIN_REFLECTION_IMPORTANCE = 5;
 
 export async function GET(request: NextRequest) {
   const auth = request.headers.get("authorization");
@@ -80,10 +87,11 @@ export async function GET(request: NextRequest) {
       // the reflection writes new patterns, not duplicates.
       const { data: existingMemories } = await admin
         .from("persona_memories")
-        .select("content")
+        .select("key, value")
         .eq("oracle_id", profile.active_oracle_id)
         .eq("user_id", profile.id)
-        .order("created_at", { ascending: false })
+        .order("importance", { ascending: false })
+        .order("updated_at", { ascending: false })
         .limit(80);
 
       // Defense-in-depth scrub — user-derived strings that get
@@ -95,7 +103,7 @@ export async function GET(request: NextRequest) {
         v.replace(/\s+/g, " ").replace(/[=_*#`]{2,}/g, " ").trim();
       const existingBlock =
         (existingMemories ?? [])
-          .map((m, i) => `${i + 1}. ${scrub(String(m.content ?? ""))}`)
+          .map((m) => `- ${m.key}: ${scrub(String(m.value ?? ""))}`)
           .join("\n") || "(none)";
 
       const transcript = rows
@@ -107,22 +115,27 @@ export async function GET(request: NextRequest) {
 
       const prompt = `You are reflecting on a week of conversations between ${profile.oracle_name ?? "the persona"} and the person they're talking to. Your job: identify HIGHER-ORDER patterns worth remembering. Not concrete facts (those are already captured) — patterns. What has this person been preoccupied with? What do they keep returning to? What's the emotional weather of their week?
 
-EXISTING MEMORIES (do not duplicate or paraphrase):
+EXISTING MEMORIES (do not duplicate or paraphrase; if a pattern continues an existing one, reuse its exact key so it updates in place):
 ${existingBlock}
 
 TRANSCRIPT (last week):
 ${transcript}
 
-Return ONLY a JSON array of new high-order memories. Empty array if nothing notable. NO prose. Schema:
-[{"kind": "topic", "content": "She's been quietly preoccupied with her mother's diagnosis — comes up obliquely even in unrelated conversations", "weight": 0.85}]
+Return 0-3 high-quality patterns; empty when nothing notable. Each memory:
+- key: a stable snake_case slug that names the THREAD, not the week — e.g. current_preoccupation, recurring_theme, ongoing_decision, emotional_pattern, upcoming_event — invent one in that style when none fit. Same thread next week must land on the same key.
+- value: one short plain-text sentence, e.g. "quietly preoccupied with her mother's diagnosis — comes up obliquely even in unrelated conversations"
+- importance: 7-9 (these should outrank concrete facts in retrieval)
 
-Use kind = "topic" for recurring themes, "feeling" for emotional patterns, "event" for one-off significant moments. Weight 0.7-0.9 for these higher-order memories (they should outrank concrete facts in retrieval). Prefer 0-3 high-quality patterns over many shallow ones. Skip anything that's just a restatement of an existing memory. NEVER record crisis content.`;
+Skip anything that's just a restatement of an existing memory. NEVER record crisis content.`;
 
       const resp = await anthropic.messages.create({
         model: ANTHROPIC_MODEL,
         max_tokens: 800,
         system:
-          "You extract durable higher-order memories from conversation transcripts. Output ONLY a valid JSON array, never prose.",
+          "You extract durable higher-order memories from conversation transcripts.",
+        output_config: {
+          format: { type: "json_schema", schema: MEMORY_JSON_SCHEMA },
+        },
         messages: [{ role: "user", content: prompt }],
       });
 
@@ -135,56 +148,33 @@ Use kind = "topic" for recurring themes, "feeling" for emotional patterns, "even
         route: "cron_reflect",
       });
 
-      const text = resp.content
-        .filter((b) => b.type === "text")
-        .map((b) => (b.type === "text" ? b.text : ""))
-        .join("")
-        .trim();
+      if (resp.stop_reason === "refusal") continue;
 
-      const jsonStart = text.indexOf("[");
-      const jsonEnd = text.lastIndexOf("]");
-      if (jsonStart === -1 || jsonEnd === -1) continue;
+      const textBlock = resp.content.find((b) => b.type === "text");
+      if (!textBlock || textBlock.type !== "text") continue;
 
-      let parsed: unknown;
+      let parsed: { memories?: unknown };
       try {
-        parsed = JSON.parse(text.slice(jsonStart, jsonEnd + 1));
+        parsed = JSON.parse(textBlock.text) as { memories?: unknown };
       } catch {
         continue;
       }
-      if (!Array.isArray(parsed)) continue;
 
-      const reflections: ReflectionMemory[] = parsed
-        .filter(
-          (m): m is ReflectionMemory =>
-            typeof m === "object" &&
-            m !== null &&
-            typeof (m as ReflectionMemory).content === "string" &&
-            (m as ReflectionMemory).content.trim().length > 0 &&
-            ["fact", "relationship", "preference", "event", "topic", "feeling"]
-              .includes((m as ReflectionMemory).kind),
-        )
-        .filter(
-          (m) => (typeof m.weight === "number" ? m.weight : 0.5) >= 0.5,
-        );
-
+      const reflections = coerceMemories(parsed.memories).filter(
+        (m) => m.importance >= MIN_REFLECTION_IMPORTANCE,
+      );
       if (reflections.length === 0) continue;
 
-      const memoryRows = await Promise.all(
-        reflections.map(async (m) => {
-          const content = m.content.trim();
-          const vec = await embedText(content);
-          return {
-            oracle_id: profile.active_oracle_id,
-            user_id: profile.id,
-            kind: m.kind,
-            content,
-            weight: Math.min(1, Math.max(0.5, m.weight ?? 0.7)),
-            embedding: vec ? toPgVector(vec) : null,
-          };
-        }),
+      const ok = await upsertMemories(
+        profile.active_oracle_id,
+        profile.id,
+        reflections,
+        "extracted",
       );
-
-      await admin.from("persona_memories").insert(memoryRows);
+      if (!ok) {
+        errors.push(`${profile.id}: memory upsert failed`);
+        continue;
+      }
       reflected++;
     } catch (err) {
       errors.push(

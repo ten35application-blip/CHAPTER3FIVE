@@ -21,6 +21,9 @@ export type Memory = {
   importance: number;
 };
 
+/** Allowed values for persona_memories.source (0060 check constraint). */
+export type MemorySource = "user_stated" | "extracted" | "manual";
+
 /**
  * Haiku-tier: extraction is a cheap classification-shaped task and runs on
  * every user message, so it gets the fastest, cheapest model rather than
@@ -50,7 +53,12 @@ Importance 1-10: 9-10 for people and deaths, 8-9 for who-they-are identity facts
 
 Most messages contain NOTHING memorable. When in doubt, return an empty array. Never invent facts that are not explicitly in the message.`;
 
-const EXTRACTION_SCHEMA = {
+/**
+ * Structured-output schema for any prompt that emits v4 memories.
+ * Shared by per-turn extraction here, the weekly reflection cron, and
+ * the identities memory-add route — one contract, one shape.
+ */
+export const MEMORY_JSON_SCHEMA = {
   type: "object",
   properties: {
     memories: {
@@ -90,6 +98,66 @@ function clampImportance(n: number): number {
 }
 
 /**
+ * Validate + normalize raw model output into Memory rows: enforce the
+ * slug regex, drop empty values, bound value length, clamp importance.
+ * Shared by every v4 writer so a malformed candidate can never reach
+ * the table from any of them.
+ */
+export function coerceMemories(candidates: unknown): Memory[] {
+  if (!Array.isArray(candidates)) return [];
+  return candidates
+    .filter(
+      (m): m is { key: string; value: string; importance: number } =>
+        typeof m === "object" &&
+        m !== null &&
+        typeof (m as { key?: unknown }).key === "string" &&
+        KEY_RE.test((m as { key: string }).key) &&
+        typeof (m as { value?: unknown }).value === "string" &&
+        (m as { value: string }).value.trim().length > 0 &&
+        typeof (m as { importance?: unknown }).importance === "number",
+    )
+    .map((m) => ({
+      key: m.key,
+      value: m.value.trim().slice(0, 500),
+      importance: clampImportance(m.importance),
+    }));
+}
+
+/**
+ * Service-role upsert of v4 memories for an (oracle, user) pair. The 0060
+ * unique index on (oracle_id, user_id, key) is the dedupe surface, so
+ * re-running the same extraction (cron retry, double-submit) updates in
+ * place instead of duplicating. Returns false on failure — callers treat
+ * memory writes as best-effort and must not throw.
+ */
+export async function upsertMemories(
+  oracleId: string,
+  userId: string,
+  memories: Memory[],
+  source: MemorySource,
+): Promise<boolean> {
+  if (memories.length === 0) return true;
+  const admin = createAdminClient();
+  const { error } = await admin.from("persona_memories").upsert(
+    memories.map((m) => ({
+      oracle_id: oracleId,
+      user_id: userId,
+      key: m.key,
+      value: m.value,
+      importance: m.importance,
+      source,
+      updated_at: new Date().toISOString(),
+    })),
+    { onConflict: "oracle_id,user_id,key" },
+  );
+  if (error) {
+    console.error("[memory upsert] failed:", error);
+    return false;
+  }
+  return true;
+}
+
+/**
  * Extract memory candidates from one user message and upsert them for the
  * (oracle, user) pair. Returns the accepted memories (empty on no-op or
  * any failure — this function never throws).
@@ -109,7 +177,7 @@ export async function extractMemoriesFromMessage(
       max_tokens: 1024,
       system: EXTRACTION_SYSTEM,
       output_config: {
-        format: { type: "json_schema", schema: EXTRACTION_SCHEMA },
+        format: { type: "json_schema", schema: MEMORY_JSON_SCHEMA },
       },
       messages: [{ role: "user", content: trimmed.slice(0, 4000) }],
     });
@@ -123,44 +191,11 @@ export async function extractMemoriesFromMessage(
       memories?: Array<{ key: string; value: string; importance: number }>;
     };
 
-    const memories: Memory[] = (parsed.memories ?? [])
-      .filter(
-        (m) =>
-          typeof m.key === "string" &&
-          KEY_RE.test(m.key) &&
-          typeof m.value === "string" &&
-          m.value.trim().length > 0 &&
-          typeof m.importance === "number",
-      )
-      .map((m) => ({
-        key: m.key,
-        value: m.value.trim().slice(0, 500),
-        importance: clampImportance(m.importance),
-      }));
-
+    const memories = coerceMemories(parsed.memories);
     if (memories.length === 0) return [];
 
-    // Service-role upsert (RLS bypass; the 0060 unique index on
-    // (oracle_id, user_id, key) is the dedupe surface).
-    const admin = createAdminClient();
-    const { error } = await admin.from("persona_memories").upsert(
-      memories.map((m) => ({
-        oracle_id: oracleId,
-        user_id: userId,
-        key: m.key,
-        value: m.value,
-        importance: m.importance,
-        source: "extracted",
-        updated_at: new Date().toISOString(),
-      })),
-      { onConflict: "oracle_id,user_id,key" },
-    );
-    if (error) {
-      console.error("[memory extract] upsert failed:", error);
-      return [];
-    }
-
-    return memories;
+    const ok = await upsertMemories(oracleId, userId, memories, "extracted");
+    return ok ? memories : [];
   } catch (err) {
     // Non-fatal by contract: the chat reply must ship regardless.
     console.error("[memory extract] extraction failed:", err);
