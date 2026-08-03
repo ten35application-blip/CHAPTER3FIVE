@@ -316,26 +316,12 @@ export default async function SettingsPage({
             pro={pro}
           />
           <div className="px-4 py-4">
+            {/* Wilson 2026-08-03: settings shows STATUS + subscription
+                MANAGEMENT only. All purchase entry points (Upgrade,
+                Enroll, Convert, packs) live on the dashboard top-left
+                chip → /upgrade so settings never sells. */}
             {pro && stripeCustomerId ? (
               <>
-                {isBasicTier ? (
-                  // Basic subscriber: lead with the Pro step-up. Plan
-                  // CHANGES go through the billing portal (a fresh
-                  // Checkout would 409 on the already-subscribed
-                  // guard) — same pattern as the PlanCards Pro CTA.
-                  <div className="mb-4">
-                    <ManageSubscriptionButton
-                      label="Upgrade to Pro"
-                      variant="cta"
-                    />
-                    <p className="mt-3 text-center text-xs text-warm-300">
-                      Pro is {MONTHLY_PRICE_LABEL}/month &mdash;{" "}
-                      {PLAN_QUOTA} companions and more room every
-                      month. Changes happen in the billing portal and
-                      take effect right away.
-                    </p>
-                  </div>
-                ) : null}
                 <ManageSubscriptionButton />
                 <p className="mt-3 text-center text-xs text-warm-300">
                   Update your card, view invoices, or cancel any time
@@ -343,49 +329,27 @@ export default async function SettingsPage({
                 </p>
               </>
             ) : pro && !admin && trialActive ? (
-              <>
-                <UpgradeButton
-                  checkoutEnabled={checkoutEnabled}
-                  fallbackHref="/upgrade"
-                  label="Convert to Pro"
-                />
-                <p className="mt-3 text-center text-xs text-warm-300">
-                  Start Pro now to keep everything past{" "}
-                  {trialEndLabel ?? "your trial end"}. Same {MONTHLY_PRICE_LABEL}/month, cancel any time.
-                </p>
-              </>
+              <p className="text-center text-xs text-warm-300">
+                You&rsquo;re on the Pro trial until{" "}
+                {trialEndLabel ?? "your trial end"}. Tap the coral chip
+                on your dashboard when you&rsquo;re ready to keep it
+                going.
+              </p>
             ) : pro ? (
-              // Allowlist admins + admin-granted Pro — no Stripe
-              // customer, permanent Pro. No upsell to render.
               <p className="text-center text-xs text-warm-300">
                 You&rsquo;re on Pro. No card on file — enjoy.
               </p>
             ) : (
-              // Free-tier user: show both plans as cards so they can
-              // pick and enroll from here (Wilson's ask -- same shape as
-              // the landing pricing section, buttons on each). Compact
-              // variant scales the cards down so this Plan section
-              // doesn't dominate the settings page.
-              <PlanCards
-                email={email}
-                checkoutEnabled={checkoutEnabled}
-                basicCheckoutEnabled={Boolean(
-                  process.env.STRIPE_PRICE_ID_BASIC_MONTHLY,
-                )}
-                variant="compact"
-              />
+              <p className="text-center text-xs text-warm-300">
+                Ready for more room? Tap the coral chip on your
+                dashboard to see the plans + add-on packs.
+              </p>
             )}
           </div>
         </Section>
 
-        {/* EXTRA USAGE — proactive top-up surface for the add-on packs.
-            Wilson's ask 2026-07-28: users should be able to buy a pack
-            from Settings whenever they want, not only after hitting a
-            cap. Sits right under Plan because it's a plan add-on, not
-            a standalone concept. */}
-        <Section label="Extra usage">
-          <PacksList />
-        </Section>
+        {/* Extra usage section removed 2026-08-03: add-on packs now
+            live only on /upgrade, reachable via the dashboard chip. */}
 
         {/* APPEARANCE — theme picker. Client-only state; localStorage
             persists across visits; the inline script in RootLayout

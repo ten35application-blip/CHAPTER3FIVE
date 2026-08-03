@@ -2,7 +2,8 @@ import { after } from "next/server";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isAdmin } from "@/lib/admin/allowlist";
-import { getFreeIdentityId, isPro } from "@/lib/subscription";
+import Link from "next/link";
+import { getFreeIdentityId, getPlanTier, isPro } from "@/lib/subscription";
 import { ensureAdrianAvatar } from "@/lib/faces/adrian";
 import { HubSheet } from "./_components/HubSheet";
 import { DashboardContent, type Identity } from "./_components/DashboardContent";
@@ -303,6 +304,17 @@ export default async function DashboardPage({
   // "Pro" chip and its row routes to /upgrade instead of the chat.
   const pro = await isPro(supabase);
   const freeIdentityId = pro ? null : await getFreeIdentityId(supabase);
+  // Tier for the top-left Upgrade chip (Wilson 2026-08-03: settings
+  // no longer sells; all purchase entry points live on this chip →
+  // /upgrade). Free = "Upgrade"; Basic = "Go Pro"; Pro / trial /
+  // admin hide the chip.
+  const plan = await getPlanTier(supabase);
+  const upgradeChip: "upgrade" | "go-pro" | null =
+    plan.tier === "free"
+      ? "upgrade"
+      : plan.tier === "basic"
+        ? "go-pro"
+        : null;
 
   // Post-inherit welcome banner. When the redeem action redirects to
   // /dashboard?welcomed={oracleId}, resolve the name here so
@@ -363,9 +375,20 @@ export default async function DashboardPage({
           Wilson (starred rows still sort to the top of the list; the
           top-bar strip read as noise next to the settings button). */}
       <div className="fixed inset-x-0 top-0 z-20 flex items-center justify-between gap-3 px-4 pb-3 pt-4 backdrop-blur">
-        {/* Left slot — intentionally empty; keeps the wordmark
-            visually centered against the user-avatar on the right. */}
-        <div className="flex flex-1" />
+        {/* Left slot — Upgrade / Go Pro chip for non-Pro users. Wilson
+            2026-08-03: single purchase entry point across web + mobile.
+            When null the wordmark stays visually centered against the
+            avatar on the right. */}
+        <div className="flex flex-1 items-center">
+          {upgradeChip ? (
+            <Link
+              href="/upgrade"
+              className="bg-gradient-cta inline-flex items-center rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-white shadow-[0_4px_10px_-2px_rgba(232,138,118,0.35)] transition-transform hover:-translate-y-px active:scale-95"
+            >
+              {upgradeChip === "go-pro" ? "Go Pro" : "Upgrade"}
+            </Link>
+          ) : null}
+        </div>
 
         <p className="text-base font-bold tracking-tight text-warm-50">
           chapter<span className="text-gradient-cta font-black">3</span>five
