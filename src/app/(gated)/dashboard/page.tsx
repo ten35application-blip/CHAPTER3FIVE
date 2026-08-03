@@ -91,7 +91,7 @@ export default async function DashboardPage({
   const { data: contactsRaw } = await supabase
     .from("oracles")
     .select(
-      "id, name, avatar_url, is_starred, manually_unread, created_at, conversation_archived_at, is_legacy, user_id, inherited_at, is_concierge",
+      "id, name, avatar_url, is_starred, manually_unread, created_at, conversation_archived_at, is_legacy, user_id, inherited_at, is_concierge, is_photo_placeholder",
     )
     .is("deleted_at", null)
     .order("is_starred", { ascending: false })
@@ -135,6 +135,7 @@ export default async function DashboardPage({
     conversation_archived_at: (r.conversation_archived_at as string | null) ?? null,
     inherit_code: codesByOracle.get(r.id as string) ?? null,
     is_concierge: Boolean(r.is_concierge),
+    is_photo_placeholder: Boolean(r.is_photo_placeholder),
   }));
 
   // Which contacts have "all messages soft-deleted"? Those disappear
@@ -351,9 +352,14 @@ export default async function DashboardPage({
   // Web Push opt-in banner state + profile avatar. One query covers
   // both — push_subscription is a jsonb, avatar_url is the storage
   // path of the private profile photo (bucket profile-avatars).
+  // Also pull the Phase-3 auto-populate lifecycle timestamps so
+  // DashboardContent can render the "your companions are being
+  // created" banner while the subscribe-time populate is in flight.
   const { data: profileRow } = await supabase
     .from("profiles")
-    .select("push_subscription, avatar_url")
+    .select(
+      "push_subscription, avatar_url, auto_populate_started_at, auto_populate_completed_at",
+    )
     .eq("id", user.id)
     .maybeSingle();
   const alreadySubscribed =
@@ -368,6 +374,26 @@ export default async function DashboardPage({
       .createSignedUrl(profileRow.avatar_url, 60 * 60);
     userAvatarUrl = signed?.signedUrl ?? null;
   }
+
+  // Phase-3 populate banner. Show when the helper acquired the
+  // lock (started_at set) but hasn't stamped completion yet, AND
+  // started_at is recent (matches the 5-min stale-reclaim window
+  // in migration 0126). Older-than-5-min started_at with no
+  // completion is a crashed run and the banner would be lying —
+  // the completion-stamp finally-block should always run, so this
+  // is belt-and-suspenders for a hard process kill.
+  const autoPopulateStarted =
+    typeof profileRow?.auto_populate_started_at === "string"
+      ? new Date(profileRow.auto_populate_started_at).getTime()
+      : 0;
+  const autoPopulateCompleted =
+    typeof profileRow?.auto_populate_completed_at === "string"
+      ? new Date(profileRow.auto_populate_completed_at).getTime()
+      : 0;
+  const autoPopulateInFlight =
+    autoPopulateStarted > 0 &&
+    autoPopulateStarted > autoPopulateCompleted &&
+    Date.now() - autoPopulateStarted < 5 * 60 * 1000;
 
   return (
     <main className="relative min-h-dvh flex-1">
@@ -422,6 +448,7 @@ export default async function DashboardPage({
         isPro={pro}
         freeIdentityId={freeIdentityId}
         welcomed={welcomed}
+        autoPopulateInFlight={autoPopulateInFlight}
       />
 
       {/* Bottom-right — hub FAB. Menu-of-options icon that opens a

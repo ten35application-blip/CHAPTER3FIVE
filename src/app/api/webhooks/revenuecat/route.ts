@@ -1,8 +1,41 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { scheduleAutoPopulate } from "@/lib/subscription/autoPopulate";
 
 export const runtime = "nodejs";
+
+// Subscribe-time auto-populate runs inside after() and can chain
+// synth (~30s each × up to 4) + face generation off the same
+// invocation. Match the Stripe webhook's 300s headroom so the
+// background chain has room to finish here too.
+export const maxDuration = 300;
+
+/**
+ * RevenueCat entitlement_ids that map to our Basic / Pro tiers.
+ * The mapping mirrors what the mobile IAP dashboard attaches to
+ * the products — "basic" and "pro" are the canonical entitlement
+ * ids (see 0122 comments for the setup). A future rename here
+ * must be paired with a RevenueCat dashboard rename.
+ */
+const BASIC_ENTITLEMENT_ID = "basic";
+const PRO_ENTITLEMENT_ID = "pro";
+
+/**
+ * Which RevenueCat event types should kick the subscribe-time
+ * populate? INITIAL_PURCHASE is the obvious one; RENEWAL /
+ * UNCANCELLATION / PRODUCT_CHANGE all cover "user just gained (or
+ * regained) an active basic/pro entitlement." The helper's
+ * top-up-only idempotency means a duplicate fire is a no-op, so
+ * the set is inclusive on purpose — a Basic → Pro PRODUCT_CHANGE
+ * needs to trigger the extra random-slot top-up.
+ */
+const AUTO_POPULATE_TRIGGER_TYPES = new Set([
+  "INITIAL_PURCHASE",
+  "RENEWAL",
+  "UNCANCELLATION",
+  "PRODUCT_CHANGE",
+]);
 
 /**
  * RevenueCat webhook receiver → iap_entitlements mirror (0122).
@@ -164,6 +197,20 @@ export async function POST(request: NextRequest) {
     // 500 → RevenueCat retries with backoff; a transient DB hiccup
     // must not silently drop an entitlement grant.
     return NextResponse.json({ error: "Upsert failed" }, { status: 500 });
+  }
+
+  // Phase 3: kick off subscribe-time auto-populate when this event
+  // grants (or refreshes) a basic/pro entitlement. Pro wins over
+  // Basic when both are present so a Basic → Pro PRODUCT_CHANGE
+  // populates to the Pro quota. Idempotent helper — a RENEWAL
+  // for an already-populated user creates nothing new.
+  if (AUTO_POPULATE_TRIGGER_TYPES.has(type)) {
+    let tier: "basic" | "pro" | null = null;
+    if (entitlementIds.includes(PRO_ENTITLEMENT_ID)) tier = "pro";
+    else if (entitlementIds.includes(BASIC_ENTITLEMENT_ID)) tier = "basic";
+    if (tier) {
+      scheduleAutoPopulate(appUserId, tier);
+    }
   }
 
   return NextResponse.json({ received: true, type, entitlements: entitlementIds });

@@ -1,0 +1,374 @@
+/**
+ * Auto-populate a subscribing user's circle so it isn't empty on
+ * their first post-payment open.
+ *
+ * Wilson's Phase-3 spec (2026-08-03):
+ *   Basic ($5/mo) → 2 random companions + 1 photo placeholder = 3 total
+ *   Pro   ($10/mo) → 4 random companions + 1 photo placeholder = 5 total
+ *
+ * Called from BOTH webhook paths (Stripe + RevenueCat) via after()
+ * so the webhook returns 200 within Stripe's / RevenueCat's
+ * timeout window and the heavy generation runs in the background.
+ *
+ * Idempotency + concurrency:
+ *
+ *   - try_acquire_auto_populate_lock (migration 0126) is a
+ *     CAS-style RPC. Two racing webhook invocations can call it
+ *     concurrently; exactly one wins, the loser returns without
+ *     side-effects. Stale locks (>5 min without completion) are
+ *     reclaimable so a crashed run does not wedge the user.
+ *
+ *   - The per-tier top-up counts EXISTING non-Me / non-inherited
+ *     / non-concierge / non-deleted / non-placeholder oracles and
+ *     only creates the difference. A user with 2 companions who
+ *     upgrades Basic → Pro gets 2 more random + 1 placeholder
+ *     (4 random + 1 placeholder = 5). A user who cancels and
+ *     re-subscribes at the same tier already has the quota, so
+ *     nothing new is created.
+ *
+ * Failure posture: never throws. Every leg logs its own error
+ * and moves on. On any failure, the completion timestamp is still
+ * stamped in the finally block so the "your companions are being
+ * created" banner does not linger forever after a botched run.
+ */
+
+import { after } from "next/server";
+import { generateAndSaveFace } from "@/lib/faces/generate";
+import { fingerprintTraits } from "@/lib/identity/fingerprint";
+import { rollTraits, type Traits } from "@/lib/identity/formula";
+import {
+  synthesizePersona,
+  SynthesisError,
+} from "@/lib/identity/synthesize";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { PRICING } from "@/lib/pricing";
+
+const MAX_FINGERPRINT_REROLLS = 5;
+
+type AdminClient = ReturnType<typeof createAdminClient>;
+
+/**
+ * Kick off the subscribe-time auto-populate for `userId` at the
+ * given `tier`. Idempotent; concurrent-safe; never throws.
+ *
+ * Call site pattern (both webhook paths):
+ *   after(async () => {
+ *     await autoPopulateForSubscribe(userId, tier);
+ *   });
+ *
+ * The helper handles its own logging + status stamping. Nothing
+ * for the webhook to await or unwind on failure.
+ */
+export async function autoPopulateForSubscribe(
+  userId: string,
+  tier: "basic" | "pro",
+): Promise<void> {
+  const admin = createAdminClient();
+
+  // 1. Acquire the per-user lock (5 min stale reclaim).
+  const acquired = await tryAcquireLock(admin, userId);
+  if (!acquired) {
+    console.log(
+      `[autoPopulate] ${userId} — another run holds the lock; skipping`,
+    );
+    return;
+  }
+
+  try {
+    // 2. Compute what's missing.
+    const randomTarget =
+      tier === "basic"
+        ? PRICING.basicFormulaIdentitiesPerPlan
+        : PRICING.formulaIdentitiesPerPlan;
+
+    const [existingRandom, existingPlaceholder] = await Promise.all([
+      countExistingRandom(admin, userId),
+      countExistingPlaceholder(admin, userId),
+    ]);
+
+    const randomToCreate = Math.max(0, randomTarget - existingRandom);
+    const placeholderToCreate = Math.max(0, 1 - existingPlaceholder);
+
+    console.log(
+      `[autoPopulate] ${userId} tier=${tier} — existing random=${existingRandom} placeholder=${existingPlaceholder}; creating random=${randomToCreate} placeholder=${placeholderToCreate}`,
+    );
+
+    // 3. Ensure the photo placeholder FIRST so the user's very
+    //    first dashboard load has something to see even if the
+    //    persona synthesis calls run long. Cheap DB insert.
+    if (placeholderToCreate > 0) {
+      try {
+        await createPhotoPlaceholder(admin, userId);
+      } catch (err) {
+        console.error(
+          `[autoPopulate] ${userId} — placeholder create failed:`,
+          err,
+        );
+      }
+    }
+
+    // 4. Synthesize random identities SERIALLY. Anthropic-tier
+    //    calls take ~30s each; running them in parallel risks
+    //    rate-limit spikes on a busy webhook window and complicates
+    //    partial-failure accounting. Serial keeps the total time
+    //    predictable (basic ≤ 60s, pro ≤ 120s) inside the
+    //    maxDuration=300 the webhook route sets.
+    for (let i = 0; i < randomToCreate; i++) {
+      try {
+        const result = await createOneRandomIdentity(admin, userId);
+        if (result) {
+          // Fire-and-forget face gen. generateAndSaveFace never
+          // throws; landing in Replicate is a 15-40s round-trip
+          // and we don't want to serialize on it — the identity
+          // is already usable with the letter-fallback avatar the
+          // dashboard renders when avatar_url is null.
+          void generateAndSaveFace(result.oracleId, result.traits).catch(
+            (faceErr) => {
+              console.error(
+                `[autoPopulate] ${userId} — face gen failed for ${result.oracleId}:`,
+                faceErr,
+              );
+            },
+          );
+        }
+      } catch (err) {
+        console.error(
+          `[autoPopulate] ${userId} — identity ${i + 1}/${randomToCreate} failed:`,
+          err,
+        );
+        // Keep going — a partial populate is better than none.
+      }
+    }
+  } finally {
+    // 5. Stamp completion regardless of success/failure so the
+    //    dashboard "companions being created" banner clears.
+    try {
+      await admin.rpc("mark_auto_populate_complete", {
+        target_user_id: userId,
+      });
+    } catch (err) {
+      console.error(
+        `[autoPopulate] ${userId} — completion stamp failed:`,
+        err,
+      );
+    }
+  }
+}
+
+/**
+ * Convenience wrapper: schedule the populate as a background task
+ * from a webhook handler. Same as writing the after() call inline
+ * at each site, but pulled into one place so the two webhook
+ * handlers stay parallel.
+ *
+ * Safe to call more than once for the same user (the helper
+ * guards with the per-user lock).
+ */
+export function scheduleAutoPopulate(
+  userId: string,
+  tier: "basic" | "pro",
+): void {
+  after(async () => {
+    await autoPopulateForSubscribe(userId, tier);
+  });
+}
+
+// ---------------------------------------------------------------
+// Internals
+// ---------------------------------------------------------------
+
+async function tryAcquireLock(
+  admin: AdminClient,
+  userId: string,
+): Promise<boolean> {
+  try {
+    const { data, error } = await admin.rpc("try_acquire_auto_populate_lock", {
+      target_user_id: userId,
+      stale_after_seconds: 300,
+    });
+    if (error) {
+      console.error(
+        `[autoPopulate] ${userId} — lock RPC failed; skipping run:`,
+        error,
+      );
+      return false;
+    }
+    return data === true;
+  } catch (err) {
+    console.error(
+      `[autoPopulate] ${userId} — lock RPC threw; skipping run:`,
+      err,
+    );
+    return false;
+  }
+}
+
+/** Count non-Me / non-inherited / non-concierge / non-deleted /
+ *  non-placeholder oracles owned by the user. Mirrors the same
+ *  filter shape as canCreateOracle in src/lib/subscription.ts
+ *  with the extra `is_photo_placeholder=false` clause. */
+async function countExistingRandom(
+  admin: AdminClient,
+  userId: string,
+): Promise<number> {
+  const { count } = await admin
+    .from("oracles")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("is_concierge", false)
+    .eq("is_self_archive", false)
+    .eq("is_photo_placeholder", false)
+    .is("inherited_at", null)
+    .is("deleted_at", null);
+  return count ?? 0;
+}
+
+/** Count active photo placeholders (only ever 0 or 1 per user in
+ *  practice, but count-based so a doubled row from a legacy
+ *  glitch is naturally clamped). */
+async function countExistingPlaceholder(
+  admin: AdminClient,
+  userId: string,
+): Promise<number> {
+  const { count } = await admin
+    .from("oracles")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("is_photo_placeholder", true)
+    .is("deleted_at", null);
+  return count ?? 0;
+}
+
+/**
+ * Roll traits + fingerprint + synthesize + insert one random
+ * identity. Returns { oracleId, traits } on success so the caller
+ * can fire face generation. Mirrors /api/identity/new/route.ts's
+ * flow without the auth / legal / quota gates (this runs
+ * post-subscribe, quota was implicit in the tier).
+ */
+async function createOneRandomIdentity(
+  admin: AdminClient,
+  userId: string,
+): Promise<{ oracleId: string; traits: Traits } | null> {
+  // Roll + fingerprint, retrying on unique-constraint collisions.
+  let traits: Traits | null = null;
+  let fingerprint: string | null = null;
+  for (let attempt = 0; attempt < MAX_FINGERPRINT_REROLLS; attempt++) {
+    const candidate = rollTraits();
+    const candidateFingerprint = fingerprintTraits(candidate);
+    const { data: existing } = await admin
+      .from("oracles")
+      .select("id")
+      .eq("fingerprint", candidateFingerprint)
+      .maybeSingle();
+    if (!existing) {
+      traits = candidate;
+      fingerprint = candidateFingerprint;
+      break;
+    }
+  }
+  if (!traits || !fingerprint) {
+    console.error(
+      `[autoPopulate] ${userId} — could not find fresh fingerprint after ${MAX_FINGERPRINT_REROLLS} rolls`,
+    );
+    return null;
+  }
+
+  // Synthesize persona via Claude.
+  let persona;
+  try {
+    persona = await synthesizePersona(traits);
+  } catch (err) {
+    if (err instanceof SynthesisError) {
+      console.error(
+        `[autoPopulate] ${userId} — synth ${err.kind}:`,
+        err.message,
+      );
+    } else {
+      console.error(`[autoPopulate] ${userId} — synth threw:`, err);
+    }
+    return null;
+  }
+
+  // Insert via admin (0067 blocks user-role inserts).
+  const { data: inserted, error: insertError } = await admin
+    .from("oracles")
+    .insert({
+      user_id: userId,
+      traits,
+      fingerprint,
+      name: persona.name,
+      one_line_hook: persona.one_line_hook,
+      persona_prompt: persona.persona_prompt,
+      significant_events: persona.significant_events,
+      disclosure_pace: traits.disclosurePace ?? null,
+      silence_style: traits.silenceStyle ?? null,
+      punctuation_habit: traits.punctuationHabit ?? null,
+      memory_style: traits.memoryStyle ?? null,
+      text_burst_style: traits.textBurstStyle ?? null,
+      chronotype: traits.chronotype ?? null,
+      voice_examples: persona.voice_examples,
+      texting_fluency: traits.textingFluency ?? null,
+      pet_name: persona.pet_name ?? null,
+      creation_source: "random",
+    })
+    .select("id")
+    .single();
+
+  if (insertError || !inserted) {
+    console.error(
+      `[autoPopulate] ${userId} — insert failed:`,
+      insertError,
+    );
+    return null;
+  }
+
+  return { oracleId: inserted.id as string, traits };
+}
+
+/**
+ * Create a single photo-placeholder oracle. Minimal row:
+ *
+ *   name              — "Your photo companion" (soft placeholder;
+ *                       replaced from the uploaded photo in Phase 4)
+ *   one_line_hook     — the tap-to-upload hint the dashboard row
+ *                       shows in place of a preview
+ *   creation_source   — 'photo' (this IS a photo identity; the
+ *                       is_photo_placeholder flag says it just
+ *                       hasn't been filled in yet)
+ *   is_photo_placeholder — true
+ *   persona_prompt / traits / fingerprint / voice_examples —
+ *                       all null; Phase 4's photo-upload route
+ *                       generates them from the uploaded image
+ *                       and flips is_photo_placeholder=false in
+ *                       the same write.
+ *
+ * Wrapped in a small pre-check that skips insert if a placeholder
+ * already exists — belt against the count race between two racing
+ * webhook invocations (the outer per-user lock already handles it,
+ * but this stops accidental doubles under any future concurrency).
+ */
+async function createPhotoPlaceholder(
+  admin: AdminClient,
+  userId: string,
+): Promise<void> {
+  // Belt: recheck under the lock. The outer lock already serializes,
+  // but a stale-reclaim can hand the lock to run #2 mid-way through
+  // run #1's placeholder insert; the recheck stops doubles.
+  const alreadyExists = await countExistingPlaceholder(admin, userId);
+  if (alreadyExists > 0) return;
+
+  const { error } = await admin.from("oracles").insert({
+    user_id: userId,
+    name: "Your photo companion",
+    one_line_hook: "Tap to upload a photo — I'll come alive.",
+    creation_source: "photo",
+    is_photo_placeholder: true,
+  });
+  if (error) {
+    console.error(
+      `[autoPopulate] ${userId} — placeholder insert failed:`,
+      error,
+    );
+  }
+}

@@ -23,6 +23,11 @@ export type Identity = {
    *  dashboard row can show a "share" chip. Null for everything else
    *  (formula/photo identities, inherited-not-created legacy ones). */
   inherit_code?: string | null;
+  /** Phase 3 (0126): a photo-companion slot the auto-populate helper
+   *  created but the user hasn't uploaded a photo to yet. Renders with
+   *  soft placeholder copy, no unread badge; tapping opens a chat
+   *  surface that prompts the upload instead of showing composer. */
+  is_photo_placeholder?: boolean;
 };
 
 type Props = {
@@ -36,6 +41,11 @@ type Props = {
    *  redeemed oracle's info here so this component renders the "X is
    *  now in your contacts" toast. Null for a normal dashboard load. */
   welcomed?: { oracleId: string; name: string } | null;
+  /** Phase 3: subscribe-time auto-populate is currently building
+   *  companions in the background. Shows a soft banner so a user who
+   *  paid and immediately opens the app sees "they're coming" instead
+   *  of a bare list. Server-computed from profiles.auto_populate_*. */
+  autoPopulateInFlight?: boolean;
 };
 
 /**
@@ -55,6 +65,7 @@ export function DashboardContent({
   isPro,
   freeIdentityId,
   welcomed,
+  autoPopulateInFlight,
 }: Props) {
   const [query, setQuery] = useState("");
   const [dismissedWelcome, setDismissedWelcome] = useState(false);
@@ -103,6 +114,8 @@ export function DashboardContent({
           onDismiss={() => setDismissedWelcome(true)}
         />
       ) : null}
+
+      {autoPopulateInFlight ? <AutoPopulateBanner /> : null}
 
       {favorites.length > 0 ? (
         <FavoritesRow items={favorites} isLocked={isLocked} />
@@ -293,41 +306,58 @@ function ConversationList({
                 }
                 className="flex flex-1 items-center gap-4"
               >
-                <Avatar name={p.name} url={p.avatar_url} />
+                <Avatar
+                  name={p.name}
+                  url={p.avatar_url}
+                  isPlaceholder={Boolean(p.is_photo_placeholder)}
+                />
                 <span className="flex min-w-0 flex-1 flex-col">
                   <span className="flex items-center gap-2">
                     {/* Unread signal: name goes bold when unread instead
                         of showing a leading coral dot (Wilson 2026-07-29:
                         "no dots next to the name"). iMessage does the
-                        same. aria-label preserves screen-reader signal. */}
+                        same. aria-label preserves screen-reader signal.
+                        Placeholder rows: NEVER bold, no unread signal —
+                        there's nothing to be unread FROM. */}
                     <span
-                      className={`truncate text-base text-warm-50 ${
-                        p.manually_unread || p.auto_unread
-                          ? "font-bold"
-                          : "font-semibold"
+                      className={`truncate text-base ${
+                        p.is_photo_placeholder
+                          ? "font-medium italic text-warm-200"
+                          : p.manually_unread || p.auto_unread
+                            ? "font-bold text-warm-50"
+                            : "font-semibold text-warm-50"
                       }`}
                       aria-label={
-                        p.manually_unread || p.auto_unread
-                          ? `${p.name} — unread`
-                          : p.name
+                        p.is_photo_placeholder
+                          ? `${p.name} — tap to upload a photo`
+                          : p.manually_unread || p.auto_unread
+                            ? `${p.name} — unread`
+                            : p.name
                       }
                     >
                       {p.name}
                     </span>
-                    {isLocked(p.id) ? <ProChip /> : null}
+                    {isLocked(p.id) && !p.is_photo_placeholder ? (
+                      <ProChip />
+                    ) : null}
                   </span>
                   <span className="truncate text-sm text-warm-300">
-                    {isLocked(p.id) ? "Waiting behind Pro" : "Tap to start"}
+                    {p.is_photo_placeholder
+                      ? "Tap the avatar to upload a photo"
+                      : isLocked(p.id)
+                        ? "Waiting behind Pro"
+                        : "Tap to start"}
                   </span>
                   {p.inherit_code ? (
                     <InheritCodeChip code={p.inherit_code} />
                   ) : null}
                 </span>
               </Link>
-              <StarButton
-                id={p.id}
-                starred={p.is_starred}
-              />
+              {/* Placeholder rows aren't pinnable — nothing behind the
+                  row yet to earn a favorite spot. */}
+              {p.is_photo_placeholder ? null : (
+                <StarButton id={p.id} starred={p.is_starred} />
+              )}
             </div>
           </SwipeRow>
         </li>
@@ -435,6 +465,32 @@ function WelcomeBanner({
   );
 }
 
+/** Phase-3 (0126) subscribe-time populate banner. Shows while the
+ *  Stripe / RevenueCat webhook's background populate is filling the
+ *  circle — so a user who paid and immediately opened the app sees
+ *  "they're coming" instead of an empty list. Auto-clears on the
+ *  next refresh once the helper stamps completed_at.
+ *
+ *  Deliberately NOT dismissable: it's transient (<2 min) and the
+ *  next page refresh removes it on its own once populate finishes. */
+function AutoPopulateBanner() {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="mb-6 flex items-center gap-3 rounded-2xl bg-teal/10 px-4 py-3 ring-1 ring-teal/25"
+    >
+      <span
+        aria-hidden
+        className="inline-flex h-5 w-5 flex-shrink-0 animate-spin rounded-full border-2 border-teal/30 border-t-teal-strong"
+      />
+      <span className="flex-1 text-sm leading-relaxed text-warm-100">
+        Your companions are being created — they&rsquo;ll appear shortly.
+      </span>
+    </div>
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /* Pro chip — marks identities waiting behind the plan                  */
 /* ------------------------------------------------------------------ */
@@ -538,8 +594,41 @@ function NoMatchesState({ query }: { query: string }) {
 /* Avatars                                                             */
 /* ------------------------------------------------------------------ */
 
-function Avatar({ name, url }: { name: string; url: string | null }) {
+function Avatar({
+  name,
+  url,
+  isPlaceholder,
+}: {
+  name: string;
+  url: string | null;
+  isPlaceholder?: boolean;
+}) {
   const initial = (name[0] ?? "?").toUpperCase();
+  if (isPlaceholder) {
+    // Photo-placeholder avatar (0126): dashed ring + camera glyph.
+    // Reads "there's a slot here, tap to fill it" without leaning on
+    // a real face or the coral-CTA gradient a live identity carries.
+    return (
+      <span
+        aria-hidden
+        className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-dashed border-coral/40 bg-ink text-coral-strong"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          width="20"
+          height="20"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.75"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M4 8h3l2-2h6l2 2h3v10H4z" />
+          <circle cx="12" cy="13" r="3.5" />
+        </svg>
+      </span>
+    );
+  }
   if (url) {
     return (
       // eslint-disable-next-line @next/next/no-img-element

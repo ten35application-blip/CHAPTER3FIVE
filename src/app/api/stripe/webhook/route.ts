@@ -6,9 +6,16 @@ import {
   recordAudit,
   sendAccountRestoredEmail,
 } from "@/lib/notifications";
+import { scheduleAutoPopulate } from "@/lib/subscription/autoPopulate";
 import type Stripe from "stripe";
 
 export const runtime = "nodejs";
+
+// Subscribe-time auto-populate runs inside after() and can chain
+// synth (~30s each × up to 4) + face generation off the same
+// invocation. Give the webhook the same 300s headroom as
+// /api/identity/new so the background chain has room to finish.
+export const maxDuration = 300;
 
 /**
  * Stripe webhook receiver.
@@ -455,6 +462,8 @@ async function handleSubscriptionCheckout(
   // purpose while checkout was created against the other Price.
   const priceTier = tierFromPriceId(sub);
 
+  const resolvedTier: "basic" | "pro" = priceTier ?? tier;
+
   await admin
     .from("profiles")
     .update({
@@ -465,11 +474,19 @@ async function handleSubscriptionCheckout(
       subscription_status: sub.status,
       plan_source: "stripe",
       pro_until: periodEnd,
-      subscription_tier: priceTier ?? tier,
+      subscription_tier: resolvedTier,
     })
     .eq("id", userId);
 
   await recordEvent(event, admin, userId);
+
+  // Phase 3: fill their circle so it isn't empty on first
+  // post-payment open. Runs as background work via after(); the
+  // helper is idempotent (existing-count top-up) and concurrent-
+  // safe (per-user lock in migration 0126) so a Stripe retry
+  // that gets past the stripe_events dedupe still never
+  // double-populates.
+  scheduleAutoPopulate(userId, resolvedTier);
 }
 
 /**
@@ -622,6 +639,16 @@ async function handleSubscriptionUpdated(
     .eq("id", profile.id);
 
   await recordEvent(event, admin, profile.id);
+
+  // Phase 3: a Basic → Pro upgrade via the billing portal fires
+  // here (subscription.updated with the new Price). Re-run the
+  // populate so a Basic user who upgrades to Pro gets the extra
+  // random slots topped up. Idempotent — a Pro → Pro no-op update
+  // (metadata change, etc.) sees the quota already filled and
+  // exits without creating anything.
+  if (updatedTier === "basic" || updatedTier === "pro") {
+    scheduleAutoPopulate(profile.id, updatedTier);
+  }
 }
 
 async function handleSubscriptionDeleted(

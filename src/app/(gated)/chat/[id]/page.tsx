@@ -33,12 +33,22 @@ export default async function ChatPage({
 
   const { data: oracle } = await supabase
     .from("oracles")
-    .select("id, name, avatar_url, one_line_hook, blocked_at, block_reason, is_concierge")
+    .select(
+      "id, name, avatar_url, one_line_hook, blocked_at, block_reason, is_concierge, is_photo_placeholder",
+    )
     .eq("id", id)
     .is("deleted_at", null)
     .maybeSingle();
   if (!oracle) {
     notFound();
+  }
+
+  // Phase 3 (0126): the row IS a photo-companion slot but the user
+  // hasn't uploaded a photo yet — the persona doesn't exist to chat
+  // with. Show a soft placeholder screen that prompts the upload;
+  // Phase 4 replaces this stub with the real photo-upload sheet.
+  if (oracle.is_photo_placeholder) {
+    return <PhotoPlaceholderScreen name={oracle.name as string} />;
   }
 
   // Whether the user has muted this identity (Bundle A "Block" —
@@ -166,5 +176,39 @@ export default async function ChatPage({
       initialMuted={initialMuted}
       initialAiAcked={initialAiAcked}
     />
+  );
+}
+
+/** Phase-3 (0126) photo-placeholder chat surface. The user tapped a
+ *  placeholder row on the dashboard — there's no persona to talk to
+ *  yet, so instead of a broken composer we render a hint and the
+ *  camera-glyph avatar. Phase 4 replaces this stub with the real
+ *  upload sheet (file picker + generate-from-photo flow). */
+function PhotoPlaceholderScreen({ name }: { name: string }) {
+  return (
+    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col items-center justify-center px-6 py-24 text-center">
+      <span
+        aria-hidden
+        className="mb-6 flex h-24 w-24 items-center justify-center rounded-full border-2 border-dashed border-coral/40 bg-ink text-coral-strong"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          width="36"
+          height="36"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M4 8h3l2-2h6l2 2h3v10H4z" />
+          <circle cx="12" cy="13" r="3.5" />
+        </svg>
+      </span>
+      <h1 className="text-lg font-semibold text-warm-50">{name}</h1>
+      <p className="mt-3 text-sm leading-relaxed text-warm-300">
+        Tap the avatar to upload a photo — this identity will be created once you do.
+      </p>
+    </main>
   );
 }
