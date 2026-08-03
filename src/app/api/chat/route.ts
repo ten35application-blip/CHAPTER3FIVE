@@ -11,7 +11,13 @@ import {
   type PersonalityType,
   type EmotionalFlavor,
 } from "@/content/personality";
-import { isAsleep, localDateLabel, localTimeLabel } from "@/lib/sleep";
+import {
+  formatGap,
+  isAsleep,
+  localDateLabel,
+  localTimeLabel,
+  timeOfDayLabel,
+} from "@/lib/sleep";
 import { detectCrisis } from "@/lib/crisis";
 import { sendCrisisAlert } from "@/lib/notifications";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -815,6 +821,39 @@ export async function POST(request: NextRequest) {
     ? ""
     : `\n\n== Today ==\nToday is ${localDateLabel(effectiveTimezone)}. Use this to notice when something they mentioned is coming up has already passed — ask how it went, once, when the moment fits.`;
 
+  // Loose time-of-day cue for the TIME OF DAY rule (softer mornings,
+  // real late nights, on mid-day). Suppressed in memorial mode for
+  // the same reason as todayPart.
+  const timeOfDayPart = memorialMode
+    ? ""
+    : `\n\n== Now ==\nIt's ${timeOfDayLabel(effectiveTimezone)} where they are. Let the time shape your cadence; don't announce it.`;
+
+  // Gap since the last exchange in this thread — for the FIRST
+  // MESSAGE BACK rule. One extra small query (most-recent row's
+  // created_at); RLS-scoped through the user client so it can only
+  // see their own messages. Only fires above a 6h threshold so a
+  // quick reopen doesn't get a "hey stranger" greeting.
+  let hoursSinceLastMessage: number | null = null;
+  if (profile.active_oracle_id) {
+    const { data: lastMsgRow } = await supabase
+      .from("messages")
+      .select("created_at")
+      .eq("oracle_id", profile.active_oracle_id)
+      .eq("user_id", user.id)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    hoursSinceLastMessage = lastMsgRow?.created_at
+      ? (Date.now() - new Date(lastMsgRow.created_at as string).getTime()) /
+        3_600_000
+      : null;
+  }
+  const gapPart =
+    hoursSinceLastMessage !== null && hoursSinceLastMessage > 6 && !memorialMode
+      ? `\n\n== Gap since you last talked ==\nIt's been ${formatGap(hoursSinceLastMessage)} since your last exchange. Greet accordingly — as if returning after a real gap, not mid-thread.`
+      : "";
+
   const wokenPart = sleeping && !memorialMode
     ? `\n\nIt is currently ${localTimeLabel(effectiveTimezone)} where you live. You were asleep, but the user kept messaging until you replied. You're groggy, slightly short. Acknowledge that briefly — the way a real person would when woken up — then engage with what they're saying. Don't be cheerful about being awake.`
     : "";
@@ -926,7 +965,7 @@ This is a chapter3five archive — built from the answers ${characterName} gave 
 
 ${PERSONA_RULES}
 
-${langInstruction}${stylePart}${personalityPart}${flavorPart}${bioPart}${locationPart}${traitsPart}${sportsPart}${castPart}${statePart}${wokenPart}${memorialPart}${inheritedPart}${aboutThemPart}${todayPart}${memoriesBlock}
+${langInstruction}${stylePart}${personalityPart}${flavorPart}${bioPart}${locationPart}${traitsPart}${sportsPart}${castPart}${statePart}${wokenPart}${memorialPart}${inheritedPart}${aboutThemPart}${todayPart}${timeOfDayPart}${gapPart}${memoriesBlock}
 
 ARCHIVE — the actual answers ${characterName} gave. This is who you are. Stay close.
 
@@ -935,7 +974,7 @@ ${archiveBlock}`
 
 ${PERSONA_RULES}
 
-${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${sportsPart}${castPart}${statePart}${wokenPart}${memorialPart}${inheritedPart}${aboutThemPart}${todayPart}${memoriesBlock}`;
+${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${sportsPart}${castPart}${statePart}${wokenPart}${memorialPart}${inheritedPart}${aboutThemPart}${todayPart}${timeOfDayPart}${gapPart}${memoriesBlock}`;
 
   // Tone judge — never overrides a crisis message. Decides whether
   // the persona walks away from this conversation. Permissive by

@@ -42,7 +42,7 @@ import {
   INHERITED_ARCHIVE_RULES,
 } from "@/lib/personaRules";
 import { requireTermsAccepted } from "@/lib/legal/gate";
-import { localDateLabel } from "@/lib/sleep";
+import { formatGap, localDateLabel, timeOfDayLabel } from "@/lib/sleep";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -693,6 +693,23 @@ export async function POST(
       type: "text",
       text: `== Today ==\nToday is ${localDateLabel(null)}. Use this to notice when something they mentioned is coming up has already passed — ask how it went, once, when the moment fits.`,
     });
+    // Loose time-of-day cue for the TIME OF DAY rule. Same server-tz
+    // caveat as todayCue — off by hours in far zones, still fine for
+    // "morning vs. late-night" tone reasoning.
+    system.push({
+      type: "text",
+      text: `== Now ==\nIt's ${timeOfDayLabel(null)} where they are. Let the time shape your cadence; don't announce it.`,
+    });
+    // Gap since the last exchange in this thread — hoursSinceLastUser
+    // is already computed above from the fetched history. FIRST
+    // MESSAGE BACK rule fires when the gap is >6h so a quick reopen
+    // doesn't get a "hey stranger" greeting.
+    if (hoursSinceLastUser !== null && hoursSinceLastUser > 6) {
+      system.push({
+        type: "text",
+        text: `== Gap since you last talked ==\nIt's been ${formatGap(hoursSinceLastUser)} since their last message. Greet accordingly — as if returning after a real gap, not mid-thread.`,
+      });
+    }
   }
   if (residueBlock) {
     system.push({ type: "text", text: residueBlock });
