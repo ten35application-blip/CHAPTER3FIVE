@@ -538,13 +538,17 @@ function IdentityCountRow({
   quota: number;
   pro: boolean;
 }) {
-  const label = count === 1 ? "1 identity" : `${count} identities`;
+  // Copy 2026-08-03: was "You have 5 of 5 identities" — Wilson
+  // (correctly) felt that read as a hard cap. Reworded to a status
+  // ("in your circle") instead — extras above quota are always
+  // buyable at $5, so the row shouldn't imply a ceiling. Matches the
+  // mobile copy in chapter3five-app/app/settings.tsx byte-for-byte.
+  const mainLine =
+    count === 1
+      ? "1 identity in your circle"
+      : `${count} identities in your circle`;
   const remaining = Math.max(0, quota - count);
   const showRemaining = !pro && count > 0 && remaining > 0;
-  const mainLine =
-    pro && count <= quota
-      ? `You have ${count} of ${quota} identities`
-      : `You have ${label}`;
   return (
     <div className="flex min-h-12 items-center gap-3 px-4 py-2.5">
       <span

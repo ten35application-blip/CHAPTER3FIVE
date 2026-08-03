@@ -70,17 +70,24 @@ export async function isPro(
 export async function isProByUserId(userId: string): Promise<boolean> {
   try {
     const admin = createAdminClient();
-    const { data, error } = await admin
-      .from("profiles")
-      .select("email, pro_until, trial_ends_at")
-      .eq("id", userId)
-      .maybeSingle<{
-        email: string | null;
-        pro_until: string | null;
-        trial_ends_at: string | null;
-      }>();
+    // Email lives on auth.users, NOT public.profiles — selecting
+    // "email" from profiles throws and gets swallowed by the catch
+    // below, silently downgrading admins to non-Pro. Two round-trips
+    // (auth.admin.getUserById + profiles.select) is the price of
+    // fixing that.
+    const [{ data: authRes }, { data, error }] = await Promise.all([
+      admin.auth.admin.getUserById(userId),
+      admin
+        .from("profiles")
+        .select("pro_until, trial_ends_at")
+        .eq("id", userId)
+        .maybeSingle<{
+          pro_until: string | null;
+          trial_ends_at: string | null;
+        }>(),
+    ]);
     if (error || !data) return false;
-    if (isAdmin(data.email)) return true;
+    if (isAdmin(authRes?.user?.email ?? null)) return true;
     const now = Date.now();
     if (data.pro_until && new Date(data.pro_until).getTime() > now) return true;
     if (data.trial_ends_at && new Date(data.trial_ends_at).getTime() > now) {
@@ -268,40 +275,49 @@ export async function canCreateOracle(
 > {
   try {
     const admin = createAdminClient();
-    const [{ data: profile }, { count }] = await Promise.all([
-      admin
-        .from("profiles")
-        .select(
-          "email, pro_until, trial_ends_at, plan_source, free_identity_id, extra_oracle_credits, stripe_customer_id, subscription_tier",
-        )
-        .eq("id", userId)
-        .maybeSingle<{
-          email: string | null;
-          pro_until: string | null;
-          trial_ends_at: string | null;
-          plan_source: string | null;
-          free_identity_id: string | null;
-          extra_oracle_credits: number | null;
-          stripe_customer_id: string | null;
-          subscription_tier: string | null;
-        }>(),
-      admin
-        .from("oracles")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", userId)
-        .eq("is_concierge", false)
-        // Inherited copies (0111) were paid for separately at
-        // redemption and must never eat the user's self-creation
-        // quota.
-        .is("inherited_at", null)
-        .is("deleted_at", null),
-    ]);
+    // Email lives on auth.users, NOT public.profiles — selecting
+    // "email" from profiles throws PGRST-level and the whole gate
+    // fell through to `unknown`, surfacing as "Couldn't check your
+    // plan" on every create attempt (2026-08-03 audit). Fetch from
+    // auth.users in parallel with the profile + oracles count reads
+    // so admin bypass still works and the row-level checks below
+    // never depend on a column that doesn't exist.
+    const [{ data: authRes }, { data: profile }, { count }] =
+      await Promise.all([
+        admin.auth.admin.getUserById(userId),
+        admin
+          .from("profiles")
+          .select(
+            "pro_until, trial_ends_at, plan_source, free_identity_id, extra_oracle_credits, stripe_customer_id, subscription_tier",
+          )
+          .eq("id", userId)
+          .maybeSingle<{
+            pro_until: string | null;
+            trial_ends_at: string | null;
+            plan_source: string | null;
+            free_identity_id: string | null;
+            extra_oracle_credits: number | null;
+            stripe_customer_id: string | null;
+            subscription_tier: string | null;
+          }>(),
+        admin
+          .from("oracles")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", userId)
+          .eq("is_concierge", false)
+          // Inherited copies (0111) were paid for separately at
+          // redemption and must never eat the user's self-creation
+          // quota.
+          .is("inherited_at", null)
+          .is("deleted_at", null),
+      ]);
 
     if (!profile) return { ok: false, reason: "unknown" };
 
+    const userEmail = authRes?.user?.email ?? null;
     const now = Date.now();
     const isProUser =
-      isAdmin(profile.email) ||
+      isAdmin(userEmail) ||
       (profile.pro_until && new Date(profile.pro_until).getTime() > now) ||
       (profile.trial_ends_at &&
         new Date(profile.trial_ends_at).getTime() > now);
@@ -324,7 +340,7 @@ export async function canCreateOracle(
     // and legacy trials have no Stripe customer and stay on the Pro
     // ceiling. Add-on credits stack on top of whichever base applies.
     const isBasicUser =
-      !isAdmin(profile.email) &&
+      !isAdmin(userEmail) &&
       profile.stripe_customer_id !== null &&
       profile.subscription_tier === "basic" &&
       profile.pro_until &&
