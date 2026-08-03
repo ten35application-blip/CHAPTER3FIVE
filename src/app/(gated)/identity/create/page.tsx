@@ -4,7 +4,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PRICING } from "@/lib/pricing";
-import { canCreateOracle } from "@/lib/subscription";
+import { getPlanTier, isPro } from "@/lib/subscription";
+import { isAdmin } from "@/lib/admin/allowlist";
 import { BuyExtraCompanionCTA } from "./BuyExtraCompanionCTA";
 
 export const metadata = {
@@ -14,33 +15,54 @@ export const metadata = {
 /**
  * "Add a companion" — the four ways to grow the account.
  *
- * Wilson's spec, 2026-08-03 rework:
+ * Wilson's spec, 2026-08-03 audit gap #6 rework:
  *
  *   1. Add a companion (random, $5 beyond plan)
- *   2. From a photo    ($5 beyond plan)
+ *   2. From a photo    (photo slot, $5 beyond plan)
  *   3. Me              (free everywhere, one per user)
  *   4. For someone you love (legacy walk, $5 at Finish)
  *
- * Two of the four have a per-card pricing state that depends on the
- * user's current position:
- *   - Cards 1 + 2 read "Included in your plan" when canCreateOracle
- *     returns ok, and "$5" (Stripe checkout) when quota_reached.
- *     Both cards buy the SAME oracle credit — the $5 credit is
- *     quota-agnostic; whichever card the buyer clicks, they can
- *     still spend the resulting slot on either flow. (Restored
- *     'oracle' Stripe purpose → profiles.extra_oracle_credits; the
- *     canCreateOracle math folds credits into baseQuota.)
- *   - Card 3 reads "Free" if no Me identity exists yet, and
- *     "Already created" if one does. Enforced server-side by the
- *     legacy complete route (sameModeCount >= 1 → 409). Me does NOT
- *     eat plan quota per Wilson — see the schema flag in this
- *     session's report; today canCreateOracle counts ALL non-
- *     concierge, non-inherited oracles, so a Me currently DOES
- *     count against the plan ceiling until Wilson approves a
- *     dedicated marker column.
- *   - Card 4 is always "$5 when you finish" — the legacy other-mode
- *     flow already gates the $5 at Finish through
- *     other_identity_create; this page just previews the cost.
+ * TWO INDEPENDENT PER-PLAN QUOTAS drive cards 1 + 2 (per Wilson,
+ * 2026-08-03 — closes the audit gap where a fresh Basic subscriber
+ * saw "$5" on both cards because the placeholder + auto-populate
+ * randoms filled the shared `canCreateOracle` ceiling):
+ *
+ *   RANDOM QUOTA — Basic 2, Pro 4 (from
+ *     PRICING.basicFormulaIdentitiesPerPlan /
+ *     PRICING.formulaIdentitiesPerPlan). Filter is
+ *     is_concierge=false, is_self_archive=false, is_legacy=false,
+ *     is_photo_placeholder=false, creation_source != 'photo',
+ *     inherited_at IS NULL, deleted_at IS NULL.
+ *
+ *   PHOTO SLOT — always 1 per plan; a placeholder is auto-created
+ *     on subscribe and DOES NOT count as spent. The slot is "used"
+ *     only when a filled photo companion exists
+ *     (creation_source='photo' AND is_photo_placeholder=false).
+ *
+ * Per-card state:
+ *   Card 1: randomCount < randomQuota → "Included in your plan"
+ *                                       + Roll a companion CTA
+ *           randomCount >= randomQuota → "$5"
+ *                                       + BuyExtraCompanionCTA (Stripe)
+ *   Card 2: hasUnfilledPlaceholder → "Included in your plan"
+ *                                    + "Bring your photo companion to
+ *                                      life" → /chat/{placeholderId}
+ *           !placeholder && !filled  → "Included in your plan · start
+ *                                       from a photo"
+ *                                       + /identity/from-photo
+ *           hasFilledPhoto           → "$5"
+ *                                       + BuyExtraCompanionCTA (Stripe)
+ *   Card 3: hasMe → "Already created" (no CTA)
+ *           !hasMe → "Free" + Start the walk (self-mode)
+ *   Card 4: always "$5 when you finish" + Start the walk (other-mode)
+ *
+ * Free tier: the two-quota split collapses to a single "you have
+ * exactly one identity ever" gate — profiles.free_identity_id set →
+ * both cards show "$5". A Free user who happens to hold a leftover
+ * placeholder (upgraded then downgraded) can still fill it: card 2's
+ * "hasUnfilledPlaceholder" branch fires before the free-quota fallback.
+ * The server (canCreateOracle) is still the source of truth; this UI
+ * is only what the user reads.
  *
  * Design note: /logo-transparent.png is the two-dots mark with alpha
  * edges, so it floats inside the .hero-orb coral+teal halo without a
@@ -62,32 +84,141 @@ export default async function IdentityCreatePage({
     redirect("/auth/signin");
   }
 
-  // canCreateOracle already stacks extra_oracle_credits on top of the
-  // base plan ceiling, so a user who just came back from the $5 oracle
-  // checkout will read as ok=true here without extra work.
-  const oracleGate = await canCreateOracle(user.id);
-  const overQuota = !oracleGate.ok && oracleGate.reason === "quota_reached";
-
-  // "Has this user already minted a self-mode legacy identity?" — the
-  // legacy complete route enforces one-per-account by JSON filtering,
-  // so we do the same read here to render the card state consistently.
-  // Service-role read: legacy_answers is protected by column grants on
-  // some deployments, and the picker MUST know this to render
-  // correctly whether or not the user's role can read it.
+  // Tier + admin resolution: getPlanTier returns basic|pro|free;
+  // admins are unlimited (tier=pro, unlimited=true). Free-tier gate
+  // still uses profiles.free_identity_id as the ceiling (one identity
+  // ever).
+  const plan = await getPlanTier(supabase);
   const admin = createAdminClient();
-  const { data: legacyRows } = await admin
-    .from("oracles")
-    .select("id, legacy_answers")
-    .eq("user_id", user.id)
-    .eq("is_legacy", true)
-    .is("inherited_at", null)
-    .is("deleted_at", null);
+  const isProUser = await isPro(supabase);
+  const adminBypass = plan.unlimited || isAdmin(user.email);
+
+  // Service-role reads across the board so column grants can't skew
+  // per-card state (Wilson's ask: picker must render consistently
+  // regardless of whether the user role can read a given column).
+  const [
+    { data: profile },
+    { count: randomCountRaw },
+    { count: filledPhotoCountRaw },
+    { data: placeholderRow },
+    { data: legacyRows },
+  ] = await Promise.all([
+    admin
+      .from("profiles")
+      .select("free_identity_id, extra_oracle_credits")
+      .eq("id", user.id)
+      .maybeSingle<{
+        free_identity_id: string | null;
+        extra_oracle_credits: number | null;
+      }>(),
+    // RANDOM count — spec filter: not concierge, not Me, not any
+    // legacy, not inherited, not deleted, not placeholder, and
+    // creation_source != 'photo' (belt: even a filled photo persona
+    // never counts against random).
+    admin
+      .from("oracles")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("is_concierge", false)
+      .eq("is_self_archive", false)
+      .eq("is_legacy", false)
+      .eq("is_photo_placeholder", false)
+      .not("creation_source", "eq", "photo")
+      .is("inherited_at", null)
+      .is("deleted_at", null),
+    // FILLED photo count — a filled photo companion exists when
+    // creation_source='photo' AND is_photo_placeholder=false.
+    admin
+      .from("oracles")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("creation_source", "photo")
+      .eq("is_photo_placeholder", false)
+      .is("inherited_at", null)
+      .is("deleted_at", null),
+    // UNFILLED placeholder — the auto-populate helper's post-subscribe
+    // reservation. Card 2 routes here (/chat/{id}) so the user's next
+    // click lands on PhotoPlaceholderScreen and the existing upload
+    // flow fills the row in place (Phase 4). Never more than one per
+    // user in practice (autoPopulate guards it), but LIMIT 1 defensively.
+    admin
+      .from("oracles")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("is_photo_placeholder", true)
+      .is("inherited_at", null)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle<{ id: string }>(),
+    // Me detection — legacy_answers.subject.mode === 'self'.
+    admin
+      .from("oracles")
+      .select("id, legacy_answers")
+      .eq("user_id", user.id)
+      .eq("is_legacy", true)
+      .is("inherited_at", null)
+      .is("deleted_at", null),
+  ]);
+
+  const randomCount = randomCountRaw ?? 0;
+  const hasFilledPhoto = (filledPhotoCountRaw ?? 0) > 0;
+  const hasUnfilledPlaceholder = Boolean(placeholderRow?.id);
+  const placeholderId = placeholderRow?.id ?? null;
+
   const hasMe = (legacyRows ?? []).some((row) => {
     const mode = (
       row.legacy_answers as { subject?: { mode?: unknown } } | null
     )?.subject?.mode;
     return mode === "self";
   });
+
+  // Per-tier random ceiling. Free's ceiling is "1 identity ever"
+  // (free_identity_id) — the random-count read above is irrelevant
+  // there; the fallback branch below uses free_identity_id directly.
+  const baseRandomQuota =
+    plan.tier === "basic"
+      ? PRICING.basicFormulaIdentitiesPerPlan
+      : PRICING.formulaIdentitiesPerPlan;
+  const extraCredits = profile?.extra_oracle_credits ?? 0;
+
+  // randomOverQuota:
+  //   - Admins: never over.
+  //   - Free: over iff free_identity_id is set (one-identity-ever gate).
+  //   - Basic/Pro: over iff randomCount >= (baseRandomQuota + credits).
+  //     Credits are the shared "extras purchased" pool — bought via the
+  //     $5 BuyExtraCompanionCTA, folded into ceiling by canCreateOracle.
+  //     A user who buys and hasn't spent yet reads as under quota again
+  //     (label flips back to "Included · N remaining" so they can
+  //     actually click Roll and use the credit they paid for).
+  const randomOverQuota = adminBypass
+    ? false
+    : !isProUser
+      ? Boolean(profile?.free_identity_id)
+      : randomCount >= baseRandomQuota + extraCredits;
+
+  const randomRemaining = adminBypass
+    ? null
+    : !isProUser
+      ? null
+      : Math.max(0, baseRandomQuota + extraCredits - randomCount);
+
+  // photoOverQuota:
+  //   - Admins: never over.
+  //   - Any tier with a filled photo already: over (photo slot spent).
+  //     A bought credit does NOT flip the label back — the render
+  //     always prefers "$5" once the slot is filled per Wilson's
+  //     literal spec ("photo slot is used → $5"). If the user wants
+  //     another photo they buy a credit (may double-buy if they
+  //     already hold one from a random overflow — accepted rounding).
+  //   - Free tier + free_identity_id set + no placeholder to fill:
+  //     over (one-identity-ever gate closed on the photo card too).
+  const photoOverQuota = adminBypass
+    ? false
+    : hasFilledPhoto ||
+      (!isProUser &&
+        Boolean(profile?.free_identity_id) &&
+        !hasUnfilledPlaceholder);
 
   // The $5 extra-companion SKU depends on the Stripe env — when it's
   // absent the checkout POST returns 503. Feature-flag the paid CTAs
@@ -132,20 +263,24 @@ export default async function IdentityCreatePage({
         ) : null}
 
         <div className="mt-10 flex w-full flex-col gap-4">
-          {/* Card 1 — random identity. Free while canCreateOracle
-              approves; $5 beyond quota (buys 1 extra_oracle_credit
-              via the restored 'oracle' checkout purpose). */}
+          {/* Card 1 — random identity. "Included in your plan · N
+              remaining" while under the tier's random quota (Basic 2 /
+              Pro 4, plus purchased extra_oracle_credits); "$5" beyond
+              that (buys 1 extra_oracle_credit via the 'oracle'
+              checkout purpose). */}
           <PathCardShell
             title="Add a companion"
             subhead="A random personality written for you in about a minute. No questions, no photo &mdash; you get who you get."
             icon={<SparkIcon />}
             statusLabel={
-              overQuota
+              randomOverQuota
                 ? `$${extraCents / 100}`
-                : "Included in your plan"
+                : randomRemaining !== null
+                  ? `Included in your plan · ${randomRemaining} remaining`
+                  : "Included in your plan"
             }
           >
-            {overQuota ? (
+            {randomOverQuota ? (
               <BuyExtraCompanionCTA
                 checkoutEnabled={extraOracleCheckoutEnabled}
                 priceCents={extraCents}
@@ -161,19 +296,35 @@ export default async function IdentityCreatePage({
             )}
           </PathCardShell>
 
-          {/* Card 2 — photo identity. Same quota + credit as card 1;
-              the $5 credit is shared between the two flows. */}
+          {/* Card 2 — photo identity. Three states, in priority order:
+              (a) unfilled placeholder exists → "Included in your plan"
+                  + route to /chat/{placeholderId} so the existing
+                  PhotoPlaceholderScreen upload flow fills the row
+                  in place (uses the reserved slot, no new insert);
+              (b) no placeholder & no filled photo → "Included · start
+                  from a photo" + /identity/from-photo (rare — happens
+                  when auto-populate hasn't run or the placeholder got
+                  deleted);
+              (c) filled photo exists → "$5" + BuyExtraCompanionCTA. */}
           <PathCardShell
             title="From a photo"
             subhead="Upload a portrait. We read the face and build an identity to match. The photo becomes their face."
             icon={<PhotoIcon />}
             statusLabel={
-              overQuota
-                ? `$${extraCents / 100}`
-                : "Included in your plan"
+              hasUnfilledPlaceholder
+                ? "Included in your plan"
+                : photoOverQuota
+                  ? `$${extraCents / 100}`
+                  : "Included in your plan · start from a photo"
             }
           >
-            {overQuota ? (
+            {hasUnfilledPlaceholder && placeholderId ? (
+              <PillLink
+                href={`/chat/${placeholderId}`}
+                label="Bring your photo companion to life"
+                tone="teal"
+              />
+            ) : photoOverQuota ? (
               <BuyExtraCompanionCTA
                 checkoutEnabled={extraOracleCheckoutEnabled}
                 priceCents={extraCents}
