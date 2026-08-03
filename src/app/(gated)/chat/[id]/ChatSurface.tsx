@@ -13,6 +13,13 @@ export type ChatMessage = {
   createdAt: string;
   readByOracleAt: string | null;
   pending: boolean;
+  /** True when this user turn was refused by the server because the
+   *  persona has blocked the caller. The row was NEVER persisted
+   *  (403 dropped it) — this flag exists purely so the client can
+   *  render the optimistic bubble as "Not delivered" instead of
+   *  pulling it silently, giving the iMessage social signal that
+   *  the message went into a void. Only ever set on user rows. */
+  undelivered?: boolean;
   /** Renderable image URL (signed server-side, or a local preview for
    *  the optimistic bubble). Null for text-only messages. */
   imageUrl: string | null;
@@ -366,14 +373,23 @@ export default function ChatSurface({
           setIsStreaming(false);
           if (res.status === 403) {
             // Blocked mid-session: swap the input row for the blocked
-            // state without a reload. The message never persisted —
-            // pull the optimistic bubble. No retry option.
+            // state without a reload. No retry option.
             const body = (await res.json().catch(() => null)) as {
               error?: string;
             } | null;
             if (body?.error === "blocked") {
               setBlocked(true);
-              setMessages((prev) => prev.filter((m) => m.id !== tempId));
+              // Keep the optimistic bubble so it renders as
+              // "Not delivered" (iMessage social signal). The row
+              // never persisted server-side, but the user sees what
+              // they tried to send fade into a dead-end.
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === tempId
+                    ? { ...m, pending: false, undelivered: true }
+                    : m,
+                ),
+              );
               return;
             }
             if (body?.error === "trial_ended_or_locked") {
@@ -824,14 +840,18 @@ export default function ChatSurface({
                       {m.content && (
                         <div className="relative max-w-[75%] self-end">
                           <div
-                            {...(m.pending || m.id.startsWith("optimistic-")
+                            {...(m.pending || m.undelivered || m.id.startsWith("optimistic-")
                               ? {}
                               : bubbleHandlers(m.id))}
-                            className="rounded-2xl rounded-br-md bg-gradient-cta px-3.5 py-2 text-[15px] leading-snug text-white whitespace-pre-wrap break-words animate-message-pop-right select-none [-webkit-touch-callout:none]"
+                            className={
+                              m.undelivered
+                                ? "rounded-2xl rounded-br-md bg-warm-700/60 px-3.5 py-2 text-[15px] leading-snug text-warm-300 whitespace-pre-wrap break-words select-none [-webkit-touch-callout:none] opacity-70"
+                                : "rounded-2xl rounded-br-md bg-gradient-cta px-3.5 py-2 text-[15px] leading-snug text-white whitespace-pre-wrap break-words animate-message-pop-right select-none [-webkit-touch-callout:none]"
+                            }
                           >
                             {m.content}
                           </div>
-                          {m.theirReaction && (
+                          {m.theirReaction && !m.undelivered && (
                             <ReactionBadge
                               kind={m.theirReaction}
                               side="left"
@@ -840,7 +860,18 @@ export default function ChatSurface({
                           )}
                         </div>
                       )}
-                      {i === lastUserIndex && (
+                      {/* Receipt strip. Show "Not delivered" on any
+                          undelivered bubble (not just the last user
+                          message) so a run of blocked sends all read
+                          as dead-ends, matching iMessage. */}
+                      {m.undelivered ? (
+                        <span
+                          aria-label="Not delivered"
+                          className="pr-1 text-[11px] italic text-warm-400"
+                        >
+                          Not delivered
+                        </span>
+                      ) : i === lastUserIndex ? (
                         <span className="flex items-center gap-1 pr-1 text-[11px] text-warm-400">
                           {m.pending ? (
                             <span aria-label="Sending">
@@ -864,7 +895,7 @@ export default function ChatSurface({
                             </span>
                           )}
                         </span>
-                      )}
+                      ) : null}
                     </div>
                   ) : (
                     <>
@@ -941,12 +972,7 @@ export default function ChatSurface({
           {blocked ? (
             <div className="flex flex-col items-center gap-1.5 px-4 py-4 text-center">
               <p className="text-[15px] leading-snug text-warm-200">
-                This conversation has ended. {name} has stepped away — you
-                can&apos;t message them anymore.
-              </p>
-              <p className="text-[11px] text-warm-400">
-                This is per our Community Guidelines. No refund is issued when
-                an identity blocks you.
+                {name} needed to step away from this conversation.
               </p>
             </div>
           ) : proLocked ? (
