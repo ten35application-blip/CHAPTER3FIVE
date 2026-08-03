@@ -23,16 +23,19 @@ const PRO_ENTITLEMENT_ID = "pro";
 
 /**
  * Which RevenueCat event types should kick the subscribe-time
- * populate? INITIAL_PURCHASE is the obvious one; RENEWAL /
- * UNCANCELLATION / PRODUCT_CHANGE all cover "user just gained (or
- * regained) an active basic/pro entitlement." The helper's
- * top-up-only idempotency means a duplicate fire is a no-op, so
- * the set is inclusive on purpose — a Basic → Pro PRODUCT_CHANGE
- * needs to trigger the extra random-slot top-up.
+ * populate? RENEWAL was intentionally REMOVED here (audit gap #3,
+ * Wilson approval 2026-08-03): a user who deletes an
+ * auto-populated companion (they didn't like Marisol) shouldn't
+ * get her silently re-created every month at renewal. Populate is
+ * a subscribe-time event, not a maintenance one — matches
+ * Stripe's handleInvoicePaid which also does NOT re-populate.
+ *
+ * The three remaining triggers all mark "user just gained (or
+ * regained) an active basic/pro entitlement": fresh purchase,
+ * un-cancel of a still-active sub, product change (Basic→Pro).
  */
 const AUTO_POPULATE_TRIGGER_TYPES = new Set([
   "INITIAL_PURCHASE",
-  "RENEWAL",
   "UNCANCELLATION",
   "PRODUCT_CHANGE",
 ]);
