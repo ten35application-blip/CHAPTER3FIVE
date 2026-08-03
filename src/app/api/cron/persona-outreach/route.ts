@@ -560,17 +560,36 @@ async function fetchMemoryHooks(
   userId: string,
   oracleId: string,
 ): Promise<string[]> {
+  // Reads formula-v4 rows (key / value / importance) — the pre-0060
+  // shape (content / weight / kind, ordered by last_referenced_at)
+  // this function used had zero valid rows post-migration because v4
+  // writers never populate `content`, and the query silently returned
+  // an empty array on every outreach turn. Ported to match
+  // fetchMemoriesForContext in @/lib/memory/retrieve so the two
+  // readers see the same universe of rows. Reserved-underscore keys
+  // (e.g. _session_residue) are internal signals rendered as their
+  // own system blocks by the chat route — skip them here so an
+  // outreach message never asks about a "session residue."
   const admin = createAdminClient();
   const { data } = await admin
     .from("persona_memories")
-    .select("content, weight, kind")
+    .select("key, value")
     .eq("user_id", userId)
     .eq("oracle_id", oracleId)
-    .order("weight", { ascending: false })
-    .order("last_referenced_at", { ascending: false })
+    .not("key", "like", "\\_%")
+    .order("importance", { ascending: false })
+    .order("updated_at", { ascending: false })
     .limit(10);
   return (data ?? [])
-    .map((m) => (typeof m.content === "string" ? scrubForPrompt(m.content) : ""))
+    .map((m) => {
+      const key = typeof m.key === "string" ? m.key : "";
+      const value = typeof m.value === "string" ? m.value : "";
+      if (!value) return "";
+      const scrubbed = scrubForPrompt(value);
+      if (!scrubbed) return "";
+      const label = key.replace(/_/g, " ").trim();
+      return label ? `${label}: ${scrubbed}` : scrubbed;
+    })
     .filter((s) => s.length > 0);
 }
 
