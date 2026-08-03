@@ -315,6 +315,18 @@ export default async function SettingsPage({
             }
             pro={pro}
           />
+          {/* "Add a companion" — routes to the picker at
+              /identity/create, where each card shows its own pricing
+              state (Included / $5 / Free / Already created). Wilson
+              2026-08-03: keep this here so people who want more
+              always know where to go, without settings itself
+              becoming a selling surface — the picker owns the sale. */}
+          <Divider />
+          <NavRow
+            href="/identity/create"
+            icon={<PlusIcon />}
+            label="Add a companion"
+          />
           <div className="px-4 py-4">
             {/* Wilson 2026-08-03: settings shows STATUS + subscription
                 MANAGEMENT only. All purchase entry points (Upgrade,
@@ -710,6 +722,24 @@ function LockIcon() {
     >
       <rect x="3" y="11" width="18" height="11" rx="2" />
       <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    </svg>
+  );
+}
+
+function PlusIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="18"
+      height="18"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M12 5v14M5 12h14" />
     </svg>
   );
 }

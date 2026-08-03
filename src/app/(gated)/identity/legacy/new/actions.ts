@@ -350,12 +350,16 @@ export async function completeLegacyIdentity(payload: {
   // row needs server-only columns (is_legacy, fingerprint) anyway.
   // Ownership is not client-controlled — user_id/created_by come from
   // auth.getUser above and every field was sanitized server-side.
+  // is_self_archive (0125) is stamped true when subject.mode === 'self'
+  // so canCreateOracle can exclude Me from the plan quota tally
+  // (Wilson's Phase-2 lock: "Me is a separate free slot on all tiers").
   const { data: inserted, error: insertError } = await createAdminClient()
     .from("oracles")
     .insert({
       user_id: user.id,
       created_by: user.id,
       is_legacy: true,
+      is_self_archive: subject.mode === "self",
       legacy_answers: { subject, answers },
       traits: persona.traits,
       fingerprint,

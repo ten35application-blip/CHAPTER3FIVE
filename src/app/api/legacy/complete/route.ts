@@ -194,12 +194,16 @@ export async function POST(request: NextRequest) {
 
   // Service-role insert on purpose — see the web action's note (0067+
   // blocks PostgREST-role inserts; server-only columns).
+  // is_self_archive (0125) is stamped true when subject.mode === 'self'
+  // so canCreateOracle can exclude the Me row from the plan quota tally
+  // (Wilson's Phase-2 lock: "Me is a separate free slot on all tiers").
   const { data: inserted, error: insertError } = await createAdminClient()
     .from("oracles")
     .insert({
       user_id: user.id,
       created_by: user.id,
       is_legacy: true,
+      is_self_archive: currentMode === "self",
       legacy_answers: { subject, answers },
       traits: persona.traits,
       fingerprint,

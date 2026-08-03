@@ -309,7 +309,11 @@ export async function canCreateOracle(
           // redemption and must never eat the user's self-creation
           // quota.
           .is("inherited_at", null)
-          .is("deleted_at", null),
+          .is("deleted_at", null)
+          // Me (self-archive, 0125) is a separate free slot on all
+          // tiers per Wilson's Phase-2 lock. Excluded from the
+          // companion tally.
+          .eq("is_self_archive", false),
       ]);
 
     if (!profile) return { ok: false, reason: "unknown" };

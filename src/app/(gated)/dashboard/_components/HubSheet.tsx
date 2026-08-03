@@ -575,25 +575,16 @@ function CreateMenu({
       role="menu"
       className="animate-menu-in absolute right-0 top-11 z-40 w-64 overflow-hidden rounded-2xl bg-ink-soft shadow-[0_20px_44px_-14px_rgba(28,28,26,0.25),_0_8px_20px_rgba(232,138,118,0.15)] ring-1 ring-warm-700"
     >
+      {/* One entry point for every self-creation flow: the "Add a
+          companion" picker at /identity/create. It shows per-card
+          pricing state so a user over their plan quota sees the $5
+          extra-slot CTA on the same surface they came to grow their
+          cast on. Inherit-code redemption stays a separate item since
+          it's not a create flow (someone else made the identity, this
+          only redeems the code). */}
       <CreateMenuItem
-        href="/identity/new"
-        label="New identity"
-        onClick={() => {
-          onClose();
-          onNavigate();
-        }}
-      />
-      <CreateMenuItem
-        href="/identity/from-photo"
-        label="Identity from a photo"
-        onClick={() => {
-          onClose();
-          onNavigate();
-        }}
-      />
-      <CreateMenuItem
-        href="/identity/legacy/new"
-        label="Personal identity"
+        href="/identity/create"
+        label="Add a companion"
         onClick={() => {
           onClose();
           onNavigate();

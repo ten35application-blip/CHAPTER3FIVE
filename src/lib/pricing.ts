@@ -54,7 +54,13 @@ export const PRICING = {
   /** Ceiling on user-created oracles (formula + photo). Inherited
    *  identities are not counted here — they're per-code purchases. */
   totalIdentitiesPerPlan: 5,
-  extraIdentityCents: 500, // $5/mo per identity beyond the base 5
+  /** $5 ONE-TIME per extra companion beyond the plan's ceiling
+   *  (Stripe purpose 'oracle' → profiles.extra_oracle_credits). The
+   *  credit is quota-agnostic — a single purchase raises the shared
+   *  random+photo ceiling by 1 and stays until consumed by creation.
+   *  Was $5/month recurring before the 2026-08-03 rework; the price
+   *  stayed the same but the cadence flipped to one-time. */
+  extraIdentityCents: 500,
   /** NO inherited slot is bundled with any plan since the July 2026
    *  second rework — every inherit-code redemption is the one-time
    *  inheritedSlotPurchaseCents purchase, no exceptions. Kept as an

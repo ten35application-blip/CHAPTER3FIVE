@@ -31,8 +31,19 @@ import { recordPendingPayment } from "@/lib/billing/pendingPayment";
  *     (self-mode stays free). success_url lands the buyer back on
  *     /identity/legacy/new?paid=1 — the last question with a
  *     "You're paid — finish it" CTA.
+ *   - "oracle" — one-time $5 extra-companion credit
+ *     (STRIPE_PRICE_ID_EXTRA_ORACLE). On payment the webhook adds 1
+ *     to profiles.extra_oracle_credits, which canCreateOracle folds
+ *     into the plan's random/photo quota (baseQuota + credits) so a
+ *     user over their tier's ceiling can mint one more self-created
+ *     identity. Same $5 SKU whether the buyer wants a random or a
+ *     from-photo identity — the quota is shared. Restored 2026-08-03
+ *     (was PURGED with the Fable payment audit; the webhook branch
+ *     never came out, so wiring the checkout branch is enough).
+ *     success_url lands the buyer back on /identity/create so they
+ *     can immediately pick which flow to use the new slot on.
  *
- * PURGED 2026-07-28 (Fable payment audit): "randomize", "oracle",
+ * PURGED 2026-07-28 (Fable payment audit): "randomize",
  * "beneficiary_slot", "restore_account", "restore_oracle" — those
  * routes were scrapped in the 2026-06-29 reset. The checkout
  * branches for them survived and would have landed buyers on 404
@@ -46,7 +57,8 @@ export async function POST(request: NextRequest) {
     | "pack_medium"
     | "pack_large"
     | "inherited_slot_purchase"
-    | "other_identity_create";
+    | "other_identity_create"
+    | "oracle";
   let purpose: Purpose | null = null;
   const isPurpose = (v: unknown): v is Purpose =>
     v === "pro_monthly" ||
@@ -55,7 +67,8 @@ export async function POST(request: NextRequest) {
     v === "pack_medium" ||
     v === "pack_large" ||
     v === "inherited_slot_purchase" ||
-    v === "other_identity_create";
+    v === "other_identity_create" ||
+    v === "oracle";
   try {
     const body = await request.clone().json();
     if (isPurpose(body?.purpose)) {
@@ -354,6 +367,59 @@ export async function POST(request: NextRequest) {
       row: {
         user_id: user.id,
         amount_cents: PRICING.otherIdentityCreateCents,
+        currency: "usd",
+        purpose,
+      },
+    });
+    if (!record.ok) return record.response;
+
+    return NextResponse.json({ url: session.url });
+  }
+
+  // One-time extra-companion credit. Same shape as the inherit-slot
+  // and other-identity-create SKUs: real Stripe Price, feature-flagged
+  // on the env so the surface can ship before the Price exists (absent
+  // env → 503; the Add-a-companion card turns that into a graceful
+  // "not configured yet" state). The webhook (checkout.session.completed
+  // branch keyed on purpose='oracle') increments extra_oracle_credits;
+  // canCreateOracle stacks that on top of the base plan ceiling, so a
+  // Basic user at 3-of-3 can create one more random OR photo identity
+  // per credit — the credit is quota-agnostic.
+  if (purpose === "oracle") {
+    const priceId = process.env.STRIPE_PRICE_ID_EXTRA_ORACLE;
+    if (!priceId) {
+      return NextResponse.json(
+        { error: "extra_oracle_checkout_not_configured" },
+        { status: 503 },
+      );
+    }
+
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      payment_method_types: ["card"],
+      customer_email: user.email ?? undefined,
+      line_items: [{ price: priceId, quantity: 1 }],
+      metadata: {
+        user_id: user.id,
+        purpose,
+        purchase_kind: "extra_oracle",
+      },
+      // Back to the picker — the buyer just bought +1 slot, land them
+      // where they choose random vs photo. ?extra=1 lets the client
+      // reveal a "You've got a fresh slot" affirmation without changing
+      // the page structure.
+      success_url: `${origin}/identity/create?extra=1`,
+      cancel_url: `${origin}/identity/create?cancelled=1`,
+    });
+
+    const admin = createAdminClient();
+    const record = await recordPendingPayment({
+      admin,
+      stripe,
+      session,
+      row: {
+        user_id: user.id,
+        amount_cents: PRICING.extraIdentityCents,
         currency: "usd",
         purpose,
       },
