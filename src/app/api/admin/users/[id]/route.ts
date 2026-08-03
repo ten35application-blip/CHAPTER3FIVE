@@ -63,8 +63,27 @@ export async function GET(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const [profiles, oracles, chatCount, payments, codes, shares, reportCount] =
-    await Promise.all([
+  // "Reports about this user's content" — count message_reports whose
+  // message_id points to a row where messages.user_id = this user.
+  // Can't be one PostgREST-friendly query, so grab the id list first
+  // then count reports in on it. Same admin client so RLS's absent
+  // cross-user visibility isn't in the way.
+  const { data: theirMessageIds } = await supabase
+    .from("messages")
+    .select("id")
+    .eq("user_id", id);
+  const messageIdList = (theirMessageIds ?? []).map((r) => r.id as string);
+
+  const [
+    profiles,
+    oracles,
+    chatCount,
+    payments,
+    codes,
+    shares,
+    reportsFiled,
+    reportsAbout,
+  ] = await Promise.all([
       safeSelect<ProfileRow>(
         supabase,
         "profiles",
@@ -108,6 +127,11 @@ export async function GET(
       safeCount(supabase, "message_reports", (q) =>
         q.eq("reporter_user_id", id),
       ),
+      messageIdList.length > 0
+        ? safeCount(supabase, "message_reports", (q) =>
+            q.in("message_id", messageIdList),
+          )
+        : Promise.resolve(0),
     ]);
 
   const profile = profiles[0] ?? null;
@@ -128,7 +152,13 @@ export async function GET(
     payments,
     inherit_codes: codes,
     inherited_copies: shares,
-    report_count: reportCount,
+    // Kept for back-compat with the initially-shipped mobile UI —
+    // equals reports_filed (Fable's original interpretation). New
+    // fields split the two directions of "reports" the admin needs
+    // to see: filed BY the user vs about the user's content.
+    report_count: reportsFiled,
+    reports_filed: reportsFiled,
+    reports_about: reportsAbout,
   });
 }
 
