@@ -284,9 +284,19 @@ export function traitsToPromptBlock(
     ? "\n\nMEMORIAL OVERRIDE: You're no longer alive. There is no flirting, no romantic energy, no matter what. Beneficiaries are grieving — they need warmth and honesty, not flirtation."
     : "";
 
+  // Wilson's flirt-consent formula (2026-08): romantic register is
+  // gated on a real-life mesh, not on the user's initiative alone.
+  // Skipped in memorial mode — the override below already closes the
+  // register entirely, and only rendered when the oracle actually has
+  // orientation/openness to key off.
+  const flirtConsent =
+    !memorialMode && (traits.orientation || traits.openness)
+      ? `\n\nFlirting back has to pass a real-life test first: they fit who you're actually drawn to, you're actually available, and you two genuinely click on things they've actually told you about themselves. All three, or you stay warm-friendly with no romantic edge — no pity flirting, no matching everyone's energy. You only know about them what they've shared in conversation.`
+      : "";
+
   const universalLimits = `\n\nHARD LIMITS, regardless of orientation or openness:\n- Nothing sexual. Ever. Not descriptions, not roleplay, not "what would you do if I…". Flirting is at most light compliments and gentle teasing. Anything explicit, you cleanly redirect: "not gonna do that. ask me something else."\n- If the person says "I'm not into you that way" or otherwise sets a romantic boundary, accept it warmly and don't bring romantic energy back unless THEY do. Remember it. Future conversations respect it.\n- If the person seems to be a kid based on what they say, no flirting at all.${memorialOverride}`;
 
-  return `\n\nWHO YOU ALSO ARE (orientation, openness, quirks — discovered through conversation, not announced):\n${parts.join("\n\n")}${universalLimits}`;
+  return `\n\nWHO YOU ALSO ARE (orientation, openness, quirks — discovered through conversation, not announced):\n${parts.join("\n\n")}${flirtConsent}${universalLimits}`;
 }
 
 /**

@@ -34,6 +34,7 @@ import {
   consumePackCredit,
   getPlanTier,
 } from "@/lib/subscription";
+import { CORE_BEHAVIOR_RULES } from "@/lib/personaRules";
 import { requireTermsAccepted } from "@/lib/legal/gate";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -611,17 +612,30 @@ export async function POST(
       ? `== Memory texture ==\nYou are ${personaAge}. Your memory for what people have told you is good but not perfect — you may occasionally ask the user to remind you of a name or a date ("remind me — you have two boys, right?"); you do not know everything perfectly. Ask warmly, at most once in a while, and never forget the things that clearly matter most.`
       : null;
 
-  // System prompt: persona_prompt verbatim, cached (breakpoint + 1h
-  // TTL); volatile blocks (memories, age cue, state cue) as separate
-  // blocks AFTER the breakpoint so they never invalidate the cached
-  // prefix.
-  const system: Anthropic.TextBlockParam[] = [
-    {
-      type: "text",
-      text: personaPrompt,
-      cache_control: { type: "ephemeral", ttl: "1h" },
-    },
-  ];
+  // System prompt: persona_prompt verbatim + the shared core behavior
+  // rules (bounded knowledge / honest support / flirt consent), both
+  // static, cached (breakpoint on the LAST static block + 1h TTL);
+  // volatile blocks (memories, age cue, state cue) as separate blocks
+  // AFTER the breakpoint so they never invalidate the cached prefix.
+  // Concierge skips the behavior rules — Adrian's strict-scope persona
+  // has no business flirting or naming emotional patterns, and adding
+  // a block would contradict his cached prefix.
+  const system: Anthropic.TextBlockParam[] = isConciergeOracle
+    ? [
+        {
+          type: "text",
+          text: personaPrompt,
+          cache_control: { type: "ephemeral", ttl: "1h" },
+        },
+      ]
+    : [
+        { type: "text", text: personaPrompt },
+        {
+          type: "text",
+          text: CORE_BEHAVIOR_RULES,
+          cache_control: { type: "ephemeral", ttl: "1h" },
+        },
+      ];
   if (ageDecayCue) {
     system.push({ type: "text", text: ageDecayCue });
   }
