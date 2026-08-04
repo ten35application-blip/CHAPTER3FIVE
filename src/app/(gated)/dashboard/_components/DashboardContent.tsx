@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SwipeRow } from "./SwipeRow";
 import {
   archiveIdentity,
@@ -185,33 +185,106 @@ function PinnedStrip({
             const unread = !p.is_photo_placeholder && (p.manually_unread || p.auto_unread);
             return (
               <li key={p.id} className="flex-shrink-0">
-                <Link
-                  href={
-                    locked
-                      ? `/upgrade?next=${encodeURIComponent(`/chat/${p.id}`)}`
-                      : `/chat/${p.id}`
-                  }
-                  className={`flex w-[68px] flex-col items-center rounded-2xl px-1.5 py-2 text-center transition-colors active:opacity-60 ${
-                    unread ? "bg-unread-wash" : ""
-                  }`}
-                >
-                  <PinnedAvatar name={p.name} url={p.avatar_url} />
-                  <span
-                    className={`mt-1.5 max-w-full truncate text-[11px] ${
-                      unread
-                        ? "font-bold text-warm-100"
-                        : "font-medium text-warm-200"
-                    }`}
-                  >
-                    {p.name}
-                  </span>
-                </Link>
+                <PinnedTile p={p} locked={locked} unread={unread} />
               </li>
             );
           })}
         </ul>
       </div>
     </section>
+  );
+}
+
+/**
+ * One tile in the PINNED strip.
+ *
+ * Tap opens the thread. HOLD unpins it (Wilson 2026-08-03: "when you
+ * hold down a favorite after hitting the star on them, you should be
+ * able to unfavorite them and send them back down to the list").
+ * Starred identities are filtered OUT of the main list, so before this
+ * the only unstar control lived on a row that no longer rendered —
+ * pinning was effectively one-way on both surfaces.
+ *
+ * Mobile does this with Pressable's onLongPress + a Medium impact
+ * haptic; this is the same gesture with the same 400ms threshold, built
+ * on pointer events so it works for touch, pen and mouse alike.
+ */
+function PinnedTile({
+  p,
+  locked,
+  unread,
+}: {
+  p: Identity;
+  locked: boolean;
+  unread: boolean;
+}) {
+  const timerRef = useRef<number | null>(null);
+  // Set when the hold completes, and read by the click handler that
+  // fires immediately afterwards on touch. Without it, releasing a
+  // long-press would ALSO navigate into the thread the user was trying
+  // to unpin. A ref, not state: the click lands in the same tick and
+  // must observe the write synchronously.
+  const heldRef = useRef(false);
+
+  const cancelHold = useCallback(() => {
+    if (timerRef.current !== null) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
+  // Don't leave a timer running into unmount — it would call a server
+  // action against a tile that no longer exists.
+  useEffect(() => cancelHold, [cancelHold]);
+
+  const beginHold = useCallback(() => {
+    heldRef.current = false;
+    cancelHold();
+    timerRef.current = window.setTimeout(() => {
+      heldRef.current = true;
+      // Mobile fires a Medium impact here. Vibration is the closest web
+      // equivalent and is unsupported on iOS Safari, so it's a nicety,
+      // never the confirmation — the tile leaving the strip is.
+      navigator.vibrate?.(10);
+      void toggleStar(p.id, false);
+    }, 400);
+  }, [cancelHold, p.id]);
+
+  return (
+    <Link
+      href={
+        locked
+          ? `/upgrade?next=${encodeURIComponent(`/chat/${p.id}`)}`
+          : `/chat/${p.id}`
+      }
+      onPointerDown={beginHold}
+      onPointerUp={cancelHold}
+      onPointerLeave={cancelHold}
+      onPointerCancel={cancelHold}
+      // Long-press on a link pops the native callout menu on iOS Safari
+      // and Android Chrome, which would eat the gesture entirely.
+      onContextMenu={(e) => e.preventDefault()}
+      onClick={(e) => {
+        if (heldRef.current) {
+          e.preventDefault();
+          heldRef.current = false;
+        }
+      }}
+      aria-label={`${p.name} — open conversation`}
+      title="Hold to unpin from favorites"
+      className={`flex w-[68px] flex-col items-center rounded-2xl px-1.5 py-2 text-center transition-colors select-none active:opacity-60 [-webkit-touch-callout:none] ${
+        unread ? "bg-unread-wash" : ""
+      }`}
+    >
+      <PinnedAvatar name={p.name} url={p.avatar_url} />
+      <span
+        className={`mt-1.5 max-w-full truncate text-[11px] ${
+          unread ? "font-bold text-warm-100" : "font-medium text-warm-200"
+        }`}
+      >
+        {p.name}
+      </span>
+    </Link>
   );
 }
 

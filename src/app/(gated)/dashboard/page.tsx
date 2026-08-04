@@ -243,6 +243,40 @@ export default async function DashboardPage({
         last_message_at: last?.created_at ?? null,
         last_message_from_user: last?.role === "user",
       };
+    })
+    // Inbox order — NOT the query's ORDER BY. The Postgres sort above
+    // orders `oracles` by the identity's own created_at, i.e. the date
+    // the persona was made, which has nothing to do with conversation
+    // activity: a persona created last week that just texted you sorted
+    // BELOW one created today that has been silent for hours (Wilson
+    // 2026-08-03: "the new message is in the bottom when it's supposed
+    // to go to the top"). last_message_at only exists after the
+    // reduction above, so the real ordering has to happen here.
+    //
+    // Comparator is a port of mobile app/dashboard.tsx, tiebreak for
+    // tiebreak, so both inboxes read identically:
+    //   1. threads with messages, newest activity first
+    //   2. never-messaged identities after them
+    //   3. concierge (Adrian) first among the never-messaged, so the
+    //      guide stays discoverable on a fresh account
+    // Starred rows are absent from this list entirely (568f5f5) — they
+    // render only in the PINNED strip — so no is_starred tiebreak is
+    // needed here.
+    .sort((a, b) => {
+      if (a.last_message_at && b.last_message_at) {
+        // Epoch millis, not string compare: these timestamps are
+        // rendered elsewhere from mixed sources ("+00:00" vs "Z"
+        // suffixes) and lexicographic ordering breaks across them.
+        return (
+          new Date(b.last_message_at).getTime() -
+          new Date(a.last_message_at).getTime()
+        );
+      }
+      if (a.last_message_at) return -1;
+      if (b.last_message_at) return 1;
+      if (a.is_concierge && !b.is_concierge) return -1;
+      if (b.is_concierge && !a.is_concierge) return 1;
+      return 0;
     });
 
   // Archived conversations — for the archive sub-panel. The identity

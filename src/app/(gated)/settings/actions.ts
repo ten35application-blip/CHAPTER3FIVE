@@ -342,3 +342,37 @@ export async function sendPasswordResetEmail(): Promise<
   }
   return { ok: true };
 }
+
+/**
+ * Notification preference — the single opt-out for every message a
+ * persona sends you first.
+ *
+ * `profiles.outreach_enabled` is what all four outreach crons filter
+ * on (persona-outreach, proactive, check-in/outreach, anniversaries),
+ * so flipping this off stops proactive texts at the source rather than
+ * merely suppressing the banner. That's deliberate: in a grief app,
+ * "stop contacting me" has to mean the message is never composed, not
+ * that it lands silently and ambushes the user in the list later.
+ *
+ * Mirrored by the mobile Settings toggle (app/settings.tsx) — both
+ * surfaces read and write this one column so the preference follows the
+ * account, not the device. Device-level OS permission is separate and
+ * lives in iOS Settings; this is the account-level intent.
+ */
+export async function setOutreachEnabled(
+  enabled: boolean,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { supabase, user } = await requireUser();
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ outreach_enabled: enabled })
+    .eq("id", user.id);
+  if (error) {
+    console.error("[notifications] outreach toggle failed:", error);
+    return { ok: false, error: "Couldn't save that. Try again." };
+  }
+
+  revalidatePath("/settings");
+  return { ok: true };
+}

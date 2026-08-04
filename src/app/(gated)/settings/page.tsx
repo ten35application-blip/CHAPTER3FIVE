@@ -17,6 +17,7 @@ import { PacksList } from "./_components/PacksList";
 import { PasswordResetRow } from "./_components/PasswordResetRow";
 import { PhotoUploader } from "./_components/PhotoUploader";
 import { ThemeToggle } from "./_components/ThemeToggle";
+import { NotificationsToggle } from "./_components/NotificationsToggle";
 import { UpgradeButton } from "./_components/UpgradeButton";
 
 export const metadata = {
@@ -81,7 +82,7 @@ export default async function SettingsPage({
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "avatar_url, full_name, stripe_customer_id, current_period_end, cancel_at_period_end, plan_source, trial_ends_at",
+      "avatar_url, full_name, stripe_customer_id, current_period_end, cancel_at_period_end, plan_source, trial_ends_at, outreach_enabled",
     )
     .eq("id", user.id)
     .maybeSingle();
@@ -354,6 +355,19 @@ export default async function SettingsPage({
 
         {/* Extra usage section removed 2026-08-03: add-on packs now
             live only on /upgrade, reachable via the dashboard chip. */}
+
+        {/* NOTIFICATIONS — account-level opt-out for unprompted
+            messages. Writes profiles.outreach_enabled, the column the
+            outreach crons filter on, so OFF stops the message being
+            composed at all rather than just hiding the banner. Mirrors
+            the mobile Settings toggle (Wilson 2026-08-03: "make sure
+            mobile settings and web settings both have the settings open
+            for notifications"). */}
+        <Section label="Notifications">
+          <NotificationsToggle
+            initial={profile?.outreach_enabled !== false}
+          />
+        </Section>
 
         {/* APPEARANCE — theme picker. Client-only state; localStorage
             persists across visits; the inline script in RootLayout
