@@ -1,7 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { CRON_MAX_DURATION } from "@/lib/cron/budget";
 
 export const runtime = "nodejs";
+export const maxDuration = CRON_MAX_DURATION;
 
 /**
  * Daily purge cron — runs at 06:00 UTC (just after midnight US-East).

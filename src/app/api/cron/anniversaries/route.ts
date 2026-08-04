@@ -6,8 +6,10 @@ import { openerVarietyBlock } from "@/lib/identity/opener";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendPushToUser } from "@/lib/push";
 import { moderateText } from "@/lib/moderation";
+import { CRON_MAX_DURATION, startCronBudget } from "@/lib/cron/budget";
 
 export const runtime = "nodejs";
+export const maxDuration = CRON_MAX_DURATION;
 
 /**
  * Daily anniversary cron — runs at 14:00 UTC (~10am US East,
@@ -107,6 +109,8 @@ export async function GET(request: NextRequest) {
 
   const admin = createAdminClient();
   const startedAt = Date.now();
+  const budget = startCronBudget(startedAt);
+  let skippedForTime = 0;
 
   // Eligible: not soft-deleted, not deceased, opted into outreach,
   // onboarding complete, has an active oracle.
@@ -136,6 +140,13 @@ export async function GET(request: NextRequest) {
   const errors: string[] = [];
 
   for (const p of (candidates ?? []) as ProfileRow[]) {
+    // Stop on our own terms rather than being killed mid-loop. See
+    // lib/cron/budget.ts — a truncated run used to write no heartbeat
+    // at all, so nobody could tell it had been cut short.
+    if (budget.exhausted()) {
+      skippedForTime++;
+      continue;
+    }
     if (!p.active_oracle_id) continue;
     const todayMD = localMonthDay(p.timezone);
 
@@ -347,5 +358,5 @@ ${variety}
     error: errors.length > 0 ? errors.slice(0, 5).join("; ") : null,
   });
 
-  return NextResponse.json({ sent, errors });
+  return NextResponse.json({ sent, errors, skippedForTime });
 }

@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { recordAnthropicSpend } from "@/lib/spendGovernor";
+import { CRON_MAX_DURATION, startCronBudget } from "@/lib/cron/budget";
 import {
   MEMORY_JSON_SCHEMA,
   coerceMemories,
@@ -9,6 +10,7 @@ import {
 } from "@/lib/memory/extract";
 
 export const runtime = "nodejs";
+export const maxDuration = CRON_MAX_DURATION;
 
 /**
  * Weekly reflection cron — Sundays 09:00 UTC.
@@ -49,6 +51,8 @@ export async function GET(request: NextRequest) {
 
   const admin = createAdminClient();
   const startedAt = Date.now();
+  const budget = startCronBudget(startedAt);
+  let skippedForTime = 0;
   const sevenAgo = new Date(startedAt - SEVEN_DAYS).toISOString();
 
   // Eligibility: profile not soft-deleted, not deceased, has an
@@ -66,6 +70,13 @@ export async function GET(request: NextRequest) {
   const errors: string[] = [];
 
   for (const profile of candidates ?? []) {
+    // Stop on our own terms rather than being killed mid-loop. See
+    // lib/cron/budget.ts — a truncated run used to write no heartbeat
+    // at all, so nobody could tell it had been cut short.
+    if (budget.exhausted()) {
+      skippedForTime++;
+      continue;
+    }
     if (!profile.active_oracle_id) continue;
     try {
       // Pull the last week of messages for this (user, oracle). Skip
@@ -191,5 +202,5 @@ Skip anything that's just a restatement of an existing memory. NEVER record cris
     error: errors.length > 0 ? errors.slice(0, 5).join("; ") : null,
   });
 
-  return NextResponse.json({ reflected, errors });
+  return NextResponse.json({ reflected, errors, skippedForTime });
 }

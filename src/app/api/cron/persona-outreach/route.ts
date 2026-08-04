@@ -18,6 +18,10 @@ import {
 import { isProByUserId } from "@/lib/subscription";
 import { sendWebPushToUser } from "@/lib/webPush";
 import { sendPushToUser } from "@/lib/push";
+import { CRON_MAX_DURATION, startCronBudget } from "@/lib/cron/budget";
+
+export const runtime = "nodejs";
+export const maxDuration = CRON_MAX_DURATION;
 
 /**
  * Hourly persona-outreach worker. For each opted-in user we pick at
@@ -55,6 +59,8 @@ export async function GET(request: NextRequest) {
 
   const admin = createAdminClient();
   const startedAt = Date.now();
+  const budget = startCronBudget(startedAt);
+  let skippedForTime = 0;
   const now = new Date(startedAt);
 
   // Candidate users: opted in, onboarded, alive, undeleted, with a push
@@ -95,6 +101,13 @@ export async function GET(request: NextRequest) {
   const twentyFourAgo = new Date(startedAt - 24 * HOUR).toISOString();
 
   for (const profile of candidates) {
+    // Stop on our own terms rather than being killed mid-loop. See
+    // lib/cron/budget.ts — a truncated run used to write no heartbeat
+    // at all, so nobody could tell it had been cut short.
+    if (budget.exhausted()) {
+      skippedForTime++;
+      continue;
+    }
     try {
       // Local-time gate.
       if (!withinLocalWindow(now, profile.timezone as string | null)) continue;
@@ -496,7 +509,7 @@ export async function GET(request: NextRequest) {
     duration_ms: Date.now() - startedAt,
   });
 
-  return NextResponse.json({ sent });
+  return NextResponse.json({ sent, skippedForTime });
 }
 
 /* ------------------------------------------------------------------ */

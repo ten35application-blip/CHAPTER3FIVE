@@ -1,12 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { CRON_MAX_DURATION } from "@/lib/cron/budget";
 import {
   sendBeneficiaryActivationEmail,
   recordAudit,
 } from "@/lib/notifications";
 
 export const runtime = "nodejs";
+export const maxDuration = CRON_MAX_DURATION;
 
 /**
  * Daily passing-report cron. For each report whose 72h veto window

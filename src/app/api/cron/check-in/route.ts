@@ -6,8 +6,10 @@ import { recordAnthropicSpend } from "@/lib/spendGovernor";
 import { openerVarietyBlock } from "@/lib/identity/opener";
 import { sendPushToUser } from "@/lib/push";
 import { moderateText } from "@/lib/moderation";
+import { CRON_MAX_DURATION, startCronBudget } from "@/lib/cron/budget";
 
 export const runtime = "nodejs";
+export const maxDuration = CRON_MAX_DURATION;
 
 /**
  * Hourly check-in cron. Walks chat_blocks rows whose cooldown has
@@ -30,6 +32,8 @@ export async function GET(request: NextRequest) {
 
   const admin = createAdminClient();
   const startedAt = Date.now();
+  const budget = startCronBudget(startedAt);
+  let skippedForTime = 0;
 
   const { data: rows, error } = await admin
     .from("chat_blocks")
@@ -53,6 +57,13 @@ export async function GET(request: NextRequest) {
   const failures: string[] = [];
 
   for (const row of rows ?? []) {
+    // Stop on our own terms rather than being killed mid-loop. See
+    // lib/cron/budget.ts — a truncated run used to write no heartbeat
+    // at all, so nobody could tell it had been cut short.
+    if (budget.exhausted()) {
+      skippedForTime++;
+      continue;
+    }
     try {
       const { data: oracle } = await admin
         .from("oracles")
@@ -228,6 +239,7 @@ ${variety}`;
   });
 
   return NextResponse.json({
+    skippedForTime,
     processed: rows?.length ?? 0,
     sent,
     failures: failures.length,

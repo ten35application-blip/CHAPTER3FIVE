@@ -2,6 +2,10 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { normalizeLanguage } from "@/lib/i18n/language";
 import { sendOutreachEmail } from "@/lib/notifications";
+import { CRON_MAX_DURATION } from "@/lib/cron/budget";
+
+export const runtime = "nodejs";
+export const maxDuration = CRON_MAX_DURATION;
 
 /**
  * Daily cron — emails users whose identities haven't heard from them in a

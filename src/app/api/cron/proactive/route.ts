@@ -1,5 +1,17 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { CRON_MAX_DURATION } from "@/lib/cron/budget";
+
+export const runtime = "nodejs";
+export const maxDuration = CRON_MAX_DURATION;
+
+// NOTE: THIS CRON IS A NO-OP. The loop below `continue`s for every
+// candidate — proactive outreach was paused pending the rewire onto
+// oracles.legacy_answers and never came back. It still runs daily at
+// 17:00 UTC and still reports a heartbeat, so from the outside it looks
+// like a healthy job that simply never has anyone to message. It has no
+// time budget for the same reason: there is no work to budget.
+// Either finish the rewire or drop it from vercel.json.
 // anthropic / spendGovernor / opener / arc / sendPushToUser imports
 // removed with the neuter -- they'll come back with the legacy_answers
 // rewire when the compose+push body returns.
@@ -27,6 +39,7 @@ export async function GET(request: NextRequest) {
   const admin = createAdminClient();
 
   const now = Date.now();
+
   const sevenAgo = new Date(now - SEVEN_DAYS).toISOString();
   const thirtyAgo = new Date(now - THIRTY_DAYS).toISOString();
 
@@ -63,7 +76,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ sent: 0 });
   }
 
-  let sent = 0;
+  const sent = 0;
   for (const profile of candidates) {
     if (!profile.active_oracle_id) continue;
 
