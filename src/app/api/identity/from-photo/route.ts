@@ -186,9 +186,37 @@ export async function POST(request: NextRequest) {
           422,
         );
       }
+      if (err.kind === "network") {
+        // Anthropic call failed (rate limit, timeout, transport).
+        // Surface as retryable + include the specific SDK message so
+        // the caller can tell us WHICH failure mode (2026-08-04
+        // diagnostic pass — remove the (${err.message}) suffix once
+        // the ramp bug is fingerprinted).
+        return fail(
+          `Our image analysis is having a moment (${err.message}). Try again in a few seconds.`,
+          502,
+        );
+      }
+      if (err.kind === "malformed") {
+        // 4xx from Anthropic OR unparseable response. Include the
+        // SDK message so we can distinguish schema-rejection from
+        // model-outputted-prose. Retrying a 4xx won't help — user
+        // needs the info.
+        return fail(
+          `We got an odd response reading that photo (${err.message}). Try a different image.`,
+          502,
+        );
+      }
     }
+    // Unknown non-VisionAnalysisError. Include the underlying message
+    // in the response so a user hitting this can actually tell us
+    // what's happening (dev-friendly during the ramp; safe to leave
+    // because the message text carries no secrets — just JS error
+    // strings). Server-side console.error above still fires so Vercel
+    // logs correlate.
+    const detail = err instanceof Error ? err.message : "unknown";
     return fail(
-      "Something went wrong reading the photo. Try again in a moment.",
+      `Something went wrong reading the photo (${detail}). Try again in a moment.`,
       500,
     );
   }

@@ -131,10 +131,33 @@ export async function analyzePhotoForIdentity(
       ],
     });
   } catch (err) {
-    throw new VisionAnalysisError(
-      err instanceof Error ? err.message : "network error",
-      "network",
+    // Diagnostic error surface (2026-08-04, in response to a
+    // Wilson-hit "Something went wrong reading the photo" that gave
+    // no clue as to which layer failed). Anthropic SDK exposes
+    // `.status` on APIError responses — carry it through so the
+    // caller can render "network" (5xx / transport) vs "malformed"
+    // (4xx client rejection) with a specific model+status
+    // fingerprint. Console.error stamps it for Vercel too.
+    const detail = err instanceof Error ? err.message : String(err);
+    const status =
+      typeof err === "object" && err !== null && "status" in err
+        ? (err as { status?: unknown }).status
+        : undefined;
+    const suffix =
+      typeof status === "number" ? ` [status ${status}]` : "";
+    console.error(
+      `[vision] anthropic call failed (model=${ANTHROPIC_MODEL}, media=${mediaType}, bytes=${imageBytes.length}, status=${status ?? "none"}):`,
+      err,
     );
+    // 4xx = the request itself was rejected (bad schema, unsupported
+    // feature, invalid image). Surface as "malformed" so the caller
+    // shows a "we got a weird response" message, not a "try again in
+    // a few seconds" retry prompt (retrying a 4xx won't help).
+    const kind: "malformed" | "network" =
+      typeof status === "number" && status >= 400 && status < 500
+        ? "malformed"
+        : "network";
+    throw new VisionAnalysisError(`${detail}${suffix}`, kind);
   }
 
   // Safety gate #1: the model declined to look at this image at all.

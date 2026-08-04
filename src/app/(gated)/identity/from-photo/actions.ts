@@ -130,10 +130,34 @@ export async function createIdentityFromPhoto(
           err,
         );
       }
+      if (err.kind === "network") {
+        // Include SDK message so the user can tell us WHICH failure
+        // mode (2026-08-04 diagnostic — dial back once fingerprinted).
+        redirectWithError(
+          ERROR_PATH,
+          `Our image analysis is having a moment (${err.message}). Try again in a few seconds.`,
+          err,
+        );
+      }
+      if (err.kind === "malformed") {
+        // 4xx from Anthropic OR unparseable JSON. Surface the SDK
+        // message so we can distinguish schema-rejection from
+        // model-prose. Retry won't help a 4xx.
+        redirectWithError(
+          ERROR_PATH,
+          `We got an odd response reading that photo (${err.message}). Try a different image.`,
+          err,
+        );
+      }
     }
+    // Unknown non-VisionAnalysisError — include the JS message so a
+    // user hitting this can actually tell us what's happening (safe:
+    // the message text carries no secrets, just JS strings). Vercel
+    // console.error above still captures the full stack.
+    const detail = err instanceof Error ? err.message : "unknown";
     redirectWithError(
       ERROR_PATH,
-      "Something went wrong reading the photo. Try again in a moment.",
+      `Something went wrong reading the photo (${detail}). Try again in a moment.`,
       err,
     );
   }
