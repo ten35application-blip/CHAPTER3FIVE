@@ -313,7 +313,19 @@ export async function canCreateOracle(
           // Me (self-archive, 0125) is a separate free slot on all
           // tiers per Wilson's Phase-2 lock. Excluded from the
           // companion tally.
-          .eq("is_self_archive", false),
+          .eq("is_self_archive", false)
+          // Audit-fix 2026-08-04: legacy identities (both self-mode
+          // Me AND other-mode "for someone you love") are paid /
+          // gated separately from plan quota. Me was already
+          // excluded above via is_self_archive; excluding is_legacy
+          // catches other-mode too — those cost $5 at legacy
+          // complete-route regardless of tier, and were previously
+          // silently eating a plan slot on top of the $5. This also
+          // aligns the server with the picker's client-side count
+          // (create/page.tsx + create.tsx), which already excludes
+          // is_legacy — killing a "picker says 1 remaining, server
+          // 409s" surprise for users with a legacy-other + randoms.
+          .eq("is_legacy", false),
       ]);
 
     if (!profile) return { ok: false, reason: "unknown" };
