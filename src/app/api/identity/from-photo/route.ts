@@ -20,6 +20,7 @@ import {
 import { requireTermsAccepted } from "@/lib/legal/gate";
 import { canCreateOracle, claimFreeIdentitySlot } from "@/lib/subscription";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { randomUUID } from "node:crypto";
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024; // 5 MB
 const MAX_FINGERPRINT_REROLLS = 5;
@@ -361,7 +362,18 @@ export async function POST(request: NextRequest) {
   }
 
   // The user's photo IS the avatar — no Replicate for this path.
-  const storagePath = `user-uploaded/${oracleId}.png`;
+    // UNGUESSABLE PATH (2026-08-04). This used to be a deterministic key.
+  // The `avatars` bucket is PUBLIC — objects are served with no auth at
+  // all — so anyone who could compute the key could fetch the image.
+  // Same key as the web action: the oracle id, which sits in the address
+  // bar at /chat/{oracleId}. On this path the user's photo IS the
+  // avatar, so a reconstructed URL returned a photograph of a real
+  // person.
+  // A random component makes the URL a capability: it works if you were
+  // given it, and is not derivable from anything a person might see.
+  // Nothing re-derives this key — it is written to oracles.avatar_url
+  // once and read from there forever, including by the purge cron.
+const storagePath = `user-uploaded/${oracleId}-${randomUUID()}.png`;
   const { error: uploadError } = await admin.storage
     .from("avatars")
     // Typed-Blob wrap, not the raw Buffer — same Next-16 fetch note as

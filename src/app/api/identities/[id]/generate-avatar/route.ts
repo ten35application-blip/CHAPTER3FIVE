@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateImage, stableSeed } from "@/lib/replicate";
+import { randomUUID } from "node:crypto";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -83,7 +84,17 @@ ${bioBlock || oracle.name || "an adult"}`;
   const buf = Buffer.from(await imgRes.arrayBuffer());
 
   const admin = createAdminClient();
-  const filename = `${Date.now()}-ai.webp`;
+    // UNGUESSABLE PATH (2026-08-04). This used to be a deterministic key.
+  // The `avatars` bucket is PUBLIC — objects are served with no auth at
+  // all — so anyone who could compute the key could fetch the image.
+  // The key was {user_id}/{millisecond timestamp}-ai.webp. This one is a
+  // generated face rather than a photograph, so the stakes are lower —
+  // but there is no reason to leave it enumerable.
+  // A random component makes the URL a capability: it works if you were
+  // given it, and is not derivable from anything a person might see.
+  // Nothing re-derives this key — it is written to oracles.avatar_url
+  // once and read from there forever, including by the purge cron.
+const filename = `${randomUUID()}-ai.webp`;
   const path = `${user.id}/${filename}`;
 
   const { error: uploadErr } = await admin.storage

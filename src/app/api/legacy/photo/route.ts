@@ -3,6 +3,7 @@ import sharp from "sharp";
 import { getRequestAuth } from "@/lib/api/mobileAuth";
 import { requireTermsAccepted } from "@/lib/legal/gate";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { randomUUID } from "node:crypto";
 
 const ACCEPTED_LEGACY_PHOTO_MIMES: readonly string[] = [
   "image/jpeg",
@@ -65,7 +66,17 @@ export async function POST(request: NextRequest) {
   }
 
   const admin = createAdminClient();
-  const storagePath = `legacy/${user.id}/${Date.now()}.jpg`;
+    // UNGUESSABLE PATH (2026-08-04). This used to be a deterministic key.
+  // The `avatars` bucket is PUBLIC — objects are served with no auth at
+  // all — so anyone who could compute the key could fetch the image.
+  // The key was {user_id}/{millisecond timestamp} — enumerable in a few
+  // thousand guesses by anyone holding the user id. What it returned is
+  // a photograph of someone's dead relative.
+  // A random component makes the URL a capability: it works if you were
+  // given it, and is not derivable from anything a person might see.
+  // Nothing re-derives this key — it is written to oracles.avatar_url
+  // once and read from there forever, including by the purge cron.
+const storagePath = `legacy/${user.id}/${randomUUID()}.jpg`;
   const { error: uploadError } = await admin.storage
     .from("avatars")
     // Blob wrap forces storage-js's multipart branch — same Next-16

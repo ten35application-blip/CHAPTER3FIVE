@@ -22,6 +22,7 @@ import {
 import { canCreateOracle, claimFreeIdentitySlot } from "@/lib/subscription";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { randomUUID } from "node:crypto";
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024; // 5 MB
 const MAX_FINGERPRINT_REROLLS = 5;
@@ -278,7 +279,20 @@ export async function createIdentityFromPhoto(
   // generated faces; see 0058/0060 notes). The user's photo IS the
   // avatar: this path never calls Replicate. The `admin` client above
   // is reused.
-  const storagePath = `user-uploaded/${oracleId}.png`;
+    // UNGUESSABLE PATH (2026-08-04). This used to be a deterministic key.
+  // The `avatars` bucket is PUBLIC — objects are served with no auth at
+  // all — so anyone who could compute the key could fetch the image.
+  // And the key was the oracle id, which sits in the address bar at
+  // /chat/{oracleId} every time the user opens that conversation. A
+  // screenshot, a shared link, or browser history on a family computer
+  // was enough to reconstruct it — and on THIS path the user's photo IS
+  // the avatar, so what sat at that URL was a photograph of a real
+  // person.
+  // A random component makes the URL a capability: it works if you were
+  // given it, and is not derivable from anything a person might see.
+  // Nothing re-derives this key — it is written to oracles.avatar_url
+  // once and read from there forever, including by the purge cron.
+const storagePath = `user-uploaded/${oracleId}-${randomUUID()}.png`;
   const { error: uploadError } = await admin.storage
     .from("avatars")
     // Typed-Blob wrap, not the raw Buffer: storage-js routes a Buffer

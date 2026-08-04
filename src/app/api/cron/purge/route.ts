@@ -19,6 +19,23 @@ export const runtime = "nodejs";
  * attached to it. Avatar files for that oracle get scrubbed too.
  */
 
+/**
+ * Turn a stored avatar_url into the object key inside the `avatars`
+ * bucket, or null if it isn't one of ours.
+ *
+ * avatar_url holds a full public URL with a ?v= cache-buster. Both purge
+ * paths need the key, and both were open-coding the parse — the
+ * oracle-level one correctly, the account-level one not at all. Shared
+ * so the two can't drift again.
+ */
+function avatarObjectPath(avatarUrl: string | null): string | null {
+  if (!avatarUrl) return null;
+  const marker = "/storage/v1/object/public/avatars/";
+  const at = avatarUrl.indexOf(marker);
+  if (at === -1) return null;
+  return avatarUrl.slice(at + marker.length).split("?")[0] || null;
+}
+
 export async function GET(request: NextRequest) {
   const auth = request.headers.get("authorization");
   if (!process.env.CRON_SECRET || auth !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -45,6 +62,31 @@ export async function GET(request: NextRequest) {
 
   for (const p of accountsToDelete ?? []) {
     try {
+      // READ THE AVATAR PATHS BEFORE THE CASCADE (2026-08-04). Step 1
+      // below deletes auth.users, which cascades `oracles` away — so by
+      // the time storage cleanup runs, avatar_url is gone. The prefix
+      // sweeps further down cover avatars/{user_id}/ and
+      // avatars/legacy/{user_id}/, but a photo uploaded through the
+      // from-photo flow lands at avatars/user-uploaded/{oracle_id}.…,
+      // a FLAT namespace keyed by oracle id with nothing in the path
+      // tying it to this user. No prefix listing can find it.
+      //
+      // That path is the one where "the user's photo IS the avatar" —
+      // an actual photograph of an actual person, on a public bucket.
+      // It survived account deletion entirely. Someone exercising their
+      // right to be forgotten left behind the one image they would
+      // least want left behind, which is also the thing App Store
+      // 5.1.1(v) and the privacy policy both say we delete.
+      //
+      // So: collect the URLs first, delete the objects after.
+      const { data: preCascadeOracles } = await admin
+        .from("oracles")
+        .select("avatar_url")
+        .eq("user_id", p.id);
+      const uploadedAvatarPaths = (preCascadeOracles ?? [])
+        .map((o) => avatarObjectPath(o.avatar_url as string | null))
+        .filter((path): path is string => !!path?.startsWith("user-uploaded/"));
+
       // Order matters (Fable audit):
       //
       // Previously the app-side rows were deleted BEFORE
@@ -112,6 +154,13 @@ export async function GET(request: NextRequest) {
           await admin.storage
             .from("avatars")
             .remove(legacyFiles.map((f) => `legacy/${p.id}/${f.name}`));
+        }
+
+        // The from-photo uploads collected before the cascade. Flat
+        // namespace, oracle-keyed, unreachable by any prefix listing —
+        // see the note at the top of this loop.
+        if (uploadedAvatarPaths.length > 0) {
+          await admin.storage.from("avatars").remove(uploadedAvatarPaths);
         }
       } catch (err) {
         console.error(`purge avatars cleanup failed for ${p.id}`, err);
@@ -188,20 +237,27 @@ export async function GET(request: NextRequest) {
         // photograph on the PUBLIC avatars bucket at a permanent
         // unauthenticated URL — the leak we closed for account deletion,
         // one code path over.
-        const avatarUrl = o.avatar_url as string | null;
-        if (avatarUrl) {
-          const marker = "/storage/v1/object/public/avatars/";
-          const at = avatarUrl.indexOf(marker);
-          if (at !== -1) {
-            // Strip any ?v= cache-buster before using it as a key.
-            const objectPath = avatarUrl
-              .slice(at + marker.length)
-              .split("?")[0];
-            // Only ever inside this user's own legacy folder.
-            if (objectPath.startsWith(`legacy/${o.user_id}/`)) {
-              await admin.storage.from("avatars").remove([objectPath]);
-            }
-          }
+        const objectPath = avatarObjectPath(o.avatar_url as string | null);
+        // Ownership has to be provable from the path itself — avatar_url
+        // is a column, and a column is not a capability. Three shapes
+        // qualify, and each one names either this user or this oracle:
+        //
+        //   legacy/{user_id}/…          legacy-flow upload
+        //   user-uploaded/{oracle_id}…  from-photo upload  ← was missed
+        //   {user_id}/…                 generated face
+        //
+        // The startsWith(o.id) filter above only ever catches avatars
+        // whose FILENAME begins with the oracle id. Generated faces are
+        // named `{timestamp}-ai.webp`, so that filter never matched one
+        // either — deleting a single identity left its face behind. The
+        // {user_id}/ case here closes that too.
+        if (
+          objectPath &&
+          (objectPath.startsWith(`legacy/${o.user_id}/`) ||
+            objectPath.startsWith(`user-uploaded/${o.id}`) ||
+            objectPath.startsWith(`${o.user_id}/`))
+        ) {
+          await admin.storage.from("avatars").remove([objectPath]);
         }
       } catch (err) {
         console.error(`purge oracle avatars cleanup failed for ${o.id}`, err);

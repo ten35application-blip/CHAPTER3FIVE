@@ -28,6 +28,7 @@ import {
 import { createAdminClient } from "@/lib/supabase/admin";
 import { recordPendingPaymentOrThrow } from "@/lib/billing/pendingPayment";
 import { createClient } from "@/lib/supabase/server";
+import { randomUUID } from "node:crypto";
 
 // MIN_ANSWERS / sanitizers moved to @/lib/legacy/sanitize.ts
 // (2026-07-29) so the mobile-facing /api/legacy/* routes share the
@@ -102,7 +103,17 @@ export async function uploadLegacyPhoto(
   }
 
   const admin = createAdminClient();
-  const storagePath = `legacy/${user.id}/${Date.now()}.jpg`;
+    // UNGUESSABLE PATH (2026-08-04). This used to be a deterministic key.
+  // The `avatars` bucket is PUBLIC — objects are served with no auth at
+  // all — so anyone who could compute the key could fetch the image.
+  // Same key as the mobile route: {user_id}/{millisecond timestamp},
+  // enumerable by anyone holding the user id, returning a photograph of
+  // someone's dead relative.
+  // A random component makes the URL a capability: it works if you were
+  // given it, and is not derivable from anything a person might see.
+  // Nothing re-derives this key — it is written to oracles.avatar_url
+  // once and read from there forever, including by the purge cron.
+const storagePath = `legacy/${user.id}/${randomUUID()}.jpg`;
   const { error: uploadError } = await admin.storage
     .from("avatars")
     // Blob wrap forces storage-js's multipart branch — Next 16's patched

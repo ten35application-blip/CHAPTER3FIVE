@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { headers } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 import { getRequestAuth } from "@/lib/api/mobileAuth";
@@ -211,7 +211,11 @@ export async function POST(request: NextRequest) {
   let newAvatarUrl: string | null = null;
   const sourcePath = avatarsObjectPath(source.avatar_url as string | null);
   if (sourcePath) {
-    const destPath = `legacy/${user.id}/inherited-${Date.now()}.jpg`;
+    // Random, not a timestamp — the destination is as sensitive as
+    // the source. This is the inherited photograph of the person who
+    // died, landing on a PUBLIC bucket; a millisecond key is
+    // enumerable by anyone holding the recipient's user id.
+    const destPath = `legacy/${user.id}/inherited-${randomUUID()}.jpg`;
     const { error: copyError } = await admin.storage
       .from("avatars")
       .copy(sourcePath, destPath);
