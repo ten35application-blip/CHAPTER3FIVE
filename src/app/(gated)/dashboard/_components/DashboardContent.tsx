@@ -1,11 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { SwipeRow } from "./SwipeRow";
 import {
   archiveIdentity,
   deleteConversation,
+  markUnread,
   toggleStar,
 } from "../actions";
 
@@ -178,6 +186,9 @@ function PinnedStrip({
   items: Identity[];
   isLocked: (id: string) => boolean;
 }) {
+  // The pinned contact whose long-press menu is open, or null.
+  const [menuFor, setMenuFor] = useState<Identity | null>(null);
+
   return (
     <section aria-label="Pinned" className="mb-4">
       <p className="mb-2 px-1 text-[11px] font-bold uppercase tracking-[0.12em] text-warm-400">
@@ -190,38 +201,202 @@ function PinnedStrip({
             const unread = !p.is_photo_placeholder && (p.manually_unread || p.auto_unread);
             return (
               <li key={p.id} className="flex-shrink-0">
-                <PinnedTile p={p} locked={locked} unread={unread} />
+                <PinnedTile
+                  p={p}
+                  locked={locked}
+                  unread={unread}
+                  onHold={setMenuFor}
+                />
               </li>
             );
           })}
         </ul>
       </div>
+      {menuFor ? (
+        <PinnedActionMenu
+          identity={menuFor}
+          onClose={() => setMenuFor(null)}
+        />
+      ) : null}
     </section>
+  );
+}
+
+/**
+ * Long-press action menu for a pinned contact — the web half of the
+ * iMessage-style menu Wilson asked for (2026-08-04). Same four actions,
+ * same order, same red destructive row as mobile's PinnedActionMenu.
+ *
+ * Mark as Unread is what finally gives `oracles.manually_unread` a
+ * writer: the `markUnread` action has existed unused since the column
+ * was added in 0057, which left both the OR-ed unread wash and the
+ * persona's "you flagged me to come back to" acknowledgment (built by
+ * the send-time stream route from this flag) permanently unreachable.
+ *
+ * Unpin is omitted for the concierge — one deployment-wide row, so its
+ * is_starred is global rather than per-user and toggleStar refuses it
+ * server-side. Mark as Unread is omitted when the thread already reads
+ * as unread, as iMessage does.
+ */
+function PinnedActionMenu({
+  identity,
+  onClose,
+}: {
+  identity: Identity;
+  onClose: () => void;
+}) {
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  // Escape closes, matching every other dismissible surface here.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const unread =
+    !identity.is_photo_placeholder &&
+    (identity.manually_unread || identity.auto_unread);
+
+  function run(action: () => Promise<{ ok: boolean } | void>) {
+    setError(null);
+    startTransition(async () => {
+      try {
+        const res = await action();
+        if (res && "ok" in res && !res.ok) {
+          setError("That didn't go through. Try again.");
+          return;
+        }
+        onClose();
+      } catch {
+        setError("That didn't go through. Try again.");
+      }
+    });
+  }
+
+  const items: {
+    key: string;
+    label: string;
+    icon: React.ReactNode;
+    onClick: () => void;
+    destructive?: boolean;
+  }[] = [
+    ...(identity.is_concierge
+      ? []
+      : [
+          {
+            key: "unpin",
+            label: "Unpin",
+            icon: <StarOutlineIcon />,
+            onClick: () => run(() => toggleStar(identity.id, false)),
+          },
+        ]),
+    ...(unread
+      ? []
+      : [
+          {
+            key: "unread",
+            label: "Mark as Unread",
+            icon: <UnreadDotIcon />,
+            onClick: () => run(() => markUnread(identity.id, true)),
+          },
+        ]),
+    {
+      key: "archive",
+      label: "Archive",
+      icon: <ArchiveIcon />,
+      onClick: () => run(() => archiveIdentity(identity.id)),
+    },
+    {
+      key: "delete",
+      label: "Delete",
+      icon: <TrashIcon />,
+      onClick: () => run(() => deleteConversation(identity.id)),
+      destructive: true,
+    },
+  ];
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Actions for ${identity.name}`}
+      className="fixed inset-0 z-50 flex items-center justify-center px-10"
+    >
+      <button
+        type="button"
+        aria-label="Close menu"
+        onClick={onClose}
+        className="absolute inset-0 h-full w-full cursor-default bg-black/45"
+      />
+      <div className="relative w-full max-w-[300px] overflow-hidden rounded-[20px] border border-warm-700 bg-ink-soft">
+        <p className="truncate px-[18px] pb-2.5 pt-3.5 text-xs font-semibold text-warm-400">
+          {identity.name}
+        </p>
+        {items.map((item) => (
+          <div key={item.key}>
+            <div className="h-px bg-warm-700 opacity-70" />
+            <button
+              type="button"
+              onClick={item.onClick}
+              disabled={pending}
+              className={`flex w-full items-center gap-3.5 px-[18px] py-[15px] text-left text-base font-medium transition-colors disabled:opacity-50 ${
+                item.destructive
+                  ? "text-red-500 hover:bg-warm-700"
+                  : "text-warm-50 hover:bg-warm-700"
+              }`}
+            >
+              <span
+                aria-hidden
+                className={
+                  item.destructive ? "text-red-500" : "text-warm-200"
+                }
+              >
+                {item.icon}
+              </span>
+              {item.label}
+            </button>
+          </div>
+        ))}
+        {error ? (
+          <p className="px-[18px] pb-3 pt-1 text-[11px] text-red-500">
+            {error}
+          </p>
+        ) : null}
+      </div>
+    </div>
   );
 }
 
 /**
  * One tile in the PINNED strip.
  *
- * Tap opens the thread. HOLD unpins it (Wilson 2026-08-03: "when you
- * hold down a favorite after hitting the star on them, you should be
- * able to unfavorite them and send them back down to the list").
- * Starred identities are filtered OUT of the main list, so before this
- * the only unstar control lived on a row that no longer rendered —
- * pinning was effectively one-way on both surfaces.
+ * Tap opens the thread. HOLD opens the action menu (Wilson 2026-08-04,
+ * matching the iMessage conversation long-press). It used to unpin
+ * outright on the hold; a 400ms gesture is far too cheap to be one of
+ * the ways a conversation gets deleted, so the hold now only OPENS the
+ * menu and the destructive choice is a deliberate second tap.
  *
- * Mobile does this with Pressable's onLongPress + a Medium impact
- * haptic; this is the same gesture with the same 400ms threshold, built
- * on pointer events so it works for touch, pen and mouse alike.
+ * Starred identities are filtered out of the main list, so this strip
+ * is the only place these actions can live for a pinned contact.
+ *
+ * Mobile uses Pressable's onLongPress + a Medium impact haptic; this is
+ * the same gesture at the same 400ms threshold, built on pointer events
+ * so touch, pen and mouse all work.
  */
 function PinnedTile({
   p,
   locked,
   unread,
+  onHold,
 }: {
   p: Identity;
   locked: boolean;
   unread: boolean;
+  onHold: (identity: Identity) => void;
 }) {
   const timerRef = useRef<number | null>(null);
   // Set when the hold completes, and read by the click handler that
@@ -230,9 +405,6 @@ function PinnedTile({
   // to unpin. A ref, not state: the click lands in the same tick and
   // must observe the write synchronously.
   const heldRef = useRef(false);
-  // Surfaces a failed unpin instead of leaving the tile sitting there
-  // looking like the gesture did nothing.
-  const [failed, setFailed] = useState(false);
   const pointerTypeRef = useRef<string>("mouse");
   // Origin of the current press, for the movement-cancel check.
   const startPosRef = useRef<{ x: number; y: number } | null>(null);
@@ -260,30 +432,18 @@ function PinnedTile({
       // the contextmenu suppression below means the user doesn't even
       // get the menu they asked for. Middle-click was armed too.
       if (e.button !== 0) return;
-      // The concierge can't be pinned per-user (see toggleStar), so the
-      // gesture would fire a request that always fails.
-      if (p.is_concierge) return;
       heldRef.current = false;
       cancelHold();
       timerRef.current = window.setTimeout(() => {
         heldRef.current = true;
         // Mobile fires a Medium impact here. Vibration is the closest
         // web equivalent and is unsupported on iOS Safari, so it's a
-        // nicety, never the confirmation — the tile leaving the strip
-        // is.
+        // nicety, never the confirmation — the menu appearing is.
         navigator.vibrate?.(10);
-        // Mobile flips optimistically and rolls back on failure; match
-        // that instead of dropping the result on the floor (which also
-        // left an unhandled rejection on a network error).
-        void toggleStar(p.id, false).then(
-          (res) => {
-            if (!res?.ok) setFailed(true);
-          },
-          () => setFailed(true),
-        );
+        onHold(p);
       }, 400);
     },
-    [cancelHold, p.id, p.is_concierge],
+    [cancelHold, onHold, p],
   );
 
   return (
@@ -326,7 +486,7 @@ function PinnedTile({
         }
       }}
       aria-label={`${p.name} — open conversation`}
-      title="Hold to unpin from favorites"
+      title="Hold for more actions"
       className={`flex w-[68px] flex-col items-center rounded-2xl px-1.5 py-2 text-center transition-colors select-none active:opacity-60 [-webkit-touch-callout:none] ${
         unread ? "bg-unread-wash" : ""
       }`}
@@ -339,11 +499,6 @@ function PinnedTile({
       >
         {p.name}
       </span>
-      {failed ? (
-        <span className="mt-0.5 text-[10px] leading-3 text-red-500">
-          Couldn&rsquo;t unpin
-        </span>
-      ) : null}
     </Link>
   );
 }
@@ -890,5 +1045,42 @@ function PinnedAvatar({ name, url }: { name: string; url: string | null }) {
     <span className="bg-coral flex h-[52px] w-[52px] items-center justify-center rounded-full text-xl font-bold text-white ring-2 ring-coral/25">
       {initial}
     </span>
+  );
+}
+
+
+/* Icons for the pinned-tile action menu. Stroke-only line art at 19px
+   to sit level with the 16px labels, matching mobile's Ionicons set. */
+function StarOutlineIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden>
+      <path d="M12 2l2.9 6.9L22 10l-5.5 5 1.6 7.5L12 18.6 5.9 22.5 7.5 15 2 10l7.1-1.1L12 2z" />
+    </svg>
+  );
+}
+
+function UnreadDotIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.9 8.9 0 0 1-4-.9L3 21l1.9-4.6A8.4 8.4 0 0 1 4 11.9a8.4 8.4 0 0 1 8.4-8.4h.5" />
+      <circle cx="19.5" cy="4.5" r="2.5" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+function ArchiveIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <rect x="3" y="4" width="18" height="4" rx="1" />
+      <path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8M10 12h4" />
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M4 7h16M10 11v6M14 11v6M5 7l1 13a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1l1-13M9 7V4h6v3" />
+    </svg>
   );
 }
