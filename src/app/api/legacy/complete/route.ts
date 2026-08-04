@@ -7,7 +7,7 @@ import { requireTermsAccepted } from "@/lib/legal/gate";
 import { fingerprintLegacyAnswers } from "@/lib/legacy/fingerprint";
 import { mintInheritCode } from "@/lib/legacy/mint";
 import {
-  LEGACY_MIN_ANSWERS,
+  minAnswersForMode,
   sanitizeLegacyAnswers,
   sanitizeLegacySubject,
 } from "@/lib/legacy/sanitize";
@@ -82,9 +82,10 @@ export async function POST(request: NextRequest) {
   if (!subject.photoUrl) {
     return fail("Add their photo on the first page — it travels with the code.");
   }
-  if (Object.keys(answers).length < LEGACY_MIN_ANSWERS) {
+  const minAnswers = minAnswersForMode(subject.mode === "self" ? "self" : "other");
+  if (Object.keys(answers).length < minAnswers) {
     return fail(
-      `A person takes at least ${LEGACY_MIN_ANSWERS} answers to hold together. Answer a few more.`,
+      `A person takes at least ${minAnswers} answers to hold together. Answer a few more.`,
     );
   }
 

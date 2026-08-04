@@ -17,7 +17,7 @@ import { fingerprintLegacyAnswers } from "@/lib/legacy/fingerprint";
 import { mintInheritCode } from "@/lib/legacy/mint";
 import { LEGACY_QUESTION_COUNT } from "@/lib/legacy/questions";
 import {
-  LEGACY_MIN_ANSWERS,
+  minAnswersForMode,
   sanitizeLegacyAnswers,
   sanitizeLegacySubject,
 } from "@/lib/legacy/sanitize";
@@ -32,7 +32,8 @@ import { createClient } from "@/lib/supabase/server";
 // MIN_ANSWERS / sanitizers moved to @/lib/legacy/sanitize.ts
 // (2026-07-29) so the mobile-facing /api/legacy/* routes share the
 // exact same validation. Local aliases keep the code below verbatim.
-const MIN_ANSWERS = LEGACY_MIN_ANSWERS;
+// Mode-dependent now — a self-authored archive can hold together on
+// fewer answers than one written about someone who can't correct it.
 const sanitizeSubject = sanitizeLegacySubject;
 const sanitizeAnswers = sanitizeLegacyAnswers;
 
@@ -199,10 +200,13 @@ export async function completeLegacyIdentity(payload: {
       "Add their photo on the first page — it travels with the code.",
     );
   }
-  if (Object.keys(answers).length < MIN_ANSWERS) {
+  const minAnswers = minAnswersForMode(
+    subject.mode === "self" ? "self" : "other",
+  );
+  if (Object.keys(answers).length < minAnswers) {
     redirectWithError(
       "/identity/legacy/new",
-      `A person takes at least ${MIN_ANSWERS} answers to hold together. Answer a few more.`,
+      `A person takes at least ${minAnswers} answers to hold together. Answer a few more.`,
     );
   }
 

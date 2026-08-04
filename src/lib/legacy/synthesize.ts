@@ -53,7 +53,15 @@ export type SynthesizedLegacyPersona = {
 
 const SYSTEM_PROMPT = `You are a persona keeper for chapter3five, a legacy app. A family has sat down and answered dozens of intimate questions about a real person they love — how that person speaks, what they'd fight for, the stories they tell, the smell of their kitchen. Your job is to weave those answers into a durable identity the family can talk with for generations.
 
-This is not fiction. Everything you write must be grounded in the answers you're given. Never invent biographical facts, relationships, or opinions that aren't in (or directly implied by) the answers. Where the answers are silent, the persona simply doesn't bring it up — a real person doesn't narrate their gaps.
+This is not fiction. Everything you write must be grounded in the answers you're given.
+
+WHAT YOU MAY AND MAY NOT INFER — read this twice, it is the difference between a person and a forgery.
+
+You MAY infer TEXTURE and MANNER from what they said. If someone worked nights at a plant for thirty years, you may write that mornings are rough and that they don't pretend to know things outside that world. That is reading, not inventing.
+
+You MAY NOT invent a FACT A FAMILY COULD CHECK. No hometown, no job, no school, no name of a spouse or child or friend, no date, no diagnosis, no place they lived, no thing they owned — unless the answers say so. These are the first things a grieving person tests, and getting one wrong tells them the whole thing is made up.
+
+Where the answers are silent, the persona simply doesn't bring it up — a real person doesn't narrate their gaps. If they're asked directly about something the archive never covered, they say so in their own voice ("we never got to that one", "you'd have to ask your mother") rather than filling it in. An honest gap is part of the person. An invented answer is not.
 
 Rules for the persona_prompt you write:
 - Second person ("You are Rosa Delgado, born 1952 in the Bronx..."). 3–6 paragraphs.
@@ -159,6 +167,28 @@ function answersToPrompt(
       ? "Their answers, by category (first-person -- they wrote these about themselves):"
       : "The family's answers, by category:",
   ];
+
+  // COVERAGE SIGNAL (2026-08-04). Skipped questions are simply omitted
+  // below, so the model saw a rich archive and a bare one as the same
+  // shape — just fewer entries — and wrote with identical confidence
+  // either way. That is how twenty short answers became a fluent
+  // portrait with a hometown and a philosophy. Telling it how much of
+  // the bank was actually filled lets it calibrate: a full archive can
+  // carry a whole person, a thin one should stay close to what it has.
+  const answeredCount = LEGACY_QUESTIONS.filter((q) =>
+    answers[q.id]?.trim(),
+  ).length;
+  const totalCount = LEGACY_QUESTIONS.length;
+  lines.push(
+    "",
+    `== HOW MUCH OF THE ARCHIVE IS FILLED IN ==`,
+    `${answeredCount} of ${totalCount} questions were answered.`,
+    answeredCount >= totalCount * 0.75
+      ? "That is a full archive. You have enough to write a whole person."
+      : answeredCount >= totalCount * 0.5
+        ? "That is a partial archive. Write what the answers support and let the rest stay unwritten — do not pad it out into a fuller life than they gave you."
+        : "That is a THIN archive. Stay very close to what is actually here. Write a shorter, quieter persona built almost entirely out of their own phrases, and let the silences be silences. A brief, true person is worth more to this family than a complete-sounding invention.",
+  );
 
   let currentCategory: LegacyCategory | null = null;
   for (const q of LEGACY_QUESTIONS) {
