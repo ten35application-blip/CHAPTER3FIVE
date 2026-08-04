@@ -192,9 +192,7 @@ function PinnedStrip({
                       : `/chat/${p.id}`
                   }
                   className={`flex w-[68px] flex-col items-center rounded-2xl px-1.5 py-2 text-center transition-colors active:opacity-60 ${
-                    unread
-                      ? "bg-amber-400/40 dark:bg-amber-400/30"
-                      : ""
+                    unread ? "bg-unread-wash" : ""
                   }`}
                 >
                   <PinnedAvatar name={p.name} url={p.avatar_url} />
@@ -335,12 +333,23 @@ function ConversationList({
             }}
           >
             <div
-              className={`flex items-center gap-3 pl-4 pr-1.5 py-3.5 transition-colors ${
+              className={`relative flex items-center gap-3 pl-4 pr-1.5 py-3.5 transition-colors ${
                 !p.is_photo_placeholder && (p.manually_unread || p.auto_unread)
-                  ? "bg-amber-400/40 dark:bg-amber-400/30"
+                  ? "bg-unread-wash"
                   : ""
               }`}
             >
+              {/* Unread edge bar (mobile ContactRow parity). Absolute
+                  so an unread row keeps the exact same avatar/text grid
+                  as a read one — the row must not shift sideways when
+                  the wash clears. The list container clips it. */}
+              {!p.is_photo_placeholder &&
+              (p.manually_unread || p.auto_unread) ? (
+                <span
+                  aria-hidden="true"
+                  className="absolute inset-y-0 left-0 w-[3px] bg-unread-accent"
+                />
+              ) : null}
               <Link
                 href={
                   isLocked(p.id)

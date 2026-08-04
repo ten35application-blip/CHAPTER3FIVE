@@ -318,10 +318,20 @@ export default function ChatSurface({
   }, [oracleId]);
 
   // The user is looking at the thread — everything the persona said is
-  // now "seen". (manually_unread is NOT touched here; only sending
-  // resets it.)
+  // now "seen". As of 2026-08-03 the read route clears manually_unread
+  // too, so simply opening the thread (not only sending) restores a
+  // marked-unread row to its normal color.
+  //
+  // The cleanup fires the same call on the way OUT: Wilson's rule is
+  // stated in terms of leaving ("when I leave the conversation it
+  // should go back to its original color"), and a proactive message
+  // that streams in mid-visit would otherwise still be newer than the
+  // mount-time read stamp. The route revalidatePath's /dashboard, so
+  // back-navigation renders the cleared state instead of a stale RSC
+  // payload.
   useEffect(() => {
     markRead();
+    return () => markRead();
   }, [markRead]);
 
   useEffect(() => {

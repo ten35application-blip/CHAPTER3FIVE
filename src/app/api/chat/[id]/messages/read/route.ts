@@ -63,6 +63,21 @@ export async function POST(
     { onConflict: "user_id,oracle_id" },
   );
 
+  // Clear the EXPLICIT unread flag too. The dashboard renders a row as
+  // unread on (auto_unread OR manually_unread); the upsert above only
+  // kills the auto half. Previously manually_unread was cleared ONLY by
+  // the stream route, i.e. only if the user SENT something — so a row
+  // swiped to "Mark as unread" kept its highlight forever, and merely
+  // reading the thread never restored the original color (Wilson
+  // 2026-08-03). Mobile markThreadRead does the same. User-scoped
+  // client: manually_unread is on the writable column allowlist
+  // (migration 0070) and RLS pins the row to its owner.
+  await supabase
+    .from("oracles")
+    .update({ manually_unread: false })
+    .eq("id", oracleId)
+    .eq("manually_unread", true);
+
   // Invalidate the dashboard's RSC cache so back-navigation shows the
   // freshly-cleared unread state (Wilson 2026-07-29: "I go into it
   // and leave it and there is STILL the dot"). Without this, the

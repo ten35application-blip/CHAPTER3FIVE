@@ -44,6 +44,17 @@
   --color-coral-strong: #d97359; /* darker coral, ~5.1:1 on ink — safe for text and mid-gradient stops */
   --color-teal: #7ec4c4;         /* soft teal — orb bottom-right of the logo */
   --color-teal-strong: #4fa5a5;  /* darker teal, ~4.9:1 on ink */
+
+  /* Unread contact row. Brand teal, not the old amber "third color"
+     (Wilson 2026-08-03: "that box should be one of the colors of the
+     application"). Teal over coral because coral already means Delete
+     on the row swipe, the Upgrade pill, and the filled favorite star.
+     Kept as its own token — not a `bg-teal/30` opacity utility — so
+     each theme block below can tune alpha against its own surface;
+     one fixed alpha cannot read correctly on both near-white and
+     near-black. Mirrors mobile lib/theme.ts unreadWash/unreadAccent. */
+  --color-unread-wash: rgba(126, 196, 196, 0.30);  /* ~#d8edeb on ink-soft */
+  --color-unread-accent: #4fa5a5;                  /* teal-strong — #7ec4c4 vanishes on cream */
 }
 
 /* DAYLIGHT — iOS Messages light. Pure white, near-black text, same
@@ -65,6 +76,11 @@
   --color-coral-strong: #d97359;
   --color-teal: #7ec4c4;
   --color-teal-strong: #4fa5a5;
+  /* Daylight's ink-soft (#f2f2f7) is cooler than default light's
+     cream, so the same 0.30 teal reads slightly stronger here — which
+     is fine, this theme's rows are flatter and need the help. */
+  --color-unread-wash: rgba(126, 196, 196, 0.30);
+  --color-unread-accent: #4fa5a5;
 }
 
 /* DARK — near-black page, warm-white text. Coral+teal brand palette
@@ -91,6 +107,12 @@
   --color-coral-strong: #d97359;
   --color-teal: #7ec4c4;
   --color-teal-strong: #4fa5a5;
+  /* Dark: 0.24 teal over ink-soft (#191a1e) lands near rgb(50,68,71).
+     The hue shift (warm near-black row → cool slate row) is what makes
+     it register; brightness alone at low alpha reads as "same row,
+     slightly lighter", which is how the previous amber pass got lost. */
+  --color-unread-wash: rgba(126, 196, 196, 0.24);
+  --color-unread-accent: #7ec4c4; /* the brighter teal — teal-strong goes muddy on near-black */
 }
 
 /* Ambient wash — the logo's coral+teal gradient breathing over the
