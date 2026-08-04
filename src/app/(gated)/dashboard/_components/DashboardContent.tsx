@@ -114,7 +114,13 @@ export function DashboardContent({
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return identities;
+    if (!q) {
+      // Starred rows render in the PINNED strip and are excluded from
+      // the main list (Wilson 2026-08-04: "starred rows stay stuck in
+      // the slots"). Search bypasses this — a user searching for
+      // Adrian while Adrian is pinned should still find him.
+      return identities.filter((i) => !i.is_starred);
+    }
     return identities.filter((i) => i.name.toLowerCase().includes(q));
   }, [identities, query]);
 
