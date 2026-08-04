@@ -3675,40 +3675,209 @@ function randomBirthday(): string {
  * Roll a full trait bundle. Uniform sampling from each category, plus 7
  * intensity sliders (0-100). MBTI gets 1 or 2 types (30% chance of two).
  */
+/**
+ * Minimum age at which a given relationship could plausibly have been
+ * formed strongly enough for the loss to read the way the trait text
+ * asserts ("Grandma — still cooks her recipes" presumes memories of
+ * her). Used to clamp deadRelativeYearsSince against the persona's age.
+ */
+function minAgeForLoss(relation: string): number {
+  if (relation.includes("best friend")) return 15;
+  if (relation.includes("Grandma") || relation.includes("Grandpa") || relation.includes("grandparent")) return 8;
+  if (relation.includes("aunt or uncle")) return 8;
+  return 3; // mother / father / sibling
+}
+
+/**
+ * Which TRAUMA_AGES buckets are possible for a given trauma. Several
+ * traumas name their own life stage ("Loss of a parent (young)",
+ * "Childhood poverty", "grew up with") and several are adult-only by
+ * definition ("Own divorce", "Loss of a child", "Miscarriage").
+ * Sampling the age flat against those produced a self-contradicting
+ * emotional spine in roughly a fifth of rolls.
+ */
+function traumaAgesFor(
+  trauma: string,
+): readonly (typeof TRAUMA_AGES)[number][] {
+  const CHILD: (typeof TRAUMA_AGES)[number][] = ["Childhood (0–12)"];
+  const CHILD_OR_TEEN: (typeof TRAUMA_AGES)[number][] = [
+    "Childhood (0–12)",
+    "Adolescence (13–19)",
+  ];
+  const ADULT: (typeof TRAUMA_AGES)[number][] = ["Adulthood (20+)"];
+  const TEEN_OR_ADULT: (typeof TRAUMA_AGES)[number][] = [
+    "Adolescence (13–19)",
+    "Adulthood (20+)",
+  ];
+
+  if (trauma === "Loss of a parent (young)") return CHILD_OR_TEEN;
+  if (trauma === "Childhood poverty") return CHILD_OR_TEEN;
+  if (trauma === "Serious childhood illness") return CHILD_OR_TEEN;
+  if (trauma === "Household addiction (grew up with)") return CHILD_OR_TEEN;
+  if (trauma === "Divorce of parents") return CHILD_OR_TEEN;
+  if (trauma === "Severe bullying") return CHILD_OR_TEEN;
+  if (trauma === "Emotional neglect") return CHILD;
+
+  if (trauma === "Own divorce") return ADULT;
+  if (trauma === "Loss of a child") return ADULT;
+  if (trauma === "Loss of a spouse/partner") return ADULT;
+  if (trauma === "Miscarriage/infertility") return ADULT;
+  if (trauma === "Job loss/career collapse") return ADULT;
+  if (trauma === "Own past addiction (recovered)") return ADULT;
+  if (trauma === "Caretaker burnout") return ADULT;
+  if (trauma === "War/combat experience") return ADULT;
+  if (trauma === "Sudden financial ruin") return ADULT;
+  if (trauma === "Chronic illness") return TEEN_OR_ADULT;
+
+  return TRAUMA_AGES;
+}
+
 export function rollTraits(): Traits {
   const birthday = randomBirthday();
+  const age = ageFromBirthday(birthday);
+  // Two MBTI types are a deliberate 30% flavor, but picking the SAME
+  // one twice ("INTJ / INTJ") is just a bug the reader can see.
+  const mbtiA = pick(MBTI_TYPES);
   const mbti: MBTI[] =
     Math.random() < 0.3
-      ? [pick(MBTI_TYPES), pick(MBTI_TYPES)]
-      : [pick(MBTI_TYPES)];
+      ? (() => {
+          let b = pick(MBTI_TYPES);
+          for (let i = 0; i < 6 && b === mbtiA; i++) b = pick(MBTI_TYPES);
+          return b === mbtiA ? [mbtiA] : [mbtiA, b];
+        })()
+      : [mbtiA];
 
-  // Grief texture: 0 when no loss; otherwise 1–40 years since. The loss
-  // is capped to have plausibly happened within the persona's adult life
-  // by the synthesizer, which reconciles it with age.
-  const deadRelative = pick(DEAD_RELATIVES);
-  const deadRelativeYearsSince = deadRelative.startsWith("No immediate loss")
-    ? 0
-    : 1 + pickInt(40);
+  const siblings = pick(SIBLINGS);
+  const isOnlyChild = siblings.startsWith("Only child");
+
+  // Grief texture. CLAMPED to the persona's own lifetime (2026-08-04).
+  // This used to be a flat 1–40 regardless of age, so ~4% of rolls
+  // dated a death BEFORE the persona was born and ~7% before they were
+  // five — while the trait text presupposes a relationship ("Grandma —
+  // still cooks her recipes"). The synthesizer was handed
+  // "(N years ago — reconcile with their age)", which cannot resolve an
+  // impossibility; the model had to silently break either the number or
+  // the relationship, and that papering-over is what reads as generated.
+  let deadRelative = pick(DEAD_RELATIVES);
+  // An only child cannot lose a sibling.
+  if (isOnlyChild && deadRelative.includes("sibling")) {
+    deadRelative = "An aunt or uncle who was like a parent";
+  }
+  const hasLoss = !deadRelative.startsWith("No immediate loss");
+  const maxYearsSince = Math.max(1, age - minAgeForLoss(deadRelative));
+  const deadRelativeYearsSince = hasLoss
+    ? 1 + pickInt(Math.min(40, maxYearsSince))
+    : 0;
+
+  // Household cluster (2026-08-04). relationshipHistory, livingSituation
+  // and parenthood were three independent picks, so ~19% of rolls
+  // produced a married person living alone with no death to explain it,
+  // and "Lifelong single" landed on "With a partner". Live data had 5 of
+  // 11 personas contradicting themselves this way — Ramon Bautista was
+  // "Lifelong single" + "With a partner" + "Multiple children".
+  //
+  // relationshipHistory is rolled first and treated as the truth; the
+  // other two are drawn from what it permits.
+  const relationshipHistory = pick(RELATIONSHIP_HISTORIES);
+  const parenthood = pick(PARENTHOODS);
+  const hasKids = !parenthood.startsWith("No children");
+  // "Married multiple times" is deliberately NOT currently-partnered:
+  // it's ambiguous about the present, and someone between marriages
+  // living alone is a real person. The other two assert a live
+  // relationship, so they cannot also live alone or with roommates.
+  const currentlyPartnered =
+    relationshipHistory === "Married once (lasting)" ||
+    relationshipHistory === "Long-term partner never married";
+  const partnered =
+    currentlyPartnered || relationshipHistory === "Married multiple times";
+
+  const livingOptions = LIVING_SITUATIONS.filter((l) => {
+    if (currentlyPartnered) {
+      // They live with the person they're with — or with the kids, or
+      // in the multi-generational house. Not alone, not with roommates.
+      return (
+        l === "With a partner" ||
+        (l === "With the kids" && hasKids) ||
+        l === "Multi-generational household — three generations, one kitchen"
+      );
+    }
+    if (l === "With a partner") return partnered;
+    if (l === "With the kids") return hasKids;
+    // "Lives alone, still getting used to it" is a recent-change line:
+    // it needs something to have changed. A lifelong single person has
+    // always lived alone.
+    if (l === "Lives alone, still getting used to it") {
+      return (
+        relationshipHistory === "Widowed" ||
+        relationshipHistory === "Married once (divorced)" ||
+        relationshipHistory === "Married multiple times"
+      );
+    }
+    if (l === "With their parents") return age < 40;
+    return true;
+  });
+  const livingSituation =
+    livingOptions.length > 0 ? pick(livingOptions) : "Lives alone and likes it";
+
+  let trauma = pick(TRAUMAS);
+  // Same impossibility, different table.
+  if (isOnlyChild && trauma === "Loss of a sibling") {
+    trauma = "Betrayal by best friend";
+  }
+  const traumaAge = pick(
+    traumaAgesFor(trauma) as readonly (typeof TRAUMA_AGES)[number][],
+  );
+
+  // Traits that ASSERT a family structure in their own text. Six lists
+  // presume children ("Bluey (watches with the kids)", "Spoiling the
+  // grandkids", "Their kid singing"), and parenthood is "No children"
+  // 25% of the time — so ~10% of all rolls handed the synthesizer a
+  // childless person holding a trait that claims kids. Grandkid traits
+  // additionally need the persona to be old enough to have them.
+  const kidWord = /\bkids?\b|\bgrandkids?\b/i;
+  const grandkidWord = /\bgrandkids?\b/i;
+  function pickNonFamilyClashing<T extends string>(list: readonly T[]): T {
+    const ok = list.filter((v) => {
+      if (grandkidWord.test(v) && (!hasKids || age < 45)) return false;
+      if (kidWord.test(v) && !hasKids) return false;
+      return true;
+    });
+    return ok.length > 0 ? pick(ok) : pick(list);
+  }
 
   return {
-    gender: pick(GENDERS),
+    // GENDER (2026-08-04). "Prefer not to disclose" is a survey option,
+    // not a human trait, and a flat pick handed it to a THIRD of all
+    // generated people. Downstream, buildFacePrompt renders it as the
+    // noun "person" while the synthesizer picks a name independently —
+    // two systems resolving the same ambiguity separately, with nothing
+    // tying them together. Live output included a reveal card reading
+    // "lives with THEIR parents", which reads as an app artifact rather
+    // than a person. Kept in the list (some people genuinely don't
+    // disclose) but down-weighted to ~6% instead of 33%.
+    gender:
+      Math.random() < 0.06
+        ? "Prefer not to disclose"
+        : Math.random() < 0.5
+          ? "Male"
+          : "Female",
     birthday,
     horoscope: horoscopeFromDate(birthday),
     sexualOrientation: pick(SEXUAL_ORIENTATIONS),
     cultural: pick(CULTURAL_BACKGROUNDS),
     mbti,
     enneagram: pick(ENNEAGRAM),
-    trauma: pick(TRAUMAS),
-    traumaAge: pick(TRAUMA_AGES),
+    trauma,
+    traumaAge,
     attachment: pick(ATTACHMENT_STYLES),
     coreFear: pick(CORE_FEARS),
     coping: pick(COPING_MECHANISMS),
     moralCompass: pick(MORAL_COMPASSES),
-    siblings: pick(SIBLINGS),
+    siblings,
     mother: pick(PARENT_RELATIONSHIPS),
     father: pick(FATHER_RELATIONSHIPS),
-    relationshipHistory: pick(RELATIONSHIP_HISTORIES),
-    parenthood: pick(PARENTHOODS),
+    relationshipHistory,
+    parenthood,
     communicationStyle: pick(COMMUNICATION_STYLES),
     humorStyle: pick(HUMOR_STYLES),
     loveLanguage: pick(LOVE_LANGUAGES),
@@ -3717,16 +3886,16 @@ export function rollTraits(): Traits {
     occupation: pick(OCCUPATIONS),
     faithLevel: pick(FAITH_LEVELS),
     definingEvent: pick(DEFINING_LIFE_EVENTS),
-    vice: pick(VICES),
+    vice: pickNonFamilyClashing(VICES),
     passion: pick(PASSIONS),
     favoriteMusicGenre: pick(FAVORITE_MUSIC_GENRES),
-    favoriteShow: pick(FAVORITE_SHOWS),
+    favoriteShow: pickNonFamilyClashing(FAVORITE_SHOWS),
     favoriteMovie: pick(FAVORITE_MOVIES),
     favoriteFood: pick(FAVORITE_FOODS),
     comfortDrink: pick(COMFORT_DRINKS),
     weekendActivity: pick(WEEKEND_ACTIVITIES),
     hobby: pick(HOBBIES),
-    sport: pick(SPORTS),
+    sport: pickNonFamilyClashing(SPORTS),
     dailyRitual: pick(DAILY_RITUALS),
     laugh: pick(LAUGHS),
     styleAesthetic: pick(STYLE_AESTHETICS),
@@ -3734,13 +3903,13 @@ export function rollTraits(): Traits {
     signatureItem: pick(SIGNATURE_ITEMS),
     heightRange: pick(HEIGHT_RANGES),
     homeType: pick(HOME_TYPES),
-    livingSituation: pick(LIVING_SITUATIONS),
+    livingSituation,
     pet: pick(PETS),
     classBackground: pick(CLASS_BACKGROUNDS),
     regionalAccent: pick(REGIONAL_ACCENTS),
-    mostRecentJoy: pick(RECENT_JOYS),
-    currentWorry: pick(CURRENT_WORRIES),
-    whatMakesThemCry: pick(CRY_TRIGGERS),
+    mostRecentJoy: pickNonFamilyClashing(RECENT_JOYS),
+    currentWorry: pickNonFamilyClashing(CURRENT_WORRIES),
+    whatMakesThemCry: pickNonFamilyClashing(CRY_TRIGGERS),
     deadRelative,
     deadRelativeYearsSince,
     place: pick(PLACES),
@@ -3756,7 +3925,7 @@ export function rollTraits(): Traits {
     textFirstFrequency: rollTextFirstFrequency(),
     ...rollHumanization(),
     ...rollExpansion({
-      ageYears: ageFromBirthday(birthday),
+      ageYears: age,
       hasLoss: deadRelativeYearsSince > 0,
     }),
   };
