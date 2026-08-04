@@ -315,7 +315,13 @@ function ConversationList({
               onCommit: () => deleteConversation(p.id),
             }}
           >
-            <div className="flex items-center gap-3 pl-4 pr-1.5 py-3.5">
+            <div
+              className={`flex items-center gap-3 pl-4 pr-1.5 py-3.5 transition-colors ${
+                !p.is_photo_placeholder && (p.manually_unread || p.auto_unread)
+                  ? "bg-[rgba(245,196,122,0.10)]"
+                  : ""
+              }`}
+            >
               <Link
                 href={
                   isLocked(p.id)
