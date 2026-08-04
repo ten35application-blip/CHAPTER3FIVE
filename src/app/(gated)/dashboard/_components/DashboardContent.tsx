@@ -49,16 +49,20 @@ type Props = {
 };
 
 /**
- * The middle of the dashboard: favorites grid, search input, and the
- * swipeable conversation list. All in one client tree because the
- * search filter is shared state.
+ * The middle of the dashboard — mobile-parity pass (2026-08-03).
  *
- * Favorites are ALWAYS shown (not filtered by search) — they're the
- * pinned quick-access row. The main list is what search filters.
+ * Mirrors chapter3five-app/app/dashboard.tsx row-for-row:
+ *   Search pill → auto-populate banner → PINNED horizontal strip →
+ *   one white rounded card wrapping every conversation row (52px
+ *   avatar, bold-when-unread name, star toggle, hairline separator
+ *   between).
  *
- * Post-trial Free tier: every identity except the free one stays
- * visible but carries a "Pro" chip, and its link routes to /upgrade
- * instead of the chat (starred ones included).
+ * The favorites row is now a horizontal-scrolling strip with a tiny
+ * uppercase "PINNED" label above (was a responsive grid of larger
+ * avatars) so pinned contacts read like an iMessage top strip on both
+ * surfaces. Order matches mobile too: search first, then banner, then
+ * pinned, then list — a small change that keeps the visual language
+ * identical between web and app.
  */
 export function DashboardContent({
   identities,
@@ -105,6 +109,8 @@ export function DashboardContent({
     return identities.filter((i) => i.name.toLowerCase().includes(q));
   }, [identities, query]);
 
+  const searching = query.trim().length > 0;
+
   return (
     <div className="mx-auto w-full max-w-2xl px-4 pb-40 pt-24">
       {welcomed && !dismissedWelcome ? (
@@ -115,16 +121,18 @@ export function DashboardContent({
         />
       ) : null}
 
+      {/* Search first (mobile parity), then banner, then pinned strip. */}
+      <SearchBar query={query} onQueryChange={setQuery} />
+
       {autoPopulateInFlight ? <AutoPopulateBanner /> : null}
 
-      {favorites.length > 0 ? (
-        <FavoritesRow items={favorites} isLocked={isLocked} />
+      {/* Pinned strip — horizontal scroll of starred contacts with a
+          tiny uppercase "PINNED" label above (mobile parity, was a
+          responsive grid). Hidden while searching so the strip doesn't
+          double up with search-filtered results. */}
+      {favorites.length > 0 && !searching ? (
+        <PinnedStrip items={favorites} isLocked={isLocked} />
       ) : null}
-
-      {/* Search bar — always rendered; visually recedes when empty.
-          Placed above the list per Wilson's revision ("search on top,
-          favorites above search"). */}
-      <SearchBar query={query} onQueryChange={setQuery} />
 
       {identities.length === 0 ? (
         <EmptyState />
@@ -138,11 +146,12 @@ export function DashboardContent({
 }
 
 /* ------------------------------------------------------------------ */
-/* Favorites row — larger circular pinned avatars in a grid.           */
-/* Matches the iMessage-style pinned contacts pattern.                 */
+/* Pinned strip — horizontal-scrolling row of starred contacts.        */
+/* Mirrors mobile dashboard "PINNED" strip: uppercase label + 52px     */
+/* avatars in a scroll strip with the name below.                      */
 /* ------------------------------------------------------------------ */
 
-function FavoritesRow({
+function PinnedStrip({
   items,
   isLocked,
 }: {
@@ -150,37 +159,47 @@ function FavoritesRow({
   isLocked: (id: string) => boolean;
 }) {
   return (
-    <section aria-label="Favorites" className="mb-6">
-      <div className="grid grid-cols-3 gap-4 sm:grid-cols-4 md:grid-cols-5">
-        {items.map((p) => {
-          const locked = isLocked(p.id);
-          return (
-            <Link
-              key={p.id}
-              href={
-                locked
-                  ? `/upgrade?next=${encodeURIComponent(`/chat/${p.id}`)}`
-                  : `/chat/${p.id}`
-              }
-              className="group flex flex-col items-center text-center"
-            >
-              <BigAvatar name={p.name} url={p.avatar_url} />
-              <span className="mt-2 flex max-w-full items-center gap-1.5">
-                <span className="truncate text-xs font-semibold text-warm-200 group-hover:text-warm-50">
-                  {p.name}
-                </span>
-                {locked ? <ProChip /> : null}
-              </span>
-            </Link>
-          );
-        })}
+    <section aria-label="Pinned" className="mb-4">
+      <p className="mb-2 px-1 text-[11px] font-bold uppercase tracking-[0.12em] text-warm-400">
+        Pinned
+      </p>
+      <div className="-mx-4 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <ul className="flex gap-3.5">
+          {items.map((p) => {
+            const locked = isLocked(p.id);
+            const unread = !p.is_photo_placeholder && (p.manually_unread || p.auto_unread);
+            return (
+              <li key={p.id} className="flex-shrink-0">
+                <Link
+                  href={
+                    locked
+                      ? `/upgrade?next=${encodeURIComponent(`/chat/${p.id}`)}`
+                      : `/chat/${p.id}`
+                  }
+                  className="flex w-[68px] flex-col items-center text-center transition-opacity active:opacity-60"
+                >
+                  <PinnedAvatar name={p.name} url={p.avatar_url} />
+                  <span
+                    className={`mt-1.5 max-w-full truncate text-[11px] ${
+                      unread
+                        ? "font-bold text-warm-100"
+                        : "font-medium text-warm-200"
+                    }`}
+                  >
+                    {p.name}
+                  </span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
       </div>
     </section>
   );
 }
 
 /* ------------------------------------------------------------------ */
-/* Search bar                                                          */
+/* Search bar — pill with magnifier, client-side filter                */
 /* ------------------------------------------------------------------ */
 
 function SearchBar({
@@ -217,7 +236,7 @@ function SearchBar({
           value={query}
           onChange={(e) => onQueryChange(e.target.value)}
           placeholder="Search"
-          className="h-11 w-full rounded-full bg-ink-soft pl-11 pr-4 text-base text-warm-50 placeholder:text-warm-400 ring-1 ring-warm-700/70 shadow-[0_2px_8px_-2px_rgba(232,138,118,0.1)] focus:outline-none focus:ring-2 focus:ring-coral/40"
+          className="h-12 w-full rounded-full bg-ink-soft pl-11 pr-4 text-base text-warm-50 placeholder:text-warm-400 ring-1 ring-warm-700 shadow-[0_2px_6px_-1px_rgba(232,138,118,0.10)] focus:outline-none focus:ring-2 focus:ring-coral/40"
         />
       </label>
     </div>
@@ -236,14 +255,14 @@ function ConversationList({
   isLocked: (id: string) => boolean;
 }) {
   return (
-    <ul className="overflow-hidden rounded-3xl bg-ink-soft shadow-[0_8px_28px_-16px_rgba(28,28,26,0.12),_0_2px_8px_-2px_rgba(232,138,118,0.08)] ring-1 ring-warm-700/60">
+    <ul className="overflow-hidden rounded-3xl bg-ink-soft shadow-[0_8px_24px_-12px_rgba(28,28,26,0.10)] ring-1 ring-warm-700">
       {items.map((p, index) => (
         <li key={p.id}>
           {index > 0 ? (
-            <div className="mx-4 h-px bg-gradient-to-r from-transparent via-coral/20 to-transparent" />
+            <div className="mx-4 h-px bg-warm-700/70" />
           ) : null}
           <SwipeRow
-            // Swipe LEFT = Archive (free, reversible). Wilson's rebind
+            // Swipe LEFT = Archive (free, reversible). Mobile parity
             // (2026-07-25): left → archive, right → delete. The paid $5
             // "Delete identity" trail still lives on the Contacts panel,
             // NOT here — a dashboard swipe only deletes the CONVERSATION
@@ -252,8 +271,8 @@ function ConversationList({
               icon: (
                 <svg
                   viewBox="0 0 24 24"
-                  width="18"
-                  height="18"
+                  width="20"
+                  height="20"
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="2"
@@ -267,7 +286,7 @@ function ConversationList({
                 </svg>
               ),
               label: "Archive",
-              bgClassName: "bg-gradient-to-r from-teal-strong to-teal-strong/90",
+              bgClassName: "bg-teal-strong",
               onCommit: () => archiveIdentity(p.id),
             }}
             // Swipe RIGHT = Delete conversation. Bare swipe-commit; no
@@ -277,8 +296,8 @@ function ConversationList({
               icon: (
                 <svg
                   viewBox="0 0 24 24"
-                  width="18"
-                  height="18"
+                  width="20"
+                  height="20"
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="2"
@@ -292,19 +311,18 @@ function ConversationList({
                 </svg>
               ),
               label: "Delete",
-              bgClassName:
-                "bg-gradient-to-r from-coral-strong/90 to-coral-strong",
+              bgClassName: "bg-coral-strong",
               onCommit: () => deleteConversation(p.id),
             }}
           >
-            <div className="flex items-center gap-4 px-5 py-4">
+            <div className="flex items-center gap-3 pl-4 pr-1.5 py-3.5">
               <Link
                 href={
                   isLocked(p.id)
                     ? `/upgrade?next=${encodeURIComponent(`/chat/${p.id}`)}`
                     : `/chat/${p.id}`
                 }
-                className="flex flex-1 items-center gap-4"
+                className="flex flex-1 items-center gap-3 min-w-0"
               >
                 <Avatar
                   name={p.name}
@@ -320,11 +338,11 @@ function ConversationList({
                         Placeholder rows: NEVER bold, no unread signal —
                         there's nothing to be unread FROM. */}
                     <span
-                      className={`truncate text-base ${
+                      className={`truncate text-base tracking-tight ${
                         p.is_photo_placeholder
                           ? "font-medium italic text-warm-200"
                           : p.manually_unread || p.auto_unread
-                            ? "font-bold text-warm-50"
+                            ? "font-extrabold text-warm-50"
                             : "font-semibold text-warm-50"
                       }`}
                       aria-label={
@@ -341,7 +359,7 @@ function ConversationList({
                       <ProChip />
                     ) : null}
                   </span>
-                  <span className="truncate text-sm text-warm-300">
+                  <span className="truncate text-sm leading-snug text-warm-300">
                     {p.is_photo_placeholder
                       ? "Tap the avatar to upload a photo"
                       : isLocked(p.id)
@@ -434,7 +452,7 @@ function WelcomeBanner({
   return (
     <div
       role="status"
-      className="mb-6 flex items-center gap-3 rounded-2xl bg-coral/10 px-4 py-3 ring-1 ring-coral/25"
+      className="mb-4 flex items-center gap-3 rounded-2xl bg-coral/10 px-4 py-3 ring-1 ring-coral/25"
     >
       <span className="flex-1 text-sm leading-relaxed text-warm-50">
         <strong className="text-gradient-cta font-semibold">{name}</strong>{" "}
@@ -465,11 +483,9 @@ function WelcomeBanner({
   );
 }
 
-/** Phase-3 (0126) subscribe-time populate banner. Shows while the
- *  Stripe / RevenueCat webhook's background populate is filling the
- *  circle — so a user who paid and immediately opened the app sees
- *  "they're coming" instead of an empty list. Auto-clears on the
- *  next refresh once the helper stamps completed_at.
+/** Phase-3 (0126) subscribe-time populate banner. Mobile-parity shape:
+ *  teal-tint pill with an inline spinner and quiet reassurance copy.
+ *  Auto-clears on the next refresh once the helper stamps completed_at.
  *
  *  Deliberately NOT dismissable: it's transient (<2 min) and the
  *  next page refresh removes it on its own once populate finishes. */
@@ -478,13 +494,13 @@ function AutoPopulateBanner() {
     <div
       role="status"
       aria-live="polite"
-      className="mb-6 flex items-center gap-3 rounded-2xl bg-teal/10 px-4 py-3 ring-1 ring-teal/25"
+      className="mb-4 flex items-center gap-3 rounded-2xl bg-teal/10 px-3.5 py-3 ring-1 ring-teal/25"
     >
       <span
         aria-hidden
         className="inline-flex h-5 w-5 flex-shrink-0 animate-spin rounded-full border-2 border-teal/30 border-t-teal-strong"
       />
-      <span className="flex-1 text-sm leading-relaxed text-warm-100">
+      <span className="flex-1 text-[13px] leading-snug text-warm-100">
         Your companions are being created — they&rsquo;ll appear shortly.
       </span>
     </div>
@@ -504,7 +520,7 @@ function ProChip() {
 }
 
 /* ------------------------------------------------------------------ */
-/* Star toggle — per-row favorite icon                                  */
+/* Star toggle — per-row favorite icon (mobile parity: solid coral)     */
 /* ------------------------------------------------------------------ */
 
 function StarButton({ id, starred }: { id: string; starred: boolean }) {
@@ -519,25 +535,20 @@ function StarButton({ id, starred }: { id: string; starred: boolean }) {
       <button
         type="submit"
         aria-label={starred ? "Unpin from favorites" : "Pin to favorites"}
-        className="flex h-9 w-9 items-center justify-center rounded-full text-warm-400 transition-colors hover:bg-coral/5 hover:text-coral-strong"
+        className="flex h-11 w-11 items-center justify-center rounded-full transition-opacity active:opacity-50"
       >
         {starred ? (
           <svg
             viewBox="0 0 24 24"
             width="20"
             height="20"
-            fill="url(#starred-grad)"
-            stroke="url(#starred-grad)"
+            fill="currentColor"
+            stroke="currentColor"
             strokeWidth="1.5"
             strokeLinejoin="round"
             aria-hidden
+            className="text-coral-strong"
           >
-            <defs>
-              <linearGradient id="starred-grad" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="#e88a76" />
-                <stop offset="100%" stopColor="#4fa5a5" />
-              </linearGradient>
-            </defs>
             <path d="M12 2l2.9 6.9L22 10l-5.5 5 1.6 7.5L12 18.6 5.9 22.5 7.5 15 2 10l7.1-1.1L12 2z" />
           </svg>
         ) : (
@@ -551,6 +562,7 @@ function StarButton({ id, starred }: { id: string; starred: boolean }) {
             strokeLinecap="round"
             strokeLinejoin="round"
             aria-hidden
+            className="text-warm-400"
           >
             <path d="M12 2l2.9 6.9L22 10l-5.5 5 1.6 7.5L12 18.6 5.9 22.5 7.5 15 2 10l7.1-1.1L12 2z" />
           </svg>
@@ -582,16 +594,16 @@ function EmptyState() {
 
 function NoMatchesState({ query }: { query: string }) {
   return (
-    <div className="rounded-3xl bg-ink-soft py-12 text-center ring-1 ring-warm-700/60">
+    <div className="rounded-3xl bg-ink-soft py-12 text-center ring-1 ring-warm-700">
       <p className="text-base text-warm-300">
-        No one matches “<span className="font-semibold text-warm-100">{query}</span>”.
+        No one matches “<span className="font-semibold text-warm-100">{query.trim()}</span>”.
       </p>
     </div>
   );
 }
 
 /* ------------------------------------------------------------------ */
-/* Avatars                                                             */
+/* Avatars — 52px conversation avatar, 56px pinned strip avatar        */
 /* ------------------------------------------------------------------ */
 
 function Avatar({
@@ -611,12 +623,12 @@ function Avatar({
     return (
       <span
         aria-hidden
-        className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-dashed border-coral/40 bg-ink text-coral-strong"
+        className="flex h-[52px] w-[52px] flex-shrink-0 items-center justify-center rounded-full border-2 border-dashed border-coral/45 bg-ink text-coral-strong"
       >
         <svg
           viewBox="0 0 24 24"
-          width="20"
-          height="20"
+          width="22"
+          height="22"
           fill="none"
           stroke="currentColor"
           strokeWidth="1.75"
@@ -635,18 +647,18 @@ function Avatar({
       <img
         src={url}
         alt=""
-        className="h-12 w-12 rounded-full object-cover shadow-[0_4px_12px_-2px_rgba(232,138,118,0.25)] ring-2 ring-coral/20"
+        className="h-[52px] w-[52px] flex-shrink-0 rounded-full object-cover ring-2 ring-coral/25"
       />
     );
   }
   return (
-    <span className="bg-gradient-cta flex h-12 w-12 items-center justify-center rounded-full text-lg font-bold text-white shadow-[0_4px_12px_-2px_rgba(232,138,118,0.3)]">
+    <span className="bg-coral flex h-[52px] w-[52px] flex-shrink-0 items-center justify-center rounded-full text-xl font-bold text-white ring-2 ring-coral/25">
       {initial}
     </span>
   );
 }
 
-function BigAvatar({ name, url }: { name: string; url: string | null }) {
+function PinnedAvatar({ name, url }: { name: string; url: string | null }) {
   const initial = (name[0] ?? "?").toUpperCase();
   if (url) {
     return (
@@ -654,12 +666,12 @@ function BigAvatar({ name, url }: { name: string; url: string | null }) {
       <img
         src={url}
         alt=""
-        className="h-16 w-16 rounded-full object-cover shadow-[0_8px_20px_-4px_rgba(232,138,118,0.35)] ring-2 ring-coral/30 sm:h-20 sm:w-20"
+        className="h-[52px] w-[52px] rounded-full object-cover ring-2 ring-coral/25"
       />
     );
   }
   return (
-    <span className="bg-gradient-cta flex h-16 w-16 items-center justify-center rounded-full text-2xl font-bold text-white shadow-[0_8px_20px_-4px_rgba(232,138,118,0.35)] sm:h-20 sm:w-20">
+    <span className="bg-coral flex h-[52px] w-[52px] items-center justify-center rounded-full text-xl font-bold text-white ring-2 ring-coral/25">
       {initial}
     </span>
   );

@@ -47,30 +47,37 @@ export function UserMenu({ email, isAdmin, signOutAction, avatarUrl }: Props) {
 
   return (
     <div ref={rootRef} className="relative">
-      {/* Avatar button — user's uploaded photo when set, otherwise the
-          brand gradient with their email initial. The button always
-          carries the gradient + initial as the baseline so a load
-          failure inside ProfileAvatarImage gracefully falls back to the
-          initial instead of showing the browser's broken-image glyph. */}
+      {/* Avatar button — mobile-parity double ring: outer coral, inner
+          teal, ink-soft disc holding either the user's photo or their
+          email initial in coral-strong. The mobile UserBubble uses two
+          concentric 2px + 1.5px border rings; we approximate on web
+          with a coral outer ring on the button and a teal inner ring
+          on the inset avatar disc. */}
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="Your account"
-        className="bg-gradient-cta flex h-11 w-11 items-center justify-center overflow-hidden rounded-full text-base font-bold text-white shadow-[0_6px_18px_-4px_rgba(232,138,118,0.4),_0_2px_8px_-2px_rgba(126,196,196,0.3)] ring-2 ring-white/50 transition-transform hover:-translate-y-px active:scale-95"
+        className="flex h-[38px] w-[38px] items-center justify-center rounded-full ring-2 ring-coral transition-transform hover:-translate-y-px active:scale-95"
       >
-        <ProfileAvatarImage
-          signedUrl={avatarUrl}
-          className="h-full w-full object-cover"
-          fallback={<span>{initial}</span>}
-        />
+        <span className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-ink-soft ring-[1.5px] ring-teal">
+          <ProfileAvatarImage
+            signedUrl={avatarUrl}
+            className="h-full w-full object-cover"
+            fallback={
+              <span className="text-sm font-bold text-coral-strong">
+                {initial}
+              </span>
+            }
+          />
+        </span>
       </button>
 
       {open ? (
         <div
           role="menu"
-          className="animate-menu-in absolute right-0 top-12 z-30 w-72 overflow-hidden rounded-2xl bg-ink-soft shadow-[0_24px_48px_-16px_rgba(28,28,26,0.18),_0_10px_28px_rgba(232,138,118,0.12)] ring-1 ring-warm-700"
+          className="animate-menu-in absolute right-0 top-12 z-30 w-72 overflow-hidden rounded-2xl bg-ink-soft shadow-[0_16px_36px_-14px_rgba(28,28,26,0.20),_0_6px_16px_-6px_rgba(28,28,26,0.10)] ring-1 ring-warm-700"
         >
           <Link
             href="/settings"
@@ -128,7 +135,7 @@ export function UserMenu({ email, isAdmin, signOutAction, avatarUrl }: Props) {
               >
                 <span className="text-gradient-cta">◆</span>
               </span>
-              <span className="text-gradient-cta font-bold">Admin</span>
+              <span className="font-bold text-coral-strong">Admin</span>
             </MenuItem>
           ) : null}
 

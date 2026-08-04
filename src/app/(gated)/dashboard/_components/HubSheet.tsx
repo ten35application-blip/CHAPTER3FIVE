@@ -131,16 +131,16 @@ export function HubSheet({
           }}
           aria-label={open ? "Close hub" : "Open hub"}
           aria-expanded={open}
-          className="fixed bottom-6 right-6 z-50 flex h-16 w-16 items-center justify-center rounded-full bg-ink-soft shadow-[0_20px_48px_-10px_rgba(232,138,118,0.5),_0_10px_28px_-6px_rgba(126,196,196,0.45)] ring-2 ring-warm-700/50 transition-all hover:-translate-y-0.5 active:scale-95"
+          className="fixed bottom-8 right-5 z-50 flex h-[60px] w-[60px] items-center justify-center rounded-full bg-ink-soft shadow-[0_10px_24px_-8px_rgba(28,28,26,0.22),_0_4px_10px_-4px_rgba(28,28,26,0.14)] ring-1 ring-warm-700 transition-all hover:-translate-y-0.5 active:scale-95"
         >
           {/* Two-dots chapter3five mark (was the infinity glyph — Wilson,
               2026-07-29). Same transparent asset the hero + mobile use. */}
           <Image
             src="/logo-transparent.png"
             alt=""
-            width={32}
-            height={32}
-            className="h-8 w-8 object-contain"
+            width={34}
+            height={34}
+            className="h-[34px] w-[34px] object-contain"
           />
         </button>
       ) : null}
@@ -163,7 +163,7 @@ export function HubSheet({
             onClick={closeAll}
             className="absolute inset-0"
           />
-          <div className="animate-popover-in absolute bottom-24 right-6 z-10 w-64 rounded-2xl bg-ink-soft p-2 shadow-[0_20px_48px_-10px_rgba(28,28,26,0.18),_0_8px_24px_-6px_rgba(232,138,118,0.15)] ring-1 ring-warm-700/60">
+          <div className="animate-popover-in absolute bottom-[104px] right-5 z-10 w-64 rounded-2xl bg-ink-soft p-2 shadow-[0_12px_28px_-8px_rgba(28,28,26,0.20),_0_4px_12px_-4px_rgba(28,28,26,0.10)] ring-1 ring-warm-700">
             <div className="flex items-center justify-center py-2">
               <Image
                 src="/logo-transparent.png"
