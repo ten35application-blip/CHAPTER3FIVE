@@ -17,6 +17,7 @@ import { PacksList } from "./_components/PacksList";
 import { PasswordResetRow } from "./_components/PasswordResetRow";
 import { PhotoUploader } from "./_components/PhotoUploader";
 import { ThemeToggle } from "./_components/ThemeToggle";
+import { TextSizeControl } from "./_components/TextSizeControl";
 import { NotificationsToggle } from "./_components/NotificationsToggle";
 import { UpgradeButton } from "./_components/UpgradeButton";
 
@@ -374,6 +375,8 @@ export default async function SettingsPage({
             reapplies before first paint so there's no FOUC. */}
         <Section label="Appearance">
           <ThemeToggle />
+          <div className="h-px bg-warm-700 opacity-70" />
+          <TextSizeControl />
         </Section>
 
         {/* SAFETY — moderation posture + crisis lines. Ported from

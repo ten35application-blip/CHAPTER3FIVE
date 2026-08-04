@@ -45,6 +45,21 @@ export const metadata: Metadata = {
  */
 const THEME_INIT_SCRIPT = `(function(){try{var t=localStorage.getItem('theme');if(t!=='light'&&t!=='dark')t='system';var a=t==='system'?(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):t;if(a==='dark')document.documentElement.setAttribute('data-theme','dark');else document.documentElement.removeAttribute('data-theme');}catch(e){}})();`;
 
+/**
+ * Text-size init, same pre-hydration contract as the theme script.
+ * Settings → Appearance → Text size writes localStorage.textSize; the
+ * root font-size is a PERCENTAGE so it multiplies the browser's own base
+ * size rather than replacing it (a reader who already enlarged their
+ * default keeps it, and this compounds). Tailwind's scale is in rem, so
+ * this scales every piece of type proportionally and the existing
+ * hierarchy is preserved. Runs before first paint so an enlarged page
+ * never flashes at default size and jumps — which for the reader this
+ * setting exists for is worse than not having it. Wrapped in try/catch:
+ * localStorage throws in Private Mode and text size must never be able
+ * to break the page.
+ */
+const TEXT_SIZE_INIT_SCRIPT = `(function(){try{var s=localStorage.getItem('textSize');var m={small:0.9,large:1.15,larger:1.3}[s];if(m)document.documentElement.style.fontSize=(m*100)+'%';}catch(e){}})();`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -54,6 +69,7 @@ export default function RootLayout({
     <html lang="en" className="h-full antialiased">
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: TEXT_SIZE_INIT_SCRIPT }} />
       </head>
       {/* overflow-x-hidden on body is a hard stop against horizontal
           scroll on iPad-width viewports. Something occasionally
