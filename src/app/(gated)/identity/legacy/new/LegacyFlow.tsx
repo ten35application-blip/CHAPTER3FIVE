@@ -9,6 +9,7 @@ import type {
 } from "@/lib/legacy/questions";
 import type { LegacySubject } from "@/lib/legacy/synthesize";
 import { OTHER_IDENTITY_CREATE_PRICE_LABEL } from "@/lib/pricing";
+import { minAnswersForMode } from "@/lib/legacy/answer-floor";
 import {
   completeLegacyIdentity,
   saveLegacyDraft,
@@ -269,7 +270,7 @@ function SubjectScreen({
         {isSelf ? "A few basics, first." : "A few basics about them, first."}
       </h1>
       <p className="mt-3 text-base leading-relaxed text-warm-300">
-        Forty warm questions come after &mdash; everything saves as you
+        Forty-five warm questions come after &mdash; everything saves as you
         go, so you can stop and pick up anytime. Pick the wrong path?{" "}
         <Link
           href="/identity/create"
@@ -549,13 +550,18 @@ function Field({
 
 // ─── Steps 1..40: one question per screen ───────────────────────────────────
 
-// Server-side MIN_ANSWERS gate (src/app/(gated)/identity/legacy/new/
-// actions.ts) — a partial archive is completable once the count is
-// this high. Keep in sync with the server constant. Fable audit:
-// without this the user had to click "Skip" 18 times to reach the
-// "Bring them together" button on Q40 if the person they were
-// recording died mid-flow.
-const MIN_ANSWERS_TO_FINISH = 20;
+// Mirrors the SERVER floor, which is mode-dependent (lib/legacy/
+// sanitize.ts): 20 for a self-authored archive, 30 for one written
+// about someone else. Imported rather than re-declared — this constant
+// was hardcoded to 20 while the server moved to 30 on 2026-08-04, so
+// other-mode users were shown "Finish now with 20 answers · $5" and
+// then rejected with "A person takes at least 30 answers to hold
+// together." The button lied, in a hospice week, to someone about to
+// pay. Never re-hardcode this.
+//
+// Fable audit: the early-finish exists at all because without it a
+// user had to click "Skip" 25 times to reach the finish button if the
+// person they were recording died mid-flow.
 
 function QuestionScreen({
   questions,
@@ -590,7 +596,8 @@ function QuestionScreen({
 }) {
   const question = questions[step - 1];
   const isLast = step === questions.length;
-  const canFinishEarly = !isLast && answeredCount >= MIN_ANSWERS_TO_FINISH;
+  const minToFinish = minAnswersForMode(isOtherMode ? "other" : "self");
+  const canFinishEarly = !isLast && answeredCount >= minToFinish;
   const progress = (step / questions.length) * 100;
 
   // Other-mode finish copy carries the $5 gate: a price cue before

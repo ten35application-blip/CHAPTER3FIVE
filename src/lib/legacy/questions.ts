@@ -1,7 +1,14 @@
 import "server-only";
 
 /**
- * The 40 legacy questions — 10 categories, 4 each. All open-ended.
+ * The 45 legacy questions — 10 categories. All open-ended, all with a
+ * first-person (promptSelf) variant.
+ *
+ * Was 40 (4 per category) until 2026-08-04, when five absences the
+ * formula audit found were filled: what they called you, how they
+ * actually texted, their unreasonable opinion, what they did all day,
+ * and who was around them. Counts in user-facing copy must move with
+ * this number.
  *
  * SERVER-ONLY (audit 2026-07-25): this module is server-only ON
  * PURPOSE. The flow is open to every tier since the July 2026

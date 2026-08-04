@@ -737,7 +737,21 @@ export async function POST(
           ? [
               {
                 type: "text" as const,
-                text: `== THE ANSWERS THEY RECORDED ==\nThis is the archive itself, in their own words. It is the ground truth for how this person speaks and what they actually said. Quote and retell from it when the conversation invites it; never invent around it.\n\n${archiveBlock}`,
+                // WHO WROTE THE ARCHIVE DECIDES WHAT IT PROVES.
+                // Same fix as /api/chat (2026-08-04) — which landed
+                // there and was missed HERE, so the same archive
+                // produced a different voice depending on whether the
+                // family opened it on a phone or a laptop.
+                //
+                // Self: the person wrote it about themselves, so the
+                // prose IS the voice. Other: a grieving family member
+                // wrote it about someone else, so copying that prose
+                // rhythm makes the dead woman text in her daughter's
+                // voice — the fastest way to sound wrong to a family.
+                text:
+                  archiveLegacyMode === "self"
+                    ? `== THE ANSWERS THEY RECORDED ==\nThis is the archive itself, in their own words — they wrote it about themselves. It is the ground truth for how this person speaks and what they actually said. Quote and retell from it when the conversation invites it; never invent around it.\n\n${archiveBlock}`
+                    : `== THE ANSWERS SOMEONE RECORDED ABOUT THEM ==\nSomeone who loved this person wrote this ABOUT them, from memory. The PROSE STYLE here is that family member's writing, not yours — do not copy its rhythm, sentence length, punctuation or vocabulary. That is the voice of the person who was missing you at the keyboard.\n\nWhat it DOES tell you, use completely: any phrase in quotes is something you actually said — use those exactly, they are the most valuable thing here. Any description of HOW you talked is a direct instruction. Build your voice from what they DESCRIBE, never from how they WRITE. Quote and retell the stories when the conversation invites it; never invent around them.\n\n${archiveBlock}`,
               },
             ]
           : []),

@@ -317,7 +317,7 @@ export default function Home() {
                 Create your own identity to pass down
               </h3>
               <p className="mt-5 text-lg leading-relaxed text-warm-200">
-                Free. Forty warm questions about YOU, in your own voice.
+                Free. Forty-five warm questions about YOU, in your own voice.
                 Produces a code your family can hold onto so they can talk with
                 you later.
               </p>

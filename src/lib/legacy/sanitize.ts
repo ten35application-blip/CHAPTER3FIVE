@@ -12,32 +12,15 @@ import type { LegacySubject } from "./synthesize";
  */
 
 /**
- * Minimum answers before an archive can be minted.
- *
- * SPLIT BY MODE (2026-08-04), because the two modes fail differently.
- *
- * SELF: you are writing about yourself, in first person. Twenty short
- * answers still produce something real — the prose is yours, the
- * phrasing is yours, the rhythm is yours. Thin, but not invented. And
- * you are alive: you can come back and add more any time.
- *
- * OTHER: someone is writing about a person who is gone. Twenty thin
- * answers become a fluent multi-paragraph portrait with a hometown, a
- * trade and a philosophy — handed to a grandchild who will never know
- * which parts were real, by a writer who cannot come back and correct
- * it, about a person who cannot object. The floor has to be higher
- * where the confabulation is permanent.
- *
- * Deliberately not enormous. The people filling this in are often doing
- * it in a hospice week, and a wall is its own kind of harm.
+ * Floors live in answer-floor.ts (isomorphic) so the client flow can
+ * read them without importing this server-only module. Re-exported
+ * here so existing server call sites keep working.
  */
-export const LEGACY_MIN_ANSWERS = 20;
-export const LEGACY_MIN_ANSWERS_OTHER = 30;
-
-/** The floor that applies to a given archive mode. */
-export function minAnswersForMode(mode: "self" | "other"): number {
-  return mode === "self" ? LEGACY_MIN_ANSWERS : LEGACY_MIN_ANSWERS_OTHER;
-}
+export {
+  LEGACY_MIN_ANSWERS_SELF as LEGACY_MIN_ANSWERS,
+  LEGACY_MIN_ANSWERS_OTHER,
+  minAnswersForMode,
+} from "./answer-floor";
 export const LEGACY_MAX_ANSWER_CHARS = 4000;
 export const LEGACY_MAX_SUBJECT_FIELD_CHARS = 200;
 

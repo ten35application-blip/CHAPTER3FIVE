@@ -380,7 +380,7 @@ export default async function IdentityCreatePage({
             CTA to match mobile. */}
         <PathCardShell
           title="Me"
-          subhead="Forty warm questions about YOU, in your own voice. Produces a code your family can hold on to so they can remember you here."
+          subhead="Forty-five warm questions about YOU, in your own voice. Produces a code your family can hold on to so they can remember you here."
           icon={<HeartTagIcon />}
           statusLabel={hasMe ? "Already created" : "Free"}
         >
