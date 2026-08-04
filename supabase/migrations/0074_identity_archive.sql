@@ -1,3 +1,31 @@
+-- ⚠ SUPERSEDED — DO NOT APPLY. Verified against production 2026-08-04.
+--
+-- This file was never applied, and every part of it has since shipped
+-- somewhere better. Applying it now would ADD BACK a dead column and a
+-- weaker guard than the one currently protecting `messages`.
+--
+--   §1 oracles.archived_at        → superseded by 0076's
+--      + oracles_archived_at_idx     conversation_archived_at, which is
+--                                    what both apps actually read.
+--                                    archived_at does not exist in
+--                                    production and nothing references
+--                                    it.
+--   §1 restore_price_cents        → landed via another migration; the
+--                                    column is live and 0117 guards it.
+--   §2 messages.deleted_at        → live.
+--   §2 messages_user_oracle_       → live.
+--      deleted_idx
+--   §2 enforce_message_soft_       → superseded by
+--      delete_only + its policy      messages_enforce_column_writes,
+--      + grant                       which pairs a real column
+--                                    allowlist (deleted_at, read_at)
+--                                    with the trigger. Strictly
+--                                    stronger than the version below.
+--
+-- Kept in the tree rather than deleted so the numbering stays continuous
+-- and the history stays readable. If you are reconciling the ledger:
+-- this is the one file that is legitimately absent from it.
+--
 -- 0074: two deletion trails.
 --
 -- 1. Identity-level archive (free, reversible) + per-oracle restore price.
