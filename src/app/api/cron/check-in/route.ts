@@ -234,13 +234,31 @@ ${variety}`;
     }
   }
 
-  await admin.from("cron_runs").insert({
+  // THIS INSERT HAS BEEN FAILING SINCE IT WAS WRITTEN (found 2026-08-04).
+  // It set `metadata`, and cron_runs has no metadata column — the table
+  // is (id, job, ran_at, status, processed, error, duration_ms). Every
+  // other cron writes `processed`; this one alone invented a column.
+  //
+  // postgrest-js does not throw on a rejected insert, it resolves with
+  // {error}, and nothing here read it. So the write failed silently on
+  // every single run: check-in is the ONLY job with zero rows in
+  // cron_runs, while the other seven have a week of history. The job
+  // itself worked the whole time — it was the record of it that didn't.
+  //
+  // Which means the cron-health readout has been showing check-in as
+  // never-run since the day it shipped, and would have shown exactly the
+  // same thing if it had genuinely been dead.
+  const { error: heartbeatErr } = await admin.from("cron_runs").insert({
     job: "check-in",
     status: failures.length > 0 ? "partial" : "ok",
     error: failures.length > 0 ? failures.join("; ").slice(0, 800) : null,
     duration_ms: Date.now() - startedAt,
-    metadata: { processed: rows?.length ?? 0, sent, failures: failures.length },
+    processed: sent,
   });
+  if (heartbeatErr) {
+    // Checked now, so the next schema drift is loud instead of silent.
+    console.error("[cron/check-in] heartbeat insert failed:", heartbeatErr);
+  }
 
   return NextResponse.json({
     skippedForTime,
