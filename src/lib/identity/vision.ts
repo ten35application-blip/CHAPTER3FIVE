@@ -103,13 +103,24 @@ export async function analyzePhotoForIdentity(
 ): Promise<VisionAnalysis> {
   let response;
   try {
+    // Root cause (2026-08-04): the previous version used
+    // output_config { json_schema } which 400'd when combined with
+    // image input on claude-sonnet-4-6. Other output_config sites in
+    // the codebase (memory extract, synthesize, safety detectors) are
+    // text-only and work fine. Anthropic's structured-output flag has
+    // narrower model support when the request also carries an
+    // "image" content block. Solution: drop output_config, ask the
+    // model to return JSON in prose, parse in JS. The existing
+    // catch below already routes JSON.parse failures to the
+    // "malformed" kind, so the safety net is unchanged.
+    //
+    // The system prompt already spells out the shape; append the
+    // schema keys + enum values inline so the model has an anchor.
+    const schemaHint = JSON.stringify(visionSchema());
     response = await anthropic.messages.create({
       model: ANTHROPIC_MODEL,
       max_tokens: 1024,
       system: VISION_SYSTEM,
-      output_config: {
-        format: { type: "json_schema", schema: visionSchema() },
-      },
       messages: [
         {
           role: "user",
@@ -124,7 +135,9 @@ export async function analyzePhotoForIdentity(
             },
             {
               type: "text",
-              text: "Analyze this photo per the instructions and return the JSON.",
+              text:
+                "Analyze this photo per the instructions and return a single JSON object matching this schema exactly — no prose before or after, no code fences:\n\n" +
+                schemaHint,
             },
           ],
         },
@@ -170,9 +183,24 @@ export async function analyzePhotoForIdentity(
     throw new VisionAnalysisError("no text block in response", "malformed");
   }
 
+  // Forgiving parse: strip a Markdown code fence if the model wrapped
+  // the JSON in ```json ... ``` and prune anything before the first
+  // '{' / after the last '}'. Necessary because we dropped
+  // output_config (which enforced pure-JSON output) — the model
+  // usually complies with the "no fences, no prose" instruction, but
+  // an occasional preamble shouldn't fail the whole call.
   let parsed: VisionAnalysis;
   try {
-    parsed = JSON.parse(textBlock.text) as VisionAnalysis;
+    let raw = textBlock.text.trim();
+    if (raw.startsWith("```")) {
+      raw = raw.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/i, "");
+    }
+    const firstBrace = raw.indexOf("{");
+    const lastBrace = raw.lastIndexOf("}");
+    if (firstBrace >= 0 && lastBrace > firstBrace) {
+      raw = raw.slice(firstBrace, lastBrace + 1);
+    }
+    parsed = JSON.parse(raw) as VisionAnalysis;
   } catch {
     throw new VisionAnalysisError("response was not valid JSON", "malformed");
   }
