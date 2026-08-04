@@ -15,6 +15,14 @@ export const metadata = {
 /**
  * "Add a companion" — the four ways to grow the account.
  *
+ * VISUAL SOURCE OF TRUTH: chapter3five-app/app/identity/create.tsx.
+ * Wilson 2026-08-03: mobile is the canonical visual and web catches
+ * up here. Behavior/routing was already at parity from the gap-#6
+ * rework — this file only rewrites JSX + Tailwind to match mobile's
+ * PathCard treatment (rounded-[22px] card, 44px rounded-[14px]
+ * coral-tinted icon square, pill status chip, SOLID coral/teal CTA
+ * — NOT the CTA gradient; mobile uses flat brand fills).
+ *
  * Wilson's spec, 2026-08-03 audit gap #6 rework:
  *
  *   1. Add a companion (random, $5 beyond plan)
@@ -63,10 +71,6 @@ export const metadata = {
  * "hasUnfilledPlaceholder" branch fires before the free-quota fallback.
  * The server (canCreateOracle) is still the source of truth; this UI
  * is only what the user reads.
- *
- * Design note: /logo-transparent.png is the two-dots mark with alpha
- * edges, so it floats inside the .hero-orb coral+teal halo without a
- * visible bounding box. (/logo.png is the peach-background master.)
  */
 export default async function IdentityCreatePage({
   searchParams,
@@ -231,165 +235,188 @@ export default async function IdentityCreatePage({
   const legacyOtherCents = PRICING.otherIdentityCreateCents;
 
   return (
-    <main className="flex min-h-dvh flex-1 flex-col items-center justify-center px-6 py-12">
-      <div className="flex w-full max-w-md flex-col items-center">
-        <div className="hero-orb hero-orb-drift flex flex-col items-center">
-          <Image
-            src="/logo-transparent.png"
-            alt=""
-            width={64}
-            height={64}
-            priority
-            className="h-16 w-16 drop-shadow-[0_12px_32px_rgba(232,138,118,0.22)]"
-          />
-        </div>
-
-        <h1 className="mt-8 text-center text-3xl font-semibold tracking-tight text-warm-50">
-          Add a companion
-        </h1>
-        <p className="mt-2 text-center text-base text-warm-300">
-          Four ways to make one.
-        </p>
-
-        {justPurchased ? (
-          <p className="mt-4 rounded-full bg-teal/12 px-4 py-2 text-center text-xs font-medium text-teal-strong ring-1 ring-teal/30">
-            You&rsquo;ve got a fresh slot &mdash; pick a flow to spend it.
-          </p>
-        ) : null}
-        {cancelled ? (
-          <p className="mt-4 rounded-full bg-warm-800 px-4 py-2 text-center text-xs font-medium text-warm-300 ring-1 ring-warm-700">
-            Checkout cancelled. Nothing was charged.
-          </p>
-        ) : null}
-
-        <div className="mt-10 flex w-full flex-col gap-4">
-          {/* Card 1 — random identity. "Included in your plan · N
-              remaining" while under the tier's random quota (Basic 2 /
-              Pro 4, plus purchased extra_oracle_credits); "$5" beyond
-              that (buys 1 extra_oracle_credit via the 'oracle'
-              checkout purpose). */}
-          <PathCardShell
-            title="Add a companion"
-            subhead="A random personality written for you in about a minute. No questions, no photo &mdash; you get who you get."
-            icon={<SparkIcon />}
-            statusLabel={
-              randomOverQuota
-                ? `$${extraCents / 100}`
-                : randomRemaining !== null
-                  ? `Included in your plan · ${randomRemaining} remaining`
-                  : "Included in your plan"
-            }
-          >
-            {randomOverQuota ? (
-              <BuyExtraCompanionCTA
-                checkoutEnabled={extraOracleCheckoutEnabled}
-                priceCents={extraCents}
-                fallbackHref="/upgrade"
-                label={`Buy 1 more slot · $${extraCents / 100}`}
-              />
-            ) : (
-              <PillLink
-                href="/identity/new"
-                label="Roll a companion"
-                tone="coral"
-              />
-            )}
-          </PathCardShell>
-
-          {/* Card 2 — photo identity. Three states, in priority order:
-              (a) unfilled placeholder exists → "Included in your plan"
-                  + route to /chat/{placeholderId} so the existing
-                  PhotoPlaceholderScreen upload flow fills the row
-                  in place (uses the reserved slot, no new insert);
-              (b) no placeholder & no filled photo → "Included · start
-                  from a photo" + /identity/from-photo (rare — happens
-                  when auto-populate hasn't run or the placeholder got
-                  deleted);
-              (c) filled photo exists → "$5" + BuyExtraCompanionCTA. */}
-          <PathCardShell
-            title="From a photo"
-            subhead="Upload a portrait. We read the face and build an identity to match. The photo becomes their face."
-            icon={<PhotoIcon />}
-            statusLabel={
-              hasUnfilledPlaceholder
-                ? "Included in your plan"
-                : photoOverQuota
-                  ? `$${extraCents / 100}`
-                  : "Included in your plan · start from a photo"
-            }
-          >
-            {hasUnfilledPlaceholder && placeholderId ? (
-              <PillLink
-                href={`/chat/${placeholderId}`}
-                label="Bring your photo companion to life"
-                tone="teal"
-              />
-            ) : photoOverQuota ? (
-              <BuyExtraCompanionCTA
-                checkoutEnabled={extraOracleCheckoutEnabled}
-                priceCents={extraCents}
-                fallbackHref="/upgrade"
-                label={`Buy 1 more slot · $${extraCents / 100}`}
-              />
-            ) : (
-              <PillLink
-                href="/identity/from-photo"
-                label="Choose a photo"
-                tone="teal"
-              />
-            )}
-          </PathCardShell>
-
-          {/* Card 3 — Me. Free on all tiers, one per account. When one
-              exists the CTA disappears and the card reads "Already
-              created" (with a link back to it in the dashboard). */}
-          <PathCardShell
-            title="Me"
-            subhead="Forty warm questions about YOU, in your own voice. Produces a code your family can hold on to so they can remember you here."
-            icon={<HeartTagIcon />}
-            statusLabel={hasMe ? "Already created" : "Free"}
-          >
-            {hasMe ? (
-              <p className="mt-3 text-center text-xs text-warm-300">
-                One Me per account. See it in your dashboard.
-              </p>
-            ) : (
-              <PillLink
-                href="/identity/legacy/new?mode=self"
-                label="Start the walk"
-                tone="teal"
-              />
-            )}
-          </PathCardShell>
-
-          {/* Card 4 — legacy for someone else. Always $5, charged at
-              Finish by the existing other_identity_create flow — the
-              picker just previews the cost. */}
-          <PathCardShell
-            title="For someone you love"
-            subhead="Forty questions about a real person &mdash; a parent, a partner, a friend. Lands in your contacts, plus a code you can share with family."
-            icon={<InfinityIcon />}
-            statusLabel={`$${legacyOtherCents / 100} when you finish`}
-          >
-            <PillLink
-              href="/identity/legacy/new?mode=other"
-              label="Start the walk"
-              tone="coral"
-            />
-          </PathCardShell>
-        </div>
-
+    <main className="mx-auto flex w-full max-w-md flex-col px-6 pb-12 pt-14">
+      {/* Back link — matches mobile "← Back" top-left in coral-strong,
+          16px / weight 600. Web target is /dashboard (mobile does
+          router.back() but web reaches this picker from the dashboard
+          compose flow, so /dashboard is the correct rewind). */}
+      <div className="mb-2">
         <Link
           href="/dashboard"
-          className="mt-8 text-sm font-medium text-warm-400 transition-colors hover:text-warm-200"
+          className="text-base font-semibold text-coral-strong transition-colors hover:text-coral"
         >
-          Back to messages
+          ← Back
         </Link>
+      </div>
+
+      {/* Header — logo (56px, no hero-orb; mobile has none), h1 at
+          28px/extrabold/tight, subtitle 16px warm-300. Matches the
+          centered stack on mobile above the four cards. */}
+      <div className="mt-3 mb-6 flex flex-col items-center">
+        <Image
+          src="/logo-transparent.png"
+          alt=""
+          width={56}
+          height={56}
+          priority
+          className="h-14 w-14"
+        />
+        <h1 className="mt-5 text-center text-[28px] font-extrabold tracking-[-0.8px] text-warm-50">
+          Add a companion
+        </h1>
+        <p className="mt-1.5 text-center text-base text-warm-300">
+          Four ways to make one.
+        </p>
+      </div>
+
+      {/* Web-only post-checkout banners. Kept because mobile doesn't
+          transit through Stripe's success/cancel URLs — but styled to
+          sit inside the same visual language (pill, warm tokens). */}
+      {justPurchased ? (
+        <p className="mb-3 rounded-full bg-teal/12 px-4 py-2 text-center text-xs font-medium text-teal-strong ring-1 ring-teal/30">
+          You&rsquo;ve got a fresh slot &mdash; pick a flow to spend it.
+        </p>
+      ) : null}
+      {cancelled ? (
+        <p className="mb-3 rounded-full bg-warm-700 px-4 py-2 text-center text-xs font-medium text-warm-300 ring-1 ring-warm-700">
+          Checkout cancelled. Nothing was charged.
+        </p>
+      ) : null}
+
+      <div className="flex flex-col gap-3">
+        {/* Card 1 — random identity. "Included in your plan · N
+            remaining" while under the tier's random quota (Basic 2 /
+            Pro 4, plus purchased extra_oracle_credits); "$5" beyond
+            that (buys 1 extra_oracle_credit via the 'oracle'
+            checkout purpose). Coral CTA to match mobile. */}
+        <PathCardShell
+          title="Add a companion"
+          subhead="A random personality written for you in about a minute. No questions, no photo &mdash; you get who you get."
+          icon={<SparkIcon />}
+          statusLabel={
+            randomOverQuota
+              ? `$${extraCents / 100}`
+              : randomRemaining !== null
+                ? `Included in your plan · ${randomRemaining} remaining`
+                : "Included in your plan"
+          }
+        >
+          {randomOverQuota ? (
+            <BuyExtraCompanionCTA
+              checkoutEnabled={extraOracleCheckoutEnabled}
+              priceCents={extraCents}
+              fallbackHref="/upgrade"
+              label={`Buy 1 more slot · $${extraCents / 100}`}
+              tone="coral"
+            />
+          ) : (
+            <SolidPillLink
+              href="/identity/new"
+              label="Roll a companion"
+              tone="coral"
+            />
+          )}
+        </PathCardShell>
+
+        {/* Card 2 — photo identity. Three states, in priority order:
+            (a) unfilled placeholder exists → "Included in your plan"
+                + route to /chat/{placeholderId} so the existing
+                PhotoPlaceholderScreen upload flow fills the row
+                in place (uses the reserved slot, no new insert);
+            (b) no placeholder & no filled photo → "Included · start
+                from a photo" + /identity/from-photo (rare — happens
+                when auto-populate hasn't run or the placeholder got
+                deleted);
+            (c) filled photo exists → "$5" + BuyExtraCompanionCTA.
+            Teal CTA in all three branches to match mobile. */}
+        <PathCardShell
+          title="From a photo"
+          subhead="Upload a portrait. We read the face and build an identity to match. The photo becomes their face."
+          icon={<PhotoIcon />}
+          statusLabel={
+            hasUnfilledPlaceholder
+              ? "Included in your plan"
+              : photoOverQuota
+                ? `$${extraCents / 100}`
+                : "Included in your plan · start from a photo"
+          }
+        >
+          {hasUnfilledPlaceholder && placeholderId ? (
+            <SolidPillLink
+              href={`/chat/${placeholderId}`}
+              label="Bring your photo companion to life"
+              tone="teal"
+            />
+          ) : photoOverQuota ? (
+            <BuyExtraCompanionCTA
+              checkoutEnabled={extraOracleCheckoutEnabled}
+              priceCents={extraCents}
+              fallbackHref="/upgrade"
+              label={`Buy 1 more slot · $${extraCents / 100}`}
+              tone="teal"
+            />
+          ) : (
+            <SolidPillLink
+              href="/identity/from-photo"
+              label="Choose a photo"
+              tone="teal"
+            />
+          )}
+        </PathCardShell>
+
+        {/* Card 3 — Me. Free on all tiers, one per account. When one
+            exists the CTA disappears and the card reads "Already
+            created" (with a link back to it in the dashboard). Teal
+            CTA to match mobile. */}
+        <PathCardShell
+          title="Me"
+          subhead="Forty warm questions about YOU, in your own voice. Produces a code your family can hold on to so they can remember you here."
+          icon={<HeartTagIcon />}
+          statusLabel={hasMe ? "Already created" : "Free"}
+        >
+          {hasMe ? (
+            <p className="mt-2 text-center text-[13px] text-warm-300">
+              One Me per account. See it in your dashboard.
+            </p>
+          ) : (
+            <SolidPillLink
+              href="/identity/legacy/new?mode=self"
+              label="Start the walk"
+              tone="teal"
+            />
+          )}
+        </PathCardShell>
+
+        {/* Card 4 — legacy for someone else. Always $5, charged at
+            Finish by the existing other_identity_create flow — the
+            picker just previews the cost. Coral CTA to match mobile. */}
+        <PathCardShell
+          title="For someone you love"
+          subhead="Forty questions about a real person &mdash; a parent, a partner, a friend. Lands in your contacts, plus a code you can share with family."
+          icon={<InfinityIcon />}
+          statusLabel={`$${legacyOtherCents / 100} when you finish`}
+        >
+          <SolidPillLink
+            href="/identity/legacy/new?mode=other"
+            label="Start the walk"
+            tone="coral"
+          />
+        </PathCardShell>
       </div>
     </main>
   );
 }
 
+/**
+ * Card shell — mirrors mobile's PathCard exactly.
+ *  - 22px radius, 18px padding, warm-700 hairline ring, inkSoft fill.
+ *  - Icon square is 44x44 with a coral-tinted (12% alpha) fill and a
+ *    14px radius. Icons paint their own color (coral-strong or
+ *    teal-strong) via currentColor so they read on the coral tint.
+ *  - Title 17/bold, subhead 14/leading-5, status pill 11/semibold in
+ *    warm-700 with warm-200 text.
+ *  - CTA row sits below the header block with 14px margin-top.
+ */
 function PathCardShell({
   title,
   subhead,
@@ -404,30 +431,38 @@ function PathCardShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="relative rounded-3xl bg-ink-soft p-6 text-left shadow-[0_14px_36px_-14px_rgba(28,28,26,0.16),_0_4px_12px_rgba(232,138,118,0.08)] ring-1 ring-warm-700">
-      <div className="flex items-start gap-4">
+    <div className="rounded-[22px] bg-ink-soft p-[18px] ring-1 ring-warm-700">
+      <div className="flex items-start gap-3.5">
         <span
           aria-hidden
-          className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-coral/12"
+          className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-coral/12"
         >
-          <span className="text-gradient-cta">{icon}</span>
+          {icon}
         </span>
-        <div className="flex min-w-0 flex-col">
-          <span className="text-lg font-semibold text-warm-50">{title}</span>
-          <span className="mt-1 text-sm leading-relaxed text-warm-300">
+        <div className="flex min-w-0 flex-1 flex-col">
+          <span className="text-[17px] font-bold tracking-[-0.3px] text-warm-50">
+            {title}
+          </span>
+          <span className="mt-1 text-[14px] leading-5 text-warm-300">
             {subhead}
           </span>
-          <span className="mt-3 inline-flex w-fit items-center rounded-full bg-warm-800 px-3 py-1 text-xs font-medium text-warm-200 ring-1 ring-warm-700">
+          <span className="mt-2.5 inline-flex w-fit items-center rounded-full bg-warm-700 px-2.5 py-1 text-[11px] font-semibold text-warm-200 ring-1 ring-warm-700">
             {statusLabel}
           </span>
         </div>
       </div>
-      <div className="mt-4">{children}</div>
+      <div className="mt-3.5">{children}</div>
     </div>
   );
 }
 
-function PillLink({
+/**
+ * Solid coral / teal pill CTA — matches the mobile CardCTA (flat
+ * brand fill, NOT the sitewide gradient). 44px height, full-radius,
+ * white text at 14/bold with a hair of negative tracking. Hover
+ * dips to the -strong shade to mirror mobile's pressed state.
+ */
+function SolidPillLink({
   href,
   label,
   tone,
@@ -436,73 +471,80 @@ function PillLink({
   label: string;
   tone: "coral" | "teal";
 }) {
-  const coralClasses =
-    "bg-gradient-cta hover:bg-gradient-cta-hover flex h-11 w-full items-center justify-center rounded-full text-sm font-semibold text-white shadow-[0_10px_24px_-10px_rgba(232,138,118,0.55),_0_4px_10px_rgba(126,196,196,0.15)] transition-all hover:-translate-y-px active:translate-y-0 active:opacity-90";
-  const tealStyle = {
-    background:
-      "linear-gradient(135deg, var(--color-teal) 0%, var(--color-teal-strong) 100%)",
-    boxShadow:
-      "0 10px 24px -10px rgba(126,196,196,0.5), 0 4px 10px -4px rgba(126,196,196,0.3)",
-  } as const;
-  const tealClasses =
-    "flex h-11 w-full items-center justify-center rounded-full px-6 text-sm font-bold text-white transition-all hover:-translate-y-px active:translate-y-0 active:opacity-90";
+  const toneClasses =
+    tone === "teal"
+      ? "bg-teal hover:bg-teal-strong"
+      : "bg-coral hover:bg-coral-strong";
   return (
     <Link
       href={href}
-      className={tone === "teal" ? tealClasses : coralClasses}
-      style={tone === "teal" ? tealStyle : undefined}
+      className={`flex h-11 w-full items-center justify-center rounded-full text-sm font-bold tracking-[-0.2px] text-white transition-colors active:opacity-90 ${toneClasses}`}
     >
       {label}
     </Link>
   );
 }
 
-function PhotoIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width="20"
-      height="20"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <rect x="3" y="5" width="18" height="14" rx="2.5" />
-      <circle cx="12" cy="12" r="3.5" />
-      <path d="M17 8.5h.01" />
-    </svg>
-  );
-}
-
+/**
+ * Spark — mobile SparkIcon. Solid coral-strong fill at 22px.
+ */
 function SparkIcon() {
   return (
     <svg
       viewBox="0 0 24 24"
-      width="20"
-      height="20"
+      width="22"
+      height="22"
       fill="currentColor"
       aria-hidden
+      className="text-coral-strong"
     >
       <path d="M12 2l2.09 6.26L20 10l-5.91 1.74L12 18l-2.09-6.26L4 10l5.91-1.74L12 2z" />
     </svg>
   );
 }
 
-function HeartTagIcon() {
+/**
+ * Photo — mobile PhotoIcon. Coral-strong 2px stroke, no lens
+ * highlight dot (mobile is intentionally minimal here — just the
+ * rectangle and the circle).
+ */
+function PhotoIcon() {
   return (
     <svg
       viewBox="0 0 24 24"
-      width="20"
-      height="20"
+      width="22"
+      height="22"
       fill="none"
       stroke="currentColor"
       strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden
+      className="text-coral-strong"
+    >
+      <path d="M3 5h18v14H3z" />
+      <path d="M12 8.5a3.5 3.5 0 100 7 3.5 3.5 0 000-7z" />
+    </svg>
+  );
+}
+
+/**
+ * Heart — mobile HeartTagIcon. Teal-strong stroke so the "Me" card
+ * reads teal-leaning to match the teal Start-the-walk CTA below it.
+ */
+function HeartTagIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="22"
+      height="22"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+      className="text-teal-strong"
     >
       <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
     </svg>

@@ -15,6 +15,12 @@ import { useState, useTransition } from "react";
  * When the env price id is absent (checkoutEnabled=false) the button
  * degrades to a link to /upgrade so no dead-end 503 is shown.
  *
+ * Visual: matches the mobile CardCTA (solid coral OR teal fill, NOT
+ * the sitewide gradient). Card 1's overflow buys coral, card 2's
+ * overflow buys teal — mobile picks the tone from the card it lives
+ * inside, and we mirror that with the `tone` prop so the two picker
+ * cards keep their color signature even in the paid state.
+ *
  * Web-only surface. Mobile has its own iOS-hide treatment in
  * app/identity/create.tsx — this component never renders inside the
  * app.
@@ -24,23 +30,29 @@ export function BuyExtraCompanionCTA({
   priceCents,
   fallbackHref,
   label,
+  tone = "coral",
 }: {
   checkoutEnabled: boolean;
   priceCents: number;
   fallbackHref: string;
   label?: string;
+  tone?: "coral" | "teal";
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const classes =
-    "bg-gradient-cta hover:bg-gradient-cta-hover flex h-11 w-full items-center justify-center rounded-full text-sm font-semibold text-white shadow-[0_10px_24px_-10px_rgba(232,138,118,0.55),_0_4px_10px_rgba(126,196,196,0.15)] transition-all hover:-translate-y-px active:translate-y-0 active:opacity-90 disabled:opacity-60";
+  const toneClasses =
+    tone === "teal"
+      ? "bg-teal hover:bg-teal-strong"
+      : "bg-coral hover:bg-coral-strong";
+
+  const baseClasses = `flex h-11 w-full items-center justify-center rounded-full text-sm font-bold tracking-[-0.2px] text-white transition-colors active:opacity-90 ${toneClasses}`;
 
   const buttonLabel = label ?? `Buy 1 more slot · $${priceCents / 100}`;
 
   if (!checkoutEnabled) {
     return (
-      <Link href={fallbackHref} className={classes.replace(" disabled:opacity-60", "")}>
+      <Link href={fallbackHref} className={baseClasses}>
         {buttonLabel}
       </Link>
     );
@@ -75,7 +87,7 @@ export function BuyExtraCompanionCTA({
             }
           });
         }}
-        className={classes}
+        className={`${baseClasses} disabled:opacity-60`}
       >
         {pending ? "Opening checkout…" : buttonLabel}
       </button>
