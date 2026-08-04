@@ -351,12 +351,11 @@ export default async function SettingsPage({
               <p className="text-center text-xs text-warm-300">
                 You&rsquo;re on Pro. No card on file — enjoy.
               </p>
-            ) : (
-              <p className="text-center text-xs text-warm-300">
-                Ready for more room? Tap the coral chip on your
-                dashboard to see the plans + add-on packs.
-              </p>
-            )}
+            ) : null}
+            {/* Free-tier upsell copy removed 2026-08-04 (Wilson):
+                settings is STATUS only — no "ready for more room?"
+                nudge here. The dashboard's top-left coral chip
+                is the sole purchase entry. Mobile matches. */}
           </div>
         </Section>
 
