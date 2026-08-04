@@ -12,6 +12,11 @@ import {
 import { PRICING } from "@/lib/pricing";
 import { getStripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  recordRedeemAttempt,
+  REDEEM_RATE_LIMIT_MESSAGE,
+  tooManyRedeemAttempts,
+} from "@/lib/legacy/redeemLimit";
 import { recordPendingPaymentOrThrow } from "@/lib/billing/pendingPayment";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -90,7 +95,7 @@ GATE MODEL (unchanged from the flat-fee rework): redemption is paid
  *
  * Anti-probing note: a credit-less user can distinguish "invalid code"
  * from "valid code" (the latter bounces them to purchase). Accepted:
- * codes are 128-bit-ish random strings; the enumeration surface is the
+ * codes are ~31 bits (10,000 x 60 x 59 x 58) AND redemption is rate-limited per user; the enumeration surface is the
  * same one every gift-code system carries.
  *
  * Everything runs through the service-role client on purpose:
@@ -109,8 +114,16 @@ export async function redeemInheritCode(rawCode: string): Promise<void> {
     redirect("/auth/signin");
   }
 
+  // Rate limit before any lookup — mirrors /api/identity/inherit
+  // (migration 0131). This endpoint reveals validity before payment,
+  // so unlimited probing enumerates other families' archives.
+  if (await tooManyRedeemAttempts(user.id)) {
+    redirectWithError("/identity/inherit", REDEEM_RATE_LIMIT_MESSAGE);
+  }
+
   const code = normalizeInheritCode(rawCode ?? "");
   if (!isInheritCodeShaped(code)) {
+    await recordRedeemAttempt(user.id, false);
     redirectWithError("/identity/inherit", INVALID_CODE_MESSAGE);
   }
 
@@ -130,6 +143,7 @@ export async function redeemInheritCode(rawCode: string): Promise<void> {
     );
   }
   if (!codeRow || codeRow.revoked_at) {
+    await recordRedeemAttempt(user.id, false);
     redirectWithError("/identity/inherit", INVALID_CODE_MESSAGE);
   }
 
@@ -145,8 +159,10 @@ export async function redeemInheritCode(rawCode: string): Promise<void> {
     .maybeSingle();
 
   if (!source || source.deleted_at) {
+    await recordRedeemAttempt(user.id, false);
     redirectWithError("/identity/inherit", INVALID_CODE_MESSAGE);
   }
+  await recordRedeemAttempt(user.id, true);
 
   // The creator redeeming their own code is a no-op — they already
   // have them. Straight to the welcome, no charge, no copy.

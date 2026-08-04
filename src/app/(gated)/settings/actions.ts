@@ -376,3 +376,54 @@ export async function setOutreachEnabled(
   revalidatePath("/settings");
   return { ok: true };
 }
+
+/**
+ * Revoke an inherit code.
+ *
+ * There was no working revoke anywhere in the product. The only
+ * implementation was an admin stub that logged and returned
+ * "Revoke recorded (stub)." — meanwhile the beneficiary email
+ * (lib/notifications.ts) tells users, in writing, "You can revoke
+ * access at any time from Sharing." That screen did not exist.
+ *
+ * That gap matters more than a normal missing feature. Someone posts a
+ * photo of their inherit card to explain the app, or hands one to a
+ * person they later fall out with, and there is no way to take it back
+ * — and no way to even see that it was used, since 0111 dropped the
+ * share ledger.
+ *
+ * Semantics deliberately match the consumer model documented in 0055:
+ * revoking stops NEW redemptions. Copies already redeemed stay with the
+ * families that hold them, because taking a dead parent back out of a
+ * grieving person's hands is not a thing this product should be able to
+ * do — and the copy is theirs, in their account, by design.
+ *
+ * Scoped by created_by so a caller can only ever revoke their own.
+ */
+export async function revokeInheritCode(
+  oracleId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { supabase, user } = await requireUser();
+
+  const { data, error } = await supabase
+    .from("inherit_codes")
+    .update({ revoked_at: new Date().toISOString() })
+    .eq("oracle_id", oracleId)
+    .eq("created_by", user.id)
+    .is("revoked_at", null)
+    .select("id");
+
+  if (error) {
+    console.error("[inherit] revoke failed:", error);
+    return { ok: false, error: "Couldn't revoke that code. Try again." };
+  }
+  if (!data || data.length === 0) {
+    return {
+      ok: false,
+      error: "That code is already revoked, or isn't yours to revoke.",
+    };
+  }
+
+  revalidatePath("/settings");
+  return { ok: true };
+}

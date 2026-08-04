@@ -184,6 +184,81 @@ export const LEGACY_QUESTIONS: LegacyQuestion[] = [
     estimateMinutes: 4,
   },
 
+  // ── Added 2026-08-04 after the formula audit ────────────────────────────
+  // Five absences a child would notice in the first ten minutes. The bank
+  // was collecting a well-told biography; these collect the interaction
+  // surface — the things that make a person recognizable in a TEXT THREAD,
+  // which is the only place this archive will ever be met.
+  //
+  // "voice" rather than a new category on purpose: they belong with how a
+  // person sounds, and adding a category would reshuffle the flow's
+  // section pacing.
+  {
+    id: "voice-what-they-called-you",
+    category: "voice",
+    prompt:
+      "What did they call you? Not your name — the other thing. The nickname that stuck, the way they mangled it, the word they used when you were in trouble versus when you'd done something right. And what did you call them back?",
+    promptSelf:
+      "What do you call the people closest to you? Not their names — the other thing. The nickname that stuck, the way you mangle it, the word you use when someone's in trouble versus when they've done something right. And what do they call you back?",
+    placeholder:
+      "Maybe it was mija, or kiddo, or your full name with the middle one when you'd messed up. Maybe they never used your name at all, just started talking.",
+    placeholderSelf:
+      "Maybe it's mija, or kiddo, or their full name with the middle one when they've messed up. Maybe you never use a name at all, you just start talking.",
+    estimateMinutes: 3,
+  },
+  {
+    id: "voice-how-they-texted",
+    category: "voice",
+    prompt:
+      "How did they actually use a phone? All caps or none, signed their name at the end of every message, punctuation everywhere or nowhere, voice notes instead of typing, one word answers, the emoji they used wrong. Be specific — this is the part people recognize instantly.",
+    promptSelf:
+      "How do you actually use your phone? All caps or none, do you sign your name at the end, punctuation everywhere or nowhere, voice notes instead of typing, one-word answers, an emoji you know you use wrong. Be specific — this is the part people recognize instantly.",
+    placeholder:
+      "Maybe every text ended with \"- Dad\" even though the phone said who it was. Maybe it was all lowercase, no periods, three messages in a row instead of one.",
+    placeholderSelf:
+      "Maybe you sign every text even though they know it's you. Maybe it's all lowercase, no periods, three messages in a row instead of one.",
+    estimateMinutes: 3,
+  },
+  {
+    id: "voice-the-unreasonable-opinion",
+    category: "voice",
+    prompt:
+      "What did they have a completely unreasonable opinion about? Not the principled stuff — the small thing they'd argue about forever. The right way to load a dishwasher, a road they refused to drive on, a food they took personally, someone on TV they couldn't stand.",
+    promptSelf:
+      "What do you have a completely unreasonable opinion about? Not the principled stuff — the small thing you'll argue about forever. The right way to load a dishwasher, a road you refuse to drive on, a food you take personally, someone on TV you can't stand.",
+    placeholder:
+      "The kind of thing the whole family could set their watch by. Say it the way they'd say it.",
+    placeholderSelf:
+      "The kind of thing everyone who knows you could set their watch by. Say it the way you'd say it.",
+    estimateMinutes: 3,
+  },
+  {
+    id: "origin-what-they-did-all-day",
+    category: "origin",
+    prompt:
+      "What did they do all day, for most of their life? The job, the trade, the shift — and what they were actually good at inside it. What could they talk about forever, and what would they hand to somebody else because it wasn't theirs to know?",
+    promptSelf:
+      "What do you do all day, and what did you do before that? The job, the trade, the shift — and what you're actually good at inside it. What could you talk about forever, and what would you hand to somebody else because it isn't yours to know?",
+    placeholder:
+      "Thirty-one years driving a school bus. Knew every pothole on the route and every kid's stop without looking. Couldn't tell you a thing about computers and never pretended to.",
+    placeholderSelf:
+      "Thirty-one years driving a school bus. You know every pothole on the route and every kid's stop without looking. Couldn't tell anybody a thing about computers and you don't pretend to.",
+    estimateMinutes: 4,
+  },
+  {
+    id: "relationships-who-was-in-the-room",
+    category: "relationships",
+    prompt:
+      "Who was around them, day to day? A husband or wife, kids, the friend who called every Sunday, the neighbor who let themselves in. Names, and what each one was to them — we'd rather know four people properly than twenty in a list.",
+    promptSelf:
+      "Who's around you, day to day? A husband or wife, kids, the friend who calls every Sunday, the neighbor who lets themselves in. Names, and what each one is to you — we'd rather know four people properly than twenty in a list.",
+    placeholder:
+      "This is how they'll know who you mean when a name comes up years from now.",
+    placeholderSelf:
+      "This is how they'll know who you mean when a name comes up years from now.",
+    estimateMinutes: 4,
+  },
+
   // ── Values — what I believe ─────────────────────────────────────────────
   {
     id: "values-non-negotiable",

@@ -2,6 +2,11 @@ import { createHash } from "node:crypto";
 import { headers } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 import { getRequestAuth } from "@/lib/api/mobileAuth";
+import {
+  recordRedeemAttempt,
+  REDEEM_RATE_LIMIT_MESSAGE,
+  tooManyRedeemAttempts,
+} from "@/lib/legacy/redeemLimit";
 import { isAdmin } from "@/lib/admin/allowlist";
 import {
   isInheritCodeShaped,
@@ -63,10 +68,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
 
+  // Rate limit BEFORE any lookup (migration 0131). The endpoint reveals
+  // validity before payment — 404 for a bad code, 402-with-checkout for
+  // a good one — so unlimited probing is enumeration of every family's
+  // archive. Checked ahead of the shape test so malformed spam counts
+  // too.
+  if (await tooManyRedeemAttempts(user.id)) {
+    return NextResponse.json(
+      { error: REDEEM_RATE_LIMIT_MESSAGE },
+      { status: 429 },
+    );
+  }
+
   const body = await request.json().catch(() => ({} as { code?: unknown }));
   const rawCode = typeof body.code === "string" ? body.code : "";
   const code = normalizeInheritCode(rawCode);
   if (!isInheritCodeShaped(code)) {
+    await recordRedeemAttempt(user.id, false);
     return NextResponse.json({ error: INVALID_CODE_MESSAGE }, { status: 400 });
   }
 
@@ -84,6 +102,7 @@ export async function POST(request: NextRequest) {
     );
   }
   if (!codeRow || codeRow.revoked_at) {
+    await recordRedeemAttempt(user.id, false);
     return NextResponse.json({ error: INVALID_CODE_MESSAGE }, { status: 404 });
   }
 
@@ -95,8 +114,10 @@ export async function POST(request: NextRequest) {
     .eq("id", codeRow.oracle_id)
     .maybeSingle();
   if (!source || source.deleted_at) {
+    await recordRedeemAttempt(user.id, false);
     return NextResponse.json({ error: INVALID_CODE_MESSAGE }, { status: 404 });
   }
+  await recordRedeemAttempt(user.id, true);
 
   // Creator redeeming their own code: no-op, no charge.
   if (source.user_id === user.id) {

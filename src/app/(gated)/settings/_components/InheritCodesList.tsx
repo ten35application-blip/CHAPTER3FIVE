@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
+
+import { revokeInheritCode } from "../actions";
 
 /**
  * Inherit codes surface, rendered INLINE inside the Profile section
@@ -97,15 +99,78 @@ function Slot({
 }
 
 function FilledSlot({ item }: { item: CodeItem }) {
+  // Two-step revoke. A single tap is too cheap for something that can
+  // lock a family out of a person, and there is no undo — the code is
+  // gone and a new one has to be reissued and re-delivered.
+  const [confirming, setConfirming] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
   return (
-    <div className="mt-1.5 flex items-center justify-between gap-3">
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-warm-50">{item.name}</p>
-        <p className="mt-0.5 font-mono text-xs tracking-wider text-warm-300">
-          {item.code}
-        </p>
+    <div className="mt-1.5">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-warm-50">
+            {item.name}
+          </p>
+          <p className="mt-0.5 font-mono text-xs tracking-wider text-warm-300">
+            {item.code}
+          </p>
+        </div>
+        <ShareButton code={item.code} name={item.name} />
       </div>
-      <ShareButton code={item.code} name={item.name} />
+
+      {confirming ? (
+        <div className="mt-2 rounded-xl bg-warm-700 px-3 py-2.5">
+          <p className="text-[12px] leading-4 text-warm-200">
+            Revoking stops anyone new from using this code. Anyone who has
+            already redeemed it keeps their copy — that one is theirs now.
+            You can&rsquo;t undo this, and you&rsquo;d need to send a new
+            code out.
+          </p>
+          <div className="mt-2 flex gap-2">
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() =>
+                startTransition(async () => {
+                  const res = await revokeInheritCode(item.oracleId);
+                  if (!res.ok) {
+                    setError(res.error);
+                    setConfirming(false);
+                  }
+                })
+              }
+              className="rounded-full bg-coral-strong px-3.5 py-1.5 text-xs font-bold text-white disabled:opacity-60"
+            >
+              {pending ? "Revoking…" : "Revoke it"}
+            </button>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => setConfirming(false)}
+              className="rounded-full px-3.5 py-1.5 text-xs font-semibold text-warm-300"
+            >
+              Keep it
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => {
+            setError(null);
+            setConfirming(true);
+          }}
+          className="mt-1.5 text-[11px] font-medium text-warm-400 underline underline-offset-2 transition-colors hover:text-warm-200"
+        >
+          Revoke this code
+        </button>
+      )}
+
+      {error ? (
+        <p className="mt-1.5 text-[11px] text-red-500">{error}</p>
+      ) : null}
     </div>
   );
 }

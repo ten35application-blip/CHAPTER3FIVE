@@ -5,12 +5,16 @@
  * inherit form can import these without dragging Node built-ins into the
  * browser bundle.
  *
- * Canonical shape: chapter-XXXX-word-word
+ * Canonical shape: chapter-XXXX-word-word-word (three words since
+ * 2026-08-04; two-word codes minted before that stay valid forever)
  *   - XXXX is 4 digits
- *   - the two words come from the curated wordlist in code.ts
+ *   - the words come from the curated wordlist in code.ts
  */
 
-const CODE_SHAPE = /^chapter-\d{4}-[a-z]+-[a-z]+$/;
+// Accepts BOTH shapes on purpose: three words for codes minted after
+// 2026-08-04, two for everything printed on a card before that. A
+// widening must never invalidate a code a family is already holding.
+const CODE_SHAPE = /^chapter-\d{4}-[a-z]+-[a-z]+(-[a-z]+)?$/;
 
 /**
  * Live formatter for the inherit input. Lowercases, turns spaces into
