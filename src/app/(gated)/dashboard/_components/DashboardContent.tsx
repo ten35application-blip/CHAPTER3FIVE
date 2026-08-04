@@ -191,7 +191,11 @@ function PinnedStrip({
                       ? `/upgrade?next=${encodeURIComponent(`/chat/${p.id}`)}`
                       : `/chat/${p.id}`
                   }
-                  className="flex w-[68px] flex-col items-center text-center transition-opacity active:opacity-60"
+                  className={`flex w-[68px] flex-col items-center rounded-2xl px-1.5 py-2 text-center transition-colors active:opacity-60 ${
+                    unread
+                      ? "bg-amber-400/40 dark:bg-amber-400/30"
+                      : ""
+                  }`}
                 >
                   <PinnedAvatar name={p.name} url={p.avatar_url} />
                   <span
@@ -333,7 +337,7 @@ function ConversationList({
             <div
               className={`flex items-center gap-3 pl-4 pr-1.5 py-3.5 transition-colors ${
                 !p.is_photo_placeholder && (p.manually_unread || p.auto_unread)
-                  ? "bg-[rgba(245,196,122,0.35)] dark:bg-[rgba(245,196,122,0.18)]"
+                  ? "bg-amber-400/40 dark:bg-amber-400/30"
                   : ""
               }`}
             >
