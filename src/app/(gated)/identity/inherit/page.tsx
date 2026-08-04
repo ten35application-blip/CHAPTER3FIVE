@@ -17,9 +17,13 @@ export const metadata = {
 export default async function InheritPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; purchased?: string }>;
+  searchParams: Promise<{
+    error?: string;
+    purchased?: string;
+    code?: string;
+  }>;
 }) {
-  const { error, purchased } = await searchParams;
+  const { error, purchased, code: prefillCode } = await searchParams;
 
   const supabase = await createClient();
   const {
@@ -73,7 +77,10 @@ export default async function InheritPage({
         ) : null}
 
         <div className="mt-8 w-full">
-          <InheritForm />
+          <InheritForm
+          prefillCode={prefillCode ?? ""}
+          skipConsent={purchased === "1"}
+        />
         </div>
 
         <Link

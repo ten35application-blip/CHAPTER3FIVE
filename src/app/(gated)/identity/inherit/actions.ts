@@ -230,7 +230,17 @@ export async function redeemInheritCode(rawCode: string): Promise<void> {
           purpose: "inherited_slot_purchase",
           purchase_kind: "inherited_slot",
         },
-        success_url: `${origin}/identity/inherit?purchased=1`,
+        // CARRY THE CODE BACK (2026-08-04). Without it the return trip
+        // dropped the user on a freshly-mounted form: consent gate
+        // un-checked, code field empty. They had to re-read the consent
+        // copy, re-tick the box, and RETYPE the code from the card —
+        // after paying, at the worst moment of their life.
+        //
+        // The code is already in their text messages and on a card in
+        // their hand; having it in their own URL for one redirect is a
+        // negligible addition, and the alternative is making a grieving
+        // person type it twice.
+        success_url: `${origin}/identity/inherit?purchased=1&code=${encodeURIComponent(code)}`,
         cancel_url: `${origin}/identity/inherit?cancelled=1`,
       });
       // H2 fix: throw on insert failure so the surrounding catch

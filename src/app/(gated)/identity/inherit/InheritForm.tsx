@@ -14,14 +14,26 @@ import { redeemInheritCode } from "./actions";
  * inherit is." Prevents an accidental redeem and sets the frame for
  * what they're about to add to their contacts.
  */
-export function InheritForm() {
+export function InheritForm({
+  prefillCode = "",
+  skipConsent = false,
+}: {
+  /** Carried back from the Stripe success_url so the user doesn't
+   *  retype a code they already entered before paying. */
+  prefillCode?: string;
+  /** True on the post-payment return. They consented BEFORE checkout —
+   *  that consent is how they reached Stripe at all — so re-showing the
+   *  gate makes them agree twice to the same thing, after paying, and
+   *  hides the code field behind it. */
+  skipConsent?: boolean;
+} = {}) {
   // Two distinct states: `checked` is the checkbox itself, `agreed` is
   // the deliberate confirmation that unlocks the code form. Splitting
   // them keeps the Continue button load-bearing — otherwise the box tap
   // alone advances and the button is dead chrome.
-  const [checked, setChecked] = useState(false);
-  const [agreed, setAgreed] = useState(false);
-  const [code, setCode] = useState("");
+  const [checked, setChecked] = useState(skipConsent);
+  const [agreed, setAgreed] = useState(skipConsent);
+  const [code, setCode] = useState(prefillCode);
   const [pending, startTransition] = useTransition();
 
   function submit() {

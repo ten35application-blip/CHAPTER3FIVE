@@ -6,6 +6,7 @@ import {
 import type { LegacySubject } from "@/lib/legacy/synthesize";
 import { createClient } from "@/lib/supabase/server";
 import { LegacyFlow } from "./LegacyFlow";
+import { hasOtherIdentityCreateCredit } from "@/lib/subscription";
 
 export const metadata = {
   title: "Someone to keep · chapter3five",
@@ -103,6 +104,9 @@ export default async function LegacyNewPage({
   // The questions bank is server-only content — it reaches the
   // client exclusively through these props, behind the auth gate
   // above, never via a client-side import (see questions.ts).
+  // Durable paid state — survives any error redirect.
+  const hasPaidCredit = await hasOtherIdentityCreateCredit(user.id);
+
   return (
     <LegacyFlow
       questions={LEGACY_QUESTIONS}
@@ -111,13 +115,22 @@ export default async function LegacyNewPage({
       initialAnswers={draft?.answers ?? {}}
       initialStep={draft?.current_step ?? 0}
       serverError={error ?? null}
-      // Stripe round-trip signals (other-mode mint gate). ?paid=1 is
-      // the success_url — swap the Finish CTA for "You're paid —
-      // finish it" (Wilson's option B: one transparent extra click).
-      // ?cancelled=1 is the cancel_url — reassure that the answers
-      // survived. Cosmetic only: the server action re-checks the paid
-      // credit on every Finish regardless of what the URL claims.
-      paid={paidParam === "1"}
+      // PAID STATE COMES FROM THE DATABASE, NOT THE URL (2026-08-04).
+      //
+      // It used to be `paidParam === "1"` alone. ?paid=1 is Stripe's
+      // success_url, and redirectWithError rebuilds the URL as
+      // `/identity/legacy/new?error=…` — dropping it. So: pay $5, come
+      // back to the teal "Payment received — one click left" banner,
+      // press Finish, hit any transient error, and bounce back with the
+      // CTA reverted to "Bring them together · $5". The credit is
+      // intact and the next press doesn't charge again, but a grieving
+      // person reading a $5 price tag on a button they just paid for
+      // reasonably concludes they're about to be charged twice.
+      //
+      // The credit is durable state and the page can just ask. The URL
+      // param is kept as an OR so the banner still fires on the happy
+      // path even if this read hiccups (it fails closed to false).
+      paid={paidParam === "1" || hasPaidCredit}
       cancelled={cancelledParam === "1"}
     />
   );
