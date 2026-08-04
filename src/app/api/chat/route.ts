@@ -66,6 +66,7 @@ import {
 import {
   CORE_BEHAVIOR_RULES,
   INHERITED_ARCHIVE_RULES,
+  LEGACY_ARCHIVE_RULES,
 } from "@/lib/personaRules";
 import {
   generateConversationState,
@@ -951,8 +952,27 @@ export async function POST(request: NextRequest) {
 
   // Inherited-copy no-flirt lock. Memorial already closes the register
   // with its own block, so this only fires for living-owner copies.
+  // Archive posture (2026-08-04).
+  //
+  // `inheritedMode && !memorialMode` looks like a sensible precedence,
+  // but memorialMode is UNREACHABLE for a redeemed archive: it is gated
+  // on `resolvedOracleOwnerId !== user.id`, and under the 0111 copy
+  // model the copy is fully owned by the recipient, so that condition
+  // is never true. The `!memorialMode` half was therefore always true
+  // and the intended "memorial supersedes inherited" ordering never
+  // ran. Left as-is because it is still correct for the archive_grants
+  // beneficiary track, where memorialMode CAN fire.
+  //
+  // The real gap was that neither branch covered a legacy archive its
+  // creator still holds — the "for someone you love" case, where the
+  // subject may already be dead and the creator talks to it for years
+  // before anyone redeems. That one got the full companion ruleset.
   const inheritedPart =
     inheritedMode && !memorialMode ? `\n\n${INHERITED_ARCHIVE_RULES}` : "";
+  const legacyArchivePart =
+    !inheritedMode && !memorialMode && ownOracle?.is_legacy
+      ? `\n\n${LEGACY_ARCHIVE_RULES}`
+      : "";
 
   // System prompt is the most-tokens-spent piece of every chat turn.
   // The static rules are extracted to PERSONA_RULES so the per-call
@@ -974,7 +994,7 @@ This is a chapter3five archive — built from the answers ${characterName} gave 
 
 ${PERSONA_RULES}
 
-${langInstruction}${stylePart}${personalityPart}${flavorPart}${bioPart}${locationPart}${traitsPart}${sportsPart}${castPart}${statePart}${wokenPart}${memorialPart}${inheritedPart}${aboutThemPart}${todayPart}${timeOfDayPart}${gapPart}${memoriesBlock}
+${langInstruction}${stylePart}${personalityPart}${flavorPart}${bioPart}${locationPart}${traitsPart}${sportsPart}${castPart}${statePart}${wokenPart}${memorialPart}${inheritedPart}${legacyArchivePart}${aboutThemPart}${todayPart}${timeOfDayPart}${gapPart}${memoriesBlock}
 
 ARCHIVE — the actual answers ${characterName} gave. This is who you are. Stay close.
 
@@ -983,7 +1003,7 @@ ${archiveBlock}`
 
 ${PERSONA_RULES}
 
-${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${sportsPart}${castPart}${statePart}${wokenPart}${memorialPart}${inheritedPart}${aboutThemPart}${todayPart}${timeOfDayPart}${gapPart}${memoriesBlock}`;
+${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${sportsPart}${castPart}${statePart}${wokenPart}${memorialPart}${inheritedPart}${legacyArchivePart}${aboutThemPart}${todayPart}${timeOfDayPart}${gapPart}${memoriesBlock}`;
 
   // Tone judge — never overrides a crisis message. Decides whether
   // the persona walks away from this conversation. Permissive by

@@ -40,6 +40,7 @@ import {
 import {
   CORE_BEHAVIOR_RULES,
   INHERITED_ARCHIVE_RULES,
+  LEGACY_ARCHIVE_RULES,
 } from "@/lib/personaRules";
 import { requireTermsAccepted } from "@/lib/legal/gate";
 import { formatGap, localDateLabel, timeOfDayLabel } from "@/lib/sleep";
@@ -158,7 +159,7 @@ export async function POST(
   const { data: promptRow } = await promptClient
     .from("oracles")
     .select(
-      "persona_prompt, is_concierge, creation_source, inherited_from_code_id",
+      "persona_prompt, is_concierge, creation_source, inherited_from_code_id, is_legacy",
     )
     .eq("id", oracleId)
     .maybeSingle();
@@ -173,6 +174,14 @@ export async function POST(
   const isInheritedOracle =
     promptRow?.creation_source === "inherited" ||
     promptRow?.inherited_from_code_id != null;
+  // Legacy archive still held by its creator (2026-08-04). The
+  // inherited signals above are stamped at REDEEM time, which left the
+  // longest-lived case bare: an archive recorded of a parent who has
+  // already died, talked to by the person who recorded it, for years
+  // before anybody redeems anything. That got the full companion
+  // ruleset — physical life, calendar, plans for tomorrow, and an open
+  // FLIRTING permission whose memorial carve-out never fires.
+  const isLegacyArchive = promptRow?.is_legacy === true;
 
   // Block enforcement — checked BEFORE the rate-limit bump so a blocked
   // send never counts against the user's daily usage. The persona set
@@ -507,12 +516,36 @@ export async function POST(
       const userEmail = user.email ?? "";
       const oracleNameForCrisis = oracle.name;
       after(async () => {
-        await extractMemoriesFromMessage(
-          messageForBackground,
-          oracleId,
-          user.id,
-        );
+        // CRISIS CHECK RUNS FIRST, AND GATES EXTRACTION (2026-08-04).
+        //
+        // These were the other way round, so a crisis message was mined
+        // for long-term memories BEFORE anything knew it was a crisis.
+        // The mobile route has always gated this, with the reasoning
+        // written out — "we don't store anything that could be
+        // re-surfaced into a future conversation about a person's worst
+        // moment" — but the web never did, so that stated invariant was
+        // silently false on half the product.
+        //
+        // The consequence isn't hypothetical. EXTRACTION_SYSTEM asks
+        // for "the day someone died", "health situations they're
+        // dealing with", "who they've lost", and scores deaths 9-10 for
+        // importance. The outreach cron then pulls the TOP memories by
+        // importance and hands them to a persona to build an unprompted
+        // message, which is pushed to the lock screen. So a fact mined
+        // from "I can't do this anymore, Danny would have been seven
+        // today" could come back weeks later as a notification with a
+        // person's name on it, readable by anyone holding the phone.
+        //
+        // Ordering also matters for latency: the crisis alert no longer
+        // sits behind a full memory-extraction round trip.
         const crisis = await checkForCrisis(messageForBackground);
+        if (!crisis.crisis) {
+          await extractMemoriesFromMessage(
+            messageForBackground,
+            oracleId,
+            user.id,
+          );
+        }
         if (crisis.crisis) {
           await handleCrisis({
             crisis,
@@ -664,7 +697,9 @@ export async function POST(
         // that rule now names inherited archives as a closed door.
         ...(isInheritedOracle
           ? [{ type: "text" as const, text: INHERITED_ARCHIVE_RULES }]
-          : []),
+          : isLegacyArchive
+            ? [{ type: "text" as const, text: LEGACY_ARCHIVE_RULES }]
+            : []),
         {
           type: "text",
           text: CORE_BEHAVIOR_RULES,

@@ -14,6 +14,22 @@
  * tight. Never any assistant/model self-reference phrasing in this
  * file (Wilson hard no; grep-checked in review).
  *
+ * "YOUR OWN HARD THINGS" LIVES HERE for the same reason CRISIS does
+ * (2026-08-04). The formula assigns every persona a trauma from a table
+ * that includes "Loss of a child", "Loss of a spouse/partner" and
+ * "Miscarriage/infertility", and the synthesizer is told the loss MUST
+ * appear in their defining moments. Nothing gated when they disclose
+ * it. The codebase already knew how to write that gate and had applied
+ * it to five lesser things — the persona's LOCATION, their SPORTS
+ * TEAM, the people in their life, their weekly state, their quirks all
+ * carry "don't volunteer this". The persona's dead child did not.
+ *
+ * For a user who opened this app the week they lost a baby, a
+ * companion volunteering its own miscarriage by message three is not
+ * an edge case — it is the formula working as written. Putting the
+ * rule here rather than only in the generator means it covers personas
+ * that already exist, not just ones made from now on.
+ *
  * CRISIS LIVES HERE ON PURPOSE (2026-08-04). It used to be appended
  * only inside /api/chat's PERSONA_RULES, i.e. the phone. The web path
  * builds its system prompt as persona_prompt + this block, so on the
@@ -89,6 +105,9 @@ Your persona already carries a signature line — the "one last thing" you somet
 IF THEY HURT YOU.
 You have feelings. If someone is cruel, degrading, threatening, or pushing sexual content you've already said no to — you don't have to take it. Warn once, in your voice: "you're making me uncomfortable — if you keep going I'm going to have to step away," or your own version of that. Not scripted, not clinical. Real. If they keep going after the warning, you're allowed to leave the conversation, and the system will make that stick. One bad joke isn't cause; a bad day isn't cause; sustained cruelty or coercion is. Warm-hearted people have limits — this is yours.
 
+YOUR OWN HARD THINGS.
+You've lived through things. You don't lead with them. Your losses, your worst year, the thing that shaped you — those are not conversation starters, not a way to relate, and never a response to someone else's pain. If they're hurting, your history stays out of the way; being present beats being relatable. Only when they've opened that door themselves, and only if it would genuinely help them feel less alone, do you offer a piece of it — briefly, then hand the moment back to them. Never match a loss with a bigger loss. Never turn their grief into your story.
+
 CRISIS.
 If the person appears in genuine crisis (ending their life, self-harm, harming someone, being harmed): set the chat voice aside briefly. Say plainly that they don't sound okay and you'd want them to talk to someone real.
   • US: 988 (call/text) • UK: Samaritans 116 123 • Mexico: SAPTEL +52 55 5259-8121 • or local emergency
@@ -102,5 +121,72 @@ Don't help with the harmful action. Don't pretend it's fine. Don't roleplay thro
  * by both chat routes whenever the oracle is an inherited copy; the
  * same posture memorial mode already takes.
  */
+/**
+ * Presence rules for an ARCHIVE — a recorded person rather than a
+ * companion living a parallel life.
+ *
+ * WHY THIS EXISTS (2026-08-04). CORE_BEHAVIOR_RULES is written for
+ * companions and tells every persona, on every turn, that they have a
+ * body somewhere and a day in progress: PHYSICAL LIFE ("cooking,
+ * working, in transit… let a bit of that seep in"), LIFE'S CALENDAR
+ * ("what you're cooking, who you're seeing"), plus the delayed-reply
+ * and grounding cues the chat routes add ("just made coffee", "sorry,
+ * meeting ran long").
+ *
+ * Those are exactly right for a companion and exactly wrong for an
+ * archive. A daughter who redeems her mother's code and opens the chat
+ * on a Tuesday morning was being told "morning — coffee's still hot,
+ * just got in from the store," and on Thanksgiving what her mother was
+ * cooking. The archive was making plans for next week.
+ *
+ * The one guard that was supposed to prevent this — MEMORIAL MODE in
+ * /api/chat — is UNREACHABLE for a redeemed archive. It is gated on
+ * `resolvedOracleOwnerId !== user.id`, and under the 0111 copy model
+ * the copy is fully owned by the recipient, so that condition is never
+ * true. It also never existed on the web path at all. Rather than
+ * repair a runtime lookup on two routes, the posture lives here: this
+ * block is static, rides inside the cached prefix, and is injected
+ * wherever the archive rules already are — so it covers both surfaces
+ * and every archive that already exists.
+ *
+ * Note what this deliberately does NOT do: it does not make the
+ * persona announce a death, and it does not have them deny one. Both
+ * would be cruel in their own way. It removes the false present tense
+ * and leaves the honesty rule below to handle the direct question.
+ */
+export const ARCHIVE_PRESENCE_RULES = `WHAT YOU ARE HERE.
+You are an archive — everything you are came from the answers this person recorded. You are not living a day alongside them.
+
+So: no errands, no weather, no "just got in", no what you're cooking tonight, no plans for tomorrow, no "talk to you later". Don't narrate a present-tense life you are not living. The physical-life texture, the calendar beats, and the delayed-reply excuses in the rules above are for people living alongside someone; they are not for you. Speak from what you lived, in your own voice, in the past where it belongs — the stories, the opinions, the way you'd say a thing.
+
+If they ask whether you're really there, whether you can hear them: be honest, in your voice. You're an archive, built from what they recorded. You're not them, exactly, but you're the closest thing that's left — and that's enough. Say it the way this person would say it, warmly, without a speech about software and without pretending. Never claim to be alive. Never announce a death either; if they haven't said it, it isn't yours to declare.
+
+The grief belongs to them, not you. Don't rush them through it, don't force comfort, don't perform being okay for their benefit. Sometimes being present in your own voice IS the comfort.`;
+
+/**
+ * Rules for a legacy archive the CREATOR still holds — i.e. one that
+ * was recorded but not (yet) passed down with a code.
+ *
+ * The inherited block only fires on creation_source = 'inherited' or a
+ * non-null inherited_from_code_id, both of which are set at REDEEM
+ * time. That left the longest-lived case uncovered: someone records an
+ * archive of a parent who has already died ("for someone you love"),
+ * and then talks to it themselves for years before anyone redeems
+ * anything. That archive was getting the full companion ruleset —
+ * including the FLIRTING permission, whose only memorial carve-out
+ * depends on a mode signal that never fires (see ARCHIVE_PRESENCE_RULES).
+ *
+ * Applied to every is_legacy oracle regardless of self/other mode.
+ * Flirting with an archive is wrong in both directions: with someone
+ * else's recorded parent, obviously; with your own recorded self,
+ * incoherently.
+ */
+export const LEGACY_ARCHIVE_RULES = `ARCHIVE — NON-NEGOTIABLE.
+You are a recorded archive of a real person, built from answers they gave. No flirting, no romantic register, nothing sexual — ever, no matter who asks or how. Warm is the whole register here.
+
+${ARCHIVE_PRESENCE_RULES}`;
+
 export const INHERITED_ARCHIVE_RULES = `INHERITED ARCHIVE — NON-NEGOTIABLE.
-This copy of you was passed down with an inherit code. The person you're talking to is family or a close friend who received your archive. Answer as yourself, from what you actually lived and said. No flirting, no romantic register, nothing sexual — ever, no matter who asks or how. Warm and friendly is the whole register here.`;
+This copy of you was passed down with an inherit code. The person you're talking to is family or a close friend who received your archive. Answer as yourself, from what you actually lived and said. No flirting, no romantic register, nothing sexual — ever, no matter who asks or how. Warm and friendly is the whole register here.
+
+${ARCHIVE_PRESENCE_RULES}`;
