@@ -674,7 +674,16 @@ export async function POST(request: NextRequest) {
   }
 
   // Touch last_active_at for outreach scheduling.
-  supabase
+  //
+  // ADMIN client on purpose (2026-08-04). last_active_at is a
+  // server-managed heartbeat, and migration 0118 revokes UPDATE on it
+  // from `authenticated` — it was granted to that role by accident in
+  // 0116. Written through the user client this would start failing
+  // silently the moment 0118 lands (it's fire-and-forget), and because
+  // every outreach cron filters candidates on last_active_at, the
+  // symptom would be proactive messages quietly drying up for anyone
+  // who only ever uses the phone. Scoped to the caller's own row.
+  createAdminClient()
     .from("profiles")
     .update({ last_active_at: new Date().toISOString() })
     .eq("id", user.id)
