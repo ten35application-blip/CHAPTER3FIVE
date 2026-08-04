@@ -234,8 +234,11 @@ function PinnedTile({
   // looking like the gesture did nothing.
   const [failed, setFailed] = useState(false);
   const pointerTypeRef = useRef<string>("mouse");
+  // Origin of the current press, for the movement-cancel check.
+  const startPosRef = useRef<{ x: number; y: number } | null>(null);
 
   const cancelHold = useCallback(() => {
+    startPosRef.current = null;
     if (timerRef.current !== null) {
       window.clearTimeout(timerRef.current);
       timerRef.current = null;
@@ -251,6 +254,7 @@ function PinnedTile({
       // Recorded even for non-primary buttons — onContextMenu is a
       // MouseEvent and carries no pointerType of its own.
       pointerTypeRef.current = e.pointerType;
+      startPosRef.current = { x: e.clientX, y: e.clientY };
       // PRIMARY BUTTON ONLY. Without this, a desktop right-click that
       // rests on the tile past the threshold silently unpins it — and
       // the contextmenu suppression below means the user doesn't even
@@ -291,8 +295,22 @@ function PinnedTile({
       }
       onPointerDown={beginHold}
       onPointerUp={cancelHold}
-      onPointerLeave={cancelHold}
       onPointerCancel={cancelHold}
+      // Cancel on real movement only — a few pixels of finger tremor
+      // during a hold must not abort it. Deliberately NOT onPointerLeave:
+      // the pinned strip is a horizontal scroll container, and that
+      // event fires spuriously there, which killed the timer before it
+      // could reach 400ms.
+      onPointerMove={(e) => {
+        const start = startPosRef.current;
+        if (!start) return;
+        if (
+          Math.abs(e.clientX - start.x) > 10 ||
+          Math.abs(e.clientY - start.y) > 10
+        ) {
+          cancelHold();
+        }
+      }}
       // Long-press on a link pops the native callout menu on iOS Safari
       // and Android Chrome, which would eat the gesture entirely. Only
       // suppressed for touch/pen — a desktop mouse user's right-click

@@ -322,16 +322,25 @@ export default function ChatSurface({
   // too, so simply opening the thread (not only sending) restores a
   // marked-unread row to its normal color.
   //
-  // The cleanup fires the same call on the way OUT: Wilson's rule is
-  // stated in terms of leaving ("when I leave the conversation it
-  // should go back to its original color"), and a proactive message
-  // that streams in mid-visit would otherwise still be newer than the
-  // mount-time read stamp. The route revalidatePath's /dashboard, so
-  // back-navigation renders the cleared state instead of a stale RSC
-  // payload.
+  // NO unmount call. A 2026-08-03 pass added `return () => markRead()`
+  // to catch a message arriving mid-visit. Removed for two reasons:
+  //
+  //   1. It couldn't work. The route's revalidatePath("/dashboard")
+  //      runs after Next has already issued the RSC fetch for the
+  //      in-flight back-navigation, so the dashboard renders the stale
+  //      payload anyway and the router cache holds it.
+  //   2. It was wrong even if it had worked. This surface has no
+  //      realtime subscription, so a proactive message landing while
+  //      the thread is open is never RENDERED — marking it read on the
+  //      way out would bury a message the user genuinely never saw. In
+  //      a grief app, silently hiding something a persona said is the
+  //      worst available failure.
+  //
+  // Mount + post-reply is the honest set: both are moments the user
+  // demonstrably had the content on screen. Mobile can afford the
+  // unmount call because it DOES subscribe to realtime.
   useEffect(() => {
     markRead();
-    return () => markRead();
   }, [markRead]);
 
   useEffect(() => {

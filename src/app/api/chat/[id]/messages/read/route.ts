@@ -54,14 +54,13 @@ export async function POST(
   // for this conversation. User-scoped client on purpose — RLS pins
   // the row to auth.uid(), no service role needed. Best-effort: a
   // failed upsert just means the dot lingers one extra open.
-  await supabase.from("oracle_read_state").upsert(
-    {
-      user_id: user.id,
-      oracle_id: oracleId,
-      last_read_at: new Date().toISOString(),
-    },
-    { onConflict: "user_id,oracle_id" },
-  );
+  // Via the RPC (migration 0128) so both surfaces stamp from the SAME
+  // clock — the database's. This route was already correct (Node's now
+  // is the server's now), but mobile was writing a handset timestamp,
+  // and two surfaces computing "read" from two different clocks is
+  // exactly the drift that made a thread stay unread forever on a
+  // phone running behind. One code path, one clock.
+  await supabase.rpc("mark_thread_read", { p_oracle_id: oracleId });
 
   // NOTE — deliberately does NOT clear `oracles.manually_unread`.
   //
