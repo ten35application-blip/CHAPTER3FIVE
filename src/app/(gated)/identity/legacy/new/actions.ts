@@ -443,10 +443,12 @@ export async function completeLegacyIdentity(payload: {
   // code and the ability to now share the code"). The old /share
   // page still works if someone deep-links to it, but nothing routes
   // there by default anymore.
-  // Tell Settings which case this is so it can say something true.
-  redirect(
-    mintedCode
-      ? `/settings?minted=${inserted.id}`
-      : `/settings?mintfailed=${inserted.id}`,
-  );
+  // On success, ?minted= fires the celebratory banner. On FAILURE we
+  // deliberately send no param: Settings detects a codeless legacy
+  // archive from state and renders its own recovery card, which is
+  // durable (it still shows next week if they navigate away) where a
+  // param is not. An earlier version emitted ?mintfailed=, which
+  // nothing read and which MintedBanner's URL scrub didn't clean, so it
+  // just sat in the address bar forever.
+  redirect(mintedCode ? `/settings?minted=${inserted.id}` : `/settings`);
 }

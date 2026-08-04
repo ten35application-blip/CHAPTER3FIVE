@@ -255,7 +255,25 @@ ${buildConciergePricingBlock()}`;
   // which produces a warm ambiguous first text.
   const archiveSnippet = "";
 
-  const stylePart = textingStyle ? `Texting style: ${textingStyle}.` : "";
+  // NOT FOR AN INHERITED COPY (2026-08-04). `textingStyle` is read from
+  // profiles.texting_style of the CALLER — the only place that column is
+  // ever written is the caller's own onboarding self-description.
+  //
+  // For an oracle you own and set up, that's correct: it's you
+  // describing how your own identity should text. For a redeemed
+  // archive, oracle.user_id === user.id too (0111 copies it into the
+  // recipient's account), so the same line handed the grandchild's own
+  // texting style to the grandmother — "You are Grandma, and you are no
+  // longer alive… Texting style: <the grandchild's>".
+  //
+  // 23cf659 named this defect in its own commit message and then only
+  // changed which PROMPT was selected, leaving the wrong input flowing
+  // into it. Suppressed here rather than substituted: the honest source
+  // is the archive's own `voice-how-they-texted` answer, which flows in
+  // through the persona prompt at chat time. A wrong style is worse
+  // than none — none lets the model read the archive.
+  const stylePart =
+    textingStyle && !isInheritedCopy ? `Texting style: ${textingStyle}.` : "";
 
   const ownerSystemPrompt = `You are ${oracleName}. You're sending the FIRST text to the person you're going to be talking with — they just finished setting up the archive and opened the chat for the first time. You haven't talked yet. They're about to see your message and feel either "oh, this is real" or "oh, this is corny." Make it the first one.
 

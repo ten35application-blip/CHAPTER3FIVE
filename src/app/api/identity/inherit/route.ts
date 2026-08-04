@@ -169,7 +169,13 @@ export async function POST(request: NextRequest) {
           purpose: "inherited_slot_purchase",
           purchase_kind: "inherited_slot",
         },
-        success_url: `${origin}/identity/inherit?purchased=1`,
+        // Carries the code back, same as the web action. 5f14d8e fixed
+        // that call site and missed this one — the identical
+        // one-surface-only mistake apologized for in 6f4c273. An
+        // Android user redeeming in the app pays in the browser and
+        // lands here, so without it they retype the code off the card
+        // after paying, exactly like the bug that fix was written for.
+        success_url: `${origin}/identity/inherit?purchased=1&code=${encodeURIComponent(code)}`,
         cancel_url: `${origin}/identity/inherit?cancelled=1`,
       });
       await recordPendingPaymentOrThrow({

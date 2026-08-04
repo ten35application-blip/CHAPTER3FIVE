@@ -155,7 +155,7 @@ export async function GET(request: NextRequest) {
   // ============================================================
   const { data: oraclesToDelete } = await admin
     .from("oracles")
-    .select("id, user_id")
+    .select("id, user_id, avatar_url")
     .lt("scheduled_purge_at", nowIso)
     .not("deleted_at", "is", null)
     .limit(100);
@@ -173,6 +173,34 @@ export async function GET(request: NextRequest) {
             .map((f) => `${o.user_id}/${f.name}`);
           if (paths.length > 0) {
             await admin.storage.from("avatars").remove(paths);
+          }
+        }
+
+        // LEGACY PHOTOS CANNOT BE FOUND BY NAME (2026-08-04). They live
+        // at avatars/legacy/{user_id}/{timestamp}.jpg — the filename is
+        // a timestamp, so the startsWith(o.id) filter above can never
+        // match one. The account-purge path was fixed to sweep the
+        // whole legacy/ prefix; THIS path deletes a single identity
+        // while the account lives on, so it has to target one object.
+        //
+        // The oracle's own avatar_url is the authority. Without this, a
+        // user who deletes just their mother's archive leaves her
+        // photograph on the PUBLIC avatars bucket at a permanent
+        // unauthenticated URL — the leak we closed for account deletion,
+        // one code path over.
+        const avatarUrl = o.avatar_url as string | null;
+        if (avatarUrl) {
+          const marker = "/storage/v1/object/public/avatars/";
+          const at = avatarUrl.indexOf(marker);
+          if (at !== -1) {
+            // Strip any ?v= cache-buster before using it as a key.
+            const objectPath = avatarUrl
+              .slice(at + marker.length)
+              .split("?")[0];
+            // Only ever inside this user's own legacy folder.
+            if (objectPath.startsWith(`legacy/${o.user_id}/`)) {
+              await admin.storage.from("avatars").remove([objectPath]);
+            }
           }
         }
       } catch (err) {

@@ -142,10 +142,22 @@ export default async function SettingsPage({
   // here" placeholder and the user had no idea anything had gone wrong.
   const codelessLegacy = (legacyRows ?? [])
     .filter((r) => !codeByOracle.get(r.id as string))
-    .map((r) => ({
-      oracleId: r.id as string,
-      name: (r.name as string | null) ?? "Untitled",
-    }));
+    .map((r) => {
+      const answers = r.legacy_answers as
+        | { subject?: { mode?: unknown } }
+        | null;
+      const rawMode = answers?.subject?.mode;
+      return {
+        oracleId: r.id as string,
+        name: (r.name as string | null) ?? "Untitled",
+        // Same bucketing as the coded items so the recovery card can
+        // replace the right empty slot rather than sit beside it.
+        mode:
+          rawMode === "self" || rawMode === "other"
+            ? (rawMode as "self" | "other")
+            : null,
+      };
+    });
 
   const inheritCodeItems = (legacyRows ?? [])
     .map((r) => {

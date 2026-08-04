@@ -242,7 +242,10 @@ export async function POST(request: NextRequest) {
 
   await claimFreeIdentitySlot(user.id, inserted.id);
 
-  // Best-effort mint; null just means "mint later" (Settings retries).
+  // Mint. A null is returned to the client as inherit_code: null; the
+  // mobile screen must not claim a code "is being minted" — nothing is.
+  // Recovery is the ungated retry in web Settings, which detects a
+  // codeless legacy archive from state.
   const code = await mintInheritCode(createAdminClient(), inserted.id, user.id);
 
   // The draft has served its purpose.

@@ -444,22 +444,41 @@ export async function revokeInheritCode(
  * someone to fix our bug, on the archive of a person who died.
  *
  * Idempotent and safe to expose: it refuses unless the caller owns the
- * oracle, it is a legacy oracle, and it currently has no live code.
+ * oracle, it is a legacy oracle THEY created (not one they inherited),
+ * and it currently has no live code.
  */
 export async function retryMintInheritCode(
   oracleId: string,
 ): Promise<{ ok: true; code: string } | { ok: false; error: string }> {
   const { supabase, user } = await requireUser();
 
+  // INHERITED COPIES ARE EXCLUDED — this filter is load-bearing.
+  //
+  // I reimplemented this action from identity/legacy/[id]/share and
+  // dropped `.is("inherited_at", null)`, which that version carries with
+  // the comment "a redeemed identity is not the recipient's to mint new
+  // codes for."
+  //
+  // Without it: redeem someone's archive for $5, then call this with
+  // your own copy's id. Your copy is is_legacy, owned by you, and has no
+  // inherit_codes row (codes belong to the SOURCE oracle) — so every
+  // remaining guard passed. You'd get a live code for someone else's
+  // dead relative, resellable at $5 a head, that the original family's
+  // revoke can never reach because it points at a different oracle. The
+  // Settings UI never offers it, but this is a server action imported by
+  // a client component, so its id is in the browser bundle and callable
+  // with any argument.
   const { data: oracle } = await supabase
     .from("oracles")
     .select("id, is_legacy")
     .eq("id", oracleId)
     .eq("user_id", user.id)
+    .eq("is_legacy", true)
+    .is("inherited_at", null)
     .is("deleted_at", null)
     .maybeSingle<{ id: string; is_legacy: boolean | null }>();
 
-  if (!oracle || !oracle.is_legacy) {
+  if (!oracle) {
     return { ok: false, error: "That identity isn't one we can make a code for." };
   }
 

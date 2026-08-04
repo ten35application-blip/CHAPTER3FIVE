@@ -199,7 +199,7 @@ export async function sendBeneficiaryClaimedNotice(opts: {
   const subject = `${opts.beneficiaryEmail} accepted their invite.`;
   const text = `Just letting you know — ${opts.beneficiaryEmail} accepted their beneficiary invite on chapter3five.
 
-If something happens to you, they'll be able to read and chat with the archive you've been building. You can revoke access at any time from Sharing.
+If something happens to you, they'll be able to read and chat with the archive you've been building. You can revoke access at any time from Settings.
 
 — chapter3five
 https://chapter3five.app/sharing`;

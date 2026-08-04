@@ -5,10 +5,17 @@ const MAX_MINT_ATTEMPTS = 5;
 
 /**
  * Mint an inherit code for a legacy oracle. Retries on unique-constraint
- * collision (~35M-combination space, so effectively never more than once).
- * Returns the code, or null if all attempts failed — callers treat a null
- * as "mint later" (the share page offers a retry) rather than failing the
- * whole creation flow.
+ * collision (~2.05B-combination space since the three-word widening, so
+ * effectively never more than once).
+ *
+ * Returns the code, or null if every attempt failed. Callers MUST check
+ * the return value: a null used to be dropped on the floor with the
+ * comment "the share page offers a retry", which was false — that page
+ * is linked from nowhere. The user paid, answered thirty-plus questions,
+ * and landed on a Settings page that looked as though none of it had
+ * happened. Recovery now lives in Settings, which detects a legacy
+ * archive with no live code from state and offers an ungated
+ * retryMintInheritCode.
  *
  * Callers must pass the SERVICE-ROLE client (createAdminClient()) and are
  * responsible for the Pro gate + oracle-ownership check first: migration

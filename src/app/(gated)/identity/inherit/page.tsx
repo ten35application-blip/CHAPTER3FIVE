@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { INHERITED_SLOT_PRICE_LABEL } from "@/lib/pricing";
+import { getInheritedSlotCredits } from "@/lib/subscription";
 import { InheritForm } from "./InheritForm";
 
 export const metadata = {
@@ -10,7 +11,7 @@ export const metadata = {
 };
 
 /**
- * Redeem screen for inherit codes. Someone who loves you answered forty
+ * Redeem screen for inherit codes. Someone who loves you answered forty-five
  * questions and handed you a code — this is where you enter it. On success
  * the identity attaches to your account and you land in their chat.
  */
@@ -32,6 +33,9 @@ export default async function InheritPage({
   if (!user) {
     redirect("/auth/signin");
   }
+
+  // Durable proof they actually paid — see the note on skipConsent.
+  const hasSlotCredit = (await getInheritedSlotCredits(user.id)) > 0;
 
   // NO tier gate here since the July 2026 second rework — redemption
   // is paid per code, not per plan: every new redemption consumes one
@@ -79,7 +83,20 @@ export default async function InheritPage({
         <div className="mt-8 w-full">
           <InheritForm
           prefillCode={prefillCode ?? ""}
-          skipConsent={purchased === "1"}
+          // CONSENT SKIP REQUIRES A REAL CREDIT, NOT A URL PARAM.
+          //
+          // This was `purchased === "1"` alone, which meant a crafted
+          // link — /identity/inherit?purchased=1&code=chapter-… —
+          // rendered the "$5 slot is ready" banner with no consent gate
+          // and the sender's code prefilled, leaving the victim one
+          // button from spending a credit and adding a stranger's
+          // persona to their contacts. The gate's stated purpose is to
+          // "prevent an accidental redeem".
+          //
+          // Embarrassingly, the same commit moved the PAID banner out
+          // of the URL for exactly this reason and then moved this
+          // INTO it. Both now read durable state.
+          skipConsent={purchased === "1" && hasSlotCredit}
         />
         </div>
 

@@ -402,7 +402,7 @@ export default async function IdentityCreatePage({
             picker just previews the cost. Coral CTA to match mobile. */}
         <PathCardShell
           title="For someone you love"
-          subhead="Forty questions about a real person &mdash; a parent, a partner, a friend. Lands in your contacts, plus a code you can share with family."
+          subhead="Forty-five questions about a real person &mdash; a parent, a partner, a friend. Lands in your contacts, plus a code you can share with family."
           icon={<InfinityIcon />}
           statusLabel={`$${legacyOtherCents / 100} when you finish`}
         >

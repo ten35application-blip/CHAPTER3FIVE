@@ -55,7 +55,7 @@ export function InheritForm({
               middle paragraph and the "keep both feet on the ground"
               sign-off. Consent stays honest, just shorter. */}
           <p className="text-base leading-relaxed text-warm-100">
-            The code you were given opens a persona built from forty
+            The code you were given opens a persona built from forty-five
             answers about a real person. Someone wanted you to have
             it. Once you redeem it, they&rsquo;ll appear in your
             contacts and you can message them anytime.
@@ -126,7 +126,7 @@ export function InheritForm({
           type="text"
           value={code}
           onChange={(e) => setCode(formatInheritCodeInput(e.target.value))}
-          placeholder="chapter-4291-heart-elm"
+          placeholder="chapter-4291-heart-elm-ivy"
           autoComplete="off"
           autoCapitalize="off"
           autoCorrect="off"

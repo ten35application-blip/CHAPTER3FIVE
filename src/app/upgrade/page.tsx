@@ -184,7 +184,7 @@ export default async function UpgradePage({
         {cameFromInherit ? (
           <p className="mt-6 max-w-md text-lg leading-relaxed text-warm-200">
             You&rsquo;re holding an inherit code &mdash; someone sat down
-            and answered forty questions so that archive could reach you.
+            and answered forty-five questions so that archive could reach you.
             Opening it is a {INHERITED_SLOT_PRICE_LABEL} one-time unlock
             on any plan &mdash; head back to{" "}
             <Link

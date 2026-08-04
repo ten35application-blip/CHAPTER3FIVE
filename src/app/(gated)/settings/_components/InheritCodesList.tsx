@@ -46,7 +46,11 @@ export function InheritCodesList({
   /** Legacy archives that exist but have NO live code — a failed mint
    *  or a revoke. They must never render as an empty slot; the user
    *  paid for these and has nothing to hand anyone. */
-  codeless?: Array<{ oracleId: string; name: string }>;
+  codeless?: Array<{
+    oracleId: string;
+    name: string;
+    mode: "self" | "other" | null;
+  }>;
 }) {
   // Slot bucketing: mode='self' → self slot; mode='other' OR null →
   // other slot. If somehow more than one exists per mode (shouldn't
@@ -54,6 +58,10 @@ export function InheritCodesList({
   const selfItem = items.find((i) => i.mode === "self") ?? null;
   const otherItem =
     items.find((i) => i.mode === "other" || i.mode === null) ?? null;
+
+  const codelessSelf = codeless.find((c) => c.mode === "self") ?? null;
+  const codelessOther =
+    codeless.find((c) => c.mode === "other" || c.mode === null) ?? null;
 
   return (
     <div className="px-4 py-4">
@@ -63,18 +71,34 @@ export function InheritCodesList({
         keeping alive.
       </p>
       <div className="flex flex-col gap-3">
-        <Slot
-          heading="Your own"
-          emptyPlaceholder="When you record yourself, your code will appear here."
-          item={selfItem}
-        />
-        <Slot
-          heading="For someone you love"
-          emptyPlaceholder="When you record someone you love, their code will appear here."
-          item={otherItem}
-        />
+        {/* An archive with no code renders its OWN slot below. Suppress
+            the matching empty placeholder when one exists, otherwise
+            Settings says "when you record someone you love, their code
+            will appear here" directly above a coral card naming the
+            person they already recorded. Slot bucketing mirrors the
+            code items: mode 'self' → self slot, everything else →
+            other. */}
+        {selfItem || !codelessSelf ? (
+          <Slot
+            heading="Your own"
+            emptyPlaceholder="When you record yourself, your code will appear here."
+            item={selfItem}
+          />
+        ) : null}
+        {otherItem || !codelessOther ? (
+          <Slot
+            heading="For someone you love"
+            emptyPlaceholder="When you record someone you love, their code will appear here."
+            item={otherItem}
+          />
+        ) : null}
         {codeless.map((c) => (
-          <NeedsCodeSlot key={c.oracleId} oracleId={c.oracleId} name={c.name} />
+          <NeedsCodeSlot
+            key={c.oracleId}
+            oracleId={c.oracleId}
+            name={c.name}
+            heading={c.mode === "self" ? "Your own" : "For someone you love"}
+          />
         ))}
       </div>
     </div>
@@ -95,9 +119,11 @@ export function InheritCodesList({
 function NeedsCodeSlot({
   oracleId,
   name,
+  heading,
 }: {
   oracleId: string;
   name: string;
+  heading: string;
 }) {
   const [code, setCode] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -106,7 +132,7 @@ function NeedsCodeSlot({
   return (
     <div className="rounded-2xl bg-ink p-3.5 ring-1 ring-coral/40">
       <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-coral-strong">
-        Needs a code
+        {heading} &mdash; needs a code
       </p>
       <p className="mt-1.5 truncate text-sm font-medium text-warm-50">{name}</p>
 

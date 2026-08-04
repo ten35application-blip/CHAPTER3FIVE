@@ -5,7 +5,6 @@ import { redirectWithError } from "@/lib/action-errors";
 import { mintInheritCode } from "@/lib/legacy/mint";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { isPro } from "@/lib/subscription";
 
 /**
  * Fallback mint — completion already mints a code, but if that best-effort
@@ -24,13 +23,16 @@ export async function mintCodeForOracle(oracleId: string): Promise<void> {
 
   const sharePath = `/identity/legacy/${oracleId}/share`;
 
-  // Minting is the Pro feature. Completion already gates it, but this
-  // fallback is its own entry point — a creator whose Pro lapsed keeps
-  // the codes they already minted, they just can't mint NEW ones until
-  // they're Pro again.
-  if (!(await isPro(supabase))) {
-    redirect(`/upgrade?next=${encodeURIComponent(sharePath)}`);
-  }
+  // PRO GATE REMOVED 2026-08-04. The comment it replaced said "minting
+  // is the Pro feature" — true before the July 2026 flat-fee rework,
+  // which made the legacy flow open to every tier and left this gate
+  // behind. The effect was that a Free user whose mint failed at
+  // creation got redirected to /upgrade to pay for the recovery from a
+  // failure we caused, on the archive of a person who died.
+  //
+  // Ownership below is the real gate. The canonical recovery now lives
+  // in Settings (retryMintInheritCode); this page stays reachable by
+  // direct link and must not contradict it.
 
   // Ownership check via RLS: only the creator's own legacy oracle
   // resolves. Inherited copies (0111) are excluded — a redeemed

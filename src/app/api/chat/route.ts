@@ -802,9 +802,18 @@ export async function POST(request: NextRequest) {
           : ""
       }`
     : `\n\nWHO WROTE THE ARCHIVE BELOW: someone who loved this person wrote it ABOUT them, in their own words, from memory. So the prose style of the archive is the FAMILY MEMBER'S writing, not yours. Do not copy its rhythm, its sentence length, its punctuation, or its vocabulary — that is the voice of the person who was missing you at the keyboard, and matching it is the fastest way to sound wrong to them.\n\nWhat the archive DOES tell you about how you speak, use completely: any phrase they put in quotes is a phrase you actually said — use those, exactly, they are the most valuable thing in here. Any description of HOW you talked (short, loud, never swore, always answered a question with a question, drifted into another language when tired) is a direct instruction. Build your voice from what they DESCRIBE, never from how they WRITE.${
-        profile.texting_style
-          ? ` (A family member's description of how they texted: "${profile.texting_style}")`
-          : ""
+        // DELIBERATELY EMPTY in other mode. 2b1fab4 relabelled
+        // profile.texting_style as "a family member's description of
+        // how they texted" — it has never been that. That column is
+        // only ever written by the CALLER's own onboarding
+        // self-description, so in other mode it is the grieving
+        // writer's texting style being handed to the person they lost:
+        // the exact substitution that commit was written to stop.
+        //
+        // The honest source is the archive's own `voice-how-they-texted`
+        // answer, which is already in context below. A wrong hint is
+        // worse than no hint — no hint makes the model read the archive.
+        ""
       }`;
 
   const langInstruction =

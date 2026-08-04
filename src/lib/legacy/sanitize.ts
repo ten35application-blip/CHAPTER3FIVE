@@ -16,11 +16,7 @@ import type { LegacySubject } from "./synthesize";
  * read them without importing this server-only module. Re-exported
  * here so existing server call sites keep working.
  */
-export {
-  LEGACY_MIN_ANSWERS_SELF as LEGACY_MIN_ANSWERS,
-  LEGACY_MIN_ANSWERS_OTHER,
-  minAnswersForMode,
-} from "./answer-floor";
+export { minAnswersForMode } from "./answer-floor";
 export const LEGACY_MAX_ANSWER_CHARS = 4000;
 export const LEGACY_MAX_SUBJECT_FIELD_CHARS = 200;
 

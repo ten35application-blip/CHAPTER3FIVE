@@ -85,7 +85,7 @@ export function buildConciergePricingBlock(): string {
     "",
     "FREE TIER — $0/month.",
     `Chat with you (Adrian) only — no formula or photo identities. ${FREE_MESSAGES_PER_MONTH} messages and ${FREE_IMAGES_PER_MONTH} photo send a month. When someone is ready to build their own identities, they upgrade.`,
-    "- CAN record their own legacy archive (answer the forty questions themselves and mint an inherit code to hand to family) — recording + minting is on EVERY plan, Free included",
+    "- CAN record their own legacy archive (answer the forty-five questions themselves and mint an inherit code to hand to family) — recording + minting is on EVERY plan, Free included",
     "",
     `${BASIC_TIER_LABEL.toUpperCase()} — ${BASIC_MONTHLY_PRICE_LABEL}/month.`,
     `- ${PRICING.basicTotalIdentitiesPerPlan} personal identities (${PRICING.basicFormulaIdentitiesPerPlan} rolled from the formula + ${PRICING.basicPhotoIdentitiesPerPlan} built from a photo they upload)`,
