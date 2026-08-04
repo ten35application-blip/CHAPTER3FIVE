@@ -33,12 +33,15 @@ export function LegalShell({
   /** Small gradient lead-in above the title, e.g. "The legal stuff". */
   kicker: string;
   title: string;
-  /** One warm sentence under the title telling you what this page is. */
-  tagline: string;
+  /** One warm sentence under the title telling you what this page is.
+   *  Optional as of 2026-08-03 (mobile parity — mobile LegalScreen
+   *  renders only kicker + title + content). */
+  tagline?: string;
   toc: TocItem[];
   children: React.ReactNode;
-  contactEmail: string;
-  contactNote: string;
+  /** Optional footer contact. Omit both to skip the contact block. */
+  contactEmail?: string;
+  contactNote?: string;
   /** Route of the current page, so the footer links skip it. */
   currentPath: "/terms" | "/eula" | "/privacy" | "/guidelines";
 }) {
@@ -81,9 +84,11 @@ export function LegalShell({
         <h1 className="mt-3 text-4xl font-bold leading-[1.05] tracking-[-0.02em] text-warm-50 sm:text-5xl">
           {title}
         </h1>
-        <p className="mt-4 max-w-xl text-lg leading-relaxed text-warm-200">
-          {tagline}
-        </p>
+        {tagline ? (
+          <p className="mt-4 max-w-xl text-lg leading-relaxed text-warm-200">
+            {tagline}
+          </p>
+        ) : null}
         <p className="mt-7 rounded-full border border-warm-700 bg-ink-soft px-5 py-2 text-sm font-semibold text-warm-300">
           Effective {formatVersionDate(CURRENT_TERMS_VERSION)} &middot;
           Last updated {formatVersionDate(CURRENT_TERMS_VERSION)}
@@ -120,16 +125,26 @@ export function LegalShell({
         {children}
       </article>
 
-      {/* Contact + cross-links footer */}
+      {/* Cross-links footer. The contact block is opt-in now (mobile
+          parity: LegalScreen renders only kicker + title + content),
+          so pages omit contactEmail/contactNote to skip it entirely. */}
       <footer className="mt-20 w-full max-w-[65ch] border-t border-warm-700 pb-8 pt-10 text-center">
-        <p className="text-lg leading-relaxed text-warm-200">{contactNote}</p>
-        <a
-          href={`mailto:${contactEmail}`}
-          className="text-gradient-cta mt-2 inline-block text-lg font-bold"
+        {contactEmail && contactNote ? (
+          <>
+            <p className="text-lg leading-relaxed text-warm-200">
+              {contactNote}
+            </p>
+            <a
+              href={`mailto:${contactEmail}`}
+              className="text-gradient-cta mt-2 inline-block text-lg font-bold"
+            >
+              {contactEmail}
+            </a>
+          </>
+        ) : null}
+        <div
+          className={`${contactEmail && contactNote ? "mt-8" : ""} flex items-center justify-center gap-6 text-sm font-semibold text-warm-400`}
         >
-          {contactEmail}
-        </a>
-        <div className="mt-8 flex items-center justify-center gap-6 text-sm font-semibold text-warm-400">
           {otherPages.map((p) => (
             <Link
               key={p.href}

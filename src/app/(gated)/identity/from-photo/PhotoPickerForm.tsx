@@ -1,0 +1,86 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { createIdentityFromPhoto } from "./actions";
+
+/**
+ * Client wrapper around the photo-upload form so we can render a
+ * 128×128 preview of the picked file above the submit button — mobile
+ * parity 2026-08-03 (chapter3five-app/app/identity/from-photo.tsx
+ * shows the picked photo before "Meet them" fires). The submit still
+ * dispatches the existing server action.
+ */
+export function PhotoPickerForm() {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  // Revoke any previously-issued object URL so we don't leak blobs
+  // across selections; also releases the last one on unmount.
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
+  function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    if (!file) {
+      setPreviewUrl(null);
+      return;
+    }
+    setPreviewUrl(URL.createObjectURL(file));
+  }
+
+  return (
+    <form action={createIdentityFromPhoto} className="mt-8 w-full">
+      <label className="flex w-full cursor-pointer flex-col items-center rounded-2xl border border-dashed border-warm-400/40 px-6 py-8 text-warm-300 transition-colors hover:border-warm-300 hover:text-warm-100">
+        <span className="text-sm font-medium">
+          Choose a photo (JPEG, PNG, GIF, or WebP — up to 5 MB)
+        </span>
+        <input
+          ref={inputRef}
+          type="file"
+          name="photo"
+          accept="image/jpeg,image/png,image/gif,image/webp"
+          required
+          onChange={onFileChange}
+          className="mt-4 w-full text-sm file:mr-4 file:rounded-full file:border-0 file:bg-amber file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white"
+        />
+      </label>
+
+      {/* 128×128 preview + "different photo" affordance — mobile parity
+          2026-08-03. Only rendered once a file is picked; tapping the
+          preview forwards to the file input to re-open the picker. */}
+      {previewUrl ? (
+        <div className="mt-6 flex flex-col items-center">
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            className="group rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-coral"
+            aria-label="Choose a different photo"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={previewUrl}
+              alt="Selected photo preview"
+              width={128}
+              height={128}
+              className="h-32 w-32 rounded-2xl object-cover ring-2 ring-coral/25 transition-opacity group-active:opacity-80"
+            />
+          </button>
+          <p className="mt-3 text-xs text-warm-400">
+            Tap to choose a different photo
+          </p>
+        </div>
+      ) : null}
+
+      <button
+        type="submit"
+        className="mt-6 flex h-14 w-full items-center justify-center rounded-full bg-amber text-lg font-semibold text-white shadow-[0_14px_36px_-10px_rgba(107,140,175,0.55),_0_4px_12px_rgba(232,138,118,0.12)] transition-all hover:-translate-y-px hover:shadow-[0_18px_44px_-10px_rgba(107,140,175,0.6),_0_6px_14px_rgba(232,138,118,0.15)] active:translate-y-0 active:opacity-90"
+      >
+        Meet them
+      </button>
+    </form>
+  );
+}

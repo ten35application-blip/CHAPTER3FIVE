@@ -4,10 +4,10 @@ import { redirect } from "next/navigation";
 import { redirectWithError } from "@/lib/action-errors";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { DobField } from "./DobField";
+import { SubmitButton } from "./SubmitButton";
 
 export const metadata = {
-  title: "Make an account · chapter3five",
+  title: "Begin a chapter · chapter3five",
 };
 
 /**
@@ -44,8 +44,14 @@ async function signUp(formData: FormData) {
   if (password.length < 8) {
     redirectWithError("/auth/signup", "Password needs at least 8 characters.");
   }
+  // Mobile-parity error copy (2026-08-03): the DOB field is a plain
+  // YYYY-MM-DD text input on both surfaces now, so the message needs
+  // to teach the format, not just say "please enter".
   if (!dobRaw || !/^\d{4}-\d{2}-\d{2}$/.test(dobRaw)) {
-    redirectWithError("/auth/signup", "Please enter your date of birth.");
+    redirectWithError(
+      "/auth/signup",
+      "Enter your date of birth as YYYY-MM-DD (e.g. 1990-04-25).",
+    );
   }
   const dob = new Date(`${dobRaw}T00:00:00Z`);
   if (Number.isNaN(dob.getTime())) {
@@ -126,32 +132,72 @@ async function signUp(formData: FormData) {
     }
   }
 
-  // Supabase Auth requires email confirmation, so signUpData.user is
-  // created but the session isn't yet valid. Redirect to a "check your
-  // email" screen instead of /onboarding (which would bounce to
-  // /auth/signin and read as "signup failed"). Passing the email in
-  // the query lets the page show it back so a typo is catchable.
-  redirect(`/auth/check-email?email=${encodeURIComponent(email)}`);
+  // Mobile-parity 2026-08-03: inline the "check your email" success
+  // state rather than redirecting to /auth/check-email. Same page,
+  // ?sent= carries the email so the success view can echo it back.
+  redirect(`/auth/signup?sent=${encodeURIComponent(email)}`);
 }
 
 export default async function SignupPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; sent?: string }>;
 }) {
-  const { error } = await searchParams;
-  // Client-side year bounds for the DOB pickers: newest year is
-  // today - 18 (someone born in that year could already be 18), oldest
-  // is today - 120. Server-side checks still validate the exact date
-  // on submit — these bounds just keep obviously-invalid years out of
-  // the dropdown.
-  const currentYear = new Date().getUTCFullYear();
-  const maxDobYear = currentYear - 18;
-  const minDobYear = currentYear - 120;
+  const { error, sent } = await searchParams;
+
+  // Inline success view — mirrors mobile app/auth/signup.tsx's
+  // sentTo branch. Same copy down to the period.
+  if (sent) {
+    return (
+      <main className="flex min-h-dvh flex-1 flex-col items-center justify-center px-6 py-12">
+        <div className="flex w-full max-w-sm flex-col items-center text-center">
+          <Link
+            href="/"
+            aria-label="chapter3five home"
+            className="hero-orb flex items-center justify-center"
+          >
+            <Image
+              src="/logo-transparent.png"
+              alt="chapter3five"
+              width={80}
+              height={80}
+              priority
+              className="h-20 w-20 drop-shadow-[0_16px_40px_rgba(232,138,118,0.3)]"
+            />
+          </Link>
+          <h1 className="mt-8 text-3xl font-bold tracking-[-0.02em] text-warm-50">
+            Check your email.
+          </h1>
+          <p className="mt-4 text-base leading-relaxed text-warm-200">
+            We sent a confirmation link to{" "}
+            <span className="font-semibold text-warm-50">{sent}</span>. Click
+            it, then come back to sign in.
+          </p>
+          <Link
+            href="/auth/signin"
+            className="mt-8 flex h-12 items-center justify-center px-6 text-base font-semibold text-coral-strong transition-colors hover:text-coral"
+          >
+            Back to sign in
+          </Link>
+        </div>
+      </main>
+    );
+  }
 
   return (
-    <main className="flex min-h-dvh flex-1 flex-col items-center justify-center px-6 py-12">
+    <main className="flex min-h-dvh flex-1 flex-col items-center px-6 py-12">
       <div className="flex w-full max-w-sm flex-col items-center">
+        {/* Back to landing — top-left affordance (mobile parity). */}
+        <div className="w-full">
+          <Link
+            href="/"
+            className="inline-flex h-11 items-center text-base font-semibold text-coral-strong transition-colors hover:text-coral"
+          >
+            <span aria-hidden="true">&larr;</span>
+            <span className="ml-1">Back</span>
+          </Link>
+        </div>
+
         {/* Small hero moment — logo inside a compact aura echoing the
             landing, so the auth page feels like it belongs to the same
             product rather than a stock signup form. */}
@@ -171,10 +217,10 @@ export default async function SignupPage({
         </Link>
 
         <h1 className="mt-8 text-4xl font-bold tracking-[-0.02em] text-warm-50">
-          Make an <span className="text-gradient-cta">account.</span>
+          Begin a chapter.
         </h1>
         <p className="mt-3 text-base text-warm-300">
-          It only takes a minute.
+          Email + password. That&rsquo;s it.
         </p>
 
         {error ? (
@@ -208,54 +254,35 @@ export default async function SignupPage({
               required
               minLength={8}
               className="h-12 rounded-2xl bg-ink-soft px-4 text-base text-warm-50 outline-none ring-1 ring-warm-700 placeholder:text-warm-400 focus:ring-2 focus:ring-coral"
-              placeholder="At least 8 characters"
+              placeholder="Password (8+ characters)"
             />
           </label>
 
-          <DobField maxYear={maxDobYear} minYear={minDobYear} />
-
-          <button
-            type="submit"
-            className="bg-gradient-cta hover:bg-gradient-cta-hover mt-4 flex h-14 w-full items-center justify-center rounded-full text-lg font-bold tracking-tight text-white shadow-[0_16px_40px_-10px_rgba(232,138,118,0.5),_0_6px_16px_-6px_rgba(126,196,196,0.4)] transition-all hover:-translate-y-px hover:shadow-[0_20px_46px_-10px_rgba(232,138,118,0.55),_0_8px_20px_-6px_rgba(126,196,196,0.45)] active:translate-y-0 active:opacity-95"
-          >
-            Create account
-          </button>
-
-          {/* Standard cover — the real, recorded acceptance happens at
-              /onboarding after signup. EULA linked separately because
-              Apple App Store Review Guidelines § 3.2.1(vii) require an
-              EULA-specific URL. */}
-          <p className="mt-3 text-center text-xs leading-relaxed text-warm-400">
-            By continuing, you agree to our{" "}
-            <Link
-              href="/terms"
-              className="font-semibold text-warm-300 underline-offset-2 transition-colors hover:text-coral-strong hover:underline"
-            >
-              Terms
-            </Link>
-            ,{" "}
-            <Link
-              href="/eula"
-              className="font-semibold text-warm-300 underline-offset-2 transition-colors hover:text-coral-strong hover:underline"
-            >
-              EULA
-            </Link>
-            ,{" "}
-            <Link
-              href="/privacy"
-              className="font-semibold text-warm-300 underline-offset-2 transition-colors hover:text-coral-strong hover:underline"
-            >
-              Privacy Policy
-            </Link>
-            , and{" "}
-            <Link
-              href="/guidelines"
-              className="font-semibold text-warm-300 underline-offset-2 transition-colors hover:text-coral-strong hover:underline"
-            >
-              Community Guidelines
-            </Link>
-            .
+          {/* Plain YYYY-MM-DD text input — mobile parity 2026-08-03,
+              replaced the three-dropdown DobField. Regex-validated on
+              submit; the copy under the field spells the age-gate
+              intent so it doesn't read as tracking. */}
+          <label className="flex flex-col gap-1.5">
+            <span className="text-sm font-medium text-warm-200">
+              Date of birth
+            </span>
+            <input
+              type="text"
+              name="date_of_birth"
+              inputMode="numeric"
+              autoComplete="bday"
+              required
+              pattern="\d{4}-\d{2}-\d{2}"
+              placeholder="Date of birth (YYYY-MM-DD)"
+              className="h-12 rounded-2xl bg-ink-soft px-4 text-base text-warm-50 outline-none ring-1 ring-warm-700 placeholder:text-warm-400 focus:ring-2 focus:ring-coral"
+            />
+          </label>
+          <p className="text-xs leading-relaxed text-warm-400">
+            Chapter3five is 18+. We ask so we can verify eligibility once, not
+            to track you.
           </p>
+
+          <SubmitButton />
         </form>
 
         <p className="mt-6 text-sm text-warm-300">

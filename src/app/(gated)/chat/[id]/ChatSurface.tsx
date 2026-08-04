@@ -1295,43 +1295,17 @@ export default function ChatSurface({
             </div>
           ) : capHit ? (
             <div className="flex flex-col items-center gap-3 px-4 py-4 text-center">
+              {/* Mobile-parity cap copy (2026-08-03) — same strings as
+                  chapter3five-app humanizeChatError. Kinds map:
+                  spend → free_month_spend_cap,
+                  images → image_month_cap,
+                  messages → free_month_cap. */}
               <p className="text-[15px] leading-snug text-warm-200">
-                {capHit.kind === "spend" ? (
-                  <>
-                    You&apos;ve reached this month&apos;s free-tier usage
-                    allowance ({(capHit.limit / 100).toFixed(2)} spent).
-                    {" "}
-                    {name} is still here &mdash; upgrade your plan to keep
-                    the conversations going, or come back at the start of
-                    next month.
-                  </>
-                ) : capHit.kind === "images" ? (
-                  capHit.limit === 0 ? (
-                    <>
-                      Photo sends aren&apos;t part of your plan. Upgrade
-                      to send images to {name} &mdash; or keep going with
-                      just text.
-                    </>
-                  ) : (
-                    <>
-                      You&apos;ve used all{" "}
-                      <strong className="text-warm-50">{capHit.limit}</strong>
-                      {" "}
-                      of this month&apos;s photo sends. Text still works,
-                      an image pack adds more, and the counter resets at
-                      the start of next month.
-                    </>
-                  )
-                ) : (
-                  <>
-                    You&apos;ve used all{" "}
-                    <strong className="text-warm-50">{capHit.limit}</strong>
-                    {" "}
-                    of this month&apos;s messages. {name} is still here
-                    &mdash; upgrade your plan or grab a message pack, or
-                    come back at the start of next month.
-                  </>
-                )}
+                {capHit.kind === "spend"
+                  ? "You've hit this month's usage allowance. It resets on the 1st."
+                  : capHit.kind === "images"
+                    ? "That's this month's room for photos. Text still works, and more opens up on the 1st."
+                    : "That's this month's room for messages. More opens up on the 1st — or grab a top-up from Settings → Extra usage."}
               </p>
               <Link
                 href={`/upgrade?next=${encodeURIComponent(`/chat/${oracleId}`)}`}

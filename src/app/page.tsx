@@ -105,26 +105,6 @@ function FeatureLine({ children }: { children: React.ReactNode }) {
   );
 }
 
-/* One titled column of footer links. */
-function FooterGroup({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div>
-      <p className="text-xs font-bold uppercase tracking-[0.14em] text-warm-400">
-        {title}
-      </p>
-      <ul className="mt-3 flex flex-col items-center gap-2 sm:items-start">
-        {children}
-      </ul>
-    </div>
-  );
-}
-
 function FooterLink({
   href,
   children,
@@ -153,7 +133,7 @@ export default function Home() {
           cleanly on the halo tint and any theme background. */}
       <section className="flex min-h-dvh flex-col items-center justify-center px-6 py-16">
         <div className="flex w-full max-w-2xl flex-col items-center text-center">
-          <div className="hero-orb hero-orb-drift flex items-center justify-center">
+          <div className="hero-orb flex items-center justify-center">
             <Image
               src="/logo-transparent.png"
               alt="chapter3five"
@@ -349,9 +329,9 @@ export default function Home() {
                 Create an identity for someone you love
               </h3>
               <p className="mt-5 text-lg leading-relaxed text-warm-200">
-                Forty questions about a real person &mdash; a parent, a
-                partner, a friend. Lands in your contacts, plus a code you can
-                share with family.
+                $5 when you finish. Forty questions about a real person
+                &mdash; a parent, a partner, a friend. Lands in your
+                contacts, plus a code you can share with family.
               </p>
             </div>
           </div>
@@ -760,32 +740,28 @@ export default function Home() {
               </p>
             </div>
 
+            {/* Flat wrapped row (mobile parity 2026-08-03): no grouped
+                columns, no section labels, no Advertise link — just the
+                links mobile carries. Support is a plain mailto so an
+                anonymous visitor / App Store reviewer can reach a human
+                without an account. */}
             <nav
               aria-label="Footer"
-              className="grid grid-cols-1 gap-x-14 gap-y-8 sm:grid-cols-3"
+              className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3 sm:justify-start"
             >
-              <FooterGroup title="Product">
-                <FooterLink href="/about">About</FooterLink>
-                <FooterLink href="/advertise">Advertise</FooterLink>
-              </FooterGroup>
-              <FooterGroup title="Legal">
-                <FooterLink href="/terms">Terms of Service</FooterLink>
-                <FooterLink href="/privacy">Privacy Policy</FooterLink>
-                <FooterLink href="/guidelines">
-                  Community Guidelines
-                </FooterLink>
-                <FooterLink href="/data-deletion">Data Deletion</FooterLink>
-              </FooterGroup>
-              <FooterGroup title="Contact">
-                <li>
-                  <a
-                    href="mailto:support@chapter3five.app"
-                    className="text-sm font-semibold text-warm-300 transition-colors hover:text-coral-strong"
-                  >
-                    Support
-                  </a>
-                </li>
-              </FooterGroup>
+              <FooterLink href="/about">About</FooterLink>
+              <FooterLink href="/terms">Terms</FooterLink>
+              <FooterLink href="/privacy">Privacy</FooterLink>
+              <FooterLink href="/guidelines">Guidelines</FooterLink>
+              <FooterLink href="/data-deletion">Data Deletion</FooterLink>
+              <li className="list-none">
+                <a
+                  href="mailto:support@chapter3five.app"
+                  className="text-sm font-semibold text-warm-300 transition-colors hover:text-coral-strong"
+                >
+                  Support
+                </a>
+              </li>
             </nav>
           </div>
 

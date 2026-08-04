@@ -80,16 +80,14 @@ export default async function OnboardingPage({
           />
         </div>
 
-        <p className="text-gradient-cta mt-8 text-sm font-bold uppercase tracking-[0.14em]">
-          One more thing
-        </p>
-        <h1 className="mt-3 text-4xl font-bold leading-[1.05] tracking-[-0.02em] text-warm-50 sm:text-5xl">
-          Before we <span className="text-gradient-cta">begin.</span>
+        {/* Mobile parity 2026-08-03: collapsed eyebrow + gradient-split
+            headline into a single plain H1, dropped the "real weight"
+            preface so the sub is exactly what mobile shows. */}
+        <h1 className="mt-8 text-4xl font-bold leading-[1.05] tracking-[-0.02em] text-warm-50 sm:text-5xl">
+          One more thing.
         </h1>
         <p className="mt-4 max-w-sm text-base leading-relaxed text-warm-300">
-          chapter3five holds real weight &mdash; people&apos;s voices,
-          memories, and legacy. Read each, check the box. We record
-          what you agreed to and when.
+          Read each, check the box. We record what you agreed to and when.
         </p>
 
         {error ? (
@@ -106,9 +104,9 @@ export default async function OnboardingPage({
         <form action={signOut} className="mt-6">
           <button
             type="submit"
-            className="text-sm font-semibold text-warm-300 transition-colors hover:text-coral-strong"
+            className="text-sm font-semibold text-warm-300 underline underline-offset-4 transition-colors hover:text-coral-strong"
           >
-            Sign out
+            Sign out instead
           </button>
         </form>
 

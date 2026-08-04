@@ -56,10 +56,7 @@ export default function TermsPage() {
       currentPath="/terms"
       kicker="The agreement"
       title="Terms of Service"
-      tagline="This is the agreement between you and chapter3five. We wrote it to be read, not skimmed — especially the parts about what our companions are and aren't."
       toc={toc}
-      contactEmail="hello@chapter3five.app"
-      contactNote="Questions about these terms? Write to us and a person will answer."
     >
       <LegalSection id="welcome" number={1} title="Welcome">
         <p>

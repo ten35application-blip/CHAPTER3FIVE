@@ -35,10 +35,7 @@ export default function PrivacyPage() {
       currentPath="/privacy"
       kicker="Your data"
       title="Privacy Policy"
-      tagline="You trust us with some of the most personal words you'll ever write. Here is exactly what we collect, why, who touches it, and how you take it back."
       toc={toc}
-      contactEmail="privacy@chapter3five.app"
-      contactNote="Data requests and privacy questions go here. A person reads every one."
     >
       <LegalSection id="plain-words" number={1} title="In plain words">
         <p>

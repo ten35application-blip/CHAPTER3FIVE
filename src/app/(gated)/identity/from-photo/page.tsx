@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { createIdentityFromPhoto } from "./actions";
+import { PhotoPickerForm } from "./PhotoPickerForm";
 
 export const metadata = {
   title: "Someone from a photo · chapter3five",
@@ -54,27 +54,7 @@ export default async function IdentityFromPhotoPage({
           </p>
         ) : null}
 
-        <form action={createIdentityFromPhoto} className="mt-8 w-full">
-          <label className="flex w-full cursor-pointer flex-col items-center rounded-2xl border border-dashed border-warm-400/40 px-6 py-8 text-warm-300 transition-colors hover:border-warm-300 hover:text-warm-100">
-            <span className="text-sm font-medium">
-              Choose a photo (JPEG, PNG, GIF, or WebP — up to 5 MB)
-            </span>
-            <input
-              type="file"
-              name="photo"
-              accept="image/jpeg,image/png,image/gif,image/webp"
-              required
-              className="mt-4 w-full text-sm file:mr-4 file:rounded-full file:border-0 file:bg-amber file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white"
-            />
-          </label>
-
-          <button
-            type="submit"
-            className="mt-6 flex h-14 w-full items-center justify-center rounded-full bg-amber text-lg font-semibold text-white shadow-[0_14px_36px_-10px_rgba(107,140,175,0.55),_0_4px_12px_rgba(232,138,118,0.12)] transition-all hover:-translate-y-px hover:shadow-[0_18px_44px_-10px_rgba(107,140,175,0.6),_0_6px_14px_rgba(232,138,118,0.15)] active:translate-y-0 active:opacity-90"
-          >
-            Meet them
-          </button>
-        </form>
+        <PhotoPickerForm />
 
         <p className="mt-4 text-xs text-warm-400">
           Adults only. Don&apos;t upload photos of real people without their

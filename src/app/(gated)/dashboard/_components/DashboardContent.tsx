@@ -28,6 +28,15 @@ export type Identity = {
    *  soft placeholder copy, no unread badge; tapping opens a chat
    *  surface that prompts the upload instead of showing composer. */
   is_photo_placeholder?: boolean;
+  /** iMessage-style last-message preview + timestamp (mobile parity
+   *  2026-08-03). Null on placeholder rows and never-messaged
+   *  contacts; the row falls back to "Tap to start". */
+  last_message_preview?: string | null;
+  last_message_at?: string | null;
+  /** True when the newest active message on this thread was from the
+   *  caller — prefixes the preview with "You: " to match iMessage
+   *  and mobile. */
+  last_message_from_user?: boolean;
 };
 
 type Props = {
@@ -364,13 +373,21 @@ function ConversationList({
                     {isLocked(p.id) && !p.is_photo_placeholder ? (
                       <ProChip />
                     ) : null}
+                    {/* iMessage-style timestamp — right-aligned within
+                        the row header. Placeholder rows and never-
+                        messaged contacts skip this (nothing to date). */}
+                    {p.last_message_at && !p.is_photo_placeholder ? (
+                      <span className="ml-auto flex-shrink-0 text-xs text-warm-400">
+                        {formatRowTime(p.last_message_at)}
+                      </span>
+                    ) : null}
                   </span>
                   <span className="truncate text-sm leading-snug text-warm-300">
                     {p.is_photo_placeholder
                       ? "Tap the avatar to upload a photo"
                       : isLocked(p.id)
                         ? "Waiting behind Pro"
-                        : "Tap to start"}
+                        : renderPreview(p)}
                   </span>
                   {p.inherit_code ? (
                     <InheritCodeChip code={p.inherit_code} />
@@ -583,19 +600,60 @@ function StarButton({ id, starred }: { id: string; starred: boolean }) {
 /* ------------------------------------------------------------------ */
 
 function EmptyState() {
+  // Mobile parity 2026-08-03: no gradient orb, no "It's quiet in here."
+  // hero — mobile shows a single warm-400 body line while Adrian is
+  // spun up in the background.
   return (
-    <div className="hero-orb hero-orb-drift flex flex-col items-center pt-16 text-center sm:pt-24">
-      <p className="mt-10 text-3xl font-bold tracking-tight text-warm-50">
-        It&apos;s <span className="text-gradient-cta">quiet</span> in here.
-      </p>
-      <p className="mt-4 max-w-xs text-base leading-relaxed text-warm-300">
-        Tap the menu below, open{" "}
-        <span className="font-semibold text-warm-100">Contact list</span>, then
-        the <span className="font-semibold text-warm-100">+</span> to bring
-        someone in.
+    <div className="pt-16 text-center sm:pt-24">
+      <p className="mx-auto max-w-xs text-base leading-relaxed text-warm-400">
+        No conversations yet. Adrian will show up in a moment.
       </p>
     </div>
   );
+}
+
+/** Preview line for a conversation row. Prefixes with "You: " when the
+ *  newest message was from the caller (iMessage / mobile parity), and
+ *  falls back to "Tap to start" for never-messaged rows or image-only
+ *  turns where content is null. */
+function renderPreview(p: Identity): string {
+  const preview = p.last_message_preview?.trim();
+  if (!preview) return "Tap to start";
+  return p.last_message_from_user ? `You: ${preview}` : preview;
+}
+
+/** iMessage-shaped time labels: "3:14 PM" today, "Yesterday", weekday
+ *  name within the last week, then "M/D/YY". Ported verbatim from
+ *  chapter3five-app/app/dashboard.tsx:1484-1512 so both surfaces stamp
+ *  the same relative time on every row. */
+function formatRowTime(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  const now = new Date();
+  const startOfToday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+  );
+  const dayMs = 24 * 60 * 60 * 1000;
+  if (d >= startOfToday) {
+    return d.toLocaleTimeString(undefined, {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  }
+  if (d >= new Date(startOfToday.getTime() - dayMs)) {
+    return "Yesterday";
+  }
+  if (d >= new Date(startOfToday.getTime() - 6 * dayMs)) {
+    return d.toLocaleDateString(undefined, { weekday: "short" });
+  }
+  return d.toLocaleDateString(undefined, {
+    month: "numeric",
+    day: "numeric",
+    year: "2-digit",
+  });
 }
 
 function NoMatchesState({ query }: { query: string }) {

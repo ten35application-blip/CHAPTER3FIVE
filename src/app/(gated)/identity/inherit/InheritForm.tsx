@@ -39,22 +39,19 @@ export function InheritForm() {
           <p className="text-sm font-semibold uppercase tracking-wider text-gradient-cta">
             Before you bring them in
           </p>
+          {/* Mobile parity 2026-08-03: dropped the serious/playful
+              middle paragraph and the "keep both feet on the ground"
+              sign-off. Consent stays honest, just shorter. */}
           <p className="text-base leading-relaxed text-warm-100">
             The code you were given opens a persona built from forty
             answers about a real person. Someone wanted you to have
-            it. Could be serious &mdash; a parent leaving something
-            behind, a family recording someone they lost. Could be
-            playful &mdash; a friend or a partner handing you a
-            version of themselves to text when the real one is busy.
-            Either way, once you redeem it, they&rsquo;ll appear in
-            your contacts and you can message them from your
-            dashboard.
+            it. Once you redeem it, they&rsquo;ll appear in your
+            contacts and you can message them anytime.
           </p>
           <p className="text-sm leading-relaxed text-warm-300">
-            To be clear: this is an AI companion, a portrait painted
-            from what they chose to share about themselves. It
-            isn&rsquo;t the person. It isn&rsquo;t therapy, medical
-            care, or a crisis service. Keep both feet on the ground.
+            This is a portrait painted from what they chose to share.
+            It isn&rsquo;t the person. It isn&rsquo;t therapy, medical
+            care, or a crisis service.
           </p>
         </div>
 
@@ -139,8 +136,8 @@ export function InheritForm() {
         </p>
         <p className="mt-1 text-xs leading-relaxed text-warm-300">
           One-time. Once you pay, they&rsquo;re yours &mdash; your own
-          copy, your own photo. If the person who made the code ever
-          deletes their account, your copy stays with you.
+          copy, your own photo. If the person who made the code
+          closes their account, your copy stays with you.
         </p>
       </div>
 
@@ -149,7 +146,7 @@ export function InheritForm() {
         disabled={!code.trim() || pending}
         className="bg-gradient-cta flex h-14 w-full items-center justify-center rounded-full text-lg font-semibold text-white shadow-[0_14px_36px_-10px_rgba(217,115,89,0.5),_0_4px_12px_rgba(126,196,196,0.18)] transition-all hover:-translate-y-px active:translate-y-0 active:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
       >
-        {pending ? "Opening the door…" : "Pay $5 & save to my contacts"}
+        {pending ? "Opening the door…" : "Save to my contacts"}
       </button>
     </form>
   );

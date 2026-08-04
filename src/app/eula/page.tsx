@@ -47,10 +47,7 @@ export default function EulaPage() {
       currentPath="/eula"
       kicker="The license"
       title="End-User License Agreement"
-      tagline="The specific license you receive when you use chapter3five on the web or through an app store, and the extra terms that apply on iOS."
       toc={toc}
-      contactEmail="hello@chapter3five.app"
-      contactNote="Questions about this license? Write to us and a person will answer."
     >
       <LegalCallout>
         This EULA sits alongside our{" "}

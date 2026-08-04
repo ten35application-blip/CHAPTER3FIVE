@@ -149,9 +149,12 @@ export default async function DashboardPage({
   ] = await Promise.all([
     supabase
       .from("messages")
-      // role + created_at ride along so automatic unread (below) can
-      // reduce newest-message-per-oracle without a third messages query.
-      .select("oracle_id, role, created_at")
+      // role + created_at + content ride along: role/created_at feed
+      // the automatic-unread reduction below, and content powers the
+      // per-row iMessage-style last-message preview (mobile parity
+      // 2026-08-03; dashboard rows now show "You: …" / assistant
+      // preview + a relative timestamp).
+      .select("oracle_id, role, created_at, content")
       .eq("user_id", user.id)
       .is("deleted_at", null),
     supabase
@@ -182,7 +185,10 @@ export default async function DashboardPage({
   // oracle_read_state.last_read_at (or never read). Distinct from
   // manually_unread — the explicit Mark-as-unread flag — the two are
   // OR-ed at render in DashboardContent, never merged in data.
-  const lastMsgByOracle = new Map<string, { role: string; created_at: string }>();
+  const lastMsgByOracle = new Map<
+    string,
+    { role: string; created_at: string; content: string | null }
+  >();
   for (const r of activeMsgOracleRows ?? []) {
     const oid = r.oracle_id as string | null;
     if (!oid) continue;
@@ -190,7 +196,11 @@ export default async function DashboardPage({
     const prev = lastMsgByOracle.get(oid);
     // Same-column string compare is safe here (uniform PostgREST format).
     if (!prev || created > prev.created_at) {
-      lastMsgByOracle.set(oid, { role: r.role as string, created_at: created });
+      lastMsgByOracle.set(oid, {
+        role: r.role as string,
+        created_at: created,
+        content: (r.content as string | null) ?? null,
+      });
     }
   }
   const lastReadByOracle = new Map<string, string>();
@@ -221,7 +231,19 @@ export default async function DashboardPage({
       const hasActive = activeThreadOracleIds.has(c.id);
       return !hasAny || hasActive;
     })
-    .map((c) => ({ ...c, auto_unread: isAutoUnread(c.id) }));
+    .map((c) => {
+      const last = lastMsgByOracle.get(c.id);
+      return {
+        ...c,
+        auto_unread: isAutoUnread(c.id),
+        // Mobile-parity preview + timestamp (2026-08-03). Content may
+        // be null on image-only messages; DashboardContent falls back
+        // to "Tap to start" the same way mobile does.
+        last_message_preview: last?.content ?? null,
+        last_message_at: last?.created_at ?? null,
+        last_message_from_user: last?.role === "user",
+      };
+    });
 
   // Archived conversations — for the archive sub-panel. The identity
   // is still in Contacts; only the thread is hidden from the inbox.

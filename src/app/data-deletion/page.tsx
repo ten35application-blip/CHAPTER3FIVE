@@ -17,9 +17,6 @@ export default function DataDeletionPage() {
     <InfoShell
       kicker="Your data"
       title="Deleting your account."
-      tagline="Everything you need to know about taking your data with you when you go."
-      contactEmail="support@chapter3five.app"
-      contactNote="Can't sign in, or want us to handle it for you? Email us from the address on your account and we'll take care of it."
     >
       <p>
         You can delete your chapter3five account and the data attached to

@@ -19,8 +19,10 @@ export function InfoShell({
   /** Small gradient lead-in above the title, e.g. "Our story". */
   kicker: string;
   title: string;
-  /** One warm sentence under the title telling you what this page is. */
-  tagline: string;
+  /** One warm sentence under the title telling you what this page is.
+   *  Optional as of 2026-08-03 (mobile parity — LegalScreen renders
+   *  only kicker + title + content, and web now matches). */
+  tagline?: string;
   children: React.ReactNode;
   /** Optional footer contact. Omit both to skip the contact block. */
   contactEmail?: string;
@@ -56,9 +58,11 @@ export function InfoShell({
         <h1 className="mt-3 text-4xl font-bold leading-[1.05] tracking-[-0.02em] text-warm-50 sm:text-5xl">
           {title}
         </h1>
-        <p className="mt-4 max-w-xl text-lg leading-relaxed text-warm-200">
-          {tagline}
-        </p>
+        {tagline ? (
+          <p className="mt-4 max-w-xl text-lg leading-relaxed text-warm-200">
+            {tagline}
+          </p>
+        ) : null}
       </header>
 
       {/* Prose column — quiet, readable, ~65ch. Headings and emphasis

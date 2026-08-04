@@ -17,9 +17,6 @@ export default function AboutPage() {
     <InfoShell
       kicker="Our story"
       title="We made a new chapter."
-      tagline="What chapter3five is, why it exists, and the promise we make about it."
-      contactEmail="hello@chapter3five.app"
-      contactNote="Questions, ideas, or just want to say hi?"
     >
       <p>
         chapter3five started in a quiet moment, with two hard thoughts at
