@@ -8,6 +8,7 @@ import {
 } from "@/lib/notifications";
 import { scheduleAutoPopulate } from "@/lib/subscription/autoPopulate";
 import type Stripe from "stripe";
+import { recordGrantFailure } from "@/lib/billing/grantFailure";
 
 export const runtime = "nodejs";
 
@@ -291,15 +292,22 @@ async function handleCheckoutCompleted(
         },
       );
       if (msgErr) {
-        // Loud: the user PAID and the grant failed. Stripe will
-        // retry the event, but the payments row is already claimed
-        // paid, so the retry short-circuits -- this log is the
-        // signal for a manual re-grant.
-        console.error(
-          "[stripe/webhook] pack message-credit grant failed:",
+        // The user PAID and the grant failed. Stripe WILL retry the
+        // event, but the payments row is already claimed paid, so the
+        // retry short-circuits by design — there is no automatic
+        // recovery here. This used to be a console.error and nothing
+        // else, which meant the only record of an under-delivery was a
+        // log line nobody reads. Now it lands in grant_failures with
+        // everything needed to re-grant by hand (0133).
+        await recordGrantFailure({
+          kind: "message_credits",
+          userId,
+          stripeEventId: event.id,
+          stripeSessionId: session.id,
+          delta: grants.messages,
           purpose,
-          msgErr,
-        );
+          error: msgErr,
+        });
       }
       const { error: imgErr } = await admin.rpc(
         "increment_profile_counter",
@@ -310,18 +318,28 @@ async function handleCheckoutCompleted(
         },
       );
       if (imgErr) {
-        console.error(
-          "[stripe/webhook] pack image-credit grant failed:",
+        await recordGrantFailure({
+          kind: "image_credits",
+          userId,
+          stripeEventId: event.id,
+          stripeSessionId: session.id,
+          delta: grants.images,
           purpose,
-          imgErr,
-        );
+          error: imgErr,
+        });
       }
     } else {
-      console.error(
-        "[stripe/webhook] pack purchase with unrecognized pack_kind:",
-        session.metadata?.pack_kind,
-        session.id,
-      );
+      // Worst case of the set: the money arrived and we cannot map it
+      // to anything, so we know they paid and not what for. Recorded
+      // with the raw pack_kind so it is still resolvable by hand.
+      await recordGrantFailure({
+        kind: "unrecognized_purchase",
+        userId,
+        stripeEventId: event.id,
+        stripeSessionId: session.id,
+        purpose,
+        error: `unrecognized pack_kind: ${session.metadata?.pack_kind ?? "(none)"}`,
+      });
     }
 
     await recordEvent(event, admin, userId);
@@ -346,21 +364,32 @@ async function handleCheckoutCompleted(
         },
       );
       if (grantErr) {
-        // Loud: the user PAID and the grant failed. The payments row
-        // is already claimed paid, so a Stripe retry short-circuits —
-        // this log is the signal for a manual re-grant.
-        console.error(
-          "[stripe/webhook] inherit-slot credit grant failed:",
-          grantErr,
-        );
+        // THIS IS THE ONE THAT MATTERS MOST. Someone paid $5 to open
+        // the archive of a person who died. If this grant fails they
+        // are charged, the archive stays shut, and — before 0133 —
+        // the only record was a log line. The payments row is already
+        // claimed paid so a Stripe retry short-circuits; there is no
+        // automatic recovery. It has to be visible to a person.
+        await recordGrantFailure({
+          kind: "inherited_slot",
+          userId,
+          stripeEventId: event.id,
+          stripeSessionId: session.id,
+          delta: 1,
+          purpose,
+          error: grantErr,
+        });
       }
     } else {
-      console.error(
-        "[stripe/webhook] inherited_slot_purchase with unexpected mode/metadata:",
-        session.mode,
-        session.metadata?.purchase_kind,
-        session.id,
-      );
+      await recordGrantFailure({
+        kind: "inherited_slot",
+        userId,
+        stripeEventId: event.id,
+        stripeSessionId: session.id,
+        delta: 1,
+        purpose,
+        error: `unexpected mode/metadata: mode=${session.mode} purchase_kind=${session.metadata?.purchase_kind ?? "(none)"}`,
+      });
     }
 
     await recordEvent(event, admin, userId);
@@ -386,21 +415,26 @@ async function handleCheckoutCompleted(
         },
       );
       if (grantErr) {
-        // Loud: the user PAID and the grant failed. The payments row
-        // is already claimed paid, so a Stripe retry short-circuits —
-        // this log is the signal for a manual re-grant.
-        console.error(
-          "[stripe/webhook] other-identity-create credit grant failed:",
-          grantErr,
-        );
+        await recordGrantFailure({
+          kind: "other_identity_create",
+          userId,
+          stripeEventId: event.id,
+          stripeSessionId: session.id,
+          delta: 1,
+          purpose,
+          error: grantErr,
+        });
       }
     } else {
-      console.error(
-        "[stripe/webhook] other_identity_create with unexpected mode/metadata:",
-        session.mode,
-        session.metadata?.purchase_kind,
-        session.id,
-      );
+      await recordGrantFailure({
+        kind: "other_identity_create",
+        userId,
+        stripeEventId: event.id,
+        stripeSessionId: session.id,
+        delta: 1,
+        purpose,
+        error: `unexpected mode/metadata: mode=${session.mode} purchase_kind=${session.metadata?.purchase_kind ?? "(none)"}`,
+      });
     }
 
     await recordEvent(event, admin, userId);
