@@ -36,6 +36,29 @@ export async function POST(request: NextRequest) {
   // Atomic status flip: only proceed when the row is still claimable.
   // If two beneficiaries click at once (rare) the second gets a
   // "no longer valid" from the empty update result.
+  // EMAIL BINDING (2026-08-04). The claim used to match on
+  // claim_token ALONE, so the token was a bare bearer credential: any
+  // signed-in account that presented it became claimed_user_id and
+  // immediately received archive_grants on every legacy oracle the
+  // owner built. A forwarded email, a mistyped address, or a token
+  // sitting in a mail server log converted directly into full read-and-
+  // chat access to a family's memorial archive.
+  //
+  // The invitation was sent to a specific address; the person claiming
+  // it must be signed in as that address. Compared case-insensitively
+  // because email case is not meaningful and the invite may have been
+  // typed by hand.
+  //
+  // This matters more here than in a normal invite flow: the thing
+  // behind the token is a dead person's voice, and there is no undo.
+  const callerEmail = (user.email ?? "").trim().toLowerCase();
+  if (!callerEmail) {
+    return NextResponse.json(
+      { error: "Your account has no email address to match this invitation." },
+      { status: 403 },
+    );
+  }
+
   const { data: claimed } = await admin
     .from("beneficiaries")
     .update({
@@ -44,13 +67,17 @@ export async function POST(request: NextRequest) {
       claimed_user_id: user.id,
     })
     .eq("claim_token", token)
+    .ilike("email", callerEmail)
     .in("status", ["activated", "designated"])
     .select("id, owner_user_id")
     .maybeSingle<{ id: string; owner_user_id: string }>();
 
   if (!claimed) {
     return NextResponse.json(
-      { error: "This link is no longer valid or was already claimed." },
+      {
+        error:
+          "This link is no longer valid, was already claimed, or was sent to a different email address. Sign in with the address the invitation was sent to.",
+      },
       { status: 409 },
     );
   }
