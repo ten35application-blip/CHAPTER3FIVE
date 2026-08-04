@@ -76,8 +76,8 @@ function Wordmark({ className = "" }: { className?: string }) {
   return (
     <p className={`font-bold tracking-tight text-warm-50 ${className}`}>
       chapter
-      <span className="text-gradient-cta font-black">3</span>
-      five
+      <span className="text-coral-strong font-black">3</span>
+      <span className="text-teal-strong font-black">five</span>
     </p>
   );
 }

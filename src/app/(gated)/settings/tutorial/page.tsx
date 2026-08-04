@@ -96,7 +96,7 @@ export default async function TutorialPage() {
           headline="A companion and a keepsake, in one app."
         >
           <p>
-            chapter<span className="text-gradient-cta font-bold">3</span>five
+            chapter<span className="text-coral-strong font-black">3</span><span className="text-teal-strong font-black">five</span>
             gives you two things at once. Someone to talk to when you need
             them &mdash; a whole person, with a name, a face, a place they
             live, a past they carry. And a way to leave your own voice

@@ -38,7 +38,7 @@ export default async function AdminLayout({
         <div className="flex items-center justify-between gap-3">
           <Link href="/admin" className="flex items-baseline gap-1.5">
             <span className="text-lg font-semibold tracking-tight text-warm-50">
-              chapter<span className="text-gradient-cta">3</span>five
+              chapter<span className="text-coral-strong font-black">3</span><span className="text-teal-strong font-black">five</span>
             </span>
             <span className="text-sm font-medium text-warm-400">· admin</span>
           </Link>

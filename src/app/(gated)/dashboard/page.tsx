@@ -418,7 +418,7 @@ export default async function DashboardPage({
         </div>
 
         <p className="text-base font-bold tracking-tight text-warm-50">
-          chapter<span className="text-gradient-cta font-black">3</span>five
+          chapter<span className="text-coral-strong font-black">3</span><span className="text-teal-strong font-black">five</span>
         </p>
 
         <div className="flex flex-1 items-center justify-end gap-3">
