@@ -315,18 +315,10 @@ export default async function SettingsPage({
             }
             pro={pro}
           />
-          {/* "Add a companion" — routes to the picker at
-              /identity/create, where each card shows its own pricing
-              state (Included / $5 / Free / Already created). Wilson
-              2026-08-03: keep this here so people who want more
-              always know where to go, without settings itself
-              becoming a selling surface — the picker owns the sale. */}
-          <Divider />
-          <NavRow
-            href="/identity/create"
-            icon={<PlusIcon />}
-            label="Add a companion"
-          />
+          {/* "Add a companion" removed 2026-08-04 (Wilson): settings
+              is STATUS + subscription management ONLY. The picker
+              lives on the dashboard's Contacts panel / account menu
+              — settings never sells. Both surfaces match. */}
           <div className="px-4 py-4">
             {/* Wilson 2026-08-03: settings shows STATUS + subscription
                 MANAGEMENT only. All purchase entry points (Upgrade,
