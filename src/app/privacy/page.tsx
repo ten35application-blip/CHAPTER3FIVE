@@ -203,8 +203,17 @@ export default function PrivacyPage() {
             models) under Replicate&rsquo;s own privacy contract.
           </li>
           <li>
-            <strong>Stripe</strong> — payments. Handles your card and billing
-            details; we receive only subscription metadata.
+            <strong>Stripe</strong> — payments on the web. Handles your card
+            and billing details; we receive only subscription metadata.
+          </li>
+          <li>
+            <strong>RevenueCat</strong> — purchases in the iPhone and
+            Android apps. In-app subscriptions are processed by Apple or
+            Google; RevenueCat sits in front of them to tell us whether
+            your subscription is active. It receives your chapter3five
+            account ID, the purchase receipt from the store, and basic
+            device information. It does not receive your card details,
+            your messages, or anything your identities have said to you.
           </li>
           <li>
             <strong>Resend</strong> — transactional email. Receives your
