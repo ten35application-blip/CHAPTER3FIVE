@@ -6,10 +6,14 @@ import { recordAnthropicSpend } from "@/lib/spendGovernor";
 import { openerVarietyBlock } from "@/lib/identity/opener";
 import { sendPushToUser } from "@/lib/push";
 import { moderateText } from "@/lib/moderation";
-import { CRON_MAX_DURATION, startCronBudget } from "@/lib/cron/budget";
+import { startCronBudget } from "@/lib/cron/budget";
 
 export const runtime = "nodejs";
-export const maxDuration = CRON_MAX_DURATION;
+// Literal, not the shared constant: Next reads segment config
+// statically, so an imported value fails the build with
+// "Invalid segment configuration export detected". Keep in sync
+// with CRON_MAX_DURATION in lib/cron/budget.ts.
+export const maxDuration = 300;
 
 /**
  * Hourly check-in cron. Walks chat_blocks rows whose cooldown has

@@ -18,10 +18,14 @@ import {
 import { isProByUserId } from "@/lib/subscription";
 import { sendWebPushToUser } from "@/lib/webPush";
 import { sendPushToUser } from "@/lib/push";
-import { CRON_MAX_DURATION, startCronBudget } from "@/lib/cron/budget";
+import { startCronBudget } from "@/lib/cron/budget";
 
 export const runtime = "nodejs";
-export const maxDuration = CRON_MAX_DURATION;
+// Literal, not the shared constant: Next reads segment config
+// statically, so an imported value fails the build with
+// "Invalid segment configuration export detected". Keep in sync
+// with CRON_MAX_DURATION in lib/cron/budget.ts.
+export const maxDuration = 300;
 
 /**
  * Hourly persona-outreach worker. For each opted-in user we pick at

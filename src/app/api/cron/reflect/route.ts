@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { recordAnthropicSpend } from "@/lib/spendGovernor";
-import { CRON_MAX_DURATION, startCronBudget } from "@/lib/cron/budget";
+import { startCronBudget } from "@/lib/cron/budget";
 import {
   MEMORY_JSON_SCHEMA,
   coerceMemories,
@@ -10,7 +10,11 @@ import {
 } from "@/lib/memory/extract";
 
 export const runtime = "nodejs";
-export const maxDuration = CRON_MAX_DURATION;
+// Literal, not the shared constant: Next reads segment config
+// statically, so an imported value fails the build with
+// "Invalid segment configuration export detected". Keep in sync
+// with CRON_MAX_DURATION in lib/cron/budget.ts.
+export const maxDuration = 300;
 
 /**
  * Weekly reflection cron — Sundays 09:00 UTC.

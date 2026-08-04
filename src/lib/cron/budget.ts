@@ -38,7 +38,21 @@
  * the Stripe webhook already use.
  */
 
-/** Vercel Pro's per-function ceiling. Re-exported so the crons agree. */
+/**
+ * Vercel Pro's per-function ceiling, and the value every cron declares.
+ *
+ * NOT imported by the crons, deliberately. Next reads route segment
+ * config (maxDuration, runtime, revalidate, dynamic) STATICALLY, without
+ * executing the module — so `export const maxDuration = CRON_MAX_DURATION`
+ * compiles fine, passes tsc, passes lint, and then fails the build at the
+ * "Collecting page data" step with:
+ *
+ *   Invalid segment configuration export detected.
+ *
+ * That step runs AFTER "✓ Compiled successfully" prints, which is what
+ * makes it easy to miss locally. Each cron hard-codes `300` with a
+ * comment pointing here. If this number changes, grep for it.
+ */
 export const CRON_MAX_DURATION = 300;
 
 /** Stop this many ms in, leaving headroom to finish the current row. */

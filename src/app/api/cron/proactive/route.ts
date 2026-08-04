@@ -1,9 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { CRON_MAX_DURATION } from "@/lib/cron/budget";
 
 export const runtime = "nodejs";
-export const maxDuration = CRON_MAX_DURATION;
+// Literal, not the shared constant: Next reads segment config
+// statically, so an imported value fails the build with
+// "Invalid segment configuration export detected". Keep in sync
+// with CRON_MAX_DURATION in lib/cron/budget.ts.
+export const maxDuration = 300;
 
 // NOTE: THIS CRON IS A NO-OP. The loop below `continue`s for every
 // candidate — proactive outreach was paused pending the rewire onto

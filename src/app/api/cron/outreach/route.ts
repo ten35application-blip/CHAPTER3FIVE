@@ -2,10 +2,13 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { normalizeLanguage } from "@/lib/i18n/language";
 import { sendOutreachEmail } from "@/lib/notifications";
-import { CRON_MAX_DURATION } from "@/lib/cron/budget";
 
 export const runtime = "nodejs";
-export const maxDuration = CRON_MAX_DURATION;
+// Literal, not the shared constant: Next reads segment config
+// statically, so an imported value fails the build with
+// "Invalid segment configuration export detected". Keep in sync
+// with CRON_MAX_DURATION in lib/cron/budget.ts.
+export const maxDuration = 300;
 
 /**
  * Daily cron — emails users whose identities haven't heard from them in a
