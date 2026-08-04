@@ -7,7 +7,7 @@ import {
   coerceTextFirstFrequency,
   DEFAULT_TEXT_FIRST_FREQUENCY,
 } from "@/lib/identity/formula";
-import { detectCrisis } from "@/lib/crisis";
+import { screenForCrisisKeywords } from "@/lib/safety/crisis-detector";
 import { moderateText } from "@/lib/moderation";
 import { moodOfTheDay, moodToPromptBlock } from "@/lib/identity/mood";
 import {
@@ -134,7 +134,7 @@ export async function GET(request: NextRequest) {
       if (outreachSpend.over) continue;
 
       // Crisis guard on ANY outreach (fresh-callback OR long-silence).
-      // If the user's most recent turn EVER tripped detectCrisis, we
+      // If the user's most recent turn EVER tripped the crisis screen, we
       // absolutely do not want to fire a cold "hey stranger" outreach
       // on a crisis line. Skip the whole user for this cron run. This
       // is broader than the earlier fresh-callback-specific guard —
@@ -152,7 +152,7 @@ export async function GET(request: NextRequest) {
       if (
         mostRecentTurn &&
         typeof mostRecentTurn.content === "string" &&
-        detectCrisis(mostRecentTurn.content).triggered
+        screenForCrisisKeywords(mostRecentTurn.content).length > 0
       ) {
         continue;
       }
@@ -187,7 +187,7 @@ export async function GET(request: NextRequest) {
         typeof freshTurn.oracle_id === "string" &&
         typeof freshTurn.content === "string" &&
         freshTurn.content.trim().length >= 40 &&
-        !detectCrisis(freshTurn.content).triggered
+        screenForCrisisKeywords(freshTurn.content).length === 0
           ? {
               oracleId: freshTurn.oracle_id as string,
               text: freshTurn.content.slice(0, 500),

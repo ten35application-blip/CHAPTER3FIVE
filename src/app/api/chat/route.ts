@@ -18,8 +18,8 @@ import {
   localTimeLabel,
   timeOfDayLabel,
 } from "@/lib/sleep";
-import { detectCrisis } from "@/lib/crisis";
-import { sendCrisisAlert } from "@/lib/notifications";
+import { checkForCrisis } from "@/lib/safety/crisis-detector";
+import { handleCrisis } from "@/lib/safety/crisis-notify";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   judgePhotoSend,
@@ -645,32 +645,33 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Crisis pre-check — server-side keyword sweep on the user's message.
-  // Logs the incident + emails care team. Reply still goes through Claude
-  // with the system-prompt crisis instructions so the user gets a careful
-  // in-character response with hotline references.
-  const crisis = detectCrisis(userMessage);
-  if (crisis.triggered) {
-    // Log the flag — failure is non-fatal (we still send the email
-    // alert below) but we want it surfaced in logs so safety isn't
-    // silently broken.
-    const { error: flagErr } = await supabase
-      .from("crisis_flags")
-      .insert({
-        user_id: user.id,
-        message_excerpt: userMessage.slice(0, 500),
-        triggered_keywords: crisis.matched,
-      });
-    if (flagErr) {
-      console.error("[safety] crisis_flags insert failed:", flagErr);
-    }
-    sendCrisisAlert({
+  // Crisis pre-check. Reply still goes through Claude with the system
+  // prompt's crisis instructions, so the user gets a careful in-character
+  // response with hotline references either way; this is the logging and
+  // human-escalation path alongside it.
+  //
+  // UNIFIED 2026-08-04. This route (the phone app's send path) used to
+  // call its own detectCrisis() from lib/crisis.ts while the web stream
+  // route used checkForCrisis() from lib/safety. Two detectors meant the
+  // same sentence could be caught on one surface and missed on the
+  // other — and the Spanish keyword list existed ONLY in the old one, so
+  // a Spanish speaker in crisis was covered on the phone and not on the
+  // web. Both surfaces now run the same screen, the same classifier pass
+  // that filters out figurative language, and the same escalation.
+  //
+  // It also fixes the delivery: the old sendCrisisAlert() addressed
+  // care@chapter3five.app, which was never configured as a real alias,
+  // so these alerts bounced. handleCrisis() goes to ADMIN_EMAILS.
+  const crisis = await checkForCrisis(userMessage);
+  if (crisis.crisis) {
+    await handleCrisis({
+      crisis,
       userId: user.id,
-      userEmail: user.email ?? null,
-      excerpt: userMessage.slice(0, 500),
-      keywords: crisis.matched,
-      oracleName: profile.oracle_name ?? null,
-    }).catch(() => {});
+      userEmail: user.email ?? "(unknown)",
+      oracleId: conversationOracleId ?? "",
+      oracleName: profile.oracle_name ?? "(unnamed)",
+      messageId: null,
+    });
   }
 
   // Touch last_active_at for outreach scheduling.
@@ -698,7 +699,7 @@ export async function POST(request: NextRequest) {
 
   // Sleep response is silenced when the user is in crisis — they need a
   // response, not a "talk in the morning" deflection.
-  if (sleeping && isFirstMessage && !crisis.triggered) {
+  if (sleeping && isFirstMessage && !crisis.crisis) {
     const t = localTimeLabel(effectiveTimezone);
     const sleepReply =
       language === "es"
@@ -979,7 +980,7 @@ ${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${s
   // Tone judge — never overrides a crisis message. Decides whether
   // the persona walks away from this conversation. Permissive by
   // design (and even more so in memorial mode).
-  if (profile.active_oracle_id && !crisis.triggered) {
+  if (profile.active_oracle_id && !crisis.crisis) {
     const verdict = await judgeTone({
       recentMessages: history.slice(-8),
       currentMessage: userMessage,
@@ -1137,7 +1138,7 @@ ${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${s
     if (
       profile.active_oracle_id &&
       ownOracle?.avatar_url &&
-      !crisis.triggered &&
+      !crisis.crisis &&
       ownOracle.mode !== "help"
     ) {
       try {
@@ -1241,7 +1242,7 @@ ${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${s
     // had been failing silently since 0060 made `key` NOT NULL. Skips
     // crisis turns (we don't store anything that could be re-surfaced
     // into a future conversation about a person's worst moment).
-    if (profile.active_oracle_id && !crisis.triggered) {
+    if (profile.active_oracle_id && !crisis.crisis) {
       extractMemoriesFromMessage(
         userMessage,
         profile.active_oracle_id,

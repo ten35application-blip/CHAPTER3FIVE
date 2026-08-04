@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { SAMPLE_PERSONA } from "@/content/sample-persona";
-import { detectCrisis } from "@/lib/crisis";
+import { screenForCrisisKeywords } from "@/lib/safety/crisis-detector";
 
 export const runtime = "nodejs";
 
@@ -82,7 +82,14 @@ export async function POST(request: NextRequest) {
   const history = Array.isArray(payload.history) ? payload.history : [];
 
   // Crisis pre-check — public chat must still respond carefully.
-  const crisis = detectCrisis(userMessage);
+  //
+  // Keyword screen only, no classifier pass: this endpoint is public and
+  // unauthenticated, so every request would be a free model call for
+  // anyone who found the URL. There is also no account to escalate to —
+  // the flag only tells the client to surface hotline copy, and erring
+  // toward showing 988 to someone who didn't need it is the safe
+  // direction here. Same keyword table as the signed-in paths.
+  const crisisTriggered = screenForCrisisKeywords(userMessage).length > 0;
 
   const archiveBlock = SAMPLE_PERSONA.archive
     .map((a, i) => `Q${i + 1}: ${a.prompt}\nA: ${a.answer}`)
@@ -126,14 +133,14 @@ ${archiveBlock}`;
       .join("")
       .trim();
 
-    return NextResponse.json({ reply, crisis: crisis.triggered });
+    return NextResponse.json({ reply, crisis: crisisTriggered });
   } catch (err) {
     // In-character fallback so the demo doesn't break the illusion.
     console.error("sample anthropic call failed:", err);
     return NextResponse.json({
       reply: "sorry, signal's bad. try again in a sec?",
       transient: true,
-      crisis: crisis.triggered,
+      crisis: crisisTriggered,
     });
   }
 }

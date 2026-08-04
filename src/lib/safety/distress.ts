@@ -13,7 +13,7 @@
  * offers "here's what you should do" in the middle of someone
  * losing their footing).
  *
- * NOT a substitute for detectCrisis in src/lib/crisis.ts — that
+ * NOT a substitute for checkForCrisis in src/lib/safety/crisis-detector.ts — that
  * one triggers 988/911 rails. This one is subtler: the emotional
  * band BELOW crisis, where the persona just needs to hold space.
  */

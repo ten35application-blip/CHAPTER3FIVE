@@ -88,6 +88,18 @@ async function send(opts: {
   }
 }
 
+/**
+ * DEPRECATED — no callers as of 2026-08-04.
+ *
+ * Superseded by handleCrisis() in lib/safety/crisis-notify.ts, which
+ * writes the crisis_flags row AND emails in one place. Kept only
+ * because it is the sole remaining reference to CARE_INBOX; delete both
+ * together once care@ is either configured as a real alias or retired.
+ *
+ * It mailed CARE_INBOX (care@chapter3five.app), which was never set up
+ * as a forwarding alias — so every crisis alert this sent bounced. That
+ * is the reason the phone app's crisis path was migrated off it.
+ */
 export async function sendCrisisAlert(opts: {
   userId: string;
   userEmail: string | null;

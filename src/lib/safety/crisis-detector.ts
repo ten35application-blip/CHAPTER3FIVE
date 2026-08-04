@@ -25,6 +25,17 @@ export type CrisisResult =
     };
 
 // Genuine self-harm cues. Kept narrow — nuance is the model's job.
+//
+// Boundaries use Unicode-aware lookarounds rather than \b for the
+// Spanish patterns. \b is defined against [A-Za-z0-9_], so it does NOT
+// treat "ñ" or "í" as word characters — `\bdaño\b` fails to behave the
+// way it reads. (?<![\p{L}\p{N}]) with the u flag is correct for both
+// languages.
+//
+// Spanish coverage was ported here on 2026-08-04 when the two crisis
+// detectors were merged. Before that, the Spanish list existed ONLY in
+// the old lib/crisis.ts used by the mobile chat path — so a Spanish
+// speaker in crisis was detected on the phone and NOT on the web.
 const KEYWORD_PATTERNS: readonly { pattern: RegExp; label: string }[] = [
   { pattern: /\bkill\s+myself\b/i, label: "kill myself" },
   { pattern: /\bkilling\s+myself\b/i, label: "killing myself" },
@@ -39,6 +50,24 @@ const KEYWORD_PATTERNS: readonly { pattern: RegExp; label: string }[] = [
   { pattern: /\bsuicidal\b/i, label: "suicidal" },
   { pattern: /\boverdose\b/i, label: "overdose" },
   { pattern: /\bshoot\s+myself\b/i, label: "shoot myself" },
+
+  // ── Spanish ──────────────────────────────────────────────────────
+  { pattern: /(?<![\p{L}\p{N}])me\s+quiero\s+matar(?![\p{L}\p{N}])/iu, label: "me quiero matar" },
+  { pattern: /(?<![\p{L}\p{N}])quiero\s+matarme(?![\p{L}\p{N}])/iu, label: "quiero matarme" },
+  { pattern: /(?<![\p{L}\p{N}])matarme(?![\p{L}\p{N}])/iu, label: "matarme" },
+  { pattern: /(?<![\p{L}\p{N}])quiero\s+morir(?![\p{L}\p{N}])/iu, label: "quiero morir" },
+  { pattern: /(?<![\p{L}\p{N}])quiero\s+estar\s+muert[oa](?![\p{L}\p{N}])/iu, label: "quiero estar muerto" },
+  { pattern: /(?<![\p{L}\p{N}])quitarme\s+la\s+vida(?![\p{L}\p{N}])/iu, label: "quitarme la vida" },
+  { pattern: /(?<![\p{L}\p{N}])acabar\s+con\s+(todo|mi\s+vida)(?![\p{L}\p{N}])/iu, label: "acabar con todo" },
+  { pattern: /(?<![\p{L}\p{N}])suicid(io|arme|a)(?![\p{L}\p{N}])/iu, label: "suicidio" },
+  { pattern: /(?<![\p{L}\p{N}])hacerme\s+da(ñ|n)o(?![\p{L}\p{N}])/iu, label: "hacerme daño" },
+  { pattern: /(?<![\p{L}\p{N}])lastimarme(?![\p{L}\p{N}])/iu, label: "lastimarme" },
+  { pattern: /(?<![\p{L}\p{N}])cort(a|á)ndome(?![\p{L}\p{N}])/iu, label: "cortándome" },
+  { pattern: /(?<![\p{L}\p{N}])cortarme(?![\p{L}\p{N}])/iu, label: "cortarme" },
+  { pattern: /(?<![\p{L}\p{N}])no\s+tiene\s+sentido\s+vivir(?![\p{L}\p{N}])/iu, label: "no tiene sentido vivir" },
+  { pattern: /(?<![\p{L}\p{N}])mejor\s+sin\s+m(í|i)(?![\p{L}\p{N}])/iu, label: "mejor sin mí" },
+  { pattern: /(?<![\p{L}\p{N}])mejor\s+muert[oa](?![\p{L}\p{N}])/iu, label: "mejor muerto" },
+  { pattern: /(?<![\p{L}\p{N}])nadie\s+me\s+extra(ñ|n)ar(í|i)a(?![\p{L}\p{N}])/iu, label: "nadie me extrañaría" },
 ];
 
 /** Public entry point. Call BEFORE the Anthropic reply so the persona's
@@ -57,6 +86,24 @@ export async function checkForCrisis(
     console.error("[safety/crisis] classifier failed, defaulting to no-crisis:", err);
     return { crisis: false };
   }
+}
+
+/**
+ * Synchronous keyword screen, no model call.
+ *
+ * Exported for callers that must stay cheap and cannot await a
+ * classifier — specifically the outreach cron, which screens historical
+ * turns for EVERY candidate user on every run. There, a keyword hit is
+ * deliberately enough on its own: the consequence of a false positive is
+ * that a persona stays quiet for a day, and the consequence of a false
+ * negative is a cheerful unprompted "thinking of you!" landing on
+ * someone who just said they want to die. Those are not symmetric.
+ *
+ * Chat paths should use checkForCrisis() instead — there the classifier
+ * pass is worth it, because a false positive means an admin alert.
+ */
+export function screenForCrisisKeywords(msg: string): string[] {
+  return screenForKeywords(msg);
 }
 
 function screenForKeywords(msg: string): string[] {
