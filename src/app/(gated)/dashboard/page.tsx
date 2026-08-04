@@ -259,10 +259,14 @@ export default async function DashboardPage({
     //   2. never-messaged identities after them
     //   3. concierge (Adrian) first among the never-messaged, so the
     //      guide stays discoverable on a fresh account
-    // Starred rows are absent from this list entirely (568f5f5) — they
-    // render only in the PINNED strip — so no is_starred tiebreak is
-    // needed here.
+    // is_starred leads, exactly as mobile does. Starred rows are hidden
+    // from the DEFAULT list (568f5f5, they live in the PINNED strip) —
+    // but both surfaces fold them back in while the user is SEARCHING,
+    // so the list genuinely can contain a mix and the tiebreak is load-
+    // bearing there. Dropping it made search results order differently
+    // on web than on mobile.
     .sort((a, b) => {
+      if (a.is_starred !== b.is_starred) return a.is_starred ? -1 : 1;
       if (a.last_message_at && b.last_message_at) {
         // Epoch millis, not string compare: these timestamps are
         // rendered elsewhere from mixed sources ("+00:00" vs "Z"

@@ -44,6 +44,20 @@ export async function toggleStar(oracleId: string, nextStarred: boolean) {
   if (target.user_id !== user.id && !target.is_concierge) {
     return { ok: false as const, error: "not_your_identity" };
   }
+  // The concierge is ONE row for the entire deployment (0096 puts a
+  // partial unique index on is_concierge = true) that every user can
+  // read. So `is_starred` on it is not per-user state — it's global.
+  // Letting a non-owner through to the admin client below meant user B
+  // unpinning Adrian unpinned Adrian for every other account, and
+  // pinning pinned him for everyone.
+  //
+  // Refused rather than silently escalated. A per-user pin would need
+  // its own table; until that exists, the concierge simply isn't
+  // pinnable by non-owners, and both surfaces hide the control so this
+  // never surfaces as a dead tap.
+  if (target.user_id !== user.id && target.is_concierge) {
+    return { ok: false as const, error: "concierge_not_pinnable" };
+  }
 
   const { createAdminClient } = await import("@/lib/supabase/admin");
   const { error } = await createAdminClient()

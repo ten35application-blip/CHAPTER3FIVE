@@ -37,6 +37,11 @@ export type Identity = {
    *  caller — prefixes the preview with "You: " to match iMessage
    *  and mobile. */
   last_message_from_user?: boolean;
+  /** Adrian. ONE row for the whole deployment (0096 partial unique
+   *  index), owned by the admin account and readable by everyone — so
+   *  is_starred on it is global, not per-user, and the pin controls
+   *  are suppressed for it. */
+  is_concierge?: boolean;
 };
 
 type Props = {
@@ -225,6 +230,10 @@ function PinnedTile({
   // to unpin. A ref, not state: the click lands in the same tick and
   // must observe the write synchronously.
   const heldRef = useRef(false);
+  // Surfaces a failed unpin instead of leaving the tile sitting there
+  // looking like the gesture did nothing.
+  const [failed, setFailed] = useState(false);
+  const pointerTypeRef = useRef<string>("mouse");
 
   const cancelHold = useCallback(() => {
     if (timerRef.current !== null) {
@@ -237,18 +246,41 @@ function PinnedTile({
   // action against a tile that no longer exists.
   useEffect(() => cancelHold, [cancelHold]);
 
-  const beginHold = useCallback(() => {
-    heldRef.current = false;
-    cancelHold();
-    timerRef.current = window.setTimeout(() => {
-      heldRef.current = true;
-      // Mobile fires a Medium impact here. Vibration is the closest web
-      // equivalent and is unsupported on iOS Safari, so it's a nicety,
-      // never the confirmation — the tile leaving the strip is.
-      navigator.vibrate?.(10);
-      void toggleStar(p.id, false);
-    }, 400);
-  }, [cancelHold, p.id]);
+  const beginHold = useCallback(
+    (e: React.PointerEvent) => {
+      // Recorded even for non-primary buttons — onContextMenu is a
+      // MouseEvent and carries no pointerType of its own.
+      pointerTypeRef.current = e.pointerType;
+      // PRIMARY BUTTON ONLY. Without this, a desktop right-click that
+      // rests on the tile past the threshold silently unpins it — and
+      // the contextmenu suppression below means the user doesn't even
+      // get the menu they asked for. Middle-click was armed too.
+      if (e.button !== 0) return;
+      // The concierge can't be pinned per-user (see toggleStar), so the
+      // gesture would fire a request that always fails.
+      if (p.is_concierge) return;
+      heldRef.current = false;
+      cancelHold();
+      timerRef.current = window.setTimeout(() => {
+        heldRef.current = true;
+        // Mobile fires a Medium impact here. Vibration is the closest
+        // web equivalent and is unsupported on iOS Safari, so it's a
+        // nicety, never the confirmation — the tile leaving the strip
+        // is.
+        navigator.vibrate?.(10);
+        // Mobile flips optimistically and rolls back on failure; match
+        // that instead of dropping the result on the floor (which also
+        // left an unhandled rejection on a network error).
+        void toggleStar(p.id, false).then(
+          (res) => {
+            if (!res?.ok) setFailed(true);
+          },
+          () => setFailed(true),
+        );
+      }, 400);
+    },
+    [cancelHold, p.id, p.is_concierge],
+  );
 
   return (
     <Link
@@ -262,8 +294,13 @@ function PinnedTile({
       onPointerLeave={cancelHold}
       onPointerCancel={cancelHold}
       // Long-press on a link pops the native callout menu on iOS Safari
-      // and Android Chrome, which would eat the gesture entirely.
-      onContextMenu={(e) => e.preventDefault()}
+      // and Android Chrome, which would eat the gesture entirely. Only
+      // suppressed for touch/pen — a desktop mouse user's right-click
+      // menu ("open in new tab") is left alone, since the hold gesture
+      // no longer arms on non-primary buttons anyway.
+      onContextMenu={(e) => {
+        if (pointerTypeRef.current !== "mouse") e.preventDefault();
+      }}
       onClick={(e) => {
         if (heldRef.current) {
           e.preventDefault();
@@ -284,6 +321,11 @@ function PinnedTile({
       >
         {p.name}
       </span>
+      {failed ? (
+        <span className="mt-0.5 text-[10px] leading-3 text-red-500">
+          Couldn&rsquo;t unpin
+        </span>
+      ) : null}
     </Link>
   );
 }

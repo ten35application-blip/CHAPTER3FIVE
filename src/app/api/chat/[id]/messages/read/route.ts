@@ -63,20 +63,27 @@ export async function POST(
     { onConflict: "user_id,oracle_id" },
   );
 
-  // Clear the EXPLICIT unread flag too. The dashboard renders a row as
-  // unread on (auto_unread OR manually_unread); the upsert above only
-  // kills the auto half. Previously manually_unread was cleared ONLY by
-  // the stream route, i.e. only if the user SENT something — so a row
-  // swiped to "Mark as unread" kept its highlight forever, and merely
-  // reading the thread never restored the original color (Wilson
-  // 2026-08-03). Mobile markThreadRead does the same. User-scoped
-  // client: manually_unread is on the writable column allowlist
-  // (migration 0070) and RLS pins the row to its owner.
-  await supabase
-    .from("oracles")
-    .update({ manually_unread: false })
-    .eq("id", oracleId)
-    .eq("manually_unread", true);
+  // NOTE — deliberately does NOT clear `oracles.manually_unread`.
+  //
+  // A 2026-08-03 pass added that clear here, on the theory that a row
+  // marked unread stayed highlighted forever because only the stream
+  // route (i.e. SENDING) ever reset it. That theory was wrong on two
+  // counts, both confirmed by audit:
+  //
+  //   1. Nothing in either codebase ever sets manually_unread to TRUE.
+  //      `markUnread` in dashboard/actions.ts is exported and never
+  //      imported; mobile's row swipes are Archive and Delete only. So
+  //      the clear matched zero rows on every conversation open,
+  //      forever — pure round-trip cost.
+  //   2. Clearing it on OPEN breaks stream/route.ts:397, which reads
+  //      manually_unread on SEND to build the persona's "you flagged me
+  //      to come back to" acknowledgment. Opening might just be
+  //      reviewing; sending means the thread is genuinely re-engaged.
+  //      That distinction is the whole point, and an open-time clear
+  //      erases the flag before the stream route can ever see it.
+  //
+  // The real gap is upstream: there is no Mark-as-unread affordance on
+  // either surface. Wire that first; this route stays out of it.
 
   // Invalidate the dashboard's RSC cache so back-navigation shows the
   // freshly-cleared unread state (Wilson 2026-07-29: "I go into it
