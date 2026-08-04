@@ -293,12 +293,17 @@ export default async function IdentityCreatePage({
           title="Add a companion"
           subhead="A random personality written for you in about a minute. No questions, no photo &mdash; you get who you get."
           icon={<SparkIcon />}
+          // No "Included in your plan" chip, ever (Wilson 2026-08-04).
+          // Paid plans auto-create their identities at checkout, so by
+          // the time anyone reaches this screen the allotment has
+          // already been spent — advertising "included" here told people
+          // they could keep adding for free, which was never true. Price
+          // shows only when a purchase is genuinely required; otherwise
+          // the chip is omitted rather than replaced with a cheerier
+          // lie. Quota logic underneath is untouched, so a user who
+          // really does have a slot left still gets the free path.
           statusLabel={
-            randomOverQuota
-              ? `$${extraCents / 100}`
-              : randomRemaining !== null
-                ? `Included in your plan · ${randomRemaining} remaining`
-                : "Included in your plan"
+            randomOverQuota ? `$${extraCents / 100}` : undefined
           }
         >
           {randomOverQuota ? (
@@ -333,12 +338,17 @@ export default async function IdentityCreatePage({
           title="From a photo"
           subhead="Upload a portrait. We read the face and build an identity to match. The photo becomes their face."
           icon={<PhotoIcon />}
+          // Same rule as card 1. The unfilled-placeholder case is the one
+          // thing here the user genuinely already owns — their plan
+          // created the slot at checkout and it's waiting on a photo —
+          // so it says so plainly rather than "Included in your plan",
+          // which reads as "here's another free one".
           statusLabel={
             hasUnfilledPlaceholder
-              ? "Included in your plan"
+              ? "Already yours · waiting on a photo"
               : photoOverQuota
                 ? `$${extraCents / 100}`
-                : "Included in your plan · start from a photo"
+                : undefined
           }
         >
           {hasUnfilledPlaceholder && placeholderId ? (
@@ -427,7 +437,9 @@ function PathCardShell({
   title: string;
   subhead: string;
   icon: React.ReactNode;
-  statusLabel: string;
+  /** Omitted entirely when there is nothing honest to say — an absent
+   *  chip beats a chip that implies free. See the card comments. */
+  statusLabel?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -446,9 +458,11 @@ function PathCardShell({
           <span className="mt-1 text-[14px] leading-5 text-warm-300">
             {subhead}
           </span>
-          <span className="mt-2.5 inline-flex w-fit items-center rounded-full bg-warm-700 px-2.5 py-1 text-[11px] font-semibold text-warm-200 ring-1 ring-warm-700">
-            {statusLabel}
-          </span>
+          {statusLabel ? (
+            <span className="mt-2.5 inline-flex w-fit items-center rounded-full bg-warm-700 px-2.5 py-1 text-[11px] font-semibold text-warm-200 ring-1 ring-warm-700">
+              {statusLabel}
+            </span>
+          ) : null}
         </div>
       </div>
       <div className="mt-3.5">{children}</div>

@@ -58,7 +58,7 @@ const THEME_INIT_SCRIPT = `(function(){try{var t=localStorage.getItem('theme');i
  * localStorage throws in Private Mode and text size must never be able
  * to break the page.
  */
-const TEXT_SIZE_INIT_SCRIPT = `(function(){try{var s=localStorage.getItem('textSize');var m={small:0.9,large:1.15,larger:1.3}[s];if(m)document.documentElement.style.fontSize=(m*100)+'%';}catch(e){}})();`;
+const TEXT_SIZE_INIT_SCRIPT = `(function(){try{var v=parseFloat(localStorage.getItem('textSize'));if(isFinite(v)&&v!==1){v=Math.min(1.4,Math.max(0.85,v));document.documentElement.style.fontSize=(v*100)+'%';}}catch(e){}})();`;
 
 export default function RootLayout({
   children,
