@@ -3,6 +3,11 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { CopyButton } from "./CopyButton";
+import { ShareButton } from "./ShareButton";
+import {
+  inheritShareMessage,
+  inheritShareTitle,
+} from "@/lib/legacy/shareMessage";
 import { mintCodeForOracle } from "./actions";
 
 export const metadata = {
@@ -13,6 +18,7 @@ type OracleRow = {
   id: string;
   name: string;
   one_line_hook: string | null;
+  is_self_archive: boolean | null;
 };
 
 type CodeRow = {
@@ -52,7 +58,7 @@ export default async function SharePage({
   // this page (and its mint fallback) must never resolve for one.
   const { data: oracle } = await supabase
     .from("oracles")
-    .select("id, name, one_line_hook")
+    .select("id, name, one_line_hook, is_self_archive")
     .eq("id", id)
     .eq("user_id", user.id)
     .eq("is_legacy", true)
@@ -75,12 +81,21 @@ export default async function SharePage({
 
   const code = codeRow?.code ?? null;
 
-  const mailto = code
-    ? `mailto:?subject=${encodeURIComponent(
-        `An inherit code from chapter3five`,
-      )}&body=${encodeURIComponent(
-        `I recorded an archive on chapter3five for ${oracle.name}. This code opens it for you when you're ready — no rush, no expiry.\n\nGo to chapter3five.app, choose "Inherit an identity", and enter:\n\n${code}\n\nKeep it somewhere safe.`,
-      )}`
+  // Self vs other changes the whole voice of this message — see
+  // lib/legacy/shareMessage.ts. Both surfaces build it from there so
+  // they cannot drift apart again.
+  const isSelf = !!oracle.is_self_archive;
+  const shareMessage = code
+    ? inheritShareMessage({
+        code,
+        name: oracle.name,
+        isSelf,
+        origin: process.env.NEXT_PUBLIC_APP_URL,
+      })
+    : null;
+  const shareSubject = inheritShareTitle({ name: oracle.name, isSelf });
+  const mailto = shareMessage
+    ? `mailto:?subject=${encodeURIComponent(shareSubject)}&body=${encodeURIComponent(shareMessage)}`
     : null;
 
   return (
@@ -127,6 +142,9 @@ export default async function SharePage({
             </div>
 
             <div className="mt-6 flex w-full flex-col gap-3">
+              {shareMessage ? (
+                <ShareButton message={shareMessage} title={shareSubject} />
+              ) : null}
               <CopyButton code={code} />
               {mailto ? (
                 <a

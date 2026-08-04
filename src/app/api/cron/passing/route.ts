@@ -1,3 +1,30 @@
+// ⚠ NOT SCHEDULED. Removed from vercel.json on 2026-08-04.
+//
+// This job existed to run the beneficiary flow: confirm a passing
+// report, stamp deceased_at, activate every designated beneficiary, and
+// email each one a claim URL. It never ran meaningfully — nothing in
+// either app writes to passing_reports, and nothing writes to
+// beneficiaries, so both ends of it were missing.
+//
+// It is not being finished, because the design it depends on is the
+// wrong one. Activating access on death requires KNOWING someone died,
+// which means either believing whoever tells us — abusable by anyone
+// with a user's email — or asking a grieving family for proof of death.
+// Wilson's call, and the right one: "we are not in the business of
+// that."
+//
+// The replacement is simpler and already shipped: the inherit code is
+// live from the moment it is minted. You finish recording, you get your
+// code, and you share it yourself — by text, email, whatever — to the
+// people who should have it. They keep it and use it whenever they are
+// ready. Nothing has to be detected, reported, or proven, and there is
+// no window in which a false report can open a living person's archive.
+//
+// Kept unscheduled rather than deleted: the tables, the claim pages and
+// the claim API are all still here and working, so if a verified
+// passing flow ever makes sense, this is the wiring. Do not re-add it to
+// vercel.json without building the report side and its abuse handling.
+
 import { NextResponse, type NextRequest } from "next/server";
 import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";

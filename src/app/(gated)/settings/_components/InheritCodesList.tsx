@@ -3,6 +3,10 @@
 import { useState, useTransition } from "react";
 
 import { retryMintInheritCode, revokeInheritCode } from "../actions";
+import {
+  inheritShareMessage,
+  inheritShareTitle,
+} from "@/lib/legacy/shareMessage";
 
 /**
  * Inherit codes surface, rendered INLINE inside the Profile section
@@ -98,6 +102,7 @@ export function InheritCodesList({
             oracleId={c.oracleId}
             name={c.name}
             heading={c.mode === "self" ? "Your own" : "For someone you love"}
+            isSelf={c.mode === "self"}
           />
         ))}
       </div>
@@ -120,10 +125,13 @@ function NeedsCodeSlot({
   oracleId,
   name,
   heading,
+  isSelf,
 }: {
   oracleId: string;
   name: string;
   heading: string;
+  /** Drives the share wording — see lib/legacy/shareMessage.ts. */
+  isSelf: boolean;
 }) {
   const [code, setCode] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -142,7 +150,7 @@ function NeedsCodeSlot({
             {code}
           </p>
           <div className="mt-2">
-            <ShareButton code={code} name={name} />
+            <ShareButton code={code} name={name} isSelf={isSelf} />
           </div>
         </>
       ) : (
@@ -224,7 +232,11 @@ function FilledSlot({ item }: { item: CodeItem }) {
             {item.code}
           </p>
         </div>
-        <ShareButton code={item.code} name={item.name} />
+        <ShareButton
+          code={item.code}
+          name={item.name}
+          isSelf={item.mode === "self"}
+        />
       </div>
 
       {confirming ? (
@@ -282,7 +294,15 @@ function FilledSlot({ item }: { item: CodeItem }) {
   );
 }
 
-function ShareButton({ code, name }: { code: string; name: string }) {
+function ShareButton({
+  code,
+  name,
+  isSelf,
+}: {
+  code: string;
+  name: string;
+  isSelf: boolean;
+}) {
   // Two feedback states because the two flows land differently:
   //   "Copied" — clipboard fallback (Web Share unsupported / dismissed)
   //   "Shared" — the OS share sheet came back with a completed hand-off
@@ -291,14 +311,14 @@ function ShareButton({ code, name }: { code: string; name: string }) {
   async function onShare() {
     const origin =
       typeof window !== "undefined" ? window.location.origin : "";
-    // What the recipient reads. Chosen for text-message tone: short,
-    // warm, includes the plain code so they can copy from the SMS
-    // itself, and points them at the exact redemption page.
-    const shareText =
-      `I made an inherit code so you can meet ${name} on chapter3five.\n\n` +
-      `Code: ${code}\n\n` +
-      `Redeem it at ${origin}/identity/inherit`;
-    const title = `Meet ${name} on chapter3five`;
+    // What the recipient reads. Built in lib/legacy/shareMessage.ts so
+    // all four share points say the same thing — and so the SELF case
+    // stops talking about the sender in the third person. The old line
+    // here read "I made an inherit code so you can meet {name}", which
+    // for your own archive is you, describing yourself, as though you
+    // were already gone.
+    const shareText = inheritShareMessage({ code, name, isSelf, origin });
+    const title = inheritShareTitle({ name, isSelf });
 
     // Web Share is well-supported on iOS/Android; on desktop Chromium
     // it may or may not be present. Feature-detect and fall back to

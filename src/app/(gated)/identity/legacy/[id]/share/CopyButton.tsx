@@ -20,7 +20,10 @@ export function CopyButton({ code }: { code: string }) {
     <button
       type="button"
       onClick={copy}
-      className="bg-gradient-cta flex h-14 w-full items-center justify-center rounded-full text-lg font-semibold text-white shadow-[0_14px_36px_-10px_rgba(217,115,89,0.5),_0_4px_12px_rgba(126,196,196,0.18)] transition-all hover:-translate-y-px active:translate-y-0 active:opacity-90"
+      // Secondary now that Share is the primary action above it. Two
+      // gradient buttons stacked read as two equally-important choices,
+      // and sharing is the one this screen exists for.
+      className="flex h-13 w-full items-center justify-center rounded-full text-base font-semibold text-warm-100 ring-1 ring-warm-700 transition-colors hover:ring-coral/40"
     >
       {copied ? "Copied" : "Copy the code"}
     </button>
