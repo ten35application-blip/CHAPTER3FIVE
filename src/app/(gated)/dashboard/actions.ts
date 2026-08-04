@@ -24,11 +24,29 @@ async function requireUser() {
   return { supabase, user };
 }
 
-/** Toggle the pinned/starred flag. Called from the star icon on each row. */
+/** Toggle the pinned/starred flag. Called from the star icon on each row.
+ *  Concierge (Adrian) rows are shared and owned by an admin UUID, so a
+ *  regular user's UPDATE would zero-row via RLS (auth.uid() = user_id).
+ *  Use the admin client after an explicit ownership-or-concierge gate
+ *  so favorites work on Adrian too. */
 export async function toggleStar(oracleId: string, nextStarred: boolean) {
-  const { supabase, user } = await requireUser();
+  const { supabase: userClient, user } = await requireUser();
 
-  const { error } = await supabase
+  const { data: target } = await userClient
+    .from("oracles")
+    .select("id, user_id, is_concierge")
+    .eq("id", oracleId)
+    .is("deleted_at", null)
+    .maybeSingle<{ id: string; user_id: string; is_concierge: boolean | null }>();
+  if (!target) {
+    return { ok: false as const, error: "identity_not_found" };
+  }
+  if (target.user_id !== user.id && !target.is_concierge) {
+    return { ok: false as const, error: "not_your_identity" };
+  }
+
+  const { createAdminClient } = await import("@/lib/supabase/admin");
+  const { error } = await createAdminClient()
     .from("oracles")
     .update({ is_starred: nextStarred })
     .eq("id", oracleId)
