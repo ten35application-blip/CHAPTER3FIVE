@@ -101,7 +101,7 @@ export function ThemeToggle() {
       <div
         role="radiogroup"
         aria-label="Theme"
-        className="mt-2.5 grid grid-cols-3 gap-1 rounded-lg bg-warm-700/50 p-1"
+        className="mt-2.5 grid grid-cols-3 gap-1 rounded-lg bg-warm-700 p-1"
       >
         <SegmentButton
           active={active === "light"}
@@ -122,6 +122,9 @@ export function ThemeToggle() {
           icon={<DeviceIcon />}
         />
       </div>
+      <p className="mt-2 text-[11px] leading-4 text-warm-400">
+        Applies to the whole app.
+      </p>
     </div>
   );
 }
@@ -143,9 +146,9 @@ function SegmentButton({
       role="radio"
       aria-checked={active}
       onClick={onClick}
-      className={`flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${
+      className={`flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
         active
-          ? "bg-warm-100 text-ink-soft shadow-sm"
+          ? "bg-ink-soft text-warm-50 shadow-sm"
           : "text-warm-300 hover:text-warm-50"
       }`}
     >

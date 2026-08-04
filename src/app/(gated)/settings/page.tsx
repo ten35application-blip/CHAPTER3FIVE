@@ -221,7 +221,7 @@ export default async function SettingsPage({
           (no logo, no gradient) so the page reads as product chrome,
           not a marketing surface — the Instagram/Reddit settings
           register Wilson asked for (2026-07-27 redesign). */}
-      <header className="mx-auto flex w-full max-w-2xl items-center gap-1 px-4 pt-6">
+      <header className="mx-auto flex w-full max-w-2xl items-center gap-1 px-4 pt-10">
         <Link
           href="/dashboard"
           aria-label="Back to dashboard"
@@ -229,8 +229,8 @@ export default async function SettingsPage({
         >
           <svg
             viewBox="0 0 24 24"
-            width="20"
-            height="20"
+            width="22"
+            height="22"
             fill="none"
             stroke="currentColor"
             strokeWidth="2.25"
@@ -241,7 +241,7 @@ export default async function SettingsPage({
             <path d="M15 18l-6-6 6-6" />
           </svg>
         </Link>
-        <h1 className="text-xl font-bold tracking-tight text-warm-50">
+        <h1 className="text-xl font-bold -tracking-[0.02em] text-warm-50">
           Settings
         </h1>
       </header>
@@ -370,6 +370,31 @@ export default async function SettingsPage({
           <ThemeToggle />
         </Section>
 
+        {/* SAFETY — moderation posture + crisis lines. Ported from
+            the mobile app (Bundle C). Read-only surface: filters are
+            always-on server-side, so this section just tells the user
+            what's scanned and how to Report / Block. Same warm register
+            as the rest of Settings. */}
+        <Section label="Safety">
+          <div className="px-4 py-3.5">
+            <p className="text-sm leading-relaxed text-warm-200">
+              Every photo you share is scanned before it&rsquo;s sent.
+              Every message a companion sends on its own (proactive
+              check-ins, morning nods) is scanned before it reaches you.
+              If something ever crosses a line, tap and hold the message
+              to <strong className="font-bold">Report</strong>, or open a
+              conversation&rsquo;s menu to{" "}
+              <strong className="font-bold">Block</strong> the identity.
+              A person reads every report &mdash; we aim to respond
+              within 24 hours.
+            </p>
+            <p className="mt-2.5 text-xs leading-relaxed text-warm-400">
+              In crisis? US 988 (call/text) &middot; UK Samaritans 116
+              123 &middot; Mexico SAPTEL +52 55 5259-8121.
+            </p>
+          </div>
+        </Section>
+
         {/* SUPPORT — was the "How this works" collapsible. Flattened
             to a plain section in the 2026-07-27 grouped-list redesign:
             two rows don't earn a disclosure control, and Instagram/
@@ -429,7 +454,7 @@ export default async function SettingsPage({
             "not scary"). Sits above delete so the destructive row
             keeps the very bottom. */}
         <form action={signOut}>
-          <div className="overflow-hidden rounded-2xl bg-ink-soft ring-1 ring-warm-700/60">
+          <div className="overflow-hidden rounded-2xl bg-ink-soft ring-1 ring-warm-700">
             <button
               type="submit"
               className="flex min-h-12 w-full items-center justify-center px-4 text-[15px] font-medium text-warm-100 transition-colors hover:bg-warm-700/30"
@@ -446,10 +471,10 @@ export default async function SettingsPage({
             still clear at the tap-target. Red is the only non-neutral
             color on the page — reserved for the destructive action. */}
         <section>
-          <div className="overflow-hidden rounded-2xl bg-ink-soft ring-1 ring-warm-700/60">
+          <div className="overflow-hidden rounded-2xl bg-ink-soft ring-1 ring-warm-700">
             <Link
               href="/settings/delete"
-              className="flex min-h-12 items-center gap-3 px-4 py-2.5 text-[15px] font-medium text-red-500 transition-colors hover:bg-red-500/5"
+              className="flex min-h-12 items-center gap-3 px-4 py-2.5 text-[15px] font-medium text-[#c53a2f] transition-colors hover:bg-[#c53a2f]/5"
             >
               <span
                 aria-hidden
@@ -459,7 +484,7 @@ export default async function SettingsPage({
               </span>
               Delete my account
             </Link>
-            <p className="px-4 pb-4 text-xs leading-relaxed text-red-500/70">
+            <p className="px-4 pb-4 text-xs leading-relaxed text-[#c53a2f]/70">
               Deleting your account will also delete every identity
               you&apos;ve made, every conversation, and every legacy
               code you&apos;ve shared. This cannot be undone.
@@ -486,10 +511,10 @@ function Section({
 }) {
   return (
     <section>
-      <h2 className="mb-2 px-4 text-xs font-semibold uppercase tracking-wider text-warm-400">
+      <h2 className="mb-2 px-4 text-[12px] font-semibold uppercase tracking-[0.1em] text-warm-400">
         {label}
       </h2>
-      <div className="overflow-hidden rounded-2xl bg-ink-soft ring-1 ring-warm-700/60">
+      <div className="overflow-hidden rounded-2xl bg-ink-soft ring-1 ring-warm-700">
         {children}
       </div>
     </section>

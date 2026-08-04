@@ -77,8 +77,8 @@ function Slot({
   item: CodeItem | null;
 }) {
   return (
-    <div className="rounded-2xl bg-warm-700/25 p-3.5 ring-1 ring-warm-700/60">
-      <p className="text-[10px] font-semibold uppercase tracking-widest text-coral-strong">
+    <div className="rounded-2xl bg-ink p-3.5 ring-1 ring-warm-700">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-coral-strong">
         {heading}
       </p>
       {item ? (
@@ -101,7 +101,9 @@ function FilledSlot({ item }: { item: CodeItem }) {
     <div className="mt-1.5 flex items-center justify-between gap-3">
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-warm-50">{item.name}</p>
-        <p className="mt-0.5 font-mono text-xs text-warm-300">{item.code}</p>
+        <p className="mt-0.5 font-mono text-xs tracking-wider text-warm-300">
+          {item.code}
+        </p>
       </div>
       <ShareButton code={item.code} name={item.name} />
     </div>
@@ -163,7 +165,7 @@ function ShareButton({ code, name }: { code: string; name: string }) {
       type="button"
       onClick={() => void onShare()}
       aria-label={`Share the inherit code for ${name}`}
-      className="bg-gradient-cta flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold text-white shadow-[0_4px_10px_-2px_rgba(232,138,118,0.35)] transition-transform hover:-translate-y-0.5"
+      className="flex shrink-0 items-center gap-1.5 rounded-full bg-coral px-3.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-coral-strong"
     >
       <span aria-hidden>
         <ShareIcon />

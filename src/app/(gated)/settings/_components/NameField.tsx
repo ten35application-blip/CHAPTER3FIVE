@@ -70,6 +70,9 @@ export function NameField({ fullName }: Props) {
         >
           Name
         </label>
+        {/* Mobile input uses solid bg-ink inside the elevated card so
+            the field reads as a sunken pane inside the section — same
+            palette relationship as iOS grouped-list rows. */}
         <div className="relative">
           <input
             id="profile-name-input"
@@ -87,7 +90,7 @@ export function NameField({ fullName }: Props) {
             placeholder="What should we call you?"
             autoComplete="name"
             disabled={pending}
-            className="w-full rounded-xl bg-warm-700/25 px-3.5 py-2.5 text-[15px] text-warm-50 ring-1 ring-warm-700/60 transition-all placeholder:text-warm-500 focus:bg-warm-700/40 focus:outline-none focus:ring-2 focus:ring-coral/50 disabled:opacity-70"
+            className="h-[46px] w-full rounded-xl bg-ink px-3.5 text-[15px] text-warm-50 ring-1 ring-warm-700 transition-colors placeholder:text-warm-500 focus:outline-none focus:ring-2 focus:ring-coral/50 disabled:opacity-70"
           />
           {saving ? (
             <span
