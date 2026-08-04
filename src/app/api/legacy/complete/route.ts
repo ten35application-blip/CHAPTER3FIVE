@@ -70,7 +70,10 @@ export async function POST(request: NextRequest) {
     return fail("Invalid JSON");
   }
 
-  const subject = sanitizeLegacySubject((payload.subject ?? {}) as LegacySubject);
+  const subject = sanitizeLegacySubject(
+    (payload.subject ?? {}) as LegacySubject,
+    user.id,
+  );
   const answers = sanitizeLegacyAnswers(payload.answers ?? {});
 
   if (!subject.name) {

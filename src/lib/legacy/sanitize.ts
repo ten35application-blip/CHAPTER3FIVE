@@ -18,7 +18,22 @@ export const LEGACY_MAX_SUBJECT_FIELD_CHARS = 200;
 
 const KNOWN_QUESTION_IDS = new Set(LEGACY_QUESTIONS.map((q) => q.id));
 
-export function sanitizeLegacySubject(subject: LegacySubject): LegacySubject {
+export function sanitizeLegacySubject(
+  subject: LegacySubject,
+  /**
+   * The caller's user id. When provided, photoUrl must live inside THAT
+   * user's folder, not merely inside the avatars bucket.
+   *
+   * Added 2026-08-04. The prefix check below proves the URL came from
+   * our storage; it did not prove it came from YOUR storage. The path
+   * shape is `avatars/legacy/{uid}/{ts}.jpg`, so a crafted client could
+   * pass another user's uploaded legacy photo — a real person's face,
+   * belonging to someone else's dead relative — and have it become
+   * their own identity's avatar. Optional so existing callers that
+   * genuinely have no user context still get the bucket check.
+   */
+  ownerUserId?: string,
+): LegacySubject {
   const clean = (v: unknown) =>
     typeof v === "string"
       ? v.trim().slice(0, LEGACY_MAX_SUBJECT_FIELD_CHARS)
@@ -29,11 +44,11 @@ export function sanitizeLegacySubject(subject: LegacySubject): LegacySubject {
   // client can't inject an arbitrary URL into the oracle's avatar_url.
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
   const raw = typeof subject?.photoUrl === "string" ? subject.photoUrl : "";
+  const requiredPrefix = ownerUserId
+    ? `${supabaseUrl}/storage/v1/object/public/avatars/legacy/${ownerUserId}/`
+    : `${supabaseUrl}/storage/v1/object/public/avatars/legacy/`;
   const photoUrl =
-    supabaseUrl &&
-    raw.startsWith(`${supabaseUrl}/storage/v1/object/public/avatars/legacy/`)
-      ? raw
-      : undefined;
+    supabaseUrl && raw.startsWith(requiredPrefix) ? raw : undefined;
   // Mode: enum-narrow to the two allowed strings; anything else
   // (including undefined from pre-mode drafts) falls back to "other"
   // so old drafts keep working after this rollout.

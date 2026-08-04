@@ -67,6 +67,20 @@ Rules for the persona_prompt you write:
 - Bake in safety refusals in character: this person does not glorify violence or self-harm, does not engage in sexual roleplay, does not give medical/legal/financial directives, and gently redirects if asked to "prove" they're real. They deflect the way this specific person would — with a story, a joke, or a firm kind word.
 - If the person may have passed, the persona speaks with warmth and presence but never denies or confirms death; they stay in the space of love and memory.
 
+REQUIRED SECTION MARKERS. persona_prompt MUST contain these four literal
+headers, each on its own line, in this order, each followed by real
+content in the person's voice. They exist so the stored artifact can be
+verified before it is frozen and handed to a family — a prompt that
+silently lost a section is worse here than anywhere else in the product,
+because nobody can edit it afterwards and the family will never know
+what was missing.
+**What I know**        — the KNOWLEDGE FENCE described above.
+**How I tell the truth** — the HARD TRUTHS beat described above.
+**How I take warmth**  — the CONNECTION STYLE paragraph described above.
+**What I will not do** — the in-character safety refusals described above.
+Write them as that person would speak, not as headings with policy
+underneath. The markers are structure; everything under them is voice.
+
 Rules for the traits object:
 - Each field is a dense 1–3 sentence distillation of that category, in third person, quoting the family's own phrases where possible. "essence" is who this person IS in one breath.
 
@@ -196,6 +210,20 @@ export async function synthesizeLegacyPersona(
     );
   }
 
+  // TRUNCATION IS FATAL HERE (2026-08-04). max_tokens is 8192 with 40
+  // long-form answers in context, so a cut-off response is a real
+  // possibility — and the random-companion path carries a production
+  // incident comment about exactly this ("a 1.7k-char prompt that cut
+  // off before the safety rails and was stored, leaving a chat with no
+  // guardrails"). Only "refusal" was checked here, so a truncated
+  // archive was accepted, frozen, fingerprinted, and handed to a family
+  // permanently. Better to fail the mint and let them retry.
+  if (response.stop_reason === "max_tokens") {
+    throw new SynthesisError(
+      "response truncated before the persona was complete",
+      "malformed",
+    );
+  }
   if (response.stop_reason === "refusal") {
     throw new SynthesisError("model declined to synthesize", "refusal");
   }
@@ -245,6 +273,38 @@ function isSynthesizedLegacyPersona(
   ) {
     return false;
   }
+  // STRUCTURAL VALIDATION (2026-08-04). This used to check only that
+  // persona_prompt was a non-empty string, so a one-sentence archive
+  // passed. Every item the spec asks for — the knowledge fence, the
+  // hard-truths beat, the connection style, the in-character refusals —
+  // was requested in prose and verified by nothing.
+  //
+  // The random-companion generator has had this since a production
+  // incident (see isSynthesizedPersona in lib/identity/synthesize.ts):
+  // it refuses to store a persona missing its sections. The legacy path
+  // is the one where it matters MORE — this artifact is permanent,
+  // un-editable, and given to a grieving family — and it was the one
+  // without the check.
+  const REQUIRED_SECTIONS = [
+    "**What I know**",
+    "**How I tell the truth**",
+    "**How I take warmth**",
+    "**What I will not do**",
+  ];
+  for (const marker of REQUIRED_SECTIONS) {
+    const at = o.persona_prompt.indexOf(marker);
+    if (at === -1) return false;
+    // A header with nothing under it satisfies a naive includes() check
+    // and is exactly what a truncated or lazy generation produces.
+    if (o.persona_prompt.slice(at + marker.length).trim().length < 40) {
+      return false;
+    }
+  }
+  // A real archive of a person is not 400 characters. The observed
+  // healthy range for the random path is 1,200-1,800 words; this floor
+  // only catches the catastrophic case.
+  if (o.persona_prompt.length < 1200) return false;
+
   const traits = o.traits;
   if (typeof traits !== "object" || traits === null) return false;
   const t = traits as Record<string, unknown>;

@@ -243,6 +243,35 @@ export async function purgeConversation(oracleId: string) {
 export async function permanentDeleteIdentity(oracleId: string) {
   const { supabase, user } = await requireUser();
 
+  // A LIVE INHERIT CODE IS SOMEONE ELSE'S ONLY COPY (2026-08-04).
+  //
+  // inherit_codes.oracle_id is `on delete cascade`, so this hard delete
+  // silently destroyed every code minted for this identity. The family
+  // holding those cards then hit the redeem screen's deliberately
+  // uninformative error — "That code didn't open anything. Check it
+  // letter by letter and try again." — and spent the evening convinced
+  // they were mistyping a code that no longer exists.
+  //
+  // The vague error is correct anti-enumeration hygiene and stays. The
+  // fix belongs here: refuse the delete while a code is outstanding and
+  // tell the OWNER what they're about to break, since they're the one
+  // person who can actually make that decision.
+  const { data: liveCodes } = await supabase
+    .from("inherit_codes")
+    .select("code")
+    .eq("oracle_id", oracleId)
+    .is("revoked_at", null);
+
+  if (liveCodes && liveCodes.length > 0) {
+    return {
+      ok: false as const,
+      error:
+        liveCodes.length === 1
+          ? "Someone is holding an inherit code for this identity. Deleting it forever would make that code stop working, with no way to get it back. Revoke the code first if that's what you want."
+          : `${liveCodes.length} people are holding inherit codes for this identity. Deleting it forever would make every one of those codes stop working, with no way to get them back. Revoke them first if that's what you want.`,
+    };
+  }
+
   const { error } = await supabase
     .from("oracles")
     .delete()

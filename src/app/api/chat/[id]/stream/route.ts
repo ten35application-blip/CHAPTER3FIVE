@@ -37,6 +37,7 @@ import {
   consumePackCredit,
   getPlanTier,
 } from "@/lib/subscription";
+import { LEGACY_QUESTIONS } from "@/lib/legacy/questions";
 import {
   CORE_BEHAVIOR_RULES,
   INHERITED_ARCHIVE_RULES,
@@ -159,7 +160,7 @@ export async function POST(
   const { data: promptRow } = await promptClient
     .from("oracles")
     .select(
-      "persona_prompt, is_concierge, creation_source, inherited_from_code_id, is_legacy",
+      "persona_prompt, is_concierge, creation_source, inherited_from_code_id, is_legacy, legacy_answers",
     )
     .eq("id", oracleId)
     .maybeSingle();
@@ -681,6 +682,27 @@ export async function POST(
   // Concierge skips the behavior rules — Adrian's strict-scope persona
   // has no business flirting or naming emotional patterns, and adding
   // a block would contradict his cached prefix.
+  // Archive Q/A for legacy + inherited oracles, mirroring the mobile
+  // route's construction so both surfaces see the same material.
+  const archiveAnswers =
+    (promptRow?.legacy_answers as { answers?: Record<string, unknown> } | null)
+      ?.answers ?? {};
+  const archiveLegacyMode =
+    (promptRow?.legacy_answers as { subject?: { mode?: unknown } } | null)
+      ?.subject?.mode === "self"
+      ? "self"
+      : "other";
+  const archiveBlock =
+    isLegacyArchive || isInheritedOracle
+      ? LEGACY_QUESTIONS.flatMap((q) => {
+          const answer = archiveAnswers[q.id];
+          if (typeof answer !== "string" || !answer.trim()) return [];
+          const prompt =
+            archiveLegacyMode === "self" ? (q.promptSelf ?? q.prompt) : q.prompt;
+          return [`Q: ${prompt}\nA: ${answer.trim()}`];
+        }).join("\n\n")
+      : "";
+
   const system: Anthropic.TextBlockParam[] = isConciergeOracle
     ? [
         {
@@ -700,6 +722,25 @@ export async function POST(
           : isLegacyArchive
             ? [{ type: "text" as const, text: LEGACY_ARCHIVE_RULES }]
             : []),
+        // THE ACTUAL ANSWERS (2026-08-04). The mobile route has always
+        // put the full Q/A archive in context; this route never read
+        // legacy_answers at all. So the same archive was a different
+        // person depending on the device: on the phone a family member
+        // got the sealed letter, the specific stories, the person's own
+        // sentences. On the web they got only whatever survived
+        // compression into a few paragraphs written once, months
+        // earlier, by a model with no reroll.
+        //
+        // Inside the cached prefix — it is static per oracle, so it
+        // costs cache-read tokens rather than fresh ones on every turn.
+        ...(archiveBlock
+          ? [
+              {
+                type: "text" as const,
+                text: `== THE ANSWERS THEY RECORDED ==\nThis is the archive itself, in their own words. It is the ground truth for how this person speaks and what they actually said. Quote and retell from it when the conversation invites it; never invent around it.\n\n${archiveBlock}`,
+              },
+            ]
+          : []),
         {
           type: "text",
           text: CORE_BEHAVIOR_RULES,

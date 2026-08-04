@@ -77,7 +77,10 @@ export async function PUT(request: NextRequest) {
   const { error } = await supabase.from("legacy_drafts").upsert(
     {
       user_id: user.id,
-      subject: sanitizeLegacySubject((payload.subject ?? {}) as LegacySubject),
+      subject: sanitizeLegacySubject(
+    (payload.subject ?? {}) as LegacySubject,
+    user.id,
+  ),
       answers: sanitizeLegacyAnswers(payload.answers ?? {}),
       current_step: step,
     },
