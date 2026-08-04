@@ -94,6 +94,25 @@ export async function GET(request: NextRequest) {
             .from("avatars")
             .remove(avatarFiles.map((f) => `${p.id}/${f.name}`));
         }
+        // LEGACY PHOTOS LIVE ONE LEVEL DEEPER (2026-08-04). Uploads go
+        // to avatars/legacy/{user_id}/…, which the {user_id} prefix
+        // above never enumerated. So deleting an account left a
+        // photograph of the user's dead relative on the `avatars`
+        // bucket — which is PUBLIC — at a permanent, unauthenticated
+        // URL. Someone exercising their right to be forgotten left
+        // behind the one image they'd least want to.
+        //
+        // Recipients are unaffected: redemption file-COPIES the avatar
+        // into the recipient's own namespace, so an inherited archive
+        // keeps its face.
+        const { data: legacyFiles } = await admin.storage
+          .from("avatars")
+          .list(`legacy/${p.id}`, { limit: 1000 });
+        if (legacyFiles && legacyFiles.length > 0) {
+          await admin.storage
+            .from("avatars")
+            .remove(legacyFiles.map((f) => `legacy/${p.id}/${f.name}`));
+        }
       } catch (err) {
         console.error(`purge avatars cleanup failed for ${p.id}`, err);
       }

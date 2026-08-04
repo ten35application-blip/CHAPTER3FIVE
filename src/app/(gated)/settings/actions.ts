@@ -427,3 +427,64 @@ export async function revokeInheritCode(
   revalidatePath("/settings");
   return { ok: true };
 }
+
+/**
+ * Mint an inherit code for a legacy identity that doesn't have one.
+ *
+ * Exists because mint is best-effort at creation time and could fail
+ * silently: the user paid, answered thirty-plus questions, and landed
+ * on a Settings page that looked exactly as though they'd never done
+ * it. Three comments in the codebase claimed "the share page offers a
+ * retry" — that page is linked from nowhere and was gated behind Pro,
+ * which the July 2026 flat-fee rework removed everywhere else. A
+ * Free-tier user whose mint failed was redirected to /upgrade.
+ *
+ * Deliberately NOT plan-gated. The legacy flow is open to every tier;
+ * gating the recovery from a failure we caused would be charging
+ * someone to fix our bug, on the archive of a person who died.
+ *
+ * Idempotent and safe to expose: it refuses unless the caller owns the
+ * oracle, it is a legacy oracle, and it currently has no live code.
+ */
+export async function retryMintInheritCode(
+  oracleId: string,
+): Promise<{ ok: true; code: string } | { ok: false; error: string }> {
+  const { supabase, user } = await requireUser();
+
+  const { data: oracle } = await supabase
+    .from("oracles")
+    .select("id, is_legacy")
+    .eq("id", oracleId)
+    .eq("user_id", user.id)
+    .is("deleted_at", null)
+    .maybeSingle<{ id: string; is_legacy: boolean | null }>();
+
+  if (!oracle || !oracle.is_legacy) {
+    return { ok: false, error: "That identity isn't one we can make a code for." };
+  }
+
+  const { data: existing } = await supabase
+    .from("inherit_codes")
+    .select("code")
+    .eq("oracle_id", oracleId)
+    .is("revoked_at", null)
+    .maybeSingle<{ code: string }>();
+  if (existing?.code) {
+    // Someone raced us, or the user tapped twice. Hand back the real one.
+    return { ok: true, code: existing.code };
+  }
+
+  const { createAdminClient } = await import("@/lib/supabase/admin");
+  const { mintInheritCode } = await import("@/lib/legacy/mint");
+  const code = await mintInheritCode(createAdminClient(), oracleId, user.id);
+  if (!code) {
+    return {
+      ok: false,
+      error:
+        "We couldn't make a code just now. Try once more — nothing is lost, and your archive is safe.",
+    };
+  }
+
+  revalidatePath("/settings");
+  return { ok: true, code };
+}

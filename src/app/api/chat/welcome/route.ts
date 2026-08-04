@@ -52,6 +52,8 @@ export async function POST(request: NextRequest) {
   let oracleId: string | null = bodyOracleId;
   let isBeneficiary = false;
   let isConcierge = false;
+  /** A redeemed inherit-code copy — see the prompt-selection note. */
+  let isInheritedCopy = false;
   let preferredLanguage: SupportedLanguage = "en";
   let oracleName = "your identity";
   let textingStyle: string | null = null;
@@ -62,13 +64,18 @@ export async function POST(request: NextRequest) {
     // Beneficiary path (or owner passing their own id explicitly).
     const { data: oracle } = await admin
       .from("oracles")
-      .select("id, name, preferred_language, user_id, memory_style, is_concierge")
+      .select(
+        "id, name, preferred_language, user_id, memory_style, is_concierge, creation_source, inherited_from_code_id, is_legacy",
+      )
       .eq("id", oracleId)
       .maybeSingle();
     if (!oracle) {
       return NextResponse.json({ skipped: "no_such_oracle" });
     }
     isConcierge = oracle.is_concierge === true;
+    isInheritedCopy =
+      oracle.creation_source === "inherited" ||
+      oracle.inherited_from_code_id != null;
 
     if (oracle.user_id !== user.id && !isConcierge) {
       // Verify the caller has access on this oracle:
@@ -302,11 +309,34 @@ A FEW ARCHIVE ANSWERS for voice anchor (do NOT reference them directly):
 
 ${archiveSnippet || "(no answers recorded — keep the welcome short and present)"}`;
 
+  // AN INHERITED ARCHIVE IS NOT ITS OWNER SETTING IT UP (2026-08-04).
+  //
+  // The branch below keyed on isBeneficiary, which requires an
+  // archive_grants row. Since 0111, inherit-code redemption COPIES the
+  // oracle into the recipient's account instead of granting access — so
+  // every paid redemption took the owner branch and got:
+  //
+  //   "You're sending the FIRST text ... they just finished setting up
+  //    the archive and opened the chat for the first time."
+  //
+  // That is the first message a grieving family ever receives from the
+  // person they lost, and it greets them as though they had just
+  // finished a form. Meanwhile beneficiaryMemorialPrompt — the one this
+  // file's own comment calls the most emotionally loaded moment in the
+  // whole product — was unreachable for every redemption.
+  //
+  // A redeemed copy is treated as a memorial welcome. We deliberately
+  // do NOT require proof the creator has died: a code is redeemed after
+  // a death in every real case, and if we're wrong the memorial prompt
+  // is still warm and still honest, whereas the owner prompt is
+  // actively false.
   let systemPrompt = isBeneficiary
     ? ownerDeceased
       ? beneficiaryMemorialPrompt
       : beneficiaryLivingPrompt
-    : ownerSystemPrompt;
+    : isInheritedCopy
+      ? beneficiaryMemorialPrompt
+      : ownerSystemPrompt;
 
   // Per-persona opener uniqueness. Rotates the "opener move" this
   // persona uses today (arrival / observation / question / dry /

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 
-import { revokeInheritCode } from "../actions";
+import { retryMintInheritCode, revokeInheritCode } from "../actions";
 
 /**
  * Inherit codes surface, rendered INLINE inside the Profile section
@@ -38,7 +38,16 @@ type CodeItem = {
   mode: "self" | "other" | null;
 };
 
-export function InheritCodesList({ items }: { items: Array<CodeItem> }) {
+export function InheritCodesList({
+  items,
+  codeless = [],
+}: {
+  items: Array<CodeItem>;
+  /** Legacy archives that exist but have NO live code — a failed mint
+   *  or a revoke. They must never render as an empty slot; the user
+   *  paid for these and has nothing to hand anyone. */
+  codeless?: Array<{ oracleId: string; name: string }>;
+}) {
   // Slot bucketing: mode='self' → self slot; mode='other' OR null →
   // other slot. If somehow more than one exists per mode (shouldn't
   // happen after the 1+1 cap, but defensive), we take the first.
@@ -64,7 +73,79 @@ export function InheritCodesList({ items }: { items: Array<CodeItem> }) {
           emptyPlaceholder="When you record someone you love, their code will appear here."
           item={otherItem}
         />
+        {codeless.map((c) => (
+          <NeedsCodeSlot key={c.oracleId} oracleId={c.oracleId} name={c.name} />
+        ))}
       </div>
+    </div>
+  );
+}
+
+/**
+ * A legacy archive that exists but has no live code.
+ *
+ * Either the mint failed at creation (best-effort, and previously
+ * silent — the user paid, answered thirty questions, and Settings
+ * rendered an empty placeholder as though none of it happened), or they
+ * revoked the only code and had no way to issue another.
+ *
+ * Says plainly that the archive is safe, because that is the thing the
+ * person is actually afraid of.
+ */
+function NeedsCodeSlot({
+  oracleId,
+  name,
+}: {
+  oracleId: string;
+  name: string;
+}) {
+  const [code, setCode] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  return (
+    <div className="rounded-2xl bg-ink p-3.5 ring-1 ring-coral/40">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-coral-strong">
+        Needs a code
+      </p>
+      <p className="mt-1.5 truncate text-sm font-medium text-warm-50">{name}</p>
+
+      {code ? (
+        <>
+          <p className="mt-0.5 font-mono text-xs tracking-wider text-warm-300">
+            {code}
+          </p>
+          <div className="mt-2">
+            <ShareButton code={code} name={name} />
+          </div>
+        </>
+      ) : (
+        <>
+          <p className="mt-1 text-[12px] leading-4 text-warm-300">
+            This archive is saved and safe &mdash; it just doesn&rsquo;t have a
+            code to share yet. Make one now and you can hand it to family.
+          </p>
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() =>
+              startTransition(async () => {
+                setError(null);
+                const res = await retryMintInheritCode(oracleId);
+                if (res.ok) setCode(res.code);
+                else setError(res.error);
+              })
+            }
+            className="mt-2.5 rounded-full bg-coral-strong px-3.5 py-1.5 text-xs font-bold text-white disabled:opacity-60"
+          >
+            {pending ? "Making a code…" : "Make a code"}
+          </button>
+        </>
+      )}
+
+      {error ? (
+        <p className="mt-1.5 text-[11px] text-red-500">{error}</p>
+      ) : null}
     </div>
   );
 }
@@ -124,9 +205,9 @@ function FilledSlot({ item }: { item: CodeItem }) {
         <div className="mt-2 rounded-xl bg-warm-700 px-3 py-2.5">
           <p className="text-[12px] leading-4 text-warm-200">
             Revoking stops anyone new from using this code. Anyone who has
-            already redeemed it keeps their copy — that one is theirs now.
-            You can&rsquo;t undo this, and you&rsquo;d need to send a new
-            code out.
+            already redeemed it keeps their copy &mdash; that one is theirs
+            now. The old code stops working for good, but your archive is
+            untouched and you can make a fresh code right here afterwards.
           </p>
           <div className="mt-2 flex gap-2">
             <button

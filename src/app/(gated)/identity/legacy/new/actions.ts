@@ -147,7 +147,7 @@ export async function saveLegacyDraft(payload: DraftPayload): Promise<void> {
   const { error } = await supabase.from("legacy_drafts").upsert(
     {
       user_id: user.id,
-      subject: sanitizeSubject(payload.subject),
+      subject: sanitizeSubject(payload.subject, user.id),
       answers: sanitizeAnswers(payload.answers),
       current_step: step,
     },
@@ -185,7 +185,7 @@ export async function completeLegacyIdentity(payload: {
   // (checked below, before synthesis). The recipient still pays $5
   // per code at redemption, unchanged.
 
-  const subject = sanitizeSubject(payload.subject);
+  const subject = sanitizeSubject(payload.subject, user.id);
   const answers = sanitizeAnswers(payload.answers);
 
   if (!subject.name) {
@@ -414,7 +414,24 @@ export async function completeLegacyIdentity(payload: {
   // policy on inherit_codes, so the paid-gated actions are the only way
   // a code comes to exist. We just inserted this oracle for user.id, so
   // ownership is already established.
-  await mintInheritCode(createAdminClient(), inserted.id, user.id);
+  // THE RETURN VALUE IS LOAD-BEARING (2026-08-04). This used to be
+  // fire-and-forget. On failure mintInheritCode returns null, the user
+  // was redirected to /settings?minted=<id>, Settings resolved the
+  // banner by looking the oracle up among oracles that HAVE a code,
+  // found nothing, showed no banner, and rendered the empty-slot
+  // placeholder — "When you record someone you love, their code will
+  // appear here."
+  //
+  // So: they paid $5, answered 30+ questions, watched the weaving
+  // screen, and landed on a page that behaved exactly as if none of it
+  // had happened. No error, no retry, no indication anything was wrong.
+  // The oracle existed and they could chat with it themselves; the only
+  // thing that failed was the one thing they paid for.
+  const mintedCode = await mintInheritCode(
+    createAdminClient(),
+    inserted.id,
+    user.id,
+  );
 
   // The draft has served its purpose.
   await supabase.from("legacy_drafts").delete().eq("user_id", user.id);
@@ -426,5 +443,10 @@ export async function completeLegacyIdentity(payload: {
   // code and the ability to now share the code"). The old /share
   // page still works if someone deep-links to it, but nothing routes
   // there by default anymore.
-  redirect(`/settings?minted=${inserted.id}`);
+  // Tell Settings which case this is so it can say something true.
+  redirect(
+    mintedCode
+      ? `/settings?minted=${inserted.id}`
+      : `/settings?mintfailed=${inserted.id}`,
+  );
 }

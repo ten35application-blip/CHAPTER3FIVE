@@ -135,6 +135,18 @@ export default async function SettingsPage({
       }
     }
   }
+  // Legacy archives whose code mint FAILED (or was revoked) — they
+  // exist, they're paid for, and they have nothing to share. Before
+  // 2026-08-04 these were simply dropped from the list below, so the
+  // slot rendered its "when you record someone, their code will appear
+  // here" placeholder and the user had no idea anything had gone wrong.
+  const codelessLegacy = (legacyRows ?? [])
+    .filter((r) => !codeByOracle.get(r.id as string))
+    .map((r) => ({
+      oracleId: r.id as string,
+      name: (r.name as string | null) ?? "Untitled",
+    }));
+
   const inheritCodeItems = (legacyRows ?? [])
     .map((r) => {
       const code = codeByOracle.get(r.id as string);
@@ -274,7 +286,10 @@ export default async function SettingsPage({
             layout, no CTAs -- creation happens via the identity
             picker, not here. */}
         <Section label="Inherit codes">
-          <InheritCodesList items={inheritCodeItems} />
+          <InheritCodesList
+            items={inheritCodeItems}
+            codeless={codelessLegacy}
+          />
         </Section>
 
         {/* PLAN — count + upgrade CTA. Identity row shows the raw
