@@ -56,6 +56,11 @@ export type SpendUsage = {
 
 export type SpendRoute =
   | "chat_stream"
+  // The mobile /api/chat send path. Added 2026-08-04 — it had been
+  // spending on Sonnet with neither a cap nor a ledger entry, so its
+  // usage was invisible to this governor and to the web route's cap,
+  // which reads the same table.
+  | "chat_mobile"
   | "outreach"
   | "residue"
   | "reflect"

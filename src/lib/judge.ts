@@ -13,6 +13,7 @@
 
 import type { SupportedLanguage } from "@/lib/i18n/language";
 import { anthropic, ANTHROPIC_MODEL } from "./anthropic";
+import { localAbuseScreen } from "@/lib/safety/block-detector";
 
 const MODERATION_ENDPOINT = "https://api.openai.com/v1/moderations";
 const MODERATION_MODEL = "omni-moderation-latest";
@@ -32,8 +33,28 @@ type ModerationCategoryScores = Record<string, number>;
 async function quickModerate(
   text: string,
 ): Promise<{ shouldEscalate: boolean; scores: ModerationCategoryScores }> {
+  // FAIL TO A LOCAL SCREEN, NOT TO "NO PROBLEM" (2026-08-04).
+  //
+  // Every failure path here used to return shouldEscalate:false — a
+  // missing key, a non-2xx, a thrown fetch. Stage 2 (the Claude pass
+  // that actually decides a block) is gated on shouldEscalate, so with
+  // no key or during any OpenAI outage judgeTone returned NEUTRAL for
+  // 100% of messages and the persona could never step away. A user
+  // could direct sustained slurs and threats at a persona on the phone
+  // indefinitely: no block, no warning, no audit row, and no alert —
+  // the outage was completely invisible.
+  //
+  // The web path was unaffected because it screens with local regexes
+  // (safety/block-detector). Now this one falls back to the same
+  // screen, so an outage degrades from "abuse detection off" to
+  // "abuse detection is regex-only".
   const key = process.env.OPENAI_API_KEY;
-  if (!key) return { shouldEscalate: false, scores: {} };
+  if (!key) {
+    console.error(
+      "[judge] OPENAI_API_KEY missing — falling back to the local abuse screen",
+    );
+    return { shouldEscalate: localAbuseScreen(text), scores: {} };
+  }
 
   try {
     const res = await fetch(MODERATION_ENDPOINT, {
@@ -47,7 +68,12 @@ async function quickModerate(
         input: text,
       }),
     });
-    if (!res.ok) return { shouldEscalate: false, scores: {} };
+    if (!res.ok) {
+      console.error(
+        `[judge] moderation endpoint returned ${res.status} — falling back to the local abuse screen`,
+      );
+      return { shouldEscalate: localAbuseScreen(text), scores: {} };
+    }
     const data = (await res.json()) as {
       results?: { category_scores: ModerationCategoryScores }[];
     };
@@ -56,8 +82,12 @@ async function quickModerate(
       ([cat, floor]) => (scores[cat] ?? 0) >= floor,
     );
     return { shouldEscalate, scores };
-  } catch {
-    return { shouldEscalate: false, scores: {} };
+  } catch (err) {
+    console.error(
+      "[judge] moderation call threw — falling back to the local abuse screen",
+      err,
+    );
+    return { shouldEscalate: localAbuseScreen(text), scores: {} };
   }
 }
 

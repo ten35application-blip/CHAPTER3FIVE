@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { recordAnthropicSpend } from "@/lib/spendGovernor";
 import { openerVarietyBlock } from "@/lib/identity/opener";
 import { sendPushToUser } from "@/lib/push";
+import { moderateText } from "@/lib/moderation";
 
 export const runtime = "nodejs";
 
@@ -151,6 +152,20 @@ ${variety}`;
       // if the message insert fails we don't unblock; if the unblock
       // update fails we'll retry the message next run, idempotency is
       // weak here but the worst case is a duplicate gentle check-in).
+      // Moderate before it lands — same reasoning as the anniversaries
+      // cron. A comeback message to someone the persona previously
+      // blocked is a delicate moment; sending it unscanned contradicts
+      // the Settings promise and is the one path where the persona
+      // reopens a conversation it walked away from.
+      const checkInMod = await moderateText(reply);
+      if (!checkInMod.ok) {
+        console.error(
+          `[cron/check-in] reply flagged for ${row.user_id} — dropping`,
+          checkInMod.categories,
+        );
+        continue;
+      }
+
       const { error: msgErr } = await admin.from("messages").insert({
         user_id: row.user_id,
         oracle_id: row.oracle_id,

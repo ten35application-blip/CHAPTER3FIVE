@@ -5,6 +5,7 @@ import { recordAnthropicSpend } from "@/lib/spendGovernor";
 import { openerVarietyBlock } from "@/lib/identity/opener";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendPushToUser } from "@/lib/push";
+import { moderateText } from "@/lib/moderation";
 
 export const runtime = "nodejs";
 
@@ -271,6 +272,21 @@ ${variety}
           .trim();
 
         if (!reply) continue;
+
+        // MODERATE BEFORE IT LANDS (2026-08-04). This cron sends an
+        // unprompted message about the anniversary of a death, and it
+        // had no output moderation at all — while the Settings page
+        // promises "Every message a companion sends on its own is
+        // scanned before it reaches you." The outreach cron already
+        // does exactly this; these two were simply missed.
+        const mod = await moderateText(reply);
+        if (!mod.ok) {
+          console.error(
+            `[cron/anniversaries] reply flagged for ${p.id} — dropping`,
+            mod.categories,
+          );
+          continue;
+        }
 
         // Persist as a proactive assistant message — same shape as the
         // proactive cron, so the dashboard / realtime channel renders

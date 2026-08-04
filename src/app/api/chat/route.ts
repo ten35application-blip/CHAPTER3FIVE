@@ -32,6 +32,11 @@ import {
 } from "@/lib/memory/retrieve";
 import { extractMemoriesFromMessage } from "@/lib/memory/extract";
 import { moderateImage } from "@/lib/moderation";
+import { isTrialOnly, overFreeCap, recordAnthropicSpend } from "@/lib/spendGovernor";
+import {
+  anyRecentTurnDistressed,
+  DISTRESS_TONE_BLOCK,
+} from "@/lib/safety/distress";
 import {
   canSendImageForMonthCap,
   canSendMessageForTierCap,
@@ -437,6 +442,34 @@ export async function POST(request: NextRequest) {
       },
       { status: 429 },
     );
+  }
+
+  // ANTHROPIC SPEND CAP (2026-08-04). The web stream route has gated on
+  // this since it shipped; this route — the PHONE's main send path,
+  // running Sonnet plus a tone judge plus memory extraction — had
+  // neither the cap nor the ledger.
+  //
+  // Two consequences, and the second is worse: a free or trial account
+  // could burn unbounded Anthropic spend from the phone, AND because
+  // nothing was recorded, that spend never counted toward the web cap
+  // either. A scripted account could sit in the ledger's blind spot
+  // indefinitely and still arrive at the web surface reading $0.00.
+  {
+    // requesterPlan is already resolved above; "pro" here means any
+    // paid tier for cap purposes, matching the web route's requesterIsPro.
+    const isPaid = requesterPlan.tier !== "free";
+    const spendTrialOnly = isPaid ? await isTrialOnly(user.id) : false;
+    const spend = await overFreeCap(user.id, isPaid, spendTrialOnly);
+    if (spend.over) {
+      return NextResponse.json(
+        {
+          error: "free_month_spend_cap",
+          current_cents: spend.current,
+          limit_cents: spend.limit,
+        },
+        { status: 402 },
+      );
+    }
   }
 
   // Caller can override which oracle this message goes to (group chat,
@@ -970,6 +1003,22 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // HOLD-SPACE RAIL (2026-08-04). This existed only on the web stream
+  // route, so the phone — the surface going to the App Store — had no
+  // version of the best-written safety text in the codebase: "do NOT
+  // try to fix it, do NOT cheer them up... their real friend right now
+  // is someone who just sits with them."
+  //
+  // anyRecentTurnDistressed looks BACK over recent turns, not just the
+  // current one, which fixes the shape its own comment describes: user
+  // says "falling apart" at turn 5, turn 8 is "what should I order for
+  // lunch", persona chirps.
+  const recentUserTurns = history
+    .filter((h) => h.role === "user")
+    .map((h) => (typeof h.content === "string" ? h.content : ""));
+  const distressed = anyRecentTurnDistressed(userMessage, recentUserTurns);
+  const distressPart = distressed ? `\n\n${DISTRESS_TONE_BLOCK}` : "";
+
   const castPart = memorialMode ? "" : castToPromptBlock(ambientCast);
   const statePart = stateToPromptBlock({
     state: conversationState,
@@ -1024,7 +1073,7 @@ This is a chapter3five archive — built from the answers ${characterName} gave 
 
 ${PERSONA_RULES}
 
-${langInstruction}${stylePart}${personalityPart}${flavorPart}${bioPart}${locationPart}${traitsPart}${sportsPart}${castPart}${statePart}${wokenPart}${memorialPart}${inheritedPart}${legacyArchivePart}${aboutThemPart}${todayPart}${timeOfDayPart}${gapPart}${memoriesBlock}
+${langInstruction}${stylePart}${personalityPart}${flavorPart}${bioPart}${locationPart}${traitsPart}${sportsPart}${castPart}${statePart}${distressPart}${wokenPart}${memorialPart}${inheritedPart}${legacyArchivePart}${aboutThemPart}${todayPart}${timeOfDayPart}${gapPart}${memoriesBlock}
 
 ARCHIVE — the actual answers ${characterName} gave. This is who you are. Stay close.
 
@@ -1033,7 +1082,7 @@ ${archiveBlock}`
 
 ${PERSONA_RULES}
 
-${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${sportsPart}${castPart}${statePart}${wokenPart}${memorialPart}${inheritedPart}${legacyArchivePart}${aboutThemPart}${todayPart}${timeOfDayPart}${gapPart}${memoriesBlock}`;
+${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${sportsPart}${castPart}${statePart}${distressPart}${wokenPart}${memorialPart}${inheritedPart}${legacyArchivePart}${aboutThemPart}${todayPart}${timeOfDayPart}${gapPart}${memoriesBlock}`;
 
   // Tone judge — never overrides a crisis message. Decides whether
   // the persona walks away from this conversation. Permissive by
@@ -1172,6 +1221,19 @@ ${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${s
       max_tokens: 800,
       system: systemPrompt,
       messages,
+    });
+
+    // Record the spend so the cap above is enforceable at all. Without
+    // this the phone's usage was invisible to the ledger AND to the web
+    // route's cap, which reads the same table. Fire-and-forget: a
+    // ledger write must never fail a reply the user is waiting on.
+    void recordAnthropicSpend({
+      userId: user.id,
+      model: ANTHROPIC_MODEL,
+      usage: response.usage as unknown as Parameters<
+        typeof recordAnthropicSpend
+      >[0]["usage"],
+      route: "chat_mobile",
     });
 
     const rawReply = response.content

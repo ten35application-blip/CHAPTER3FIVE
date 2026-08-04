@@ -17,6 +17,8 @@ const MAX_HISTORY = 10;
 const PER_IP_BUCKET_LIMIT = 15;
 const BUCKET_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 const ipBuckets = new Map<string, { count: number; resetAt: number }>();
+/** Ceiling on tracked ips — the map is fed by unauthenticated input. */
+const MAX_TRACKED_IPS = 10_000;
 
 function getClientIp(request: NextRequest): string {
   // Prefer headers the platform sets itself. A caller can put anything in
@@ -33,8 +35,43 @@ function getClientIp(request: NextRequest): string {
   return "unknown";
 }
 
+/**
+ * Per-instance IP bucket.
+ *
+ * HONEST LIMITS (2026-08-04): this Map lives in one serverless
+ * instance's memory. Cold starts reset it and concurrent instances each
+ * keep their own, so the real ceiling is
+ * PER_IP_BUCKET_LIMIT x (number of live instances) — it raises the cost
+ * of casual abuse and does not stop a determined caller.
+ *
+ * It is kept because it is genuinely useful against the casual case,
+ * and paired with the hard input bounds above (which is what actually
+ * caps the spend per request). The durable fix is a DB-backed limiter
+ * like lib/legacy/redeemLimit.ts; that needs a table and this endpoint
+ * has no user id to key one on, so it is deliberately deferred rather
+ * than faked.
+ *
+ * Entries are now evicted, which they never were: the Map only reset a
+ * bucket when the SAME ip returned after its window, so distinct ips
+ * accumulated for the life of the instance — an unbounded map fed by
+ * unauthenticated input.
+ */
 function rateLimit(ip: string): { ok: boolean; resetAt: number } {
   const now = Date.now();
+
+  if (ipBuckets.size > MAX_TRACKED_IPS) {
+    for (const [key, b] of ipBuckets) {
+      if (b.resetAt < now) ipBuckets.delete(key);
+    }
+    // Still oversized after evicting the expired: drop the oldest.
+    if (ipBuckets.size > MAX_TRACKED_IPS) {
+      const oldest = [...ipBuckets.entries()]
+        .sort((a, b) => a[1].resetAt - b[1].resetAt)
+        .slice(0, Math.floor(MAX_TRACKED_IPS / 4));
+      for (const [key] of oldest) ipBuckets.delete(key);
+    }
+  }
+
   const bucket = ipBuckets.get(ip);
   if (!bucket || bucket.resetAt < now) {
     const fresh = { count: 1, resetAt: now + BUCKET_WINDOW_MS };
@@ -79,7 +116,30 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const history = Array.isArray(payload.history) ? payload.history : [];
+  // HISTORY IS UNTRUSTED AND WAS UNBOUNDED (2026-08-04). userMessage is
+  // capped at 1000 chars; history entries were taken verbatim and ten of
+  // them forwarded to Anthropic. A single POST carrying ten 200KB
+  // entries bought a multi-megabyte prompt on this account, from
+  // anywhere, with no login. That — not the message field — was the
+  // free-Claude-proxy vector.
+  //
+  // Same cap per entry as a real message, same total count as before,
+  // and roles are narrowed rather than trusted.
+  const history: Message[] = (Array.isArray(payload.history)
+    ? payload.history
+    : []
+  )
+    .filter(
+      (m): m is Message =>
+        !!m &&
+        typeof (m as Message).content === "string" &&
+        ((m as Message).role === "user" || (m as Message).role === "assistant"),
+    )
+    .slice(-MAX_HISTORY)
+    .map((m) => ({
+      role: m.role,
+      content: m.content.slice(0, MAX_USER_MESSAGE_CHARS),
+    }));
 
   // Crisis pre-check — public chat must still respond carefully.
   //
@@ -112,7 +172,7 @@ ARCHIVE — these are the actual answers ${SAMPLE_PERSONA.name} gave. This is wh
 ${archiveBlock}`;
 
   const messages = [
-    ...history.slice(-MAX_HISTORY).map((m) => ({
+    ...history.map((m) => ({
       role: m.role,
       content: m.content,
     })),

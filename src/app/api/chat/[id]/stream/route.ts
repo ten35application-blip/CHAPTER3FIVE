@@ -47,6 +47,7 @@ import { requireTermsAccepted } from "@/lib/legal/gate";
 import { formatGap, localDateLabel, timeOfDayLabel } from "@/lib/sleep";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { moderateImage } from "@/lib/moderation";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -476,6 +477,36 @@ export async function POST(
       );
     }
     signedImageUrl = signed.signedUrl;
+
+    // MODERATE THE PHOTO (2026-08-04). The mobile route has scanned
+    // user uploads since it shipped; this one never did — it accepted
+    // image_storage_path, signed it, and persisted it. So the Settings
+    // promise "Every photo you share is scanned before it's sent" was
+    // false for every photo sent from a browser, which is both a lie to
+    // the user and an App Store 1.2 exposure (UGC moderation has to be
+    // demonstrable, and reviewers test the web build).
+    //
+    // Same posture as mobile: flagged photos never enter the
+    // conversation, and the orphaned upload is cleaned up.
+    const verdict = await moderateImage(signedImageUrl);
+    if (verdict.flagged) {
+      await supabase.storage
+        .from("chat-uploads")
+        .remove([imageStoragePath])
+        .then(
+          () => undefined,
+          () => undefined,
+        );
+      return NextResponse.json(
+        {
+          error:
+            "That photo can't be sent — our content check flagged it. If this seems wrong, write care@chapter3five.app.",
+          flagged: true,
+          categories: verdict.categories,
+        },
+        { status: 400 },
+      );
+    }
   }
 
   // Persist the user's message (RLS insert policy: own rows only).

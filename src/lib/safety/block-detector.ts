@@ -24,6 +24,20 @@ export type BlockDecision =
 // Compiled once. Match on word boundaries so "assassin" isn't caught
 // by "ass". Slurs list intentionally not exhaustive — the LLM handles
 // the long tail; the screen just triggers the deeper look.
+/**
+ * Local, dependency-free abuse screen. Exported (2026-08-04) so
+ * lib/judge.ts can fall back to it when OpenAI's moderation endpoint is
+ * unreachable — see the note there. This screen is the reason the WEB
+ * block path keeps working during an OpenAI outage while the phone's
+ * did not.
+ */
+export function localAbuseScreen(text: string): boolean {
+  return (
+    HARD_TRIGGERS.some((re) => re.test(text)) ||
+    SEXUAL_PUSH_TRIGGERS.some((re) => re.test(text))
+  );
+}
+
 const HARD_TRIGGERS: readonly RegExp[] = [
   /\b(kill|hurt|beat|murder)\s+(you|u|yourself)\b/i,
   /\bi (will|'?ll|am gonna) (kill|hurt|beat|find|come for) (you|u)\b/i,
