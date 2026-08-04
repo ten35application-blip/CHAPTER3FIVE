@@ -227,9 +227,9 @@ export const LEGACY_QUESTIONS: LegacyQuestion[] = [
     promptSelf:
       "What do you have a completely unreasonable opinion about? Not the principled stuff — the small thing you'll argue about forever. The right way to load a dishwasher, a road you refuse to drive on, a food you take personally, someone on TV you can't stand.",
     placeholder:
-      "The kind of thing the whole family could set their watch by. Say it the way they'd say it.",
+      "Bread from the good bakery or none at all, the toll road is a scam, that anchor on channel 7, nobody needs a truck that big, the thermostat stays where it is.",
     placeholderSelf:
-      "The kind of thing everyone who knows you could set their watch by. Say it the way you'd say it.",
+      "Bread from the good bakery or none at all, the toll road is a scam, that anchor on channel 7, nobody needs a truck that big, the thermostat stays where it is.",
     estimateMinutes: 3,
   },
   {
@@ -253,9 +253,9 @@ export const LEGACY_QUESTIONS: LegacyQuestion[] = [
     promptSelf:
       "Who's around you, day to day? A husband or wife, kids, the friend who calls every Sunday, the neighbor who lets themselves in. Names, and what each one is to you — we'd rather know four people properly than twenty in a list.",
     placeholder:
-      "This is how they'll know who you mean when a name comes up years from now.",
+      "Tito, her husband of forty years. Nena next door, who never knocked. Their son Marco, who called every Sunday at six. The dog, Pepper, who counted.",
     placeholderSelf:
-      "This is how they'll know who you mean when a name comes up years from now.",
+      "Tito, my husband of forty years. Nena next door, who never knocks. My son Marco, who calls every Sunday at six. The dog, Pepper, who counts.",
     estimateMinutes: 4,
   },
 
