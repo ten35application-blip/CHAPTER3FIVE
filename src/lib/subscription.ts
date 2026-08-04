@@ -350,14 +350,17 @@ export async function canCreateOracle(
     }
 
     // Basic subscribers get the smaller self-created ceiling (2
-    // formula + 1 photo = 3); Pro / trial / admin get 5. A Basic
-    // user is one whose ACTIVE paid window came through Stripe with
-    // the webhook-written subscription_tier = 'basic' — admin grants
-    // and legacy trials have no Stripe customer and stay on the Pro
-    // ceiling. Add-on credits stack on top of whichever base applies.
+    // formula + 1 photo = 3); Pro / trial / admin get 5. Add-on
+    // credits stack on top of whichever base applies.
+    //
+    // The stripe_customer_id condition was removed 2026-08-04 for the
+    // same reason as getPlanTier above: an IAP subscriber never has
+    // one, so a $5 Apple Basic purchase was silently granted the Pro
+    // ceiling of 5 identities. subscription_tier is written by all
+    // three payment paths and is authoritative on its own; null still
+    // means comped/trial and still gets the Pro ceiling.
     const isBasicUser =
       !isAdmin(userEmail) &&
-      profile.stripe_customer_id !== null &&
       profile.subscription_tier === "basic" &&
       profile.pro_until &&
       new Date(profile.pro_until).getTime() > now;
@@ -462,13 +465,29 @@ export async function getPlanTier(
 
     const now = Date.now();
     if (data.pro_until && new Date(data.pro_until).getTime() > now) {
-      if (data.stripe_customer_id) {
-        return {
-          tier: data.subscription_tier === "basic" ? "basic" : "pro",
-          unlimited: false,
-        };
+      // subscription_tier is authoritative WHENEVER it is set, no
+      // matter which channel wrote it.
+      //
+      // This used to be gated on `data.stripe_customer_id` as a proxy
+      // for "a real payment path set this", falling through to "pro"
+      // otherwise on the theory that a paid window with no Stripe
+      // customer must be an admin grant. In-app purchases broke that
+      // assumption: the RevenueCat webhook writes pro_until and
+      // subscription_tier but never stripe_customer_id (only
+      // handleSubscriptionCheckout sets that), so an IAP subscriber's
+      // stripe_customer_id is always null. Result: someone who bought
+      // BASIC through Apple for $5 had subscription_tier='basic'
+      // written and then ignored, and every gate resolved them as PRO —
+      // 300 messages instead of 100, 30 images instead of 10, and the
+      // 5-identity ceiling instead of 3. Half price, full product.
+      //
+      // Reading the column directly is also simply more honest: it is
+      // written by exactly three paths (Stripe webhook, RevenueCat
+      // webhook, admin grant-pro) and all three set it deliberately.
+      // Null still means "comped / legacy trial" and still resolves pro.
+      if (data.subscription_tier === "basic") {
+        return { tier: "basic", unlimited: false };
       }
-      // Paid window without a Stripe customer = admin grant / comped.
       return { tier: "pro", unlimited: false };
     }
     if (data.trial_ends_at && new Date(data.trial_ends_at).getTime() > now) {

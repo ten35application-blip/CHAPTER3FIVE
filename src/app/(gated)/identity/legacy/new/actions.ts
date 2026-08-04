@@ -219,6 +219,7 @@ export async function completeLegacyIdentity(payload: {
   const { data: existingLegacy } = await supabase
     .from("oracles")
     .select("id, legacy_answers")
+    .eq("user_id", user.id)
     .eq("is_legacy", true)
     .is("inherited_at", null)
     .is("deleted_at", null);

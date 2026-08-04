@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { scheduleAutoPopulate } from "@/lib/subscription/autoPopulate";
+import { PRICING } from "@/lib/pricing";
 
 export const runtime = "nodejs";
 
@@ -18,6 +19,26 @@ export const maxDuration = 300;
  * ids (see 0122 comments for the setup). A future rename here
  * must be paired with a RevenueCat dashboard rename.
  */
+/**
+ * Add-on pack SKUs → credits, mirroring the Stripe path's grants and
+ * PRICING's spec: every pack credits BOTH counters, never either/or.
+ * Product ids match chapter3five-app/app/upgrade.tsx PRODUCT_PREFIX.
+ */
+const PACK_CREDITS: Record<string, { messages: number; images: number }> = {
+  "chapter3five.pack.small": {
+    messages: PRICING.packSmallMessages,
+    images: PRICING.packSmallImages,
+  },
+  "chapter3five.pack.medium": {
+    messages: PRICING.packMediumMessages,
+    images: PRICING.packMediumImages,
+  },
+  "chapter3five.pack.large": {
+    messages: PRICING.packLargeMessages,
+    images: PRICING.packLargeImages,
+  },
+};
+
 const BASIC_ENTITLEMENT_ID = "basic";
 const PRO_ENTITLEMENT_ID = "pro";
 
@@ -146,6 +167,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ received: true, ignored: type });
   }
 
+  const now = new Date().toISOString();
   const appUserId = event.app_user_id ?? "";
   if (!UUID_RE.test(appUserId)) {
     // $RCAnonymousID:… — a purchase made before Purchases.configure ran
@@ -155,6 +177,86 @@ export async function POST(request: NextRequest) {
       `[revenuecat-webhook] ${type} for non-UUID app_user_id (${appUserId.slice(0, 24)}…) — skipping`,
     );
     return NextResponse.json({ received: true, skipped: "anonymous-app-user-id" });
+  }
+
+  // ── Add-on packs ────────────────────────────────────────────────
+  // Consumables, so RevenueCat sends NON_RENEWING_PURCHASE with a null
+  // expiration and (typically) no entitlement. Before 2026-08-04 they
+  // fell through BOTH guards below — the no-entitlements bail-out, and
+  // then `expiresAt !== null` on the profiles sync — so a pack purchase
+  // credited nothing at all. The app charged up to $20 through Apple,
+  // showed "You're in — your purchase is active on your account", and
+  // the user went back to a hard message cap. Only the Stripe webhook
+  // ever granted pack credits.
+  //
+  // Handled here, ahead of the entitlement checks, because a pack is
+  // not an entitlement and should never have been routed through them.
+  const packCredits = PACK_CREDITS[event.product_id ?? ""];
+  if (packCredits) {
+    if (type !== "NON_RENEWING_PURCHASE" && type !== "INITIAL_PURCHASE") {
+      // CANCELLATION/EXPIRATION on a consumable is a refund signal;
+      // credits are not clawed back here (the Stripe path doesn't
+      // either — see the revert block in stripe/webhook). Ack and move
+      // on rather than re-granting on a replay of a terminal event.
+      return NextResponse.json({ received: true, ignored: `${type}-pack` });
+    }
+    const adminPack = createAdminClient();
+    // Idempotency: RevenueCat retries on any non-2xx, and this grant is
+    // additive, so a replay would double-credit. The transaction id is
+    // the stable per-purchase key.
+    const txnId =
+      event.original_transaction_id ?? event.id ?? `${appUserId}:${event.product_id}`;
+    const { error: claimErr } = await adminPack
+      .from("iap_entitlements")
+      .insert({
+        user_id: appUserId,
+        entitlement_id: `pack:${txnId}`,
+        product_id: event.product_id ?? "unknown",
+        expires_at: null,
+        platform: platformFromStore(event.store),
+        revenuecat_user_id: appUserId,
+        original_transaction_id: event.original_transaction_id ?? null,
+        updated_at: now,
+      });
+    if (claimErr) {
+      // 23505 = already claimed. Ack so RevenueCat stops retrying.
+      if ((claimErr as { code?: string }).code === "23505") {
+        return NextResponse.json({ received: true, skipped: "pack-already-granted" });
+      }
+      console.error(
+        `[revenuecat-webhook] pack claim failed for ${appUserId}: ${claimErr.message}`,
+      );
+      return NextResponse.json({ error: "Pack claim failed" }, { status: 500 });
+    }
+
+    // Same RPC the Stripe path uses (increment_profile_counter is
+    // SECURITY DEFINER with a counter-name allowlist), so both channels
+    // grant identically and there is one implementation to audit.
+    const { error: msgErr } = await adminPack.rpc("increment_profile_counter", {
+      target_user_id: appUserId,
+      counter_name: "message_credits",
+      delta: packCredits.messages,
+    });
+    const { error: imgErr } = await adminPack.rpc("increment_profile_counter", {
+      target_user_id: appUserId,
+      counter_name: "image_credits",
+      delta: packCredits.images,
+    });
+    if (msgErr || imgErr) {
+      // Loud: the user PAID. The claim row above is already written, so
+      // a RevenueCat retry short-circuits on 23505 — this log is the
+      // signal for a manual re-grant. Same posture as the Stripe path.
+      console.error(
+        `[revenuecat-webhook] pack credit grant failed for ${appUserId}:`,
+        msgErr?.message,
+        imgErr?.message,
+      );
+      return NextResponse.json({ error: "Credit grant failed" }, { status: 500 });
+    }
+    console.log(
+      `[revenuecat-webhook] granted pack ${event.product_id} to ${appUserId}: +${packCredits.messages} messages, +${packCredits.images} images`,
+    );
+    return NextResponse.json({ received: true, granted: "pack" });
   }
 
   const entitlementIds = (event.entitlement_ids ?? []).filter(
@@ -177,7 +279,6 @@ export async function POST(request: NextRequest) {
         : null;
 
   const admin = createAdminClient();
-  const now = new Date().toISOString();
   const rows = entitlementIds.map((entitlementId) => ({
     user_id: appUserId,
     entitlement_id: entitlementId,
@@ -230,6 +331,49 @@ export async function POST(request: NextRequest) {
   // when auto-renew is off — mirror that by writing pro_until to
   // the future expiry. Cancel-then-resubscribe flows work.
   if (tier && expiresAt !== null) {
+    // CROSS-CHANNEL GUARD (2026-08-04). pro_until is one scalar with no
+    // source column, written by BOTH webhooks. This update used to be
+    // unconditional, so an Apple EXPIRATION — which deliberately forces
+    // expiresAt into the past above — stomped pro_until even when the
+    // user had an active, currently-billing Stripe subscription.
+    //
+    // Sequence: subscribe on iOS, later subscribe on web (or migrate),
+    // cancel Apple. Apple fires EXPIRATION, pro_until goes to the past,
+    // and the user is demoted to Free on both surfaces — locked out of
+    // every personal identity, with only Adrian answering — while
+    // Stripe keeps charging their card, until the next invoice.paid up
+    // to a month later.
+    //
+    // Stripe's own handleSubscriptionDeleted is careful never to clear
+    // pro_until for exactly this reason; the RevenueCat path had no
+    // such care. A downgrade from this channel is now skipped when
+    // Stripe holds the account, and only applied when the value we'd
+    // write is actually LATER than what is already there.
+    const { data: current } = await admin
+      .from("profiles")
+      .select("pro_until, stripe_subscription_id, subscription_status")
+      .eq("id", appUserId)
+      .maybeSingle<{
+        pro_until: string | null;
+        stripe_subscription_id: string | null;
+        subscription_status: string | null;
+      }>();
+
+    const stripeHoldsAccount =
+      !!current?.stripe_subscription_id &&
+      current.subscription_status !== "canceled";
+    const wouldShorten =
+      !!current?.pro_until &&
+      new Date(expiresAt).getTime() < new Date(current.pro_until).getTime();
+
+    if (wouldShorten && stripeHoldsAccount) {
+      console.log(
+        `[revenuecat-webhook] ${type} for ${appUserId} would shorten pro_until but Stripe subscription ${current?.stripe_subscription_id} is active — leaving entitlement alone`,
+      );
+      // iap_entitlements above still records the Apple-side truth.
+      return NextResponse.json({ received: true, skipped: "stripe-holds-account" });
+    }
+
     const { error: profileErr } = await admin
       .from("profiles")
       .update({

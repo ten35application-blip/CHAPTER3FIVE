@@ -53,10 +53,25 @@ export async function POST(request: NextRequest) {
   // patches, we don't want to trust any past-manipulated value
   // sitting on an oracle row. This closes the "restore a $5 identity
   // for $0.50 by first PATCHing your own row" attack.
+  // OWNERSHIP IS EXPLICIT (2026-08-04). This used to filter on id +
+  // deleted_at only, relying on "RLS restricts oracles selects to the
+  // owner". That is not the full policy set: 0040 adds
+  // "oracles: invitees read via grant" using user_has_grant_on_oracle(id),
+  // with no deleted_at predicate, and beneficiary/claim writes real
+  // archive_grants rows. So a BENEFICIARY could POST a soft-deleted
+  // oracle they merely hold a grant on and be charged $5 — while the
+  // webhook's restore is user_id-scoped and would match zero rows.
+  // Money in, nothing delivered, and the profile write that follows it
+  // is not gated on the restore succeeding, so the payer's
+  // active_oracle_id got clobbered to a foreign oracle on top.
+  //
+  // The free-legacy branch further down already scoped by user_id; the
+  // paid branch is the one that didn't.
   const { data: oracle } = await supabase
     .from("oracles")
     .select("id, name, deleted_at, is_legacy")
     .eq("id", oracleId)
+    .eq("user_id", user.id)
     .not("deleted_at", "is", null)
     .maybeSingle();
   if (!oracle) {
