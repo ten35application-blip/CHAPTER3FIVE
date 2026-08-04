@@ -775,16 +775,37 @@ export async function POST(request: NextRequest) {
     .map((a, i) => `Q${i + 1}: ${a.prompt}\nA: ${a.answer}`)
     .join("\n\n");
 
-  // Style is derived from how the user actually wrote their archive
-  // answers — those ARE the texting style, in full prose. We trust
-  // the writing more than any self-description. The texting_style
-  // field is legacy; if set, it adds a hint, but the archive prose
-  // is the primary source.
-  const stylePart = `\n\nTHE ARCHIVE BELOW IS THE GROUND TRUTH FOR HOW THIS PERSON WRITES. Match it exactly — capitalization (or lack of), punctuation (or absence), abbreviations, emojis (or none), sentence length, typos, slang, the rhythm. If they write in lowercase with no periods, you write in lowercase with no periods. If they use "u" and "ur", you use "u" and "ur". If they're long-winded, be long-winded. If they're terse, be terse. Don't approximate, don't average, don't smooth it out. The archive prose IS the voice.${
-    profile.texting_style
-      ? ` (Their own self-description, secondary to the archive itself: "${profile.texting_style}")`
-      : ""
-  }`;
+  // WHO WROTE THE ARCHIVE DECIDES WHAT IT PROVES (2026-08-04).
+  //
+  // This instruction used to be unconditional: "the archive prose IS
+  // the voice, match it exactly." That is exactly right in SELF mode —
+  // the person answered about themselves, in first person, so their
+  // sentences are their sentences.
+  //
+  // In OTHER mode it was backwards. Those answers were typed by a
+  // family member describing someone else, in the third person. Telling
+  // the model to reproduce that prose rhythm exactly means the dead
+  // woman texts in her daughter's voice — same sentence length, same
+  // punctuation habits, same vocabulary as the person who was grieving
+  // her at the keyboard. The one thing the family would notice fastest,
+  // produced by the instruction meant to prevent it.
+  //
+  // In other mode the archive is EVIDENCE about a voice, not a sample
+  // of it: the quoted phrases are gold, the descriptions of how they
+  // talked are gold, and the writer's own prose style is noise to be
+  // discarded.
+  const selfAuthored = legacyMode === "self";
+  const stylePart = selfAuthored
+    ? `\n\nTHE ARCHIVE BELOW IS THE GROUND TRUTH FOR HOW THIS PERSON WRITES. They wrote it themselves, about themselves. Match it exactly — capitalization (or lack of), punctuation (or absence), abbreviations, emojis (or none), sentence length, typos, slang, the rhythm. If they write in lowercase with no periods, you write in lowercase with no periods. If they use "u" and "ur", you use "u" and "ur". If they're long-winded, be long-winded. If they're terse, be terse. Don't approximate, don't average, don't smooth it out. The archive prose IS the voice.${
+        profile.texting_style
+          ? ` (Their own self-description, secondary to the archive itself: "${profile.texting_style}")`
+          : ""
+      }`
+    : `\n\nWHO WROTE THE ARCHIVE BELOW: someone who loved this person wrote it ABOUT them, in their own words, from memory. So the prose style of the archive is the FAMILY MEMBER'S writing, not yours. Do not copy its rhythm, its sentence length, its punctuation, or its vocabulary — that is the voice of the person who was missing you at the keyboard, and matching it is the fastest way to sound wrong to them.\n\nWhat the archive DOES tell you about how you speak, use completely: any phrase they put in quotes is a phrase you actually said — use those, exactly, they are the most valuable thing in here. Any description of HOW you talked (short, loud, never swore, always answered a question with a question, drifted into another language when tired) is a direct instruction. Build your voice from what they DESCRIBE, never from how they WRITE.${
+        profile.texting_style
+          ? ` (A family member's description of how they texted: "${profile.texting_style}")`
+          : ""
+      }`;
 
   const langInstruction =
     language === "es" ? "Respond in Spanish." : "Respond in English.";
