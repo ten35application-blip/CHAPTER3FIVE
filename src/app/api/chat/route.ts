@@ -249,13 +249,26 @@ export async function POST(request: NextRequest) {
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "oracle_name, mode, preferred_language, texting_style, personality_type, emotional_flavor, timezone, active_oracle_id, deceased_at",
+      "oracle_name, mode, preferred_language, texting_style, personality_type, emotional_flavor, timezone, active_oracle_id, deceased_at, deleted_at",
     )
     .eq("id", user.id)
     .single();
 
   if (!profile) {
     return NextResponse.json({ error: "No profile" }, { status: 404 });
+  }
+
+  // Soft-deleted gate. This route does its own inline Bearer auth (it
+  // predates getRequestAuth, which now carries this check for every
+  // helper route), so it needs the check itself — piggybacked on the
+  // profile read above, zero extra queries. Without it, a deleted
+  // account's phone kept chatting and burning Anthropic spend for the
+  // full 30-day grace window, and the lock-screen-reply path — which
+  // never renders the client-side signed-out screens — kept posting
+  // replies indefinitely. 401 because the mobile client treats that
+  // as signed-out, the correct UX for an account its owner ended.
+  if (profile.deleted_at) {
+    return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
 
   // History fallback for lock-screen notification replies.

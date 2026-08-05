@@ -52,7 +52,13 @@ export async function POST(request: NextRequest) {
   // match" every single time. Account deletion from the phone could
   // not succeed by any input — the exact requirement this file exists
   // to satisfy.
-  const { supabase, user } = await getRequestAuth(request);
+  // allowSoftDeleted: an already-deleted account calling delete again
+  // is an idempotent no-op (handled below) — it must not 401, or the
+  // client would show an error for an outcome the user already has.
+  // Mirrors the web proxy's SOFT_DELETED_ALLOWED exemption.
+  const { supabase, user } = await getRequestAuth(request, {
+    allowSoftDeleted: true,
+  });
   if (!user) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }

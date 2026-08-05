@@ -17,7 +17,12 @@ export const runtime = "nodejs";
  * 2026-07-30 which 401'd every mobile Data-export tap.
  */
 export async function GET(request: NextRequest) {
-  const { supabase, user } = await getRequestAuth(request);
+  // allowSoftDeleted: data portability holds through the 30-day grace
+  // window — a user who deleted their account can still take their
+  // data with them. Mirrors the web proxy's SOFT_DELETED_ALLOWED.
+  const { supabase, user } = await getRequestAuth(request, {
+    allowSoftDeleted: true,
+  });
   if (!user) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }

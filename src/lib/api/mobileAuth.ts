@@ -14,7 +14,18 @@ import { createClient } from "@/lib/supabase/server";
  * token as the Authorization header so every PostgREST query runs
  * as that user under RLS — identical posture to the cookie client.
  */
-export async function getRequestAuth(request: Request): Promise<{
+export async function getRequestAuth(
+  request: Request,
+  opts?: {
+    /**
+     * Let a soft-deleted account through. ONLY for the routes the web
+     * proxy's SOFT_DELETED_ALLOWED list also exempts: data export
+     * (portability during the 30-day grace) and delete-account itself
+     * (idempotent no-op on a second call).
+     */
+    allowSoftDeleted?: boolean;
+  },
+): Promise<{
   supabase: SupabaseClient;
   user: User | null;
 }> {
@@ -35,6 +46,33 @@ export async function getRequestAuth(request: Request): Promise<{
   const {
     data: { user },
   } = await supabase.auth.getUser(bearer ?? undefined);
+
+  // Soft-deleted gate. The web proxy redirects deleted users to
+  // /restore, but it reads COOKIES — a Bearer token sailed straight
+  // past it, so a user who deleted their account kept full API access
+  // from the phone for the whole 30-day grace window: chatting,
+  // burning Anthropic spend, receiving pushes. The only mobile-side
+  // gates were client reads that sign the user out, which the
+  // lock-screen-reply path never hits at all.
+  //
+  // Checked here so every route on the shared helper is covered at
+  // once. Returns user: null — every caller already 401s on that, and
+  // the mobile client treats a 401 as signed-out, which is the right
+  // UX for an account the user themselves ended.
+  //
+  // Fail-open on a read error: a transient profiles hiccup must not
+  // 401 every API call for everyone. The purge cron is the backstop
+  // that actually erases; this gate is about access during grace.
+  if (user && !opts?.allowSoftDeleted) {
+    const { data: p } = await supabase
+      .from("profiles")
+      .select("deleted_at")
+      .eq("id", user.id)
+      .maybeSingle<{ deleted_at: string | null }>();
+    if (p?.deleted_at) {
+      return { supabase, user: null };
+    }
+  }
 
   return { supabase, user };
 }
