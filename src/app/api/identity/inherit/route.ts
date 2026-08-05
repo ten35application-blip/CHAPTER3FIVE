@@ -113,7 +113,11 @@ export async function POST(request: NextRequest) {
     )
     .eq("id", codeRow.oracle_id)
     .maybeSingle();
-  if (!source || source.deleted_at) {
+  // Only a MISSING source rejects — a soft-deleted source stays
+  // redeemable. Revocation is the one kill switch for a code; deletion
+  // never is. See the web twin for the full reasoning; the purge cron
+  // guards guarantee a code-bearing source survives until revoked.
+  if (!source) {
     await recordRedeemAttempt(user.id, false);
     return NextResponse.json({ error: INVALID_CODE_MESSAGE }, { status: 404 });
   }

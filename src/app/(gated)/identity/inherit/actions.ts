@@ -158,7 +158,18 @@ export async function redeemInheritCode(rawCode: string): Promise<void> {
     .eq("id", codeRow.oracle_id)
     .maybeSingle();
 
-  if (!source || source.deleted_at) {
+  // Only a MISSING source rejects. A soft-deleted source stays
+  // redeemable on purpose: revoking a code is the one and only thing
+  // that kills it — deletion never does. Before this, closing the
+  // creator's account (or a Contacts swipe on the archive) cascaded
+  // deleted_at onto the source and every outstanding card silently hit
+  // "That code didn't open anything" — the product's central promise
+  // failing in its central scenario, with an error nobody could
+  // diagnose. The snapshot columns are intact on a soft-deleted row,
+  // and the purge cron refuses to hard-delete identities (and now
+  // accounts) holding unrevoked codes, so the data this copy needs is
+  // guaranteed to still exist.
+  if (!source) {
     await recordRedeemAttempt(user.id, false);
     redirectWithError("/identity/inherit", INVALID_CODE_MESSAGE);
   }

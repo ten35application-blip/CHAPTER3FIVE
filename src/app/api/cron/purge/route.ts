@@ -82,6 +82,50 @@ export async function GET(request: NextRequest) {
   // row first. Fail-closed on the lookup: if we cannot tell who owns
   // the concierge, we do not get to delete anyone.
   const purgeCandidateIds = (accountsToDelete ?? []).map((p) => p.id as string);
+
+  // AN ACCOUNT HOLDING UNREVOKED INHERIT CODES IS NOT PURGEABLE.
+  //
+  // The oracle-level loop below refuses to destroy an identity with a
+  // live code; this account-level loop had no counterpart, and
+  // auth.admin.deleteUser cascades oracles → cascades inherit_codes.
+  // The exact scenario the product exists for: the person dies, the
+  // family closes his account to stop the billing, and 30 days later
+  // the cards he handed his kids read "That code didn't open
+  // anything" — permanently. Redemption now works from soft-deleted
+  // sources (revocation, not deletion, is a code's only kill switch),
+  // which makes THIS guard the thing that keeps that promise true:
+  // the snapshot data must survive until every code is redeemed or
+  // revoked. Fail-closed, same posture as the other guards — waiting
+  // is always the recoverable direction.
+  const codeHoldingOwners = new Set<string>();
+  let unknownOwnerCodeState = false;
+  if (purgeCandidateIds.length > 0) {
+    const { data: ownerCodes, error: ownerCodesErr } = await admin
+      .from("inherit_codes")
+      .select("created_by")
+      .in("created_by", purgeCandidateIds)
+      .is("revoked_at", null)
+      .limit(1000);
+    if (ownerCodesErr) {
+      errors.push(
+        `owner inherit_codes lookup failed: ${ownerCodesErr.message}`,
+      );
+      for (const id of purgeCandidateIds) codeHoldingOwners.add(id);
+      unknownOwnerCodeState = true;
+    } else if ((ownerCodes?.length ?? 0) >= 1000) {
+      errors.push(
+        "owner inherit_codes lookup hit the 1000-row page limit; skipping this batch rather than risking a truncated read",
+      );
+      for (const id of purgeCandidateIds) codeHoldingOwners.add(id);
+      unknownOwnerCodeState = true;
+    } else {
+      for (const row of ownerCodes ?? []) {
+        if (row.created_by) codeHoldingOwners.add(row.created_by as string);
+      }
+    }
+  }
+  let skippedCodeHoldingOwner = 0;
+
   const conciergeOwners = new Set<string>();
   let unknownConciergeState = false;
   if (purgeCandidateIds.length > 0) {
@@ -105,6 +149,10 @@ export async function GET(request: NextRequest) {
   for (const p of accountsToDelete ?? []) {
     if (conciergeOwners.has(p.id as string)) {
       skippedConciergeOwner++;
+      continue;
+    }
+    if (codeHoldingOwners.has(p.id as string)) {
+      skippedCodeHoldingOwner++;
       continue;
     }
     try {
@@ -419,6 +467,13 @@ export async function GET(request: NextRequest) {
       `${skippedForUnknownCodeState} identities skipped: could not read inherit-code state`,
     );
   }
+  if (skippedCodeHoldingOwner > 0) {
+    notes.push(
+      unknownOwnerCodeState
+        ? `${skippedCodeHoldingOwner} account(s) skipped: could not read their inherit-code state`
+        : `${skippedCodeHoldingOwner} account(s) skipped: they hold unrevoked inherit codes — a family's card must outlive the account; revoke the codes to release the purge`,
+    );
+  }
   if (skippedConciergeOwner > 0) {
     // Don't call it a concierge hold when the truth is "we couldn't
     // check" — that would send someone hunting for an ownership problem
@@ -444,6 +499,7 @@ export async function GET(request: NextRequest) {
     oracles_purged: oraclesPurged,
     skipped_for_live_code: skippedForLiveCode,
     skipped_for_unknown_code_state: skippedForUnknownCodeState,
+    skipped_code_holding_owner: skippedCodeHoldingOwner,
     skipped_concierge_owner: skippedConciergeOwner,
     errors,
   });
