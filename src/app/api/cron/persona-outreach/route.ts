@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { after } from "next/server";
 import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { normalizeLanguage } from "@/lib/i18n/language";
+import { isOracleMuted } from "@/lib/muted";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   coerceTextFirstFrequency,
@@ -72,7 +73,9 @@ export async function GET(request: NextRequest) {
   // limit so we don't burn through Anthropic in a single hour.
   const { data: candidates, error } = await admin
     .from("profiles")
-    .select("id, preferred_language, timezone, push_subscription, oracle_name")
+    .select(
+      "id, preferred_language, timezone, push_subscription, oracle_name, muted_conversations",
+    )
     .eq("outreach_enabled", true)
     .eq("onboarding_completed", true)
     .is("deceased_at", null)
@@ -242,8 +245,16 @@ export async function GET(request: NextRequest) {
         .is("blocked_at", null);
       if (!oracles || oracles.length === 0) continue;
 
+      // Drop personas the user has blocked. This cron never consulted
+      // muted_conversations before the block-contract fix — a blocked
+      // companion could still cold-open a thread and fire a push.
+      const reachable = oracles.filter(
+        (o) => !isOracleMuted(profile.muted_conversations, o.id as string),
+      );
+      if (reachable.length === 0) continue;
+
       // Pull per-oracle timing state in one shot for this user.
-      const oracleIds = oracles.map((o) => o.id as string);
+      const oracleIds = reachable.map((o) => o.id as string);
 
       // Latest message per oracle (any direction, non-deleted) to
       // compute silence per thread.
@@ -282,10 +293,10 @@ export async function GET(request: NextRequest) {
       type Candidate = {
         oracleId: string;
         overshootDays: number;
-        oracle: (typeof oracles)[number];
+        oracle: (typeof reachable)[number];
       };
       const eligible: Candidate[] = [];
-      for (const oracle of oracles) {
+      for (const oracle of reachable) {
         const oid = oracle.id as string;
         const freq = coerceTextFirstFrequency(
           readTextFirstFrequency(oracle.traits),
@@ -339,7 +350,9 @@ export async function GET(request: NextRequest) {
         const withinOracle24h =
           lastOutreach &&
           (startedAt - Date.parse(lastOutreach)) / HOUR < 24;
-        const callbackOracle = oracles.find(
+        // reachable, not oracles — a callback must not resurrect a
+        // persona the user has blocked.
+        const callbackOracle = reachable.find(
           (o) => o.id === freshCallback.oracleId,
         );
         if (callbackOracle && !withinOracle24h) {

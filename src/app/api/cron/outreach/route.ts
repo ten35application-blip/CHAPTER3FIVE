@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { normalizeLanguage } from "@/lib/i18n/language";
+import { isOracleMuted } from "@/lib/muted";
 import { sendOutreachEmail } from "@/lib/notifications";
 
 export const runtime = "nodejs";
@@ -102,11 +103,12 @@ export async function GET(request: NextRequest) {
       } catch {
         muted = [];
       }
+      // isOracleMuted, not a hand-rolled kind comparison — this loop
+      // compared kind === "owned" while the mute route writes "oracle",
+      // so the check was dead code and Block never blocked this cron.
       if (
         profile.active_oracle_id &&
-        muted.some(
-          (m) => m.kind === "owned" && m.id === profile.active_oracle_id,
-        )
+        isOracleMuted(muted, profile.active_oracle_id)
       ) {
         continue;
       }

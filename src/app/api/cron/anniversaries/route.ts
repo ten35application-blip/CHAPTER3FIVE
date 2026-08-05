@@ -3,6 +3,7 @@ import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { normalizeLanguage } from "@/lib/i18n/language";
 import { recordAnthropicSpend } from "@/lib/spendGovernor";
 import { openerVarietyBlock } from "@/lib/identity/opener";
+import { isOracleMuted } from "@/lib/muted";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendPushToUser } from "@/lib/push";
 import { moderateText } from "@/lib/moderation";
@@ -50,6 +51,7 @@ type ProfileRow = {
   active_oracle_id: string | null;
   birthdate: string | null;
   created_at: string | null;
+  muted_conversations: unknown;
 };
 
 type AnniversaryKind = "birthday" | "signup" | "first_message";
@@ -121,7 +123,7 @@ export async function GET(request: NextRequest) {
   const { data: candidates, error } = await admin
     .from("profiles")
     .select(
-      "id, oracle_name, preferred_language, timezone, texting_style, personality_type, emotional_flavor, active_oracle_id, birthdate, created_at",
+      "id, oracle_name, preferred_language, timezone, texting_style, personality_type, emotional_flavor, active_oracle_id, birthdate, created_at, muted_conversations",
     )
     .eq("outreach_enabled", true)
     .eq("onboarding_completed", true)
@@ -152,6 +154,10 @@ export async function GET(request: NextRequest) {
       continue;
     }
     if (!p.active_oracle_id) continue;
+    // The user blocked this persona. Block means the persona stops
+    // reaching out — including on birthdays. This cron never consulted
+    // the mute list at all before the block-contract fix.
+    if (isOracleMuted(p.muted_conversations, p.active_oracle_id)) continue;
     const todayMD = localMonthDay(p.timezone);
 
     const hits: AnniversaryHit[] = [];

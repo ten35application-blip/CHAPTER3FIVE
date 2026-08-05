@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { normalizeLanguage } from "@/lib/i18n/language";
+import { isOracleMuted } from "@/lib/muted";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { recordAnthropicSpend } from "@/lib/spendGovernor";
 import { openerVarietyBlock } from "@/lib/identity/opener";
@@ -80,6 +81,35 @@ export async function GET(request: NextRequest) {
           .from("chat_blocks")
           .update({ unblocked_at: new Date().toISOString() })
           .eq("id", row.id);
+        continue;
+      }
+
+      // Has the RECIPIENT blocked this persona? (row.user_id, not
+      // oracle.user_id — for a granted archive they differ.) Block
+      // means the persona stops reaching out, and a cooled-down
+      // comeback is still the persona reaching out. But the safety
+      // block must NOT stay stuck because of the user's own mute — so
+      // close it out silently: the thread unlocks, the persona says
+      // nothing, and the user reopens the conversation if and when
+      // they choose. Checked before the Anthropic call so a muted
+      // comeback costs no tokens. This cron never consulted the mute
+      // list before the block-contract fix.
+      const { data: recipient } = await admin
+        .from("profiles")
+        .select("muted_conversations")
+        .eq("id", row.user_id)
+        .maybeSingle();
+      if (isOracleMuted(recipient?.muted_conversations, row.oracle_id)) {
+        await admin
+          .from("chat_blocks")
+          .update({ unblocked_at: new Date().toISOString() })
+          .eq("id", row.id);
+        if (row.severity === "temporary") {
+          await admin
+            .from("oracles")
+            .update({ blocked_at: null, block_reason: null })
+            .eq("id", row.oracle_id);
+        }
         continue;
       }
 
