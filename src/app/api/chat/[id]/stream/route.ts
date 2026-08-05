@@ -315,12 +315,21 @@ export async function POST(
   // legacy trial accounts and any admin-comped Pro whose spend runs
   // wild. Paying Stripe subscribers remain uncapped.
   {
-    const requesterTrialOnly = requesterIsPro
+    // requesterIsPaid, NOT requesterIsPro. overFreeCap's exemption is
+    // "real paying subscriber" — its own docstring — and Basic IS a
+    // paying subscriber. Passing tier === "pro" here treated every
+    // Basic account as free: $10 of Anthropic spend into the month,
+    // every web send 402'd with free_month_spend_cap and nothing the
+    // user could buy would lift it. Trial users stay capped exactly as
+    // before — isTrialOnly() is what separates them, not this flag.
+    // The mobile route (chat/route.ts spend gate) already did this
+    // correctly; the two surfaces now match.
+    const requesterTrialOnly = requesterIsPaid
       ? await isTrialOnly(user.id)
       : false;
     const spend = await overFreeCap(
       user.id,
-      requesterIsPro,
+      requesterIsPaid,
       requesterTrialOnly,
     );
     if (spend.over) {
