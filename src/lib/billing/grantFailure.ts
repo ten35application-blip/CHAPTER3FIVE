@@ -26,7 +26,15 @@ export type GrantFailureKind =
   | "image_credits"
   | "inherited_slot"
   | "other_identity_create"
-  | "unrecognized_purchase";
+  | "unrecognized_purchase"
+  // Not a credit that failed to land — a paid account restore where the
+  // follow-up write that takes the user's identities off the purge
+  // countdown didn't stick. They got their account back and would lose
+  // everything in it 30 days later. Same recovery shape as the rest:
+  // unretryable (the payments row is already claimed) and invisible
+  // without a row here. grant_failures.kind is plain text, no CHECK
+  // constraint, so adding a value needs no migration.
+  | "restore_account_oracle_purge_dates";
 
 export async function recordGrantFailure(input: {
   kind: GrantFailureKind;

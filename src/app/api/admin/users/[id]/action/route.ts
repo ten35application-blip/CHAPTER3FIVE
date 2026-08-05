@@ -193,6 +193,39 @@ export async function POST(
     }
 
     case "undelete": {
+      // Same cascade problem as the paid restore in stripe/webhook: a
+      // web account delete stamps every one of the user's oracles with
+      // the profile's deleted_at so the dashboard empties during
+      // signout, and undeleting the profile leaves those rows behind.
+      // Once 0136 gives soft-deleted rows a purge date, an undeleted
+      // account would lose every identity 30 days on. Clear the
+      // countdown on exactly the rows that went down with the account —
+      // matched on the shared stamp, so an identity deleted on its own
+      // keeps its own. They stay in Trash, restorable, as they are now.
+      // Fail closed on the READ too, not just the write — a failed
+      // lookup would otherwise skip the clear and restore the account
+      // anyway, reporting success while every identity stays on its
+      // purge countdown.
+      const { data: deletedProfile, error: stampErr } = await service
+        .from("profiles")
+        .select("deleted_at")
+        .eq("id", userId)
+        .maybeSingle<{ deleted_at: string | null }>();
+      if (stampErr) {
+        return dbError("undelete user (read stamp)", stampErr, adminEmail, userId);
+      }
+
+      if (deletedProfile?.deleted_at) {
+        const { error: cascadeErr } = await service
+          .from("oracles")
+          .update({ scheduled_purge_at: null })
+          .eq("user_id", userId)
+          .eq("deleted_at", deletedProfile.deleted_at);
+        if (cascadeErr) {
+          return dbError("undelete user oracles", cascadeErr, adminEmail, userId);
+        }
+      }
+
       const { error } = await service
         .from("profiles")
         .update({ deleted_at: null })
@@ -206,11 +239,32 @@ export async function POST(
       // Soft-delete matches the consumer flow — cleared later by the
       // 30-day purge cron. Hard-delete stays out of the admin surface
       // by design; it lives behind the audit-log task.
-      const { error } = await service
+      // Only stamp a profile that isn't already deleted. Re-stamping
+      // moves profiles.deleted_at while the user's oracles keep the
+      // ORIGINAL cascade stamp, and the undelete above matches oracles
+      // on that shared stamp — so a second delete would desynchronize
+      // the two and make the restore match zero identities, purging
+      // every one of them 30 days later. It also re-bases the account's
+      // own countdown, quietly extending a grace window that was
+      // already running.
+      const { data: stamped, error } = await service
         .from("profiles")
         .update({ deleted_at: new Date().toISOString() })
-        .eq("id", userId);
+        .eq("id", userId)
+        .is("deleted_at", null)
+        .select("id");
       if (error) return dbError("soft-delete user", error, adminEmail, userId);
+      // Zero rows means it was already deleted. Saying "undelete within
+      // 30 days" there would restate a window that started earlier and
+      // may be nearly over — the same accurate-on-no-op posture
+      // delete_identity and revoke_inherit_code already take.
+      if (!stamped || stamped.length === 0) {
+        return NextResponse.json({
+          ok: true,
+          message:
+            "Account was already soft-deleted. Its original 30-day window is still running — check the deleted-at date before promising a restore.",
+        });
+      }
       log(adminEmail, `soft-deleted ${userId}`);
       return NextResponse.json({
         ok: true,
@@ -306,11 +360,30 @@ export async function POST(
           message: "Identity was already deleted.",
         });
       }
-      const { error } = await service
+      // Never the concierge. Every other delete path filters it out
+      // (softDeleteIdentity, permanentDeleteIdentity, dev/reset-user,
+      // the web account cascade); this branch was the last one that
+      // didn't, and it takes an oracle id straight from the caller.
+      // Post-0136 a soft-delete carries a 30-day purge date, so
+      // stamping the shared concierge here would be a fuse on the one
+      // row every free-tier user talks to.
+      const { data: deletedOracle, error } = await service
         .from("oracles")
         .update({ deleted_at: new Date().toISOString() })
-        .eq("id", targetId);
+        .eq("id", targetId)
+        .eq("is_concierge", false)
+        .select("id");
       if (error) return dbError("delete identity", error, adminEmail, targetId);
+      // Zero rows here means the filter above caught the concierge —
+      // the pre-checks don't read is_concierge, so without this the
+      // route would report a successful delete that never happened.
+      if (!deletedOracle || deletedOracle.length === 0) {
+        return NextResponse.json({
+          ok: false,
+          message:
+            "That's the shared concierge — it can't be deleted. Every free-tier user talks to that one row.",
+        });
+      }
       log(adminEmail, `soft-deleted oracle ${targetId} (owner ${userId})`);
       return NextResponse.json({
         ok: true,

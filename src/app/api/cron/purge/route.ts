@@ -65,7 +65,48 @@ export async function GET(request: NextRequest) {
     .not("deleted_at", "is", null)
     .limit(50);
 
+  // AN ACCOUNT THAT OWNS THE SHARED CONCIERGE IS NOT PURGEABLE.
+  //
+  // The concierge (is_concierge = true — one row, "Adrian") is what
+  // every free-tier user talks to, and it is owned by an operator's
+  // personal account rather than a service account. Step 1 below calls
+  // auth.admin.deleteUser, and oracles.user_id references auth.users
+  // ON DELETE CASCADE, so purging that account destroys the concierge
+  // and cascades away messages, conversation_state, oracle_read_state
+  // and persona_memories for EVERY user, plus nulls out their
+  // free_identity_id. No column filter anywhere else can prevent it —
+  // the cascade doesn't consult columns.
+  //
+  // Until the concierge is reparented to a service account, refuse.
+  // An operator who genuinely wants their account gone can move the
+  // row first. Fail-closed on the lookup: if we cannot tell who owns
+  // the concierge, we do not get to delete anyone.
+  const purgeCandidateIds = (accountsToDelete ?? []).map((p) => p.id as string);
+  const conciergeOwners = new Set<string>();
+  let unknownConciergeState = false;
+  if (purgeCandidateIds.length > 0) {
+    const { data: conciergeRows, error: conciergeErr } = await admin
+      .from("oracles")
+      .select("user_id")
+      .eq("is_concierge", true);
+    if (conciergeErr) {
+      errors.push(`concierge owner lookup failed: ${conciergeErr.message}`);
+      for (const id of purgeCandidateIds) conciergeOwners.add(id);
+      unknownConciergeState = true;
+    } else {
+      for (const row of conciergeRows ?? []) {
+        conciergeOwners.add(row.user_id as string);
+      }
+    }
+  }
+
+  let skippedConciergeOwner = 0;
+
   for (const p of accountsToDelete ?? []) {
+    if (conciergeOwners.has(p.id as string)) {
+      skippedConciergeOwner++;
+      continue;
+    }
     try {
       // READ THE AVATAR PATHS BEFORE THE CASCADE (2026-08-04). Step 1
       // below deletes auth.users, which cascades `oracles` away — so by
@@ -214,7 +255,69 @@ export async function GET(request: NextRequest) {
     .not("deleted_at", "is", null)
     .limit(100);
 
+  // A LIVE INHERIT CODE IS SOMEONE ELSE'S ONLY COPY.
+  //
+  // inherit_codes.oracle_id is `on delete cascade` (verified against
+  // pg_constraint), so the hard delete below destroys every code minted
+  // for the identity. permanentDeleteIdentity in dashboard/actions.ts
+  // already refuses for exactly this reason — the family holding the
+  // card otherwise hits the redeem screen's deliberately vague "That
+  // code didn't open anything" and never learns why.
+  //
+  // That guard sits on the button. This loop has no button and no owner
+  // to ask, and until migration 0136 started writing
+  // oracles.scheduled_purge_at it had never selected a single row, so
+  // the gap never showed. Now it can fire, and it would be the more
+  // destructive of the two paths: silent, unattended, no warning.
+  //
+  // Skipping leaves the row soft-deleted and recoverable. The owner can
+  // still revoke the code and hard-delete deliberately through the UI.
+  // Waiting is always the recoverable direction; deleting never is.
+  const candidateIds = (oraclesToDelete ?? []).map((o) => o.id as string);
+  const heldByLiveCode = new Set<string>();
+  let skippedForLiveCode = 0;
+  let skippedForUnknownCodeState = 0;
+  if (candidateIds.length > 0) {
+    // Explicit limit, and a full page is treated as "cannot tell".
+    // Without it PostgREST's db-max-rows could silently truncate the
+    // result, and a truncated answer here fails OPEN — an oracle whose
+    // code fell off the end reads as unheld and gets destroyed. That
+    // is the one direction this block exists to prevent.
+    const CODE_PAGE = 1000;
+    const { data: liveCodes, error: codesErr } = await admin
+      .from("inherit_codes")
+      .select("oracle_id")
+      .in("oracle_id", candidateIds)
+      .is("revoked_at", null)
+      .limit(CODE_PAGE);
+    if (codesErr) {
+      // Fail closed. If we cannot prove no code is outstanding, we do
+      // not get to destroy the identity it points at.
+      errors.push(`inherit_codes lookup failed: ${codesErr.message}`);
+      for (const id of candidateIds) heldByLiveCode.add(id);
+      skippedForUnknownCodeState = candidateIds.length;
+    } else if ((liveCodes?.length ?? 0) >= CODE_PAGE) {
+      errors.push(
+        `inherit_codes lookup hit the ${CODE_PAGE}-row page limit; skipping this batch rather than risking a truncated read`,
+      );
+      for (const id of candidateIds) heldByLiveCode.add(id);
+      skippedForUnknownCodeState = candidateIds.length;
+    } else {
+      for (const row of liveCodes ?? []) {
+        heldByLiveCode.add(row.oracle_id as string);
+      }
+    }
+  }
+
   for (const o of oraclesToDelete ?? []) {
+    if (heldByLiveCode.has(o.id as string)) {
+      // Only count it as a code-hold when we actually saw a code; the
+      // fail-closed branches above already reported themselves, and
+      // labelling those "live inherit code outstanding" would send
+      // someone looking for a code that isn't there.
+      if (skippedForUnknownCodeState === 0) skippedForLiveCode++;
+      continue;
+    }
     try {
       // Avatar files for this oracle (in <user>/<oracleId>.<ext> shape).
       try {
@@ -302,17 +405,46 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // Skipped-for-code is not an error — it's the guard working — but it
+  // must be visible, or "0 purged" reads as "nothing was due" when it
+  // actually means "something was due and we refused to destroy it".
+  const notes: string[] = [];
+  if (skippedForLiveCode > 0) {
+    notes.push(
+      `${skippedForLiveCode} identit${skippedForLiveCode === 1 ? "y" : "ies"} skipped: live inherit code outstanding`,
+    );
+  }
+  if (skippedForUnknownCodeState > 0) {
+    notes.push(
+      `${skippedForUnknownCodeState} identities skipped: could not read inherit-code state`,
+    );
+  }
+  if (skippedConciergeOwner > 0) {
+    // Don't call it a concierge hold when the truth is "we couldn't
+    // check" — that would send someone hunting for an ownership problem
+    // that doesn't exist. Same distinction the inherit-code counters make.
+    notes.push(
+      unknownConciergeState
+        ? `${skippedConciergeOwner} account(s) skipped: could not read concierge ownership`
+        : `${skippedConciergeOwner} account(s) skipped: owns the shared concierge — reparent it before this account can be purged`,
+    );
+  }
+  notes.push(...errors);
+
   await admin.from("cron_runs").insert({
     job: "purge",
     processed: accountsPurged + oraclesPurged,
     duration_ms: Date.now() - startedAt,
     status: errors.length > 0 ? "error" : "ok",
-    error: errors.length > 0 ? errors.slice(0, 5).join("; ") : null,
+    error: notes.length > 0 ? notes.slice(0, 6).join("; ") : null,
   });
 
   return NextResponse.json({
     accounts_purged: accountsPurged,
     oracles_purged: oraclesPurged,
+    skipped_for_live_code: skippedForLiveCode,
+    skipped_for_unknown_code_state: skippedForUnknownCodeState,
+    skipped_concierge_owner: skippedConciergeOwner,
     errors,
   });
 }

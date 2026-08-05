@@ -92,26 +92,40 @@ export async function POST(request: NextRequest) {
   const now = new Date();
   const purgeAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
+  // `.is("deleted_at", null)` so a repeat call can't re-stamp an
+  // account that is already deleted. Re-stamping would restart the
+  // grace window, and — since the web delete cascades the profile's
+  // stamp onto the user's oracles and the restore paths match on it —
+  // would desynchronize that pairing and cost them every identity at
+  // the next purge. A second call is now a no-op, which is the honest
+  // answer to "delete an already-deleted account".
   const admin = createAdminClient();
-  const { error } = await admin
+  const { data: stamped, error } = await admin
     .from("profiles")
     .update({
       deleted_at: now.toISOString(),
       scheduled_purge_at: purgeAt.toISOString(),
     })
-    .eq("id", user.id);
+    .eq("id", user.id)
+    .is("deleted_at", null)
+    .select("id");
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  await recordAudit({
-    actorUserId: user.id,
-    actorEmail: user.email ?? null,
-    action: "account_soft_deleted_mobile",
-    targetUserId: user.id,
-    details: { scheduled_purge_at: purgeAt.toISOString() },
-  });
+  // Zero rows = already deleted. Still ok:true (the caller's intent is
+  // satisfied), but don't write an audit row claiming a purge date that
+  // was never stored — the real one was set by the first call.
+  if (stamped && stamped.length > 0) {
+    await recordAudit({
+      actorUserId: user.id,
+      actorEmail: user.email ?? null,
+      action: "account_soft_deleted_mobile",
+      targetUserId: user.id,
+      details: { scheduled_purge_at: purgeAt.toISOString() },
+    });
+  }
 
   // Sign out the session on the server side; the client will also
   // sign out locally to clear keychain credentials.

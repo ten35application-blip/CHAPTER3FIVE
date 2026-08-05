@@ -193,6 +193,66 @@ async function handleCheckoutCompleted(
 
   // Restore flows don't grant credits — they reverse a soft-delete.
   if (purpose === "restore_account") {
+    // Take the account's delete stamp BEFORE clearing it. The web
+    // delete action (settings/delete/actions.ts) cascades that exact
+    // timestamp onto every one of the user's oracles so the dashboard
+    // looks empty during signout — the user never deleted those
+    // identities individually. Restoring the profile alone leaves them
+    // soft-deleted, and once 0136 gives soft-deleted rows a purge date
+    // that means a restored account loses every identity 30 days
+    // later. Clearing the countdown on exactly the rows that went down
+    // with the account keeps them in Trash (still $5 each to restore,
+    // unchanged) without putting them on a timer.
+    //
+    // Matched on the shared stamp, so an identity the user genuinely
+    // deleted on its own keeps its own countdown.
+    const { data: deletedProfile, error: stampErr } = await admin
+      .from("profiles")
+      .select("deleted_at")
+      .eq("id", userId)
+      .maybeSingle<{ deleted_at: string | null }>();
+
+    if (stampErr) {
+      // The READ failing is as damaging as the write failing — without
+      // the stamp we skip the clear entirely and the identities stay on
+      // their countdown, silently. Same unretryable posture, so it gets
+      // the same visible record.
+      await recordGrantFailure({
+        kind: "restore_account_oracle_purge_dates",
+        userId,
+        stripeEventId: event.id,
+        stripeSessionId: session.id,
+        purpose,
+        error: stampErr,
+      });
+    }
+
+    if (deletedProfile?.deleted_at) {
+      const { error: cascadeErr } = await admin
+        .from("oracles")
+        .update({ scheduled_purge_at: null })
+        .eq("user_id", userId)
+        .eq("deleted_at", deletedProfile.deleted_at);
+      if (cascadeErr) {
+        // A log line is not a signal — same reasoning as 0133. This one
+        // is unrecoverable by retry: the payments row was already
+        // claimed paid further up, so a Stripe re-delivery
+        // short-circuits before ever reaching this branch. Left as a
+        // console.error, one transient DB blip here costs a customer
+        // who PAID to restore their account every identity in it, 30
+        // days later, silently. It goes in grant_failures so a person
+        // sees it while the 30 days are still running.
+        await recordGrantFailure({
+          kind: "restore_account_oracle_purge_dates",
+          userId,
+          stripeEventId: event.id,
+          stripeSessionId: session.id,
+          purpose,
+          error: cascadeErr,
+        });
+      }
+    }
+
     await admin
       .from("profiles")
       .update({ deleted_at: null, scheduled_purge_at: null })

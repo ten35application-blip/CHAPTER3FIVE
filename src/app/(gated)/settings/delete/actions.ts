@@ -38,10 +38,20 @@ export async function deleteAccount(formData: FormData) {
 
   // Mark the profile deleted (grace-period flag). RLS allows this via
   // the "users can update their own profile" policy from 0001.
+  // `.is("deleted_at", null)` so a double-submit can't re-stamp an
+  // account that is already deleted. This form has no pending-state
+  // guard, and re-stamping would move profiles.deleted_at while the
+  // oracle cascade below (correctly filtered to rows not yet deleted)
+  // leaves the identities on the FIRST stamp. The restore paths match
+  // oracles on the profile's stamp, so the two would no longer line
+  // up and a paid restore would miss every identity — leaving them on
+  // a purge countdown the user just paid to cancel. The mobile and
+  // admin delete paths carry the same filter for the same reason.
   const { error: profileErr } = await supabase
     .from("profiles")
     .update({ deleted_at: now })
-    .eq("id", user.id);
+    .eq("id", user.id)
+    .is("deleted_at", null);
   if (profileErr) {
     redirectWithError(
       "/settings/delete",
@@ -52,10 +62,28 @@ export async function deleteAccount(formData: FormData) {
 
   // Cascade the delete flag to their oracles so nothing lingers on the
   // dashboard mid-signout.
+  //
+  // NEVER the concierge. Adrian is a single shared row that happens to
+  // be owned by an operator's personal account (is_concierge = true,
+  // exactly one row), and every free-tier user talks to that same row.
+  // Filtering it out was already the rule in permanentDeleteIdentity
+  // and dev/reset-user; this cascade was one of the two that missed it.
+  //
+  // WHAT THIS FILTER DOES AND DOES NOT DO. It keeps the concierge out
+  // of the soft-delete sweep, so it stays visible and stays off the
+  // 30-day purge countdown that 0136 introduces. It does NOT save the
+  // concierge from an account purge: that path calls
+  // auth.admin.deleteUser, and oracles.user_id references auth.users
+  // ON DELETE CASCADE, which takes every row the operator owns
+  // regardless of this or any other column. The real guard for that
+  // lives in api/cron/purge (it refuses to purge an account that owns
+  // the concierge); the real FIX is that a shared row should not be
+  // owned by a personal account at all.
   await supabase
     .from("oracles")
     .update({ deleted_at: now })
     .eq("user_id", user.id)
+    .eq("is_concierge", false)
     .is("deleted_at", null);
 
   // Farewell email — best-effort, non-blocking. Supabase doesn't have a
