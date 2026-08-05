@@ -26,7 +26,10 @@ import {
   type LegacySubject,
 } from "@/lib/legacy/synthesize";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { recordPendingPaymentOrThrow } from "@/lib/billing/pendingPayment";
+import {
+  findReusableCheckout,
+  recordPendingPaymentOrThrow,
+} from "@/lib/billing/pendingPayment";
 import { createClient } from "@/lib/supabase/server";
 import { randomUUID } from "node:crypto";
 
@@ -291,6 +294,26 @@ export async function completeLegacyIdentity(payload: {
     const host = headerList.get("host") ?? "chapter3five.app";
     const proto = headerList.get("x-forwarded-proto") ?? "https";
     const origin = `${proto}://${host}`;
+
+    // Dedupe against a session already in flight — the credit is
+    // granted by the webhook, so a user bounced back before it lands
+    // still reads 0 here and would be charged a second $5. Same shape
+    // as the redeem gate; see findReusableCheckout.
+    const reusableMint = await findReusableCheckout({
+      admin: createAdminClient(),
+      stripe: getStripe(),
+      userId: user.id,
+      purpose: "other_identity_create",
+    });
+    if (reusableMint.kind === "paid_pending_grant") {
+      redirectWithError(
+        "/identity/legacy/new",
+        "Your payment went through — it's being applied right now. Give it a few seconds and hit Finish again. Your answers are saved.",
+      );
+    }
+    if (reusableMint.kind === "open") {
+      redirect(reusableMint.url);
+    }
 
     let checkoutUrl: string | null = null;
     try {

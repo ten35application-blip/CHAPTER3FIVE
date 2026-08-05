@@ -3,6 +3,83 @@ import type Stripe from "stripe";
 import { NextResponse } from "next/server";
 
 /**
+ * Dedupe an inline checkout gate against a session the user already
+ * has in flight.
+ *
+ * THE WINDOW THIS CLOSES. The redeem and other-mode-mint gates create
+ * a Stripe session inline when the credit balance reads 0. But the
+ * balance is granted by the WEBHOOK, asynchronously — so a user who
+ * pays and is bounced back before the webhook lands still reads 0,
+ * re-submits, and the gate happily creates a SECOND session. They pay
+ * $5 twice and end up holding a spare credit, not a refund. (Fable
+ * legacy-domain audit, finding 4.)
+ *
+ * Before creating a session, callers ask here whether a recent
+ * pending row for (user, purpose) already resolves the situation:
+ *
+ *   'paid_pending_grant' — a recent session is PAID and the webhook
+ *       just hasn't granted yet. Don't charge again; tell the user
+ *       their payment landed and to retry in a few seconds.
+ *   'open' — a recent session is still open (they closed the tab, or
+ *       double-submitted). Reuse ITS url instead of minting another,
+ *       so there is never more than one live checkout per purpose.
+ *   'none' — nothing reusable; create a session as before.
+ *
+ * Fail-open on every error: a Stripe/DB hiccup here must never block
+ * a legitimate first purchase. The worst case of failing open is the
+ * pre-existing behavior (a duplicate session), never a lost payment.
+ * Window: 30 minutes — Stripe sessions live 24h, but a stale
+ * yesterday-session shouldn't hijack today's genuine retry.
+ */
+export async function findReusableCheckout(opts: {
+  admin: SupabaseClient;
+  stripe: Stripe;
+  userId: string;
+  purpose: string;
+}): Promise<
+  | { kind: "paid_pending_grant" }
+  | { kind: "open"; url: string }
+  | { kind: "none" }
+> {
+  const { admin, stripe, userId, purpose } = opts;
+  try {
+    const cutoff = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    const { data: recent } = await admin
+      .from("payments")
+      .select("stripe_session_id")
+      .eq("user_id", userId)
+      .eq("purpose", purpose)
+      .eq("status", "pending")
+      .gte("created_at", cutoff)
+      .order("created_at", { ascending: false })
+      .limit(3);
+
+    for (const row of recent ?? []) {
+      if (!row.stripe_session_id) continue;
+      try {
+        const session = await stripe.checkout.sessions.retrieve(
+          row.stripe_session_id as string,
+        );
+        if (session.payment_status === "paid") {
+          return { kind: "paid_pending_grant" };
+        }
+        if (session.status === "open" && session.url) {
+          return { kind: "open", url: session.url };
+        }
+      } catch (err) {
+        console.error(
+          `[billing] reusable-checkout retrieve failed for ${row.stripe_session_id}:`,
+          err,
+        );
+      }
+    }
+  } catch (err) {
+    console.error("[billing] reusable-checkout lookup failed:", err);
+  }
+  return { kind: "none" };
+}
+
+/**
  * Shared insert + failure handling. Extracted so
  * recordPendingPayment (API-route shape) and
  * recordPendingPaymentOrThrow (server-action shape) share the exact

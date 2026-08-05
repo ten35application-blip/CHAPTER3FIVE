@@ -17,7 +17,10 @@ import {
   REDEEM_RATE_LIMIT_MESSAGE,
   tooManyRedeemAttempts,
 } from "@/lib/legacy/redeemLimit";
-import { recordPendingPaymentOrThrow } from "@/lib/billing/pendingPayment";
+import {
+  findReusableCheckout,
+  recordPendingPaymentOrThrow,
+} from "@/lib/billing/pendingPayment";
 import { createClient } from "@/lib/supabase/server";
 import {
   consumeInheritedSlotCredit,
@@ -249,6 +252,26 @@ export async function redeemInheritCode(rawCode: string): Promise<void> {
     const host = headerList.get("host") ?? "chapter3five.app";
     const proto = headerList.get("x-forwarded-proto") ?? "https";
     const origin = `${proto}://${host}`;
+
+    // Dedupe against a session already in flight — the credit is
+    // granted by the webhook, so a user bounced back before it lands
+    // still reads 0 here and would be charged a second $5. See
+    // findReusableCheckout for the full story.
+    const reusable = await findReusableCheckout({
+      admin: createAdminClient(),
+      stripe: getStripe(),
+      userId: user.id,
+      purpose: "inherited_slot_purchase",
+    });
+    if (reusable.kind === "paid_pending_grant") {
+      redirectWithError(
+        "/identity/inherit",
+        "Your payment went through — it's being applied right now. Give it a few seconds and enter the code again.",
+      );
+    }
+    if (reusable.kind === "open") {
+      redirect(reusable.url);
+    }
 
     let checkoutUrl: string | null = null;
     try {

@@ -1,7 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getRequestAuth } from "@/lib/api/mobileAuth";
 import { isAdmin } from "@/lib/admin/allowlist";
-import { recordPendingPaymentOrThrow } from "@/lib/billing/pendingPayment";
+import {
+  findReusableCheckout,
+  recordPendingPaymentOrThrow,
+} from "@/lib/billing/pendingPayment";
 import { SynthesisError } from "@/lib/identity/synthesize";
 import { requireTermsAccepted } from "@/lib/legal/gate";
 import { fingerprintLegacyAnswers } from "@/lib/legacy/fingerprint";
@@ -137,6 +140,30 @@ export async function POST(request: NextRequest) {
     const host = request.headers.get("host") ?? "chapter3five.app";
     const proto = request.headers.get("x-forwarded-proto") ?? "https";
     const origin = `${proto}://${host}`;
+
+    // Dedupe against a session already in flight — mirrors the web
+    // twin; see findReusableCheckout for the double-charge window.
+    const reusableMint = await findReusableCheckout({
+      admin: createAdminClient(),
+      stripe: getStripe(),
+      userId: user.id,
+      purpose: "other_identity_create",
+    });
+    if (reusableMint.kind === "paid_pending_grant") {
+      return NextResponse.json(
+        {
+          error:
+            "Your payment went through — it's being applied right now. Give it a few seconds and hit Finish again. Your answers are saved.",
+        },
+        { status: 409 },
+      );
+    }
+    if (reusableMint.kind === "open") {
+      return NextResponse.json(
+        { needs_payment: true, checkout_url: reusableMint.url },
+        { status: 402 },
+      );
+    }
 
     try {
       const stripe = getStripe();

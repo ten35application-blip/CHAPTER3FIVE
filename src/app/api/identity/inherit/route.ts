@@ -15,7 +15,10 @@ import {
 import { PRICING } from "@/lib/pricing";
 import { getStripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { recordPendingPaymentOrThrow } from "@/lib/billing/pendingPayment";
+import {
+  findReusableCheckout,
+  recordPendingPaymentOrThrow,
+} from "@/lib/billing/pendingPayment";
 import {
   consumeInheritedSlotCredit,
   getInheritedSlotCredits,
@@ -177,6 +180,33 @@ export async function POST(request: NextRequest) {
     const host = headerList.get("host") ?? "chapter3five.app";
     const proto = headerList.get("x-forwarded-proto") ?? "https";
     const origin = `${proto}://${host}`;
+
+    // Dedupe against a session already in flight — the credit is
+    // granted by the webhook, so a user bounced back before it lands
+    // still reads 0 here and would be charged a second $5. Mirrors the
+    // web twin; see findReusableCheckout.
+    const reusable = await findReusableCheckout({
+      admin,
+      stripe: getStripe(),
+      userId: user.id,
+      purpose: "inherited_slot_purchase",
+    });
+    if (reusable.kind === "paid_pending_grant") {
+      return NextResponse.json(
+        {
+          error:
+            "Your payment went through — it's being applied right now. Give it a few seconds and try the code again.",
+        },
+        { status: 409 },
+      );
+    }
+    if (reusable.kind === "open") {
+      return NextResponse.json(
+        { needs_payment: true, checkout_url: reusable.url },
+        { status: 402 },
+      );
+    }
+
     try {
       const stripe = getStripe();
       const session = await stripe.checkout.sessions.create({
