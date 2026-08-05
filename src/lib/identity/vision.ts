@@ -239,20 +239,36 @@ export async function analyzePhotoForIdentity(
     );
   }
 
-  const toAdultAge = (v: unknown): number | null => {
+  const toFiniteAge = (v: unknown): number | null => {
     const n = typeof v === "number" ? v : Number(v);
-    if (!Number.isFinite(n)) return null;
-    return Math.min(100, Math.max(18, Math.round(n)));
+    return Number.isFinite(n) ? Math.round(n) : null;
   };
-  let ageMin = toAdultAge(obj.perceivedAgeMin);
-  let ageMax = toAdultAge(obj.perceivedAgeMax);
-  if (ageMin === null || ageMax === null) {
+  let rawMin = toFiniteAge(obj.perceivedAgeMin);
+  let rawMax = toFiniteAge(obj.perceivedAgeMax);
+  if (rawMin === null || rawMax === null) {
     throw new VisionAnalysisError(
       "perceived age range missing or non-numeric",
       "malformed",
     );
   }
-  if (ageMin > ageMax) [ageMin, ageMax] = [ageMax, ageMin];
+  if (rawMin > rawMax) [rawMin, rawMax] = [rawMax, rawMin];
+
+  // THE AGE GATE RUNS ON THE RAW NUMBERS, BEFORE ANY CLAMP. The first
+  // version of this validator clamped into [18,100] and then let the
+  // boolean gate below run alone — which destroyed the one
+  // corroborating signal that could catch a bad boolean. A response of
+  // {perceivedAgeMin: 14, perceivedAgeMax: 16, apparentMinor: false}
+  // was fully "valid": the ages silently became 18/18 and the gate
+  // passed. If the model's own age estimate says the person could be
+  // under 18, that IS the minor signal, whatever the boolean claims.
+  // Err on the side of true — same rule the system prompt gives the
+  // model itself.
+  if (rawMax < 18) {
+    throw new VisionAnalysisError("person appears to be a minor", "minor");
+  }
+
+  const ageMin = Math.min(100, Math.max(18, rawMin));
+  const ageMax = Math.min(100, Math.max(18, rawMax));
 
   const pickEnum = <T extends readonly string[]>(
     v: unknown,
