@@ -189,7 +189,7 @@ export async function analyzePhotoForIdentity(
   // output_config (which enforced pure-JSON output) — the model
   // usually complies with the "no fences, no prose" instruction, but
   // an occasional preamble shouldn't fail the whole call.
-  let parsed: VisionAnalysis;
+  let parsed: unknown;
   try {
     let raw = textBlock.text.trim();
     if (raw.startsWith("```")) {
@@ -200,21 +200,116 @@ export async function analyzePhotoForIdentity(
     if (firstBrace >= 0 && lastBrace > firstBrace) {
       raw = raw.slice(firstBrace, lastBrace + 1);
     }
-    parsed = JSON.parse(raw) as VisionAnalysis;
+    parsed = JSON.parse(raw);
   } catch {
     throw new VisionAnalysisError("response was not valid JSON", "malformed");
   }
 
+  // VALIDATE, don't cast. When output_config was dropped (2026-08-04)
+  // nothing enforced the schema anymore, and the old `as
+  // VisionAnalysis` cast let whatever the model produced flow through
+  // typed code untouched. Three distinct failure classes rode on that:
+  //   - non-numeric ages → birthdayForPerceivedAge computes NaN → a
+  //     "NaN-MM-DD" birthday persisted in traits, poisoning every
+  //     later age read;
+  //   - off-enum style/height → STYLE_HINTS[...] is undefined →
+  //     capitalize(undefined) throws in buildFacePrompt and face
+  //     generation is permanently `failed` for that oracle;
+  //   - and worst: the MINOR-SAFETY GATE below read the raw value. A
+  //     missing apparentMinor field is undefined — falsy — so the
+  //     under-18 check silently passed on exactly the responses least
+  //     worth trusting.
+  // Booleans are strict (a safety gate must never run on garbage —
+  // anything but a real boolean is "malformed", which fails closed).
+  // Cosmetic enums coerce to the prompt's own documented
+  // when-unclear defaults instead of failing a creation the user
+  // already waited on.
+  const obj = (parsed ?? {}) as Record<string, unknown>;
+
+  if (typeof obj.apparentMinor !== "boolean") {
+    throw new VisionAnalysisError(
+      "apparentMinor missing or non-boolean — refusing to run the minor gate on unvalidated output",
+      "malformed",
+    );
+  }
+  if (typeof obj.isUsablePortrait !== "boolean") {
+    throw new VisionAnalysisError(
+      "isUsablePortrait missing or non-boolean",
+      "malformed",
+    );
+  }
+
+  const toAdultAge = (v: unknown): number | null => {
+    const n = typeof v === "number" ? v : Number(v);
+    if (!Number.isFinite(n)) return null;
+    return Math.min(100, Math.max(18, Math.round(n)));
+  };
+  let ageMin = toAdultAge(obj.perceivedAgeMin);
+  let ageMax = toAdultAge(obj.perceivedAgeMax);
+  if (ageMin === null || ageMax === null) {
+    throw new VisionAnalysisError(
+      "perceived age range missing or non-numeric",
+      "malformed",
+    );
+  }
+  if (ageMin > ageMax) [ageMin, ageMax] = [ageMax, ageMin];
+
+  const pickEnum = <T extends readonly string[]>(
+    v: unknown,
+    allowed: T,
+    fallback: T[number],
+    label: string,
+  ): T[number] => {
+    if (typeof v === "string" && (allowed as readonly string[]).includes(v)) {
+      return v as T[number];
+    }
+    console.warn(
+      `[vision] off-enum ${label} ${JSON.stringify(v)} — coercing to "${fallback}"`,
+    );
+    return fallback;
+  };
+
+  const analysis: VisionAnalysis = {
+    isUsablePortrait: obj.isUsablePortrait,
+    apparentMinor: obj.apparentMinor,
+    perceivedAgeMin: ageMin,
+    perceivedAgeMax: ageMax,
+    // Fallbacks are the system prompt's own when-unclear instructions.
+    gender: pickEnum(obj.gender, GENDERS, "Prefer not to disclose", "gender"),
+    cultural: pickEnum(
+      obj.cultural,
+      CULTURAL_BACKGROUNDS,
+      "Mixed heritage",
+      "cultural",
+    ),
+    heightRange: pickEnum(
+      obj.heightRange,
+      HEIGHT_RANGES,
+      "Average (5'4\"–5'9\")",
+      "heightRange",
+    ),
+    styleAesthetic: pickEnum(
+      obj.styleAesthetic,
+      STYLE_AESTHETICS,
+      "Jeans and a good t-shirt",
+      "styleAesthetic",
+    ),
+    moodExpression:
+      typeof obj.moodExpression === "string"
+        ? obj.moodExpression.slice(0, 200)
+        : "",
+  };
+
   // Safety gate #2: person must be a discernible adult.
-  if (parsed.apparentMinor) {
+  if (analysis.apparentMinor) {
     throw new VisionAnalysisError("person appears to be a minor", "minor");
   }
-  if (!parsed.isUsablePortrait) {
+  if (!analysis.isUsablePortrait) {
     throw new VisionAnalysisError(
       "no clear human face in the photo",
       "not_a_portrait",
     );
   }
 
-  return parsed;
+  return analysis;
 }
