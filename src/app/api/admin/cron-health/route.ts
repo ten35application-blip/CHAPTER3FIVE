@@ -32,7 +32,10 @@ const JOBS: Record<string, { cadenceHours: number; graceHours: number }> = {
   // is daily; the readout tracks invocation cadence.
   "check-in":          { cadenceHours: 24, graceHours: 48 },
   "persona-outreach":  { cadenceHours: 24, graceHours: 48 },
-  passing:             { cadenceHours: 24, graceHours: 48 },
+  // passing was deliberately unscheduled 2026-08-04 (see the header of
+  // api/cron/passing/route.ts — inherit codes are live from mint, so
+  // nothing needs to detect a death). Tracking it here would flag a
+  // permanent false "stale" the day the readout starts working.
 };
 
 export async function GET() {
@@ -51,19 +54,39 @@ export async function GET() {
 
   const results = await Promise.all(
     Object.entries(JOBS).map(async ([job, { cadenceHours, graceHours }]) => {
-      const { data: latest } = await admin
+      // ran_at, NOT created_at — cron_runs is
+      // (id, job, ran_at, status, processed, error, duration_ms) per
+      // migration 0020. Selecting created_at returned PostgREST 42703
+      // on every job; the error was discarded, data came back null, and
+      // all eight jobs reported never_run/stale regardless of whether
+      // they had run.
+      const { data: latest, error: latestErr } = await admin
         .from("cron_runs")
-        .select("processed, duration_ms, status, error, created_at")
+        .select("processed, duration_ms, status, error, ran_at")
         .eq("job", job)
-        .order("created_at", { ascending: false })
+        .order("ran_at", { ascending: false })
         .limit(1)
         .maybeSingle<{
           processed: number | null;
           duration_ms: number | null;
           status: string | null;
           error: string | null;
-          created_at: string;
+          ran_at: string;
         }>();
+
+      // Don't let a query failure masquerade as "this job never ran" —
+      // that's the shape of the bug above.
+      if (latestErr) {
+        return {
+          job,
+          status: "unknown" as const,
+          cadence_hours: cadenceHours,
+          last_run: null,
+          hours_since_last: null,
+          error: `cron_runs query failed: ${latestErr.message}`,
+          stale: true,
+        };
+      }
 
       if (!latest) {
         return {
@@ -77,13 +100,13 @@ export async function GET() {
       }
 
       const hoursSince =
-        (Date.now() - new Date(latest.created_at).getTime()) / (1000 * 60 * 60);
+        (Date.now() - new Date(latest.ran_at).getTime()) / (1000 * 60 * 60);
       const stale = hoursSince > graceHours;
 
       return {
         job,
         cadence_hours: cadenceHours,
-        last_run: latest.created_at,
+        last_run: latest.ran_at,
         hours_since_last: Math.round(hoursSince * 10) / 10,
         status: latest.status ?? "unknown",
         error: latest.error,

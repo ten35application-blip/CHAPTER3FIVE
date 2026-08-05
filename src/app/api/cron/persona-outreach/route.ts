@@ -81,8 +81,14 @@ export async function GET(request: NextRequest) {
     .limit(BATCH_LIMIT);
 
   if (error) {
+    // 'persona-outreach', hyphenated — this job wrote 'persona_outreach'
+    // while every readout keys on the hyphen (and so does the route
+    // path and vercel.json), so its heartbeats landed under a name
+    // nothing looked at and it showed as never-run. Migration 0135
+    // renames the rows already written. Grep before changing this
+    // string: it is a join key, not a label.
     await admin.from("cron_runs").insert({
-      job: "persona_outreach",
+      job: "persona-outreach",
       status: "error",
       error: error.message,
       duration_ms: Date.now() - startedAt,
@@ -91,7 +97,7 @@ export async function GET(request: NextRequest) {
   }
   if (!candidates || candidates.length === 0) {
     await admin.from("cron_runs").insert({
-      job: "persona_outreach",
+      job: "persona-outreach",
       processed: 0,
       duration_ms: Date.now() - startedAt,
     });
@@ -508,7 +514,7 @@ export async function GET(request: NextRequest) {
   }
 
   await admin.from("cron_runs").insert({
-    job: "persona_outreach",
+    job: "persona-outreach",
     processed: sent,
     duration_ms: Date.now() - startedAt,
   });

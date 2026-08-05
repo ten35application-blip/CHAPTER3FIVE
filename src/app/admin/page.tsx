@@ -226,22 +226,28 @@ export default async function AdminOverviewPage() {
     .slice(0, 5);
   const topSpendUserCents = [...spendByUser.values()].sort((a, b) => b - a)[0] ?? 0;
 
-  // Cron heartbeat: last row per configured job.
+  // Cron heartbeat: last row per configured job. The timestamp column
+  // is ran_at (migration 0020) — selecting created_at made PostgREST
+  // reject the whole query, so every job showed as stale.
   const { data: cronRows } = await supabase
     .from("cron_runs")
-    .select("job, status, created_at, error")
-    .order("created_at", { ascending: false })
+    .select("job, status, ran_at, error")
+    .order("ran_at", { ascending: false })
     .limit(200);
   type CronRow = {
     job: string;
     status: string | null;
-    created_at: string;
+    ran_at: string;
     error: string | null;
   };
   const latestByJob = new Map<string, CronRow>();
   for (const row of (cronRows ?? []) as CronRow[]) {
     if (!latestByJob.has(row.job)) latestByJob.set(row.job, row);
   }
+  // passing intentionally absent: unscheduled 2026-08-04 (inherit codes
+  // are live from mint — see api/cron/passing/route.ts header). reflect
+  // runs WEEKLY (vercel.json: Sundays), so it gets its own grace — a
+  // flat 48h would flag it stale five days out of every seven.
   const cronJobList = [
     "outreach",
     "proactive",
@@ -250,15 +256,13 @@ export default async function AdminOverviewPage() {
     "anniversaries",
     "check-in",
     "persona-outreach",
-    "passing",
   ];
+  const graceMsFor = (job: string) =>
+    (job === "reflect" ? 9 * 24 : 48) * 60 * 60 * 1000;
   const staleCrons = cronJobList.filter((job) => {
     const row = latestByJob.get(job);
     if (!row) return true;
-    // Vercel Hobby caps at once-per-day so all crons are daily-
-    // invoked. 48h grace = 2× cadence.
-    const graceMs = 48 * 60 * 60 * 1000;
-    return Date.now() - new Date(row.created_at).getTime() > graceMs;
+    return Date.now() - new Date(row.ran_at).getTime() > graceMsFor(job);
   });
   const erroredCrons = cronJobList.filter(
     (job) => latestByJob.get(job)?.status === "error",

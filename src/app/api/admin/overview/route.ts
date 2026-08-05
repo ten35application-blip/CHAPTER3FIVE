@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/api/adminAuth";
-import { ADMIN_EMAILS, isAdmin } from "@/lib/admin/allowlist";
+import { ADMIN_EMAILS } from "@/lib/admin/allowlist";
 import {
   daysAgo,
   fetchPaidPayments,
@@ -217,22 +217,26 @@ export async function GET(request: Request) {
     .map(([route, cents]) => ({ route, cents }));
   const topUserCents = [...spendByUser.values()].sort((a, b) => b - a)[0] ?? 0;
 
-  // Cron heartbeat.
+  // Cron heartbeat. Timestamp column is ran_at (migration 0020);
+  // created_at doesn't exist and made the query fail outright.
   const { data: cronRows } = await supabase
     .from("cron_runs")
-    .select("job, status, created_at, error")
-    .order("created_at", { ascending: false })
+    .select("job, status, ran_at, error")
+    .order("ran_at", { ascending: false })
     .limit(200);
   type CronRow = {
     job: string;
     status: string | null;
-    created_at: string;
+    ran_at: string;
     error: string | null;
   };
   const latestByJob = new Map<string, CronRow>();
   for (const row of (cronRows ?? []) as CronRow[]) {
     if (!latestByJob.has(row.job)) latestByJob.set(row.job, row);
   }
+  // passing intentionally absent (unscheduled 2026-08-04 — see
+  // api/cron/passing/route.ts header); reflect is weekly so it gets a
+  // 9-day grace instead of the daily jobs' 48h. Mirrors admin/page.tsx.
   const cronJobList = [
     "outreach",
     "proactive",
@@ -241,13 +245,13 @@ export async function GET(request: Request) {
     "anniversaries",
     "check-in",
     "persona-outreach",
-    "passing",
   ];
-  const graceMs = 48 * 60 * 60 * 1000;
+  const graceMsFor = (job: string) =>
+    (job === "reflect" ? 9 * 24 : 48) * 60 * 60 * 1000;
   const stale = cronJobList.filter((job) => {
     const row = latestByJob.get(job);
     if (!row) return true;
-    return Date.now() - new Date(row.created_at).getTime() > graceMs;
+    return Date.now() - new Date(row.ran_at).getTime() > graceMsFor(job);
   });
   const errored = cronJobList.filter(
     (job) => latestByJob.get(job)?.status === "error",

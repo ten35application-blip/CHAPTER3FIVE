@@ -248,10 +248,32 @@ ${variety}`;
   // Which means the cron-health readout has been showing check-in as
   // never-run since the day it shipped, and would have shown exactly the
   // same thing if it had genuinely been dead.
+  //
+  // `status` is likewise constrained: 0020 declares
+  // check (status in ('ok', 'error')) and no migration has widened it.
+  // 'partial' would fail the constraint on exactly the runs that had
+  // failures — clean runs heartbeat, broken runs stay invisible, and
+  // the readout reads green while the job is erroring. Peer crons
+  // (passing, anniversaries) use 'error' for the same case; so do we.
+  //
+  // A budget-truncated run is NOT an error — the rows it skipped get
+  // picked up next run — so it stays 'ok'. But it isn't a clean run
+  // either, and 5-of-50 processed must not be indistinguishable from a
+  // light healthy day. There is no metadata column to put that in, so
+  // the count goes in `error` as a note; only `status` drives the
+  // errored/degraded verdict in the admin readouts.
+  const notes: string[] = [];
+  if (skippedForTime > 0) {
+    notes.push(
+      `budget exhausted: ${skippedForTime} of ${rows?.length ?? 0} rows skipped for time`,
+    );
+  }
+  notes.push(...failures);
+
   const { error: heartbeatErr } = await admin.from("cron_runs").insert({
     job: "check-in",
-    status: failures.length > 0 ? "partial" : "ok",
-    error: failures.length > 0 ? failures.join("; ").slice(0, 800) : null,
+    status: failures.length > 0 ? "error" : "ok",
+    error: notes.length > 0 ? notes.join("; ").slice(0, 800) : null,
     duration_ms: Date.now() - startedAt,
     processed: sent,
   });
@@ -260,9 +282,12 @@ ${variety}`;
     console.error("[cron/check-in] heartbeat insert failed:", heartbeatErr);
   }
 
+  // `processed` used to appear here meaning "rows we looked at" while
+  // the heartbeat's `processed` meant "messages sent" — same word, two
+  // numbers. The candidate count is named for what it is instead.
   return NextResponse.json({
     skippedForTime,
-    processed: rows?.length ?? 0,
+    candidates: rows?.length ?? 0,
     sent,
     failures: failures.length,
   });
