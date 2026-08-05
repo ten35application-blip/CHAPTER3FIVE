@@ -142,7 +142,14 @@ export async function createIdentity(): Promise<void> {
       // openers/outreach can reference it consistently.
       texting_fluency: traits.textingFluency ?? null,
       pet_name: persona.pet_name ?? null,
-      creation_source: "randomize",
+      // 'random', NOT 'randomize' — the 0060/0112 CHECK constraint
+      // allows only ('random','photo','legacy','inherited'). The
+      // 'randomize' value shipped 2026-07-27 violated it, so EVERY
+      // formula-identity insert 23514'd after the ~30s synthesis had
+      // already run and been paid for. Formula creation was dead in
+      // production for nine days and the retry button re-ran the same
+      // doomed insert. autoPopulate.ts always wrote 'random' correctly.
+      creation_source: "random",
     })
     .select("id")
     .single();

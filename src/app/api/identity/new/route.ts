@@ -141,7 +141,12 @@ export async function POST(request: NextRequest) {
       voice_examples: persona.voice_examples,
       texting_fluency: traits.textingFluency ?? null,
       pet_name: persona.pet_name ?? null,
-      creation_source: "randomize",
+      // 'random', NOT 'randomize' — the 0060/0112 CHECK constraint
+      // allows only ('random','photo','legacy','inherited'). See the
+      // matching comment in (gated)/identity/new/actions.ts: the
+      // 'randomize' value made every formula insert fail 23514 after
+      // the synthesis had already run. Both twins fixed together.
+      creation_source: "random",
     })
     .select("id")
     .single();
