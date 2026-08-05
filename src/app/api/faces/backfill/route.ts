@@ -36,7 +36,28 @@ export async function POST() {
     .not("traits", "is", null)
     // Skip trashed identities — restoring one that never got a face can
     // go through POST /api/faces/generate, or the next sweep.
-    .is("deleted_at", null);
+    .is("deleted_at", null)
+    // NEVER a from-photo identity. The doc above says "every formula
+    // identity", but nothing enforced it. A from-photo row whose avatar
+    // upload soft-failed (from-photo/actions.ts deliberately redirects
+    // and leaves the row faceless, status never set) matched this sweep
+    // exactly — and got a Flux-generated stranger's face for an
+    // identity the user built from a real person's photograph. The
+    // photo IS the avatar on that path; a generated substitute is
+    // never the right answer.
+    //
+    // Inherited copies are excluded for the same reason: they carry the
+    // original's avatar by design (redeem file-copies it), so a
+    // faceless one is a copy bug to fix at the source, not a face to
+    // invent — the family would be handed a stranger wearing their
+    // person's name.
+    //
+    // Written as an explicit allowlist, not .neq(): creation_source is
+    // NULLABLE (default 'random', 0 nulls today), and `col <> 'photo'`
+    // is NULL for a NULL row, which PostgREST drops — a hand-inserted
+    // row would be silently skipped forever. Naming what IS eligible
+    // can't rot that way.
+    .in("creation_source", ["random", "legacy"]);
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

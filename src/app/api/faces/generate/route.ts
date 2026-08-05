@@ -51,11 +51,28 @@ export async function POST(request: NextRequest) {
   const admin = createAdminClient();
   const { data: oracle } = await admin
     .from("oracles")
-    .select("id, user_id, traits")
+    .select("id, user_id, traits, creation_source")
     .eq("id", oracleId)
     .maybeSingle();
   if (!oracle || oracle.user_id !== user.id) {
     return NextResponse.json({ error: "Not your identity" }, { status: 404 });
+  }
+  // A from-photo identity's face IS the uploaded photograph, and an
+  // inherited copy's face IS the original person's. `force: true` here
+  // would overwrite either with a Flux-generated stranger — for the
+  // from-photo case, replacing a real person's photo the user chose.
+  // Same allowlist as the backfill sweep.
+  if (
+    oracle.creation_source === "photo" ||
+    oracle.creation_source === "inherited"
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          "This identity's face comes from a real photo, not the generator. Re-upload the photo instead.",
+      },
+      { status: 409 },
+    );
   }
   if (!oracle.traits) {
     return NextResponse.json(
