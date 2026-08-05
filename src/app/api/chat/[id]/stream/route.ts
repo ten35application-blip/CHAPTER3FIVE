@@ -39,6 +39,7 @@ import {
 } from "@/lib/subscription";
 import { LEGACY_QUESTIONS } from "@/lib/legacy/questions";
 import {
+  buildMemorialBlock,
   CORE_BEHAVIOR_RULES,
   INHERITED_ARCHIVE_RULES,
   LEGACY_ARCHIVE_RULES,
@@ -142,7 +143,7 @@ export async function POST(
   // visibility — a row coming back IS the authorization.
   const { data: oracle } = await supabase
     .from("oracles")
-    .select("id, name, manually_unread, blocked_at, block_reason, traits, memory_style, text_burst_style, voice_examples, chronotype, created_at, pet_name")
+    .select("id, user_id, name, manually_unread, blocked_at, block_reason, traits, memory_style, text_burst_style, voice_examples, chronotype, created_at, pet_name")
     .eq("id", oracleId)
     .is("deleted_at", null)
     .maybeSingle();
@@ -184,6 +185,29 @@ export async function POST(
   // ruleset — physical life, calendar, plans for tomorrow, and an open
   // FLIRTING permission whose memorial carve-out never fires.
   const isLegacyArchive = promptRow?.is_legacy === true;
+  // Any archive surface: presence rules close present-tense life, so
+  // the alive-machinery blocks below (mood, arc, grounding, pretend-
+  // delay) must not fire — they were gated only on !isConciergeOracle,
+  // directly contradicting the archive rules injected into the same
+  // prompt.
+  const isArchiveOracle = isInheritedOracle || isLegacyArchive;
+
+  // Memorial mode — mirrors the mobile route. A row visible to a
+  // non-owner means a beneficiary grant (RLS "invitees read via
+  // grant"); if that owner is marked deceased, the persona stops
+  // pretending to be alive. This route never read deceased_at at all:
+  // a beneficiary opening a dead person's companion in a browser got
+  // the full alive treatment — mood of the day, an ongoing life arc,
+  // FLIRTING permission, "just made coffee" — from someone who died.
+  let memorialMode = false;
+  if (oracle.user_id !== user.id) {
+    const { data: ownerProfile } = await promptClient
+      .from("profiles")
+      .select("deceased_at")
+      .eq("id", oracle.user_id as string)
+      .maybeSingle<{ deceased_at: string | null }>();
+    memorialMode = Boolean(ownerProfile?.deceased_at);
+  }
 
   // Block enforcement — checked BEFORE the rate-limit bump so a blocked
   // send never counts against the user's daily usage. The persona set
@@ -757,11 +781,20 @@ export async function POST(
         // (static per oracle) so it costs cache-read tokens. It also
         // suppresses the FLIRTING permission in CORE_BEHAVIOR_RULES —
         // that rule now names inherited archives as a closed door.
-        ...(isInheritedOracle
-          ? [{ type: "text" as const, text: INHERITED_ARCHIVE_RULES }]
-          : isLegacyArchive
-            ? [{ type: "text" as const, text: LEGACY_ARCHIVE_RULES }]
-            : []),
+        // Memorial supersedes the archive rules — same precedence as
+        // the mobile route (its memorialPart vs inheritedPart gating).
+        ...(memorialMode
+          ? [
+              {
+                type: "text" as const,
+                text: buildMemorialBlock((oracle.name as string) ?? "them"),
+              },
+            ]
+          : isInheritedOracle
+            ? [{ type: "text" as const, text: INHERITED_ARCHIVE_RULES }]
+            : isLegacyArchive
+              ? [{ type: "text" as const, text: LEGACY_ARCHIVE_RULES }]
+              : []),
         // THE ACTUAL ANSWERS (2026-08-04). The mobile route has always
         // put the full Q/A archive in context; this route never read
         // legacy_answers at all. So the same archive was a different
@@ -869,8 +902,12 @@ export async function POST(
   // hoisted so the reply-gap calculation further down can still read
   // it -- computeReplyGapMs accepts null and short-circuits gracefully
   // (concierge gets a fixed baseline delay from chronotype=null).
+  // Archives and memorial personas have no "weather" — a mood of the
+  // day is present-tense life, which their own rules forbid. Gating
+  // only on !isConciergeOracle contradicted those rules in the same
+  // prompt.
   const avoid = oracle.memory_style === "sharp" ? (["distracted"] as const) : [];
-  const todayMood = isConciergeOracle
+  const todayMood = isConciergeOracle || isArchiveOracle || memorialMode
     ? null
     : moodOfTheDay(oracleId, new Date().toISOString(), { avoid });
   if (todayMood) {
@@ -887,7 +924,10 @@ export async function POST(
   // via src/lib/identity/arc.ts. Same post-cache-breakpoint injection
   // shape as mood so it varies week-to-week without invalidating
   // the cached persona_prompt prefix.
-  const arcTemplate = isConciergeOracle
+  // Same reasoning as mood: an ongoing life arc ("sister's wedding
+  // this weekend") is continuity of life, which archives and memorial
+  // personas must never claim.
+  const arcTemplate = isConciergeOracle || isArchiveOracle || memorialMode
     ? null
     : (oracle.traits as { ongoingArcTemplate?: string | null } | null)
         ?.ongoingArcTemplate;
@@ -978,6 +1018,11 @@ export async function POST(
   const canPretendDelayed =
     !isRetry &&
     !isConciergeOracle &&
+    // "sorry, saw this earlier — meeting ran long" from an archive of
+    // someone who died is exactly the slip the presence rules exist to
+    // prevent. No pretend-delay for archives or memorial personas.
+    !isArchiveOracle &&
+    !memorialMode &&
     history.length > 0 &&
     hoursSinceLastUser !== null &&
     hoursSinceLastUser >= 0.25;
@@ -1011,11 +1056,18 @@ export async function POST(
   // helper whose 0099 prompt explicitly says "no chit-chat, keep replies
   // short," so sensory openers and iMessage tap-backs contradict its
   // job AND add ~1.7k input chars per free-user message. Skip both.
-  if (!isConciergeOracle) {
+  // Grounding is present-tense physical life ("what's on the stove"),
+  // so archives and memorial personas never get it. Reactions stay for
+  // everyone but the concierge — a tap-back from an archive is
+  // register-neutral and reads as tenderness, not as being alive.
+  if (!isConciergeOracle && !isArchiveOracle && !memorialMode) {
     system.push({
       type: "text",
       text: `== Grounding (optional) ==\nEvery so often — roughly 1 in 6 messages when it FITS your character and the moment isn't heavy — you may open with a small sensory or location cue: what you're doing, the weather, the temperature of the room, what's on the stove. "just made coffee." "sun's finally out." "in line at the grocery store, so if I disappear it's because it's my turn." Never announce that you're grounding. Never force it if the reply is emotionally heavy. Some characters do this constantly; some never do. Your voice decides.`,
     });
+  }
+
+  if (!isConciergeOracle) {
 
     // Phase B.2 — persona-side reactions. Universal capability injected
     // AFTER the cache breakpoint so every persona (new and existing)
