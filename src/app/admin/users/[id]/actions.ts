@@ -2,40 +2,72 @@
 
 import { requireAdmin } from "@/lib/admin/guard";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { recordAudit } from "@/lib/notifications";
 import { revalidatePath } from "next/cache";
 
 /**
- * Admin actions — INTENT STUBS. Each verifies the caller is an admin,
- * logs the intent server-side, and returns a success message so the UI
- * flow exists end-to-end. The destructive backends are a follow-up task.
+ * Admin actions — REAL implementations.
  *
- * TODO(0057): when these go live, add supabase/migrations/0057_admin_audit.sql
- * (admin_actions: id, admin_user_id, action_type, target_user_id,
- * target_resource_id, metadata jsonb, created_at; RLS locked to
- * service-role) and insert an audit row inside each action before the
- * destructive call.
+ * These four shipped as console.log stubs that returned { ok: true }
+ * with a "(stub)" message, wired to live buttons on the user detail
+ * page. The admin saw a success toast; nothing happened. Which meant:
+ * there was NO working way, on any surface, to revoke a leaked
+ * inherit code — the mobile API route's revoke case selected
+ * inherit_codes.user_id, a column that does not exist (the table is
+ * id, oracle_id, created_by, code, revoked_at, created_at), so it
+ * 404'd every call. Both halves fixed together.
+ *
+ * Every destructive action writes audit_log via recordAudit — the same
+ * ledger delete-account and the Stripe webhook already use. An admin
+ * action that leaves no trace is unattributable the day a session is
+ * stolen.
+ *
+ * Semantics mirror the mobile twin (api/admin/users/[id]/action):
+ *   - soft-deletes, never hard: the 0136 trigger arms the 30-day
+ *     purge countdown automatically; restore stays possible.
+ *   - accurate no-op messages: a second click reports what is, not
+ *     what the click wished.
+ *   - the shared concierge is untouchable.
  */
 
 export type ActionResult = { ok: boolean; message: string };
 
 export async function deleteUserAction(userId: string): Promise<ActionResult> {
   const admin = await requireAdmin();
+  const service = createAdminClient();
 
-  // Full implementation:
-  //   1. Insert admin_actions audit row (action_type: 'delete_user').
-  //   2. createAdminClient().auth.admin.deleteUser(userId) — FK cascades
-  //      wipe profiles, oracles, messages, payments, inherit_codes, etc.
-  //      (all reference auth.users on delete cascade).
-  //   3. Consider soft-delete first (profiles.deleted_at, 0024 grace
-  //      period) instead of a hard GoTrue delete, to match the consumer
-  //      restore flow.
-  //   4. revalidatePath('/admin/users').
-  console.log(
-    `[admin] ${admin.email} requested DELETE USER ${userId} (stub — no-op)`,
-  );
+  // Only stamp a not-yet-deleted profile — re-stamping desyncs the
+  // oracle-cascade stamp the restore paths match on (see the mobile
+  // twin's delete_user case for the full story).
+  const { data: stamped, error } = await service
+    .from("profiles")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", userId)
+    .is("deleted_at", null)
+    .select("id");
+  if (error) {
+    return { ok: false, message: `Failed: ${error.message}` };
+  }
+  if (!stamped || stamped.length === 0) {
+    return {
+      ok: true,
+      message:
+        "Account was already soft-deleted. Its original 30-day window is still running.",
+    };
+  }
+
+  await recordAudit({
+    actorUserId: admin.id,
+    actorEmail: admin.email ?? null,
+    action: "admin_soft_deleted_user",
+    targetUserId: userId,
+  });
+  revalidatePath(`/admin/users/${userId}`);
+  revalidatePath("/admin/users");
   return {
     ok: true,
-    message: "Delete recorded (stub). Destructive backend lands with the audit-log task.",
+    message:
+      "Account soft-deleted. They'll be signed out on next open; the 30-day purge countdown is running. Undelete restores.",
   };
 }
 
@@ -43,44 +75,171 @@ export async function deleteIdentityAction(
   oracleId: string,
 ): Promise<ActionResult> {
   const admin = await requireAdmin();
+  const service = createAdminClient();
 
-  // Full implementation: audit row, then soft-delete the oracle the same
-  // way the consumer flow does (set oracles.deleted_at = now()) so the
-  // grace-period restore path keeps working; then revalidatePath.
-  console.log(
-    `[admin] ${admin.email} requested DELETE IDENTITY ${oracleId} (stub — no-op)`,
-  );
-  return { ok: true, message: "Identity delete recorded (stub)." };
+  const { data: oracle } = await service
+    .from("oracles")
+    .select("id, user_id, deleted_at, is_concierge")
+    .eq("id", oracleId)
+    .maybeSingle<{
+      id: string;
+      user_id: string;
+      deleted_at: string | null;
+      is_concierge: boolean;
+    }>();
+  if (!oracle) {
+    return { ok: false, message: "Identity not found." };
+  }
+  if (oracle.is_concierge) {
+    return {
+      ok: false,
+      message:
+        "That's the shared concierge — it can't be deleted. Every free-tier user talks to that one row.",
+    };
+  }
+  if (oracle.deleted_at) {
+    return { ok: true, message: "Identity was already deleted." };
+  }
+
+  const { error } = await service
+    .from("oracles")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", oracleId)
+    .eq("is_concierge", false);
+  if (error) {
+    return { ok: false, message: `Failed: ${error.message}` };
+  }
+
+  await recordAudit({
+    actorUserId: admin.id,
+    actorEmail: admin.email ?? null,
+    action: "admin_soft_deleted_identity",
+    targetUserId: oracle.user_id,
+    targetId: oracleId,
+  });
+  revalidatePath(`/admin/users/${oracle.user_id}`);
+  return {
+    ok: true,
+    message: "Identity soft-deleted (30-day recover window).",
+  };
 }
 
 export async function revokeInheritCodeAction(
   codeId: string,
 ): Promise<ActionResult> {
   const admin = await requireAdmin();
+  const service = createAdminClient();
 
-  // Full implementation: audit row, then set inherit_codes.revoked_at =
-  // now() via the service-role client. Already-redeemed copies stay with
-  // their owners — revocation stops NEW redemptions only (matches the
-  // consumer model).
-  console.log(
-    `[admin] ${admin.email} requested REVOKE INHERIT CODE ${codeId} (stub — no-op)`,
-  );
-  return { ok: true, message: "Revoke recorded (stub)." };
+  const { data: code } = await service
+    .from("inherit_codes")
+    .select("id, code, created_by, revoked_at")
+    .eq("id", codeId)
+    .maybeSingle<{
+      id: string;
+      code: string;
+      created_by: string | null;
+      revoked_at: string | null;
+    }>();
+  if (!code) {
+    return { ok: false, message: "Code not found." };
+  }
+  if (code.revoked_at) {
+    return { ok: true, message: "Code was already revoked." };
+  }
+
+  const { error } = await service
+    .from("inherit_codes")
+    .update({ revoked_at: new Date().toISOString() })
+    .eq("id", codeId);
+  if (error) {
+    return { ok: false, message: `Failed: ${error.message}` };
+  }
+
+  await recordAudit({
+    actorUserId: admin.id,
+    actorEmail: admin.email ?? null,
+    action: "admin_revoked_inherit_code",
+    targetUserId: code.created_by,
+    targetId: codeId,
+  });
+  revalidatePath(`/admin/users/${code.created_by ?? ""}`);
+  return {
+    ok: true,
+    message: `Code ${code.code} revoked. Existing redeemed copies stay with their owners; new redemptions stop now.`,
+  };
 }
 
 export async function refundPaymentAction(
   paymentId: string,
 ): Promise<ActionResult> {
   const admin = await requireAdmin();
+  const service = createAdminClient();
 
-  // Full implementation: audit row, then stripe.refunds.create({
-  // payment_intent: payments.stripe_payment_intent_id }) and let the
-  // webhook flip payments.status to 'refunded'. Blocked on Stripe billing
-  // being wired.
-  console.log(
-    `[admin] ${admin.email} requested REFUND PAYMENT ${paymentId} (stub — no-op)`,
-  );
-  return { ok: true, message: "Refund recorded (stub). Needs Stripe wiring." };
+  const { data: payment } = await service
+    .from("payments")
+    .select("id, user_id, amount_cents, status, stripe_payment_intent_id")
+    .eq("id", paymentId)
+    .maybeSingle<{
+      id: string;
+      user_id: string;
+      amount_cents: number;
+      status: string;
+      stripe_payment_intent_id: string | null;
+    }>();
+  if (!payment) {
+    return { ok: false, message: "Payment not found." };
+  }
+  if (payment.status === "refunded") {
+    return { ok: true, message: "Payment was already refunded." };
+  }
+  const stripeSecret = process.env.STRIPE_SECRET_KEY;
+  if (!stripeSecret) {
+    return {
+      ok: false,
+      message:
+        "Stripe isn't wired in this environment, so the refund can't be issued from here.",
+    };
+  }
+  if (!payment.stripe_payment_intent_id) {
+    return {
+      ok: false,
+      message:
+        "This payment row has no Stripe PaymentIntent id — nothing to refund.",
+    };
+  }
+
+  // Late import so cold-start doesn't pay for Stripe on every admin
+  // page load. The charge.refunded webhook flips payments.status and
+  // claws back the granted credits — same path a Dashboard refund
+  // takes, one implementation to trust.
+  try {
+    const { default: Stripe } = await import("stripe");
+    const stripe = new Stripe(stripeSecret);
+    await stripe.refunds.create({
+      payment_intent: payment.stripe_payment_intent_id,
+    });
+  } catch (err) {
+    return {
+      ok: false,
+      message: `Stripe refused the refund: ${
+        err instanceof Error ? err.message : "unknown error"
+      }`,
+    };
+  }
+
+  await recordAudit({
+    actorUserId: admin.id,
+    actorEmail: admin.email ?? null,
+    action: "admin_refund_initiated",
+    targetUserId: payment.user_id,
+    targetId: paymentId,
+    details: { amount_cents: payment.amount_cents },
+  });
+  revalidatePath(`/admin/users/${payment.user_id}`);
+  return {
+    ok: true,
+    message: `Refund of $${(payment.amount_cents / 100).toFixed(2)} sent to Stripe. The webhook marks the row refunded and reverts credits when it lands.`,
+  };
 }
 
 /**
@@ -122,9 +281,13 @@ export async function grantProAction(userId: string): Promise<ActionResult> {
     return { ok: false, message: `Failed: ${error.message}` };
   }
 
-  console.log(
-    `[admin] ${admin.email} granted Pro to ${userId} until ${newProUntil}`,
-  );
+  await recordAudit({
+    actorUserId: admin.id,
+    actorEmail: admin.email ?? null,
+    action: "admin_granted_pro",
+    targetUserId: userId,
+    details: { pro_until: newProUntil },
+  });
   revalidatePath(`/admin/users/${userId}`);
   return {
     ok: true,
@@ -173,11 +336,12 @@ export async function grantExtraInheritedSlotAction(
     .maybeSingle<{ inherited_slot_credits: number | null }>();
   const nextCount = after?.inherited_slot_credits ?? null;
 
-  console.log(
-    `[admin] ${admin.email} granted 1 inherited slot credit to ${userId}${
-      nextCount !== null ? ` (now ${nextCount})` : ""
-    }`,
-  );
+  await recordAudit({
+    actorUserId: admin.id,
+    actorEmail: admin.email ?? null,
+    action: "admin_granted_inherited_slot_credit",
+    targetUserId: userId,
+  });
   revalidatePath(`/admin/users/${userId}`);
   return {
     ok: true,

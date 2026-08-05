@@ -392,17 +392,23 @@ export async function POST(
     }
 
     case "revoke_inherit_code": {
+      // created_by, NOT user_id — inherit_codes has no user_id column
+      // (the table is id, oracle_id, created_by, code, revoked_at,
+      // created_at). Selecting user_id made PostgREST reject the whole
+      // query, `code` came back null, and every revoke attempt
+      // returned 404 wrong_owner — there was no working way to revoke
+      // a leaked code from this surface.
       const { data: code } = await service
         .from("inherit_codes")
-        .select("id, user_id, revoked_at, code")
+        .select("id, created_by, revoked_at, code")
         .eq("id", targetId)
         .maybeSingle<{
           id: string;
-          user_id: string;
+          created_by: string | null;
           revoked_at: string | null;
           code: string;
         }>();
-      if (!code || code.user_id !== userId) {
+      if (!code || code.created_by !== userId) {
         return NextResponse.json(
           { error: "That code isn't owned by this user.", code: "wrong_owner" },
           { status: 404 },
