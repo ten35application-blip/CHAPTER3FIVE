@@ -1,7 +1,29 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useFormStatus } from "react-dom";
 import { createIdentityFromPhoto } from "./actions";
+
+/**
+ * Submit button with a pending lock. Vision + synthesis take ~40s and
+ * the button had no disabled state, so a double-tap fired the server
+ * action twice — two identities, two synthesis bills, quota jumped by
+ * two. The server re-checks quota before insert now (belt), this is
+ * the suspenders. useFormStatus must live INSIDE the <form>, hence the
+ * child component.
+ */
+function MeetThemButton() {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className="mt-6 flex h-14 w-full items-center justify-center rounded-full bg-amber text-lg font-semibold text-white shadow-[0_14px_36px_-10px_rgba(107,140,175,0.55),_0_4px_12px_rgba(232,138,118,0.12)] transition-all hover:-translate-y-px hover:shadow-[0_18px_44px_-10px_rgba(107,140,175,0.6),_0_6px_14px_rgba(232,138,118,0.15)] active:translate-y-0 active:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      {pending ? "Bringing them to life…" : "Meet them"}
+    </button>
+  );
+}
 
 /**
  * Client wrapper around the photo-upload form so we can render a
@@ -75,12 +97,7 @@ export function PhotoPickerForm() {
         </div>
       ) : null}
 
-      <button
-        type="submit"
-        className="mt-6 flex h-14 w-full items-center justify-center rounded-full bg-amber text-lg font-semibold text-white shadow-[0_14px_36px_-10px_rgba(107,140,175,0.55),_0_4px_12px_rgba(232,138,118,0.12)] transition-all hover:-translate-y-px hover:shadow-[0_18px_44px_-10px_rgba(107,140,175,0.6),_0_6px_14px_rgba(232,138,118,0.15)] active:translate-y-0 active:opacity-90"
-      >
-        Meet them
-      </button>
+      <MeetThemButton />
     </form>
   );
 }

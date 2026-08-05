@@ -232,6 +232,21 @@ export async function createIdentityFromPhoto(
   }
 
   // ---- 5. Insert + avatar upload ----------------------------------------
+  // TOCTOU re-check — the early gate ran before vision + synthesis
+  // (~40s). A double-tap on "Meet them" (the form has no pending
+  // disable) starts a second request that passed the same gate; by
+  // now the first may have landed. Milliseconds of window left after
+  // this, vs the seconds the duplicates stagger by.
+  {
+    const lateGate = await canCreateOracle(user.id);
+    if (!lateGate.ok) {
+      redirectWithError(
+        "/dashboard",
+        "Another identity finished creating just now — you're at your plan's limit. The one you made should already be on your dashboard.",
+      );
+    }
+  }
+
   // Insert via admin client — 0067 rejects ALL user-role oracle
   // inserts. Also sets creation_source='photo' which the 0091
   // guard blocks on user INSERTs but allows via service_role.

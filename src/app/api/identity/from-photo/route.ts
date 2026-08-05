@@ -339,6 +339,23 @@ export async function POST(request: NextRequest) {
     }
     oracleId = updated.id as string;
   } else {
+    // TOCTOU re-check — see the web twin: the early gate ran before
+    // vision + synthesis (~40s); a duplicate request that passed the
+    // same gate may have landed since. (The placeholder-fill branch
+    // above converts an existing row, so it consumes no quota and
+    // needs no re-check.)
+    const lateGate = await canCreateOracle(user.id);
+    if (!lateGate.ok) {
+      return NextResponse.json(
+        {
+          error:
+            "Another identity finished creating just now — you're at your plan's limit.",
+          code: "quota_reached",
+        },
+        { status: 409 },
+      );
+    }
+
     const { data: inserted, error: insertError } = await admin
       .from("oracles")
       .insert({

@@ -113,6 +113,21 @@ export async function createIdentity(): Promise<void> {
     );
   }
 
+  // TOCTOU re-check. The gate at the top ran BEFORE ~35s of synthesis;
+  // /identity/new fires createIdentity() on mount, so a refresh
+  // mid-spinner starts a second request that passed the same early
+  // gate. Requests stagger by human-scale seconds while this
+  // check-to-insert gap is milliseconds — re-checking here closes the
+  // realistic race (free user ending up owning 2+ identities, paying
+  // twice for synthesis).
+  const lateGate = await canCreateOracle(user.id);
+  if (!lateGate.ok) {
+    redirectWithError(
+      "/dashboard",
+      "Another identity finished creating just now — you're at your plan's limit. The one you made should already be on your dashboard.",
+    );
+  }
+
   // Insert via the admin client — 0067 (oracles_protect_backend_columns)
   // rejects ALL user-role INSERTs on this table by design; identity
   // creation is meant to route through server actions that use

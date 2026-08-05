@@ -118,6 +118,23 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // TOCTOU re-check — see the web twin (identity/new/actions.ts): the
+  // early gate ran before ~35s of synthesis; a duplicate request that
+  // passed the same gate may have landed an identity since. The
+  // check-to-insert gap here is milliseconds, so re-checking closes
+  // the realistic race.
+  const lateGate = await canCreateOracle(user.id);
+  if (!lateGate.ok) {
+    return NextResponse.json(
+      {
+        error:
+          "Another identity finished creating just now — you're at your plan's limit.",
+        code: "quota_reached",
+      },
+      { status: 409 },
+    );
+  }
+
   // Insert via the admin client — 0067 (oracles_protect_backend_columns)
   // rejects ALL user-role INSERTs on this table by design. Ownership
   // (user_id) is set explicitly here, same as the web action.
