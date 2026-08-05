@@ -180,15 +180,37 @@ export async function redeemInheritCode(rawCode: string): Promise<void> {
   const priorFilters = expectedFingerprint
     ? `inherited_from_code_id.eq.${codeRow.id},fingerprint.eq.${expectedFingerprint}`
     : `inherited_from_code_id.eq.${codeRow.id}`;
+  // NO deleted_at filter — deliberately. The fingerprint unique index
+  // does not exclude soft-deleted rows, so a recipient who deleted
+  // their copy (one Contacts swipe) and re-enters the code used to
+  // fall through this check, get sent to Stripe, PAY $5 A SECOND
+  // TIME, and then hit 23505 on the invisible deleted row — "Couldn't
+  // bring them in. Try again in a moment", forever, until the purge
+  // freed the fingerprint. A deleted copy found here is RESTORED
+  // instead: they already paid for this archive once, and they're
+  // holding the code that proves it. The 0136 trigger clears the
+  // purge countdown on the restore automatically.
   const { data: priorCopy } = await admin
     .from("oracles")
-    .select("id")
+    .select("id, deleted_at")
     .eq("user_id", user.id)
-    .is("deleted_at", null)
     .or(priorFilters)
     .limit(1)
-    .maybeSingle<{ id: string }>();
+    .maybeSingle<{ id: string; deleted_at: string | null }>();
   if (priorCopy) {
+    if (priorCopy.deleted_at) {
+      const { error: restoreErr } = await admin
+        .from("oracles")
+        .update({ deleted_at: null })
+        .eq("id", priorCopy.id);
+      if (restoreErr) {
+        redirectWithError(
+          "/identity/inherit",
+          "Couldn't bring them back. Try again in a moment.",
+          restoreErr,
+        );
+      }
+    }
     redirect(`/dashboard?welcomed=${priorCopy.id}`);
   }
 
@@ -335,17 +357,28 @@ export async function redeemInheritCode(rawCode: string): Promise<void> {
 
   if (insertError || !inserted) {
     if (insertError?.code === "23505") {
-      // Concurrent double-submit: the other request's copy won the
-      // fingerprint index. Find it and welcome them to it — no charge.
+      // The fingerprint index rejected us: either a concurrent
+      // double-submit won the race, or a SOFT-DELETED copy still holds
+      // the fingerprint (the index doesn't exclude deleted rows).
+      // Search with the same OR-filter as the pre-check — a re-minted
+      // code has a different code id but the same fingerprint — and
+      // with no deleted_at filter, restoring if needed. No charge
+      // either way. This fallback finding nothing was the "paid twice,
+      // wedged forever" dead end.
       const { data: racedCopy } = await admin
         .from("oracles")
-        .select("id")
+        .select("id, deleted_at")
         .eq("user_id", user.id)
-        .eq("inherited_from_code_id", codeRow.id)
-        .is("deleted_at", null)
+        .or(priorFilters)
         .limit(1)
-        .maybeSingle<{ id: string }>();
+        .maybeSingle<{ id: string; deleted_at: string | null }>();
       if (racedCopy) {
+        if (racedCopy.deleted_at) {
+          await admin
+            .from("oracles")
+            .update({ deleted_at: null })
+            .eq("id", racedCopy.id);
+        }
         redirect(`/dashboard?welcomed=${racedCopy.id}`);
       }
     }

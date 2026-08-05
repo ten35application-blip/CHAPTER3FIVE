@@ -131,15 +131,31 @@ export async function POST(request: NextRequest) {
   const priorFilters = expectedFingerprint
     ? `inherited_from_code_id.eq.${codeRow.id},fingerprint.eq.${expectedFingerprint}`
     : `inherited_from_code_id.eq.${codeRow.id}`;
+  // NO deleted_at filter — see the web twin (identity/inherit/actions.ts):
+  // the fingerprint unique index doesn't exclude soft-deleted rows, so a
+  // recipient who deleted their copy and re-enters the code used to pay
+  // $5 AGAIN and then wedge forever on 23505. A deleted copy is restored
+  // instead, free — they already paid for this archive once.
   const { data: priorCopy } = await admin
     .from("oracles")
-    .select("id")
+    .select("id, deleted_at")
     .eq("user_id", user.id)
-    .is("deleted_at", null)
     .or(priorFilters)
     .limit(1)
-    .maybeSingle<{ id: string }>();
+    .maybeSingle<{ id: string; deleted_at: string | null }>();
   if (priorCopy) {
+    if (priorCopy.deleted_at) {
+      const { error: restoreErr } = await admin
+        .from("oracles")
+        .update({ deleted_at: null })
+        .eq("id", priorCopy.id);
+      if (restoreErr) {
+        return NextResponse.json(
+          { error: "Couldn't bring them back. Try again in a moment." },
+          { status: 500 },
+        );
+      }
+    }
     return NextResponse.json({ already: true, oracle_id: priorCopy.id });
   }
 
@@ -251,15 +267,25 @@ export async function POST(request: NextRequest) {
 
   if (insertError || !inserted) {
     if (insertError?.code === "23505") {
+      // Same OR-filter as the pre-check (a re-minted code shares the
+      // fingerprint but not the code id) and no deleted_at filter —
+      // a soft-deleted copy holding the fingerprint is restored, free.
+      // This fallback finding nothing was the "paid twice, wedged
+      // forever" dead end. Mirrors the web twin exactly.
       const { data: racedCopy } = await admin
         .from("oracles")
-        .select("id")
+        .select("id, deleted_at")
         .eq("user_id", user.id)
-        .eq("inherited_from_code_id", codeRow.id)
-        .is("deleted_at", null)
+        .or(priorFilters)
         .limit(1)
-        .maybeSingle<{ id: string }>();
+        .maybeSingle<{ id: string; deleted_at: string | null }>();
       if (racedCopy) {
+        if (racedCopy.deleted_at) {
+          await admin
+            .from("oracles")
+            .update({ deleted_at: null })
+            .eq("id", racedCopy.id);
+        }
         return NextResponse.json({ already: true, oracle_id: racedCopy.id });
       }
     }
