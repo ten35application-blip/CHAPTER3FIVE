@@ -84,6 +84,20 @@ import {
   type WeeklyContext,
 } from "@/lib/personaState";
 
+// Literal, not the shared constant: Next reads segment config
+// statically, so an imported value fails the build with
+// "Invalid segment configuration export detected." Same lesson every
+// cron learned. This route was the ONLY LLM-calling route with no
+// maxDuration at all, so it ran on the platform default (~10-15s)
+// while serially doing: tone judge → possible block-line call → up to
+// two conversation-state calls → the main Sonnet call (maxRetries 4)
+// → photo judge → Replicate photo generation — all BEFORE the user's
+// message is persisted. Killed mid-flight, the message simply
+// vanished: not in history, not on resync, and the lock-screen-reply
+// path lost the reply too. First-send-of-the-day and photo turns blew
+// the default routinely. 300 matches identity creation + the webhooks.
+export const maxDuration = 300;
+
 type Message = { role: "user" | "assistant"; content: string };
 
 const MAX_USER_MESSAGE_CHARS = 4000;

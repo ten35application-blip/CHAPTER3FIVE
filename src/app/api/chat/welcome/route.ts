@@ -10,6 +10,11 @@ import { moodOfTheDay, moodToPromptBlock } from "@/lib/identity/mood";
 import { openerVarietyBlock } from "@/lib/identity/opener";
 
 export const runtime = "nodejs";
+// Literal, not the shared constant (Next reads segment config
+// statically — the crons' lesson). This route makes up to two
+// sequential Anthropic calls plus moderation; on the platform default
+// (~10-15s) a slow first call could kill the request mid-welcome.
+export const maxDuration = 300;
 
 /**
  * First-message-from-the-identity. Fires when a user opens a chat
