@@ -1115,6 +1115,37 @@ ${PERSONA_RULES}
 
 ${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${sportsPart}${castPart}${statePart}${distressPart}${wokenPart}${memorialPart}${inheritedPart}${legacyArchivePart}${aboutThemPart}${todayPart}${timeOfDayPart}${gapPart}${memoriesBlock}`;
 
+  // MODERATE THE PHOTO BEFORE ANY PATH CAN PERSIST IT.
+  //
+  // This scan used to live further down, after the tone-judge block
+  // below — which persists the user's message AND its image when the
+  // persona walks away. So a photo that moderation would reject landed
+  // in the thread (and stayed there, behind a block the user can't
+  // immediately clear) whenever the accompanying text tripped the
+  // judge. Settings promises "every photo you share is scanned before
+  // it's sent"; that promise now holds on every path through this
+  // route. Flagged uploads are still cleaned out of storage.
+  if (typeof payload.image_url === "string" && payload.image_url) {
+    const imageVerdict = await moderateImage(payload.image_url);
+    if (imageVerdict.flagged) {
+      if (payload.image_storage_path) {
+        await supabase.storage
+          .from("chat-uploads")
+          .remove([payload.image_storage_path])
+          .then(() => undefined, () => undefined);
+      }
+      return NextResponse.json(
+        {
+          error:
+            "That photo can't be sent — our content check flagged it. If this seems wrong, write care@chapter3five.app.",
+          flagged: true,
+          categories: imageVerdict.categories,
+        },
+        { status: 400 },
+      );
+    }
+  }
+
   // Tone judge — never overrides a crisis message. Decides whether
   // the persona walks away from this conversation. Permissive by
   // design (and even more so in memorial mode).
@@ -1204,30 +1235,10 @@ ${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${s
       };
   const userTurnContent: ContentBlock[] = [];
   if (typeof payload.image_url === "string" && payload.image_url) {
-    // Moderate the photo before forwarding to Anthropic. Catches sexual
-    // content (incl. minors), graphic violence, self-harm, hate. Free
-    // via OpenAI's omni-moderation. Required for App Store 1.2 (UGC
-    // moderation must be demonstrable).
-    const verdict = await moderateImage(payload.image_url);
-    if (verdict.flagged) {
-      // Clean up the orphaned upload — the photo never makes it into
-      // the conversation. RLS-respecting delete via the user client.
-      if (payload.image_storage_path) {
-        await supabase.storage
-          .from("chat-uploads")
-          .remove([payload.image_storage_path])
-          .then(() => undefined, () => undefined);
-      }
-      return NextResponse.json(
-        {
-          error:
-            "That photo can't be sent — our content check flagged it. If this seems wrong, write care@chapter3five.app.",
-          flagged: true,
-          categories: verdict.categories,
-        },
-        { status: 400 },
-      );
-    }
+    // Already moderated above, before the tone judge — see that block.
+    // Catches sexual content (incl. minors), graphic violence,
+    // self-harm, hate. Required for App Store 1.2 (UGC moderation must
+    // be demonstrable).
     userTurnContent.push({
       type: "image",
       source: { type: "url", url: payload.image_url },

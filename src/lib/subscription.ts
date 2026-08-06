@@ -694,6 +694,43 @@ export async function consumeOtherIdentityCreateCredit(
  *       riding a pack credit; caller MUST consumePackCredit on success
  *   { ok: false, current: N, limit: L }  — cap hit, no credits (402)
  */
+/**
+ * Oracle ids whose messages must NOT count against the monthly caps.
+ *
+ * Two surfaces write role='user' rows that are not "a message to a
+ * companion":
+ *   - the Me archive echo (/api/chat/echo) — journaling into your own
+ *     self-archive, whose own header says "No cap counting"
+ *   - the help identity (mode='help') — asking support a question,
+ *     deliberately exempted from the send gate itself
+ * Both were nonetheless counted by the cap queries, which filter only
+ * on user_id + role, so journaling or asking for help silently burned
+ * the 20/100/300 messages the user is paying for.
+ *
+ * Returns [] on any error: failing open here costs at most a few
+ * miscounted messages, while failing closed would block sends.
+ */
+async function capExemptOracleIds(
+  client: SupabaseClient,
+  userId: string,
+): Promise<string[]> {
+  try {
+    const { data } = await client
+      .from("oracles")
+      .select("id")
+      .eq("user_id", userId)
+      .or("is_self_archive.eq.true,mode.eq.help");
+    return (data ?? []).map((r) => r.id as string);
+  } catch {
+    return [];
+  }
+}
+
+/** PostgREST `not in` list literal — `(a,b,c)`. */
+function notInList(ids: readonly string[]): string {
+  return `(${ids.join(",")})`;
+}
+
 export async function canSendMessageForTierCap(
   supabase?: SupabaseClient,
   precomputedPlan?: ResolvedPlan,
@@ -717,12 +754,24 @@ export async function canSendMessageForTierCap(
   monthStart.setUTCHours(0, 0, 0, 0);
   monthStart.setUTCDate(1);
 
-  const { count, error } = await client
+  // Journaling into the Me archive and asking the help identity a
+  // question are not messages to a companion — they must not spend
+  // the tier's monthly allowance.
+  const exempt = await capExemptOracleIds(client, user.id);
+  let messageCountQuery = client
     .from("messages")
     .select("id", { count: "exact", head: true })
     .eq("user_id", user.id)
     .eq("role", "user")
     .gte("created_at", monthStart.toISOString());
+  if (exempt.length > 0) {
+    messageCountQuery = messageCountQuery.not(
+      "oracle_id",
+      "in",
+      notInList(exempt),
+    );
+  }
+  const { count, error } = await messageCountQuery;
 
   if (error || count === null) {
     return { ok: false, current: 0, limit };
@@ -780,13 +829,24 @@ export async function canSendImageForMonthCap(
   // Note: the zero-cap short-circuit from the pre-pack version is
   // gone on purpose — a zero-cap tier with purchased image credits
   // must still fall through to the balance check below.
-  const { count, error } = await client
+  // Same exemption as the message cap — a photo attached to a Me-archive
+  // entry isn't a photo sent to a companion.
+  const exemptForImages = await capExemptOracleIds(client, user.id);
+  let imageCountQuery = client
     .from("messages")
     .select("id", { count: "exact", head: true })
     .eq("user_id", user.id)
     .eq("role", "user")
     .not("image_storage_path", "is", null)
     .gte("created_at", monthStart.toISOString());
+  if (exemptForImages.length > 0) {
+    imageCountQuery = imageCountQuery.not(
+      "oracle_id",
+      "in",
+      notInList(exemptForImages),
+    );
+  }
+  const { count, error } = await imageCountQuery;
 
   if (error || count === null) {
     return { ok: false, current: 0, limit };

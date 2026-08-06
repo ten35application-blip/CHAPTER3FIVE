@@ -47,6 +47,32 @@ const MODEL_PRICING: Record<
  *  rates as a safe over-estimate rather than 0. */
 const DEFAULT_PRICING = MODEL_PRICING["claude-sonnet-4-6"];
 
+/**
+ * Resolve a model id to its pricing row, tolerating DATED ids.
+ *
+ * The table is keyed on family ids ("claude-haiku-4-5") but the block
+ * detector records spend with ANTHROPIC_MODEL_HAIKU =
+ * "claude-haiku-4-5-20251001" — no exact match, so it fell through to
+ * the Sonnet fallback and every Haiku call was ledgered at roughly
+ * 3.75× its true cost. That inflated ledger drives the $10 monthly
+ * spend cap, so free and trial users hit a wall on money they never
+ * actually spent.
+ *
+ * Longest-prefix match: a dated id resolves to its family, an unknown
+ * model still falls back to Sonnet rates (over-estimate, never zero),
+ * and adding a dated constant somewhere can't silently re-break this.
+ */
+function pricingFor(model: string) {
+  if (MODEL_PRICING[model]) return MODEL_PRICING[model];
+  let best: keyof typeof MODEL_PRICING | null = null;
+  for (const key of Object.keys(MODEL_PRICING)) {
+    if (model.startsWith(key) && (best === null || key.length > best.length)) {
+      best = key;
+    }
+  }
+  return best ? MODEL_PRICING[best] : DEFAULT_PRICING;
+}
+
 export type SpendUsage = {
   input_tokens?: number;
   output_tokens?: number;
@@ -79,7 +105,7 @@ export type SpendRoute =
  *  0 for a call with any tokens — a 1-cent floor keeps the ledger
  *  from silently dropping tiny calls. */
 export function estimateCents(model: string, usage: SpendUsage): number {
-  const p = MODEL_PRICING[model] ?? DEFAULT_PRICING;
+  const p = pricingFor(model);
   const perMillion =
     (usage.input_tokens ?? 0) * p.input +
     (usage.output_tokens ?? 0) * p.output +

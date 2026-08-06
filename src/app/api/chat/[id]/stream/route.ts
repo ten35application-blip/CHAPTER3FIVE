@@ -224,6 +224,50 @@ export async function POST(
     );
   }
 
+  // ALSO honor an active chat_blocks cooldown. There are two block
+  // systems: the mobile tone judge writes chat_blocks (per user+oracle,
+  // time-boxed); the web block-detector writes BOTH chat_blocks and
+  // oracles.blocked_at. This route only read the latter, so a persona
+  // that walked away on the phone answered normally in a browser —
+  // continuing the exact conversation it just stepped out of. Scoped
+  // to this user + oracle; the check-in cron clears it and sends the
+  // comeback line. A passed cooldown falls through (same self-heal the
+  // mobile route does — the row stays until the cron closes it).
+  {
+    const { data: activeBlock } = await createAdminClient()
+      .from("chat_blocks")
+      .select("blocked_until, severity")
+      .eq("oracle_id", oracleId)
+      .eq("user_id", user.id)
+      .is("unblocked_at", null)
+      .order("blocked_at", { ascending: false })
+      .limit(1)
+      .maybeSingle<{ blocked_until: string; severity: string | null }>();
+    if (
+      activeBlock &&
+      new Date(activeBlock.blocked_until).getTime() > Date.now()
+    ) {
+      return NextResponse.json(
+        {
+          error: "blocked",
+          blocked: true,
+          blocked_until: activeBlock.blocked_until,
+          severity: activeBlock.severity,
+        },
+        { status: 403 },
+      );
+    }
+  }
+
+  // MOBILE-ORIGINATED BLOCKS GATE THE WEB TOO. The tone judge on
+  // /api/chat writes chat_blocks only; this route enforced only
+  // oracles.blocked_at. So a persona that walked away on the phone
+  // ("i'm out") replied normally the moment the user opened a
+  // browser — the same conversation, blocked on one surface, open on
+  // the other. Same check the mobile route runs, same self-expiry:
+  // once the cooldown passes the send goes through and the check-in
+  // cron still owns the comeback message (we never stamp unblocked_at
+
   if (!personaPrompt) {
     return NextResponse.json(
       { error: "This identity isn't ready to talk yet." },
