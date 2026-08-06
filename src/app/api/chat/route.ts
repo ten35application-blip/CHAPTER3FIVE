@@ -789,6 +789,40 @@ export async function POST(request: NextRequest) {
       language === "es"
         ? `mm... son las ${t} aquí. déjame dormir. ¿hablamos en la mañana?`
         : `mm. it's ${t} here. let me sleep. talk in the morning?`;
+    // PERSIST THE EXCHANGE (2026-08-06). This branch returned without
+    // writing either row, and the mobile client resyncs from the server
+    // ~1s after rendering a reply — so the user watched their message
+    // and the persona's answer appear and then EVAPORATE. It also broke
+    // the woken-up arc this branch is half of: the second night message
+    // is supposed to hit the wokenPart pipeline ("you were asleep, but
+    // they kept messaging"), which keys off history existing.
+    // Same shape as the help-mode persist above; 1ms-stepped created_at
+    // so ordering survives created_at-ordered reads.
+    if (conversationOracleId) {
+      const sleepBase = Date.now();
+      const { error: sleepPersistErr } = await createAdminClient()
+        .from("messages")
+        .insert([
+          {
+            user_id: user.id,
+            oracle_id: conversationOracleId,
+            role: "user",
+            content: userMessage,
+            read_by_oracle_at: new Date().toISOString(),
+            created_at: new Date(sleepBase).toISOString(),
+          },
+          {
+            user_id: user.id,
+            oracle_id: conversationOracleId,
+            role: "assistant",
+            content: sleepReply,
+            created_at: new Date(sleepBase + 1).toISOString(),
+          },
+        ]);
+      if (sleepPersistErr) {
+        console.error("[chat] sleep-reply persist failed:", sleepPersistErr);
+      }
+    }
     return NextResponse.json({ reply: sleepReply, asleep: true });
   }
 
