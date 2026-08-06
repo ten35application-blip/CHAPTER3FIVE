@@ -91,6 +91,43 @@ const HEIGHT_HINTS: Record<Traits["heightRange"], string> = {
 };
 
 /**
+ * Personality → what the face is DOING (Wilson 2026-08-06: "the images
+ * that are created must match the personality that was created"). The
+ * prompt used to close with "expression appropriate to their
+ * personality" while telling the model nothing about the personality —
+ * an instruction it could only fill with a generic pleasant face.
+ *
+ * Expression only — wardrobe stays owned by STYLE_HINTS so an
+ * occupation or temperament never fights the outfit the style roll
+ * chose. Keyed on the formula's literal humor strings so tsc breaks the
+ * build if HUMOR_STYLES drifts.
+ */
+const HUMOR_EXPRESSION: Record<Traits["humorStyle"], string> = {
+  "Dry/sarcastic":
+    "a wry, knowing half-smile at one corner of the mouth, eyes with a hint of mischief",
+  "Silly/goofy":
+    "a bright open grin, playful warm eyes on the edge of laughing",
+  "Dark humor":
+    "a subtle guarded smile, sharp perceptive eyes that have seen things",
+  "Puns/dad jokes":
+    "an easy good-natured smile, friendly crinkled eyes anticipating a groan",
+  "Observational":
+    "a relaxed thoughtful expression, alert curious eyes taking the room in",
+  "Rarely jokes":
+    "a calm, steady, composed expression with quiet dignity and warm serious eyes",
+};
+
+/** Introvert/extravert tint from the first MBTI letter — open engagement
+ *  vs. quiet reserve. Defensive: pre-v2 bundles may lack mbti. */
+function temperamentHint(traits: Traits): string {
+  const first = traits.mbti?.[0];
+  if (!first) return "";
+  return String(first).startsWith("E")
+    ? "an outward, engaging presence"
+    : "a self-contained, inward warmth";
+}
+
+/**
  * Verbatim per spec. Not consumed by FLUX (no negative_prompt input) —
  * kept for the contract and for any future model that accepts one.
  */
@@ -126,7 +163,17 @@ export function buildFacePrompt(traits: Traits, oracleId: string): FacePrompt {
     // Anatomy grounding — Wilson's hard rule, stated positively.
     "A single person alone, head-and-shoulders composition, facing the camera.",
     "Complete facial features clearly visible: both eyes, nose, mouth, both ears, symmetric face.",
-    "Warm, natural lighting, shallow depth of field, photojournalistic portrait, sharp focus on face, professional headshot quality, photorealistic, film grain, gentle authentic expression appropriate to their personality.",
+    "Warm, natural lighting, shallow depth of field, photojournalistic portrait, sharp focus on face, professional headshot quality, photorealistic, film grain.",
+    // The personality, visible: humor style decides the mouth and eyes;
+    // introversion/extraversion tints the bearing. Defensive reads —
+    // bundles rolled before these fields existed just skip the cue.
+    ...(traits.humorStyle && HUMOR_EXPRESSION[traits.humorStyle]
+      ? [
+          `Expression: ${HUMOR_EXPRESSION[traits.humorStyle]}${
+            temperamentHint(traits) ? `; ${temperamentHint(traits)}` : ""
+          }.`,
+        ]
+      : ["Gentle authentic expression."]),
   ];
 
   if (place) {
