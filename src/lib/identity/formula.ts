@@ -3871,7 +3871,59 @@ function traumaAgesFor(
   return TRAUMA_AGES;
 }
 
-export function rollTraits(): Traits {
+/**
+ * The distinctive-texture fields for roster de-duplication. Small
+ * pools (12-14 entries) plus memorable text mean birthday-paradox
+ * collisions are routine inside one user's 3-5 companion roster —
+ * live data had two companions with "Chickens out back" on one
+ * account and two "Grand-dog they babysit constantly" on another.
+ * One repeated pet is the machine showing through.
+ *
+ * Deliberately the PLAIN picks only: fields with their own coherence
+ * filters (family-clash, ritual, accent) keep those filters as the
+ * priority — a forced duplicate is better than a contradiction.
+ */
+const DISTINCTIVE_TRAIT_KEYS = [
+  "pet",
+  "dailyRitual",
+  "comfortDrink",
+  "signatureItem",
+  "hobby",
+  "mannerism",
+  "laugh",
+  "passion",
+  "weekendActivity",
+  "favoriteFood",
+] as const;
+
+/** Collect the distinctive values from stored traits blobs (the
+ *  user's existing roster) so a new roll can steer around them. */
+export function distinctiveValuesFromTraits(
+  traitsBlobs: readonly unknown[],
+): Set<string> {
+  const values = new Set<string>();
+  for (const blob of traitsBlobs) {
+    if (!blob || typeof blob !== "object") continue;
+    for (const key of DISTINCTIVE_TRAIT_KEYS) {
+      const v = (blob as Record<string, unknown>)[key];
+      if (typeof v === "string" && v.length > 0) values.add(v);
+    }
+  }
+  return values;
+}
+
+export function rollTraits(opts?: {
+  /** Distinctive values already living on the user's roster —
+   *  re-picked around once, never at the cost of a coherence guard. */
+  avoidDistinctive?: ReadonlySet<string>;
+}): Traits {
+  const avoid = opts?.avoidDistinctive;
+  function pickDistinct<T extends string>(list: readonly T[]): T {
+    const v = pick(list);
+    if (!avoid || !avoid.has(v)) return v;
+    const ok = list.filter((x) => !avoid.has(x));
+    return ok.length > 0 ? pick(ok) : v;
+  }
   const birthday = randomBirthday();
   const age = ageFromBirthday(birthday);
   // Two MBTI types are a deliberate 30% flavor, but picking the SAME
@@ -4044,7 +4096,7 @@ export function rollTraits(): Traits {
   // on "A cat named after a food" in live data (Adaeze Okonkwo), and
   // "Calls mom every Sunday" could land on a persona whose mother is
   // the rolled loss. The ritual now sees both.
-  const pet = pick(PETS);
+  const pet = pickDistinct(PETS);
   const hasDogAtHome =
     /lab mix|little dog|rescue mutt|Grand-dog/i.test(pet);
   const motherGone = motherLostEarly || deadRelative === "Their mother";
@@ -4053,8 +4105,16 @@ export function rollTraits(): Traits {
     if (r === "Calls mom every Sunday" && motherGone) return false;
     return true;
   });
+  // Dedupe INSIDE the coherence-filtered pool — never at its expense.
+  const ritualDeduped = avoid
+    ? ritualOptions.filter((r) => !avoid.has(r))
+    : ritualOptions;
   const dailyRitual =
-    ritualOptions.length > 0 ? pick(ritualOptions) : pick(DAILY_RITUALS);
+    ritualDeduped.length > 0
+      ? pick(ritualDeduped)
+      : ritualOptions.length > 0
+        ? pick(ritualOptions)
+        : pick(DAILY_RITUALS);
 
   // Accent must be compatible with heritage (2026-08-05). Four accents
   // are ethnicity-bound in their own text; rolled independently of
@@ -4121,20 +4181,20 @@ export function rollTraits(): Traits {
     faithLevel: pick(FAITH_LEVELS),
     definingEvent: pick(DEFINING_LIFE_EVENTS),
     vice: pickNonFamilyClashing(VICES),
-    passion: pick(PASSIONS),
+    passion: pickDistinct(PASSIONS),
     favoriteMusicGenre: pick(FAVORITE_MUSIC_GENRES),
     favoriteShow: pickNonFamilyClashing(FAVORITE_SHOWS),
     favoriteMovie: pick(FAVORITE_MOVIES),
-    favoriteFood: pick(FAVORITE_FOODS),
-    comfortDrink: pick(COMFORT_DRINKS),
-    weekendActivity: pick(WEEKEND_ACTIVITIES),
-    hobby: pick(HOBBIES),
+    favoriteFood: pickDistinct(FAVORITE_FOODS),
+    comfortDrink: pickDistinct(COMFORT_DRINKS),
+    weekendActivity: pickDistinct(WEEKEND_ACTIVITIES),
+    hobby: pickDistinct(HOBBIES),
     sport: pickNonFamilyClashing(SPORTS),
     dailyRitual,
-    laugh: pick(LAUGHS),
+    laugh: pickDistinct(LAUGHS),
     styleAesthetic: pick(STYLE_AESTHETICS),
-    mannerism: pick(MANNERISMS),
-    signatureItem: pick(SIGNATURE_ITEMS),
+    mannerism: pickDistinct(MANNERISMS),
+    signatureItem: pickDistinct(SIGNATURE_ITEMS),
     heightRange: pick(HEIGHT_RANGES),
     homeType: pick(HOME_TYPES),
     livingSituation,

@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getRequestAuth } from "@/lib/api/mobileAuth";
 import { fingerprintTraits } from "@/lib/identity/fingerprint";
 import {
+  distinctiveValuesFromTraits,
   reconcileTraitsToAge,
   rollTraits,
   type Traits,
@@ -225,9 +226,19 @@ export async function POST(request: NextRequest) {
   // ---- 3. Seeded roll ----------------------------------------------------
   let traits: Traits | null = null;
   let fingerprint: string | null = null;
+  // Roster dedupe — see the web twin.
+  const { data: sibRows } = await createAdminClient()
+    .from("oracles")
+    .select("traits")
+    .eq("user_id", user.id)
+    .is("deleted_at", null);
+  const avoidDistinctive = distinctiveValuesFromTraits(
+    (sibRows ?? []).map((r) => r.traits),
+  );
+
   for (let attempt = 0; attempt < MAX_FINGERPRINT_REROLLS; attempt++) {
     let candidate: Traits = {
-      ...rollTraits(),
+      ...rollTraits({ avoidDistinctive }),
       gender: vision.gender,
       cultural: vision.cultural,
       heightRange: vision.heightRange,

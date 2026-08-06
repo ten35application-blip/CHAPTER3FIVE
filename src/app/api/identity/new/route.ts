@@ -3,7 +3,11 @@ import { after } from "next/server";
 import { getRequestAuth } from "@/lib/api/mobileAuth";
 import { generateAndSaveFace } from "@/lib/faces/generate";
 import { fingerprintTraits } from "@/lib/identity/fingerprint";
-import { rollTraits, type Traits } from "@/lib/identity/formula";
+import {
+  distinctiveValuesFromTraits,
+  rollTraits,
+  type Traits,
+} from "@/lib/identity/formula";
 import {
   synthesizePersona,
   SynthesisError,
@@ -70,11 +74,22 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Roster dedupe — see the web twin. Admin client: traits is
+  // server-side.
+  const { data: sibRows } = await createAdminClient()
+    .from("oracles")
+    .select("traits")
+    .eq("user_id", user.id)
+    .is("deleted_at", null);
+  const avoidDistinctive = distinctiveValuesFromTraits(
+    (sibRows ?? []).map((r) => r.traits),
+  );
+
   // Roll + fingerprint, retrying only on unique-constraint collisions.
   let traits: Traits | null = null;
   let fingerprint: string | null = null;
   for (let attempt = 0; attempt < MAX_FINGERPRINT_REROLLS; attempt++) {
-    const candidate = rollTraits();
+    const candidate = rollTraits({ avoidDistinctive });
     const candidateFingerprint = fingerprintTraits(candidate);
     const { data: existing } = await supabase
       .from("oracles")

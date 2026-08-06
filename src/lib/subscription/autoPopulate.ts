@@ -35,7 +35,11 @@
 import { after } from "next/server";
 import { generateAndSaveFace } from "@/lib/faces/generate";
 import { fingerprintTraits } from "@/lib/identity/fingerprint";
-import { rollTraits, type Traits } from "@/lib/identity/formula";
+import {
+  distinctiveValuesFromTraits,
+  rollTraits,
+  type Traits,
+} from "@/lib/identity/formula";
 import {
   synthesizePersona,
   SynthesisError,
@@ -113,10 +117,30 @@ export async function autoPopulateForSubscribe(
     //    partial-failure accounting. Serial keeps the total time
     //    predictable (basic ≤ 60s, pro ≤ 120s) inside the
     //    maxDuration=300 the webhook route sets.
+    // Roster dedupe: start from the distinctive values already on the
+    // user's live roster, and GROW the set as this run creates more —
+    // this loop mints 2-4 companions back-to-back for one user, the
+    // single most likely place for two "Chickens out back".
+    const { data: sibRows } = await admin
+      .from("oracles")
+      .select("traits")
+      .eq("user_id", userId)
+      .is("deleted_at", null);
+    const avoidDistinctive = distinctiveValuesFromTraits(
+      (sibRows ?? []).map((r) => r.traits),
+    );
+
     for (let i = 0; i < randomToCreate; i++) {
       try {
-        const result = await createOneRandomIdentity(admin, userId);
+        const result = await createOneRandomIdentity(
+          admin,
+          userId,
+          avoidDistinctive,
+        );
         if (result) {
+          for (const v of distinctiveValuesFromTraits([result.traits])) {
+            avoidDistinctive.add(v);
+          }
           // Fire-and-forget face gen. generateAndSaveFace never
           // throws; landing in Replicate is a 15-40s round-trip
           // and we don't want to serialize on it — the identity
@@ -258,12 +282,13 @@ async function countExistingPhotoCompanion(
 async function createOneRandomIdentity(
   admin: AdminClient,
   userId: string,
+  avoidDistinctive?: ReadonlySet<string>,
 ): Promise<{ oracleId: string; traits: Traits } | null> {
   // Roll + fingerprint, retrying on unique-constraint collisions.
   let traits: Traits | null = null;
   let fingerprint: string | null = null;
   for (let attempt = 0; attempt < MAX_FINGERPRINT_REROLLS; attempt++) {
-    const candidate = rollTraits();
+    const candidate = rollTraits({ avoidDistinctive });
     const candidateFingerprint = fingerprintTraits(candidate);
     const { data: existing } = await admin
       .from("oracles")

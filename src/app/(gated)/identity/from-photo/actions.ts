@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { redirectWithError } from "@/lib/action-errors";
 import { fingerprintTraits } from "@/lib/identity/fingerprint";
 import {
+  distinctiveValuesFromTraits,
   reconcileTraitsToAge,
   rollTraits,
   type Traits,
@@ -167,11 +168,21 @@ export async function createIdentityFromPhoto(
   // Roll everything normally, then overwrite only the vision-derived
   // fields so the rest of the personality stays as random as any other
   // identity — the photo decides the look, not the life.
+  // Roster dedupe — see identity/new/actions.ts.
+  const { data: sibRows } = await createAdminClient()
+    .from("oracles")
+    .select("traits")
+    .eq("user_id", user.id)
+    .is("deleted_at", null);
+  const avoidDistinctive = distinctiveValuesFromTraits(
+    (sibRows ?? []).map((r) => r.traits),
+  );
+
   let traits: Traits | null = null;
   let fingerprint: string | null = null;
   for (let attempt = 0; attempt < MAX_FINGERPRINT_REROLLS; attempt++) {
     let candidate: Traits = {
-      ...rollTraits(),
+      ...rollTraits({ avoidDistinctive }),
       gender: vision.gender,
       cultural: vision.cultural,
       heightRange: vision.heightRange,

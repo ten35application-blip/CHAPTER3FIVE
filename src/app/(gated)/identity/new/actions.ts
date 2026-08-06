@@ -5,7 +5,11 @@ import { after } from "next/server";
 import { redirectWithError } from "@/lib/action-errors";
 import { generateAndSaveFace } from "@/lib/faces/generate";
 import { fingerprintTraits } from "@/lib/identity/fingerprint";
-import { rollTraits, type Traits } from "@/lib/identity/formula";
+import {
+  distinctiveValuesFromTraits,
+  rollTraits,
+  type Traits,
+} from "@/lib/identity/formula";
 import {
   synthesizePersona,
   SynthesisError,
@@ -60,13 +64,25 @@ export async function createIdentity(): Promise<void> {
     );
   }
 
+  // Roster dedupe: steer the roll around distinctive values already on
+  // this user's companions (two "Chickens out back" reads as the
+  // machine). Admin client — the traits column is server-side.
+  const { data: sibRows } = await createAdminClient()
+    .from("oracles")
+    .select("traits")
+    .eq("user_id", user.id)
+    .is("deleted_at", null);
+  const avoidDistinctive = distinctiveValuesFromTraits(
+    (sibRows ?? []).map((r) => r.traits),
+  );
+
   // Roll + fingerprint, retrying only on unique-constraint collisions.
   // Astronomically rare in 2^256 space, but the constraint exists so
   // we handle it cleanly rather than 500-ing.
   let traits: Traits | null = null;
   let fingerprint: string | null = null;
   for (let attempt = 0; attempt < MAX_FINGERPRINT_REROLLS; attempt++) {
-    const candidate = rollTraits();
+    const candidate = rollTraits({ avoidDistinctive });
     const candidateFingerprint = fingerprintTraits(candidate);
     const { data: existing } = await supabase
       .from("oracles")
