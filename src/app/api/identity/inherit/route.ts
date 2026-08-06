@@ -104,9 +104,23 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     );
   }
-  if (!codeRow || codeRow.revoked_at) {
+  if (!codeRow) {
     await recordRedeemAttempt(user.id, false);
     return NextResponse.json({ error: INVALID_CODE_MESSAGE }, { status: 404 });
+  }
+  // Honest revoked-code copy, distinct from the vague invalid message —
+  // see the web twin: this branch only fires on a code that MATCHES a
+  // real row, so nothing is revealed to an enumerator, only the truth
+  // to the person the code was given to.
+  if (codeRow.revoked_at) {
+    await recordRedeemAttempt(user.id, false);
+    return NextResponse.json(
+      {
+        error:
+          "The person who made this code has turned it off, so it can't open the archive anymore. The archive itself is safe. If this is a surprise, reach out to them.",
+      },
+      { status: 410 },
+    );
   }
 
   const { data: source } = await admin

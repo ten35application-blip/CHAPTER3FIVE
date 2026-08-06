@@ -145,9 +145,24 @@ export async function redeemInheritCode(rawCode: string): Promise<void> {
       lookupError,
     );
   }
-  if (!codeRow || codeRow.revoked_at) {
+  if (!codeRow) {
     await recordRedeemAttempt(user.id, false);
     redirectWithError("/identity/inherit", INVALID_CODE_MESSAGE);
+  }
+  // A REVOKED code gets honest copy, deliberately distinct from the
+  // vague invalid-code message. The vague message told a person
+  // holding a CORRECT code to "check it letter by letter and try
+  // again" — retyping into the rate limiter, forever, with no way to
+  // learn the truth. The anti-enumeration argument doesn't apply
+  // here: this branch only fires when the entered code MATCHES a real
+  // row, so the holder has already proven possession; the only thing
+  // revealed is the code's own state, to the person it was given to.
+  if (codeRow.revoked_at) {
+    await recordRedeemAttempt(user.id, false);
+    redirectWithError(
+      "/identity/inherit",
+      "The person who made this code has turned it off, so it can't open the archive anymore. The archive itself is safe. If this is a surprise, reach out to them.",
+    );
   }
 
   // The full snapshot read — everything the copy freezes at redemption
