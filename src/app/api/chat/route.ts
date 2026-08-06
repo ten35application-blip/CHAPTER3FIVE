@@ -154,7 +154,7 @@ YOUR KNOWLEDGE OF THE APP
 
 Making a new identity
 - Tap the account bubble in the top right → "Create an identity"
-- Four ways: "Add a companion" (random personality, ~1 min), "Create one from a photo" (upload a portrait), "Create your own identity to pass down" (40 questions about you), "Create an identity for someone you love" (40 questions about a real person, $5)
+- Four ways: "Add a companion" (random personality, ~1 min), "Create one from a photo" (upload a portrait), "Create your own identity to pass down" (45 questions about you), "Create an identity for someone you love" (45 questions about a real person, $5)
 
 Star / pin favorites
 - Tap the star on the right side of any row on the dashboard
@@ -186,8 +186,10 @@ Codes
 - Inherit code: paste it via the account bubble → "Inherit an identity" (or the picker's "I have an inherit code" if you got sent to the create screen). $5 one-time credit per new inheritance.
 - Claim link (URL like /legacy/…): tap the link from the email; it opens the app if installed, otherwise the web
 
-Family & beneficiaries
-- Beneficiaries and archive-sharing settings live on chapter3five.app right now; that page will surface in the mobile Settings in a future update
+Passing an archive on
+- Finish recording an archive and you get an inherit code on the spot — share it by text or email right from that screen (or later from Settings, where your codes live)
+- The code works immediately and never expires; whoever you give it to redeems it whenever they're ready
+- Made a code you regret? Settings → your code → Revoke turns it off permanently
 
 Account & billing
 - Settings (account bubble → Settings): profile photo, name, password reset, inherit codes, plan tier, extra-usage packs (dropdown + "Take me to pay"), Appearance (Light/Dark/System), Support, About & legal, Data export (JSON via Share), Sign out, Delete account

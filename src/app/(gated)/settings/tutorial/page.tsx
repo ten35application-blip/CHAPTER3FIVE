@@ -180,7 +180,7 @@ export default async function TutorialPage() {
         >
           <p>
             The <strong>Personal identity</strong> path is why the app
-            exists. You answer around 40 questions &mdash; the way you
+            exists. You answer 45 questions &mdash; the way you
             actually text, the people you love, the things you can&rsquo;t
             stop laughing at, the losses that shaped you. Type the answers
             the way you&rsquo;d type a text. The lowercase, the missing
