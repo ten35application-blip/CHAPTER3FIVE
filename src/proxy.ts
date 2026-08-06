@@ -13,6 +13,10 @@ const SOFT_DELETED_ALLOWED = [
   "/restore",
   "/account-deleted",
   "/auth",
+  // The endpoint whose whole job is to un-delete — mobile reaches it by
+  // Bearer (past this proxy), but a cookie session must not be bounced
+  // off it either.
+  "/api/account/reactivate",
   "/api/stripe",
   "/api/user/export",
   "/api/user/delete-account",

@@ -280,24 +280,55 @@ async function handleCheckoutCompleted(
   if (purpose === "restore_oracle") {
     const oracleId = session.metadata?.oracle_id;
     if (oracleId) {
-      await admin
+      // Same unretryable posture as restore_account above: the payments
+      // row is already claimed paid, so a Stripe re-delivery
+      // short-circuits before reaching this branch. If the un-delete
+      // fails, the customer paid $5 and the identity keeps counting down
+      // to permanent purge — that must land in front of a person while
+      // the countdown is still running, not in a log line.
+      const { data: restored, error: restoreErr } = await admin
         .from("oracles")
         .update({ deleted_at: null, scheduled_purge_at: null })
         .eq("id", oracleId)
-        .eq("user_id", userId);
+        .eq("user_id", userId)
+        .select("id");
+      if (restoreErr || !restored || restored.length === 0) {
+        await recordGrantFailure({
+          kind: "restore_oracle",
+          userId,
+          stripeEventId: event.id,
+          stripeSessionId: session.id,
+          purpose,
+          error:
+            restoreErr ??
+            `un-delete matched 0 rows for oracle ${oracleId} (wrong owner, or already purged)`,
+        });
+      } else {
+        // Re-attach as the active oracle so the user lands back in the
+        // chat on next dashboard load. Best-effort — the restore itself
+        // already stuck, so a miss here costs a click, not the identity.
+        await admin
+          .from("profiles")
+          .update({ active_oracle_id: oracleId, onboarding_completed: true })
+          .eq("id", userId);
 
-      // Re-attach as the active oracle so the user lands back in the
-      // chat on next dashboard load.
-      await admin
-        .from("profiles")
-        .update({ active_oracle_id: oracleId, onboarding_completed: true })
-        .eq("id", userId);
-
-      await recordAudit({
-        actorUserId: userId,
-        action: "oracle_restored",
-        targetUserId: userId,
-        targetId: oracleId,
+        await recordAudit({
+          actorUserId: userId,
+          action: "oracle_restored",
+          targetUserId: userId,
+          targetId: oracleId,
+        });
+      }
+    } else {
+      // Money arrived for a restore with no target. Unresolvable
+      // automatically; a person has to match the session to the trash.
+      await recordGrantFailure({
+        kind: "restore_oracle",
+        userId,
+        stripeEventId: event.id,
+        stripeSessionId: session.id,
+        purpose,
+        error: "session metadata carried no oracle_id",
       });
     }
     await recordEvent(event, admin, userId);
@@ -501,7 +532,9 @@ async function handleCheckoutCompleted(
     return;
   }
 
-  // Credit-grant purposes.
+  // Credit-grant purposes. Same paid-but-not-granted exposure as the
+  // packs above — this bare-await branch was the last one without a
+  // failure record.
   const column =
     purpose === "oracle"
       ? "extra_oracle_credits"
@@ -509,11 +542,22 @@ async function handleCheckoutCompleted(
         ? "paid_beneficiary_slots"
         : "randomize_credits";
 
-  await admin.rpc("increment_profile_counter", {
+  const { error: counterErr } = await admin.rpc("increment_profile_counter", {
     target_user_id: userId,
     counter_name: column,
     delta: 1,
   });
+  if (counterErr) {
+    await recordGrantFailure({
+      kind: "profile_counter_credit",
+      userId,
+      stripeEventId: event.id,
+      stripeSessionId: session.id,
+      delta: 1,
+      purpose,
+      error: counterErr,
+    });
+  }
 
   await recordEvent(event, admin, userId);
 }
@@ -558,7 +602,14 @@ async function handleSubscriptionCheckout(
 
   const resolvedTier: "basic" | "pro" = priceTier ?? tier;
 
-  await admin
+  // This write is the only thing that ties the Stripe subscription to
+  // the profile. If it fails, the damage compounds: no tier today, AND
+  // every future invoice.paid / subscription.updated / .deleted event
+  // reverse-looks-up the profile by stripe_subscription_id — which was
+  // never written — so each one no-ops. The card is charged monthly
+  // forever while the account stays Free, and no later event self-heals
+  // it. That must reach a person, not a log.
+  const { error: bindErr } = await admin
     .from("profiles")
     .update({
       stripe_customer_id: customerId,
@@ -571,6 +622,16 @@ async function handleSubscriptionCheckout(
       subscription_tier: resolvedTier,
     })
     .eq("id", userId);
+  if (bindErr) {
+    await recordGrantFailure({
+      kind: "subscription_bind",
+      userId,
+      stripeEventId: event.id,
+      stripeSessionId: session.id,
+      purpose: `${resolvedTier}_monthly sub=${subscriptionId}`,
+      error: bindErr,
+    });
+  }
 
   await recordEvent(event, admin, userId);
 
@@ -621,7 +682,10 @@ async function handleInvoicePaid(event: Stripe.Event, admin: AdminClient) {
   const sub = await stripe.subscriptions.retrieve(subscriptionId);
   const periodEnd = subPeriodEndIso(sub);
 
-  await admin
+  // If extending pro_until fails, the subscriber PAID for this month and
+  // lapses to Free when the old period end passes. Self-heals only at
+  // next month's invoice — a person should re-sync it before then.
+  const { error: renewErr } = await admin
     .from("profiles")
     .update({
       current_period_end: periodEnd,
@@ -630,6 +694,15 @@ async function handleInvoicePaid(event: Stripe.Event, admin: AdminClient) {
       pro_until: periodEnd,
     })
     .eq("id", profile.id);
+  if (renewErr) {
+    await recordGrantFailure({
+      kind: "subscription_renewal_sync",
+      userId: profile.id,
+      stripeEventId: event.id,
+      purpose: `invoice.paid sub=${subscriptionId} period_end=${periodEnd}`,
+      error: renewErr,
+    });
+  }
 
   // Renewal ledger row — one per invoice.paid so /admin/revenue MRR
   // math has something to sum. The initial checkout also writes a

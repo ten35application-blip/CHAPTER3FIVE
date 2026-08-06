@@ -34,7 +34,25 @@ export type GrantFailureKind =
   // unretryable (the payments row is already claimed) and invisible
   // without a row here. grant_failures.kind is plain text, no CHECK
   // constraint, so adding a value needs no migration.
-  | "restore_account_oracle_purge_dates";
+  | "restore_account_oracle_purge_dates"
+  // Paid $5 to bring one identity out of the trash and the un-delete
+  // didn't stick (or the session carried no oracle_id at all). The
+  // identity stays on its purge countdown while the customer believes
+  // they saved it — the most expensive possible misunderstanding.
+  | "restore_oracle"
+  // The legacy one-credit purposes (extra companion slot, randomize,
+  // beneficiary slot). `purpose` carries which counter was owed.
+  | "profile_counter_credit"
+  // A subscription checkout where binding customer/subscription/tier to
+  // the profile failed. Worst of the set: renewals reverse-look-up the
+  // profile by stripe_subscription_id, which was never written — so the
+  // card is charged EVERY month and every renewal event no-ops, forever,
+  // until a person re-binds it by hand.
+  | "subscription_bind"
+  // invoice.paid arrived but extending pro_until failed. The subscriber
+  // paid for the month and lapses to Free mid-cycle; self-heals only at
+  // NEXT month's invoice, so a person should re-sync it before then.
+  | "subscription_renewal_sync";
 
 export async function recordGrantFailure(input: {
   kind: GrantFailureKind;
