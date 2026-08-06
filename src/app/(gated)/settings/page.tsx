@@ -14,7 +14,7 @@ import { PasswordResetRow } from "./_components/PasswordResetRow";
 import { PhotoUploader } from "./_components/PhotoUploader";
 import { ThemeToggle } from "./_components/ThemeToggle";
 import { TextSizeControl } from "./_components/TextSizeControl";
-import { NotificationsToggle } from "./_components/NotificationsToggle";
+import { PushPermissionRow } from "./_components/PushPermissionRow";
 
 export const metadata = {
   title: "Settings · chapter3five",
@@ -194,6 +194,16 @@ export default async function SettingsPage({
   // isPro stays the paid/free gate; the tier refines the copy.
   const plan = await getPlanTier(supabase);
   const isBasicTier = plan.tier === "basic";
+
+  // "Your agreements" receipts — one acceptance event covers the whole
+  // 8-item onboarding bundle, version-stamped (0086). RLS: user reads own.
+  const { data: latestAcceptance } = await supabase
+    .from("terms_acceptances")
+    .select("terms_version, accepted_at")
+    .eq("user_id", user.id)
+    .order("accepted_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<{ terms_version: string; accepted_at: string }>();
   const stripeCustomerId =
     (profile?.stripe_customer_id as string | null) ?? null;
   const planSource = (profile?.plan_source as string | null) ?? "none";
@@ -357,10 +367,52 @@ export default async function SettingsPage({
             the mobile Settings toggle (Wilson 2026-08-03: "make sure
             mobile settings and web settings both have the settings open
             for notifications"). */}
+        {/* Wilson 2026-08-06: one combined row, same copy as mobile.
+            Browser push permission is the OS-level switch here; the
+            client component shows its live state and requests it when
+            still undecided. The old outreach toggle is gone from the
+            UI; profiles.outreach_enabled stays untouched server-side. */}
         <Section label="Notifications">
-          <NotificationsToggle
-            initial={profile?.outreach_enabled !== false}
+          <PushPermissionRow />
+        </Section>
+
+        {/* Parity with mobile's Permissions section — but a browser
+            asks for camera/photos at the moment of use and keeps no
+            app-wide switch, so the honest web version is one line of
+            truth instead of dead toggles. */}
+        <Section label="Permissions">
+          <p className="px-4 py-4 text-sm leading-relaxed text-warm-300">
+            Camera and photo access are asked by your browser at the
+            moment you use them &mdash; nothing to manage here. On the
+            phone app, these live in Settings &rarr; Permissions.
+          </p>
+        </Section>
+
+        {/* Everything approved on the way to the dashboard — the
+            receipts, with acceptance date + bundle version (mirrors
+            mobile's "Your agreements"). */}
+        <Section label="Your agreements">
+          {latestAcceptance ? (
+            <p className="px-4 pb-1 pt-3 text-xs text-warm-400">
+              Accepted{" "}
+              {new Date(latestAcceptance.accepted_at).toLocaleDateString(
+                "en-US",
+                { month: "long", day: "numeric", year: "numeric" },
+              )}{" "}
+              &middot; version {latestAcceptance.terms_version}
+            </p>
+          ) : null}
+          <AgreementRow href="/terms" label="Terms of Service" />
+          <AgreementRow href="/privacy" label="Privacy Policy" />
+          <AgreementRow
+            href="/privacy"
+            label="AI processing — Anthropic + OpenAI"
           />
+          <AgreementRow href="/privacy#cookies" label="Cookie Policy" />
+          <AgreementRow href="/eula" label="End User License Agreement" />
+          <AgreementRow href="/guidelines" label="Community Guidelines" />
+          <AgreementRow label="I am 18 or older" />
+          <AgreementRow label="Not therapy or crisis support" />
         </Section>
 
         {/* APPEARANCE — theme picker. Client-only state; localStorage
@@ -422,6 +474,12 @@ export default async function SettingsPage({
           <NavRow href="/terms" icon={<ShieldIcon />} label="Terms of Service" />
           <Divider />
           <NavRow href="/privacy" icon={<LockIcon />} label="Privacy Policy" />
+          <Divider />
+          <NavRow
+            href="/privacy#cookies"
+            icon={<LockIcon />}
+            label="Cookie Policy"
+          />
           <Divider />
           <NavRow
             href="/eula"
@@ -641,6 +699,38 @@ function NavRow({
       </span>
       <Chevron />
     </Link>
+  );
+}
+
+/** One checked acknowledgment from the onboarding bundle — tappable
+ *  when a document backs it, plain and checked for the personal
+ *  statements (18+, not-therapy). Mirrors mobile's AgreementRow. */
+function AgreementRow({ href, label }: { href?: string; label: string }) {
+  const inner = (
+    <>
+      <span
+        aria-hidden
+        className="flex w-6 flex-shrink-0 items-center justify-center text-teal-strong"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm-1.2 14.4-4-4 1.4-1.4 2.6 2.6 5.6-5.6 1.4 1.4-7 7Z" />
+        </svg>
+      </span>
+      <span className="flex-1 truncate text-[14px] font-medium text-warm-50">
+        {label}
+      </span>
+      {href ? <Chevron /> : null}
+    </>
+  );
+  return href ? (
+    <Link
+      href={href}
+      className="flex min-h-11 items-center gap-3 px-4 py-2 transition-colors hover:bg-warm-700/30"
+    >
+      {inner}
+    </Link>
+  ) : (
+    <div className="flex min-h-11 items-center gap-3 px-4 py-2">{inner}</div>
   );
 }
 
