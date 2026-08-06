@@ -147,6 +147,39 @@ const storagePath = `legacy/${user.id}/${randomUUID()}.jpg`;
  * server-side but never surface (losing one debounce tick is fine; the next
  * keystroke saves again).
  */
+/**
+ * Discard the in-progress draft and start the flow fresh in the given
+ * mode. Backs the "Start fresh" side of the mode-switch choice screen
+ * (page.tsx): a user with 18 answers about their mother who taps
+ * "Yourself" must never have her name, photo, and answers silently
+ * relabeled as their own self-archive — but a mis-tap must not nuke
+ * their work either, so the DELETE only happens behind this explicit
+ * form action, never on navigation.
+ */
+export async function discardLegacyDraft(formData: FormData): Promise<void> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/auth/signin");
+
+  const rawMode = String(formData.get("mode") ?? "");
+  const mode = rawMode === "self" || rawMode === "other" ? rawMode : "other";
+
+  const { error } = await supabase
+    .from("legacy_drafts")
+    .delete()
+    .eq("user_id", user.id);
+  if (error) {
+    redirectWithError(
+      `/identity/legacy/new?mode=${mode}`,
+      "Couldn't clear the old draft. Try again in a moment.",
+      error,
+    );
+  }
+  redirect(`/identity/legacy/new?mode=${mode}`);
+}
+
 export async function saveLegacyDraft(payload: DraftPayload): Promise<void> {
   const supabase = await createClient();
   const {

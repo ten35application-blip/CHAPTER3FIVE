@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   LEGACY_CATEGORY_LABELS,
@@ -6,6 +7,7 @@ import {
 import type { LegacySubject } from "@/lib/legacy/synthesize";
 import { createClient } from "@/lib/supabase/server";
 import { LegacyFlow } from "./LegacyFlow";
+import { discardLegacyDraft } from "./actions";
 import { hasOtherIdentityCreateCredit } from "@/lib/subscription";
 
 export const metadata = {
@@ -84,6 +86,69 @@ export default async function LegacyNewPage({
     modeParam === "self" || modeParam === "other" ? modeParam : null;
   const resolvedMode: "self" | "other" =
     urlModeValid ?? draftModeValid ?? "other";
+
+  // MODE-SWITCH GUARD. URL-wins resolution is right for a fresh page,
+  // but it silently REBOUND a draft with real content: someone answers
+  // 18 questions about their mother under "Someone you love", later
+  // taps "Yourself" on the picker — and used to land in a self-archive
+  // pre-filled with her name, her photo, and her answers, each one now
+  // presented to the synthesizer under the self phrasing ("Who raised
+  // you?"). The artifact is permanent and un-editable. When the modes
+  // disagree and the draft isn't empty, ask instead of assuming.
+  const answeredCount = Object.keys(draft?.answers ?? {}).length;
+  const draftHasContent =
+    !!draft && (answeredCount > 0 || !!draft.subject?.name);
+  if (
+    urlModeValid &&
+    draftModeValid &&
+    urlModeValid !== draftModeValid &&
+    draftHasContent
+  ) {
+    const draftName = draft?.subject?.name?.trim() || null;
+    const draftLabel =
+      draftModeValid === "self"
+        ? "your own archive"
+        : draftName
+          ? `your archive about ${draftName}`
+          : "your archive about someone you love";
+    const freshLabel =
+      urlModeValid === "self" ? "about yourself" : "about someone you love";
+    return (
+      <main className="mx-auto flex min-h-dvh w-full max-w-xl flex-col items-center justify-center px-6 py-16">
+        <h1 className="text-center text-2xl font-semibold text-warm-100">
+          You already have an archive in progress
+        </h1>
+        <p className="mt-4 text-center text-warm-300">
+          You&rsquo;ve started {draftLabel}
+          {answeredCount > 0
+            ? ` — ${answeredCount} answer${answeredCount === 1 ? "" : "s"} saved`
+            : ""}
+          . Starting fresh {freshLabel} clears those answers for good.
+        </p>
+        <div className="mt-10 flex w-full flex-col gap-4">
+          <Link
+            href={`/identity/legacy/new?mode=${draftModeValid}`}
+            className="flex h-14 w-full items-center justify-center rounded-full bg-amber text-lg font-semibold text-white shadow-[0_14px_36px_-10px_rgba(107,140,175,0.55)] transition-all hover:-translate-y-px"
+          >
+            Continue {draftLabel}
+          </Link>
+          <form action={discardLegacyDraft} className="w-full">
+            <input type="hidden" name="mode" value={urlModeValid} />
+            <button
+              type="submit"
+              className="flex h-14 w-full items-center justify-center rounded-full border border-warm-400/40 text-lg font-medium text-warm-200 transition-colors hover:border-warm-300 hover:text-warm-100"
+            >
+              Start fresh {freshLabel}
+            </button>
+          </form>
+        </div>
+        <p className="mt-6 text-center text-xs text-warm-400">
+          Continuing keeps everything exactly as you left it.
+        </p>
+      </main>
+    );
+  }
+
   const subject: LegacySubject = {
     name: draft?.subject?.name ?? "",
     // In self mode the relationship field is hidden and the draft
