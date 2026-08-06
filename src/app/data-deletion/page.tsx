@@ -46,8 +46,11 @@ export default function DataDeletionPage() {
         inherit codes you created. Your account is deactivated
         immediately, and after a <strong>30-day grace period</strong>{" "}
         &mdash; there in case of a genuine &ldquo;wait, no&rdquo; &mdash;
-        everything is permanently and irreversibly purged. Once that
-        window closes, there is no archive we can restore from.
+        everything is permanently and irreversibly purged. During those
+        30 days, signing back in and tapping{" "}
+        <strong>Reactivate</strong> brings everything back exactly as it
+        was. Once the window closes, there is no archive we can restore
+        from.
       </p>
       <p>
         For the details of what we store while your account is active,
