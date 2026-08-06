@@ -1,7 +1,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getPlanTier } from "@/lib/subscription";
+import {
+  canSendImageForMonthCap,
+  canSendMessageForTierCap,
+  getPlanTier,
+} from "@/lib/subscription";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { ManageSubscriptionButton } from "@/app/(gated)/settings/_components/ManageSubscriptionButton";
 import {
   BASIC_MONTHLY_PRICE_LABEL,
   BASIC_TIER_LABEL,
@@ -79,6 +85,39 @@ export default async function UpgradePage({
   const plan = await getPlanTier(supabase);
   const isBasicSubscriber = plan.tier === "basic";
   const isProSubscriber = plan.tier === "pro";
+
+  // ONE MONEY HOME (Wilson 2026-08-06): usage meters + subscription
+  // management live HERE now, not in Settings — matching the mobile
+  // Upgrade screen exactly. Same functions that enforce the caps, so
+  // the meter can never disagree with the wall.
+  const [msgCap, imgCap] = plan.unlimited
+    ? [null, null]
+    : await Promise.all([
+        canSendMessageForTierCap(supabase, plan),
+        canSendImageForMonthCap(supabase, plan),
+      ]);
+  const { data: billing } = await createAdminClient()
+    .from("profiles")
+    .select(
+      "message_credits, image_credits, stripe_customer_id, current_period_end, cancel_at_period_end, plan_source",
+    )
+    .eq("id", user.id)
+    .maybeSingle<{
+      message_credits: number | null;
+      image_credits: number | null;
+      stripe_customer_id: string | null;
+      current_period_end: string | null;
+      cancel_at_period_end: boolean | null;
+      plan_source: string | null;
+    }>();
+  const stripePlan = !!billing?.stripe_customer_id && billing?.plan_source === "stripe";
+  const periodEndLabel = billing?.current_period_end
+    ? new Date(billing.current_period_end).toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      })
+    : null;
 
   const target = safeNext(next);
   const cameFromInherit = target.startsWith("/identity/inherit");
@@ -213,6 +252,30 @@ export default async function UpgradePage({
           </p>
         )}
 
+        {/* Where you stand THIS MONTH — meters above the things that
+            buy more room. Shown for every tier; hidden only for
+            unlimited (admin) accounts. Mirrors the mobile Upgrade
+            screen card. */}
+        {msgCap && imgCap ? (
+          <div className="mt-10 w-full max-w-md rounded-2xl border border-warm-700 bg-ink-soft px-6 py-5 text-left">
+            <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-warm-400">
+              This month
+            </p>
+            <UsageMeter
+              label="Messages"
+              used={msgCap.current}
+              limit={msgCap.limit}
+              credits={Math.max(0, billing?.message_credits ?? 0)}
+            />
+            <UsageMeter
+              label="Photos"
+              used={imgCap.current}
+              limit={imgCap.limit}
+              credits={Math.max(0, billing?.image_credits ?? 0)}
+            />
+          </div>
+        ) : null}
+
         {/* Plan cards — single source of truth lives in
             src/components/PlanCards.tsx so /upgrade and the settings
             free-tier block can't drift on prices, features, or copy.
@@ -251,6 +314,39 @@ export default async function UpgradePage({
           </div>
         </div>
 
+        {/* Subscription management — moved here from Settings
+            (Wilson 2026-08-06: "all that paying information in one
+            place"). Source-aware: Stripe plans get the billing portal
+            + their renewal date; store-purchased plans are managed in
+            the store's own subscription page, which only the phone can
+            open — say so instead of dead-ending. */}
+        {(isProSubscriber || isBasicSubscriber) && (
+          <div className="mt-12 w-full max-w-sm">
+            {stripePlan ? (
+              <>
+                {periodEndLabel ? (
+                  <p className="mb-3 text-sm text-warm-300">
+                    {billing?.cancel_at_period_end
+                      ? `Cancels on ${periodEndLabel}.`
+                      : `Renews on ${periodEndLabel}.`}
+                  </p>
+                ) : null}
+                <ManageSubscriptionButton />
+                <p className="mt-3 text-center text-xs text-warm-400">
+                  Update your card, view invoices, or cancel any time in
+                  the Stripe billing portal.
+                </p>
+              </>
+            ) : (
+              <p className="text-center text-xs text-warm-400">
+                Your plan was set up in the app. Manage or cancel it from
+                the Usage screen on your phone, which opens your{" "}
+                app store&rsquo;s subscription settings.
+              </p>
+            )}
+          </div>
+        )}
+
         <Link
           href={target}
           className="mt-10 text-sm font-medium text-warm-400 transition-colors hover:text-warm-200"
@@ -261,6 +357,42 @@ export default async function UpgradePage({
         <BillingLocationNote />
       </div>
     </main>
+  );
+}
+
+/** One thin meter row. Fill goes coral past 80% — the "running low"
+ *  color moment that makes the pack section below make sense. */
+function UsageMeter({
+  label,
+  used,
+  limit,
+  credits,
+}: {
+  label: string;
+  used: number;
+  limit: number;
+  credits: number;
+}) {
+  const ratio = limit > 0 ? Math.min(1, used / limit) : 0;
+  const low = ratio >= 0.8;
+  return (
+    <div className="mt-4">
+      <div className="flex items-baseline justify-between">
+        <span className="text-[13px] font-semibold text-warm-200">{label}</span>
+        <span
+          className={`text-[13px] font-bold ${low ? "text-coral-strong" : "text-warm-300"}`}
+        >
+          {used} of {limit}
+          {credits > 0 ? `  ·  +${credits} from packs` : ""}
+        </span>
+      </div>
+      <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-warm-700">
+        <div
+          className={`h-1.5 rounded-full ${low ? "bg-coral-strong" : "bg-teal-strong"}`}
+          style={{ width: `${Math.round(ratio * 100)}%` }}
+        />
+      </div>
+    </div>
   );
 }
 

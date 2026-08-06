@@ -366,17 +366,19 @@ export default async function DashboardPage({
   // "Pro" chip and its row routes to /upgrade instead of the chat.
   const pro = await isPro(supabase);
   const freeIdentityId = pro ? null : await getFreeIdentityId(supabase);
-  // Tier for the top-left Upgrade chip (Wilson 2026-08-03: settings
-  // no longer sells; all purchase entry points live on this chip →
-  // /upgrade). Free = "Upgrade"; Basic = "Go Pro"; Pro / trial /
-  // admin hide the chip.
+  // Tier for the top-left chip — the ONE money home's front door
+  // (Wilson 2026-08-06): every plan sees a chip now. Free = "Upgrade";
+  // Basic = "Go Pro" (Pro still exists above it); Pro / trial / admin =
+  // "Usage" — nothing left to sell them, but their meters, packs and
+  // subscription management all live behind this same tap. Matches the
+  // mobile dashboard chip exactly.
   const plan = await getPlanTier(supabase);
-  const upgradeChip: "upgrade" | "go-pro" | null =
+  const upgradeChip: "upgrade" | "go-pro" | "usage" =
     plan.tier === "free"
       ? "upgrade"
       : plan.tier === "basic"
         ? "go-pro"
-        : null;
+        : "usage";
 
   // Post-inherit welcome banner. When the redeem action redirects to
   // /dashboard?welcomed={oracleId}, resolve the name here so
@@ -472,7 +474,11 @@ export default async function DashboardPage({
               href="/upgrade"
               className="bg-gradient-cta inline-flex items-center rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-white shadow-[0_4px_10px_-2px_rgba(232,138,118,0.35)] transition-transform hover:-translate-y-px active:scale-95"
             >
-              {upgradeChip === "go-pro" ? "Go Pro" : "Upgrade"}
+              {upgradeChip === "go-pro"
+                ? "Go Pro"
+                : upgradeChip === "usage"
+                  ? "Usage"
+                  : "Upgrade"}
             </Link>
           ) : null}
         </div>

@@ -4,22 +4,17 @@ import { createClient } from "@/lib/supabase/server";
 import { isAdmin } from "@/lib/admin/allowlist";
 import { getPlanTier, isPro } from "@/lib/subscription";
 import {
-  MONTHLY_PRICE_LABEL,
   PRICING,
 } from "@/lib/pricing";
-import { PlanCards } from "@/components/PlanCards";
 import { DataExportButton } from "./_components/DataExportButton";
 import { InheritCodesList } from "./_components/InheritCodesList";
-import { ManageSubscriptionButton } from "./_components/ManageSubscriptionButton";
 import { MintedBanner } from "./_components/MintedBanner";
 import { NameField } from "./_components/NameField";
-import { PacksList } from "./_components/PacksList";
 import { PasswordResetRow } from "./_components/PasswordResetRow";
 import { PhotoUploader } from "./_components/PhotoUploader";
 import { ThemeToggle } from "./_components/ThemeToggle";
 import { TextSizeControl } from "./_components/TextSizeControl";
 import { NotificationsToggle } from "./_components/NotificationsToggle";
-import { UpgradeButton } from "./_components/UpgradeButton";
 
 export const metadata = {
   title: "Settings · chapter3five",
@@ -201,17 +196,10 @@ export default async function SettingsPage({
   const isBasicTier = plan.tier === "basic";
   const stripeCustomerId =
     (profile?.stripe_customer_id as string | null) ?? null;
-  const currentPeriodEnd =
-    (profile?.current_period_end as string | null) ?? null;
-  const cancelAtPeriodEnd = Boolean(profile?.cancel_at_period_end);
   const planSource = (profile?.plan_source as string | null) ?? "none";
   const trialEndsAt = (profile?.trial_ends_at as string | null) ?? null;
   const trialActive =
     trialEndsAt !== null && new Date(trialEndsAt).getTime() > Date.now();
-  // Only offer the Stripe Checkout button when Wilson has wired the
-  // price env. Absent env → the Upgrade button falls through to /upgrade
-  // which still has the mailto flow.
-  const checkoutEnabled = Boolean(process.env.STRIPE_PRICE_ID_PRO_MONTHLY);
 
   // Admin allowlist wins BEFORE the trial check. Allowlisted admins
   // are Pro forever via isPro's isAdmin short-circuit, but many also
@@ -238,7 +226,6 @@ export default async function SettingsPage({
       day: "numeric",
       year: "numeric",
     });
-  const periodEndLabel = currentPeriodEnd ? dateLabel(currentPeriodEnd) : null;
   const trialEndLabel = trialActive && trialEndsAt ? dateLabel(trialEndsAt) : null;
 
   return (
@@ -317,16 +304,9 @@ export default async function SettingsPage({
             grouped-list restyle. */}
         <Section label="Plan">
           <Row icon={<StarIcon />} label="Plan" value={planName} />
-          {pro && periodEndLabel && stripeCustomerId ? (
-            <>
-              <Divider />
-              <Row
-                icon={<StarIcon />}
-                label={cancelAtPeriodEnd ? "Cancels on" : "Renews on"}
-                value={periodEndLabel}
-              />
-            </>
-          ) : pro && !admin && trialActive && trialEndLabel && !stripeCustomerId ? (
+          {/* Renews-on/Cancels-on moved to /upgrade with the rest of
+              the paying information (Wilson 2026-08-06). */}
+          {pro && !admin && trialActive && trialEndLabel && !stripeCustomerId ? (
             <>
               <Divider />
               <Row
@@ -349,35 +329,21 @@ export default async function SettingsPage({
               lives on the dashboard's Contacts panel / account menu
               — settings never sells. Both surfaces match. */}
           <div className="px-4 py-4">
-            {/* Wilson 2026-08-03: settings shows STATUS + subscription
-                MANAGEMENT only. All purchase entry points (Upgrade,
-                Enroll, Convert, packs) live on the dashboard top-left
-                chip → /upgrade so settings never sells. */}
-            {pro && stripeCustomerId ? (
-              <>
-                <ManageSubscriptionButton />
-                <p className="mt-3 text-center text-xs text-warm-300">
-                  Update your card, view invoices, or cancel any time
-                  in the Stripe billing portal.
-                </p>
-              </>
-            ) : pro && !admin && trialActive ? (
-              <p className="text-center text-xs text-warm-300">
-                You&rsquo;re on the Pro trial until{" "}
-                {trialEndLabel ?? "your trial end"}. Tap the coral chip
-                on your dashboard when you&rsquo;re ready to keep it
-                going.
-              </p>
-            ) : pro ? (
-              <p className="text-center text-xs text-warm-300">
-                You&rsquo;re on Pro. No card on file — enjoy.
-              </p>
-            ) : (
-              <p className="text-center text-xs text-warm-300">
-                Ready for more room? Tap the coral chip on your
-                dashboard to see the plans + add-on packs.
-              </p>
-            )}
+            {/* ONE MONEY HOME (Wilson 2026-08-06): usage meters,
+                plans, packs, renewal date and the billing portal all
+                live on /upgrade behind the dashboard chip. Settings
+                keeps one signpost so anyone who comes here out of
+                habit is a tap away. Mirrors mobile Settings exactly. */}
+            <Link
+              href="/upgrade"
+              className="flex h-12 w-full items-center justify-center rounded-full text-[15px] font-semibold text-warm-100 ring-1 ring-warm-700 transition-colors hover:ring-coral/40"
+            >
+              Plan, usage &amp; billing
+            </Link>
+            <p className="mt-3 text-center text-xs text-warm-300">
+              See this month&rsquo;s usage, change or cancel your plan,
+              and grab add-on packs &mdash; all in one place.
+            </p>
           </div>
         </Section>
 
