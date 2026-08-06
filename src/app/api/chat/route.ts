@@ -918,14 +918,28 @@ export async function POST(request: NextRequest) {
   // the persona to notice past events and ask how they went, once.
   // Suppressed in memorial mode: a deceased persona doesn't have a
   // "today."
-  const todayPart = memorialMode
+  // ARCHIVES HAVE NO PRESENT-TENSE LIFE (2026-08-06). Everything below
+  // — today's date, the time where they are, the gap greeting, being
+  // woken up, ambient cast, conversation state — was gated on
+  // memorialMode alone. But memorialMode requires a beneficiary GRANT,
+  // and since 0111 a redeemed inherit code is a fully-OWNED copy, so
+  // it is false for every redeemed archive. Result: the archive of
+  // someone who died got "Today is Tuesday", "it's evening where they
+  // are", and "you were asleep but they kept messaging" — directly
+  // contradicting ARCHIVE_PRESENCE_RULES injected into the same
+  // prompt. Same fix already shipped on the web stream route (ca689bd);
+  // this is the other surface.
+  const archiveMode =
+    memorialMode || inheritedMode || ownOracle?.is_legacy === true;
+
+  const todayPart = archiveMode
     ? ""
     : `\n\n== Today ==\nToday is ${localDateLabel(effectiveTimezone)}. Use this to notice when something they mentioned is coming up has already passed — ask how it went, once, when the moment fits.`;
 
   // Loose time-of-day cue for the TIME OF DAY rule (softer mornings,
   // real late nights, on mid-day). Suppressed in memorial mode for
   // the same reason as todayPart.
-  const timeOfDayPart = memorialMode
+  const timeOfDayPart = archiveMode
     ? ""
     : `\n\n== Now ==\nIt's ${timeOfDayLabel(effectiveTimezone)} where they are. Let the time shape your cadence; don't announce it.`;
 
@@ -951,11 +965,11 @@ export async function POST(request: NextRequest) {
       : null;
   }
   const gapPart =
-    hoursSinceLastMessage !== null && hoursSinceLastMessage > 6 && !memorialMode
+    hoursSinceLastMessage !== null && hoursSinceLastMessage > 6 && !archiveMode
       ? `\n\n== Gap since you last talked ==\nIt's been ${formatGap(hoursSinceLastMessage)} since your last exchange. Greet accordingly — as if returning after a real gap, not mid-thread.`
       : "";
 
-  const wokenPart = sleeping && !memorialMode
+  const wokenPart = sleeping && !archiveMode
     ? `\n\nIt is currently ${localTimeLabel(effectiveTimezone)} where you live. You were asleep, but the user kept messaging until you replied. You're groggy, slightly short. Acknowledge that briefly — the way a real person would when woken up — then engage with what they're saying. Don't be cheerful about being awake.`
     : "";
 
@@ -1047,11 +1061,16 @@ export async function POST(request: NextRequest) {
   const distressed = anyRecentTurnDistressed(userMessage, recentUserTurns);
   const distressPart = distressed ? `\n\n${DISTRESS_TONE_BLOCK}` : "";
 
-  const castPart = memorialMode ? "" : castToPromptBlock(ambientCast);
-  const statePart = stateToPromptBlock({
-    state: conversationState,
-    weekly: weeklyForPrompt,
-  });
+  const castPart = archiveMode ? "" : castToPromptBlock(ambientCast);
+  // "What's going on in my life this week" is the same claim of
+  // ongoing life — suppressed for archives, which the audit caught
+  // still receiving it on this surface.
+  const statePart = archiveMode
+    ? ""
+    : stateToPromptBlock({
+        state: conversationState,
+        weekly: weeklyForPrompt,
+      });
 
   // Shared implementation with the web stream route (personaRules.ts)
   // so the two surfaces can never drift — the web had NO memorial mode
