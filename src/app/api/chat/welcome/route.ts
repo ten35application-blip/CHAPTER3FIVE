@@ -8,6 +8,7 @@ import { arcToPromptBlock, currentArc } from "@/lib/identity/arc";
 import { buildConciergePricingBlock } from "@/lib/identity/concierge";
 import { moodOfTheDay, moodToPromptBlock } from "@/lib/identity/mood";
 import { openerVarietyBlock } from "@/lib/identity/opener";
+import { LEGACY_QUESTIONS } from "@/lib/legacy/questions";
 
 export const runtime = "nodejs";
 // Literal, not the shared constant (Next reads segment config
@@ -70,12 +71,24 @@ export async function POST(request: NextRequest) {
     const { data: oracle } = await admin
       .from("oracles")
       .select(
-        "id, name, preferred_language, user_id, memory_style, is_concierge, creation_source, inherited_from_code_id, is_legacy",
+        "id, name, preferred_language, user_id, memory_style, is_concierge, creation_source, inherited_from_code_id, is_legacy, is_photo_placeholder",
       )
       .eq("id", oracleId)
       .maybeSingle();
     if (!oracle) {
       return NextResponse.json({ skipped: "no_such_oracle" });
+    }
+    // An unfilled photo placeholder has no persona to speak as. The
+    // mobile chat screen fires this route on ANY empty thread ~1000
+    // lines before its placeholder branch, so without this guard a
+    // placeholder open could insert a first message authored as "Your
+    // photo companion" from an empty persona — and, because the thread
+    // was then non-empty, the REAL persona's first message was
+    // permanently skipped by the idempotency check once the photo
+    // landed. (Web never hits this — it swaps in the placeholder
+    // screen before the chat mounts.)
+    if (oracle.is_photo_placeholder === true) {
+      return NextResponse.json({ skipped: "photo_placeholder" });
     }
     isConcierge = oracle.is_concierge === true;
     isInheritedCopy =
@@ -140,11 +153,15 @@ export async function POST(request: NextRequest) {
 
     const { data: oracle } = await supabase
       .from("oracles")
-      .select("user_id")
+      .select("user_id, is_photo_placeholder")
       .eq("id", profile.active_oracle_id)
       .maybeSingle();
     if (!oracle || oracle.user_id !== user.id) {
       return NextResponse.json({ skipped: "not_own_oracle" });
+    }
+    // Same placeholder guard as the body path — no persona, no welcome.
+    if (oracle.is_photo_placeholder === true) {
+      return NextResponse.json({ skipped: "photo_placeholder" });
     }
 
     oracleId = profile.active_oracle_id;
@@ -251,14 +268,63 @@ ${buildConciergePricingBlock()}`;
     }
   }
 
-  // Archive-snippet lookup deferred: the old answers table + 355-
-  // question set was ripped out in the 2026-07-29 old-app nuke.
-  // New formula stores 40 legacy answers as legacy_answers JSONB on
-  // the oracle row (see identity/legacy/new/actions.ts). Wire that
-  // JSONB into the archive snippet in a follow-up. For now the
-  // prompts fall through to their `"no answers recorded"` branch,
-  // which produces a warm ambiguous first text.
-  const archiveSnippet = "";
+  // THE PERSONA READ. This route used to generate the first message a
+  // user ever receives from `You are {name}` plus a hardcoded-empty
+  // archive snippet — the user waited 40 seconds for a synthesized
+  // person with a locked voice register, and the first thing that
+  // person ever said was generic Claude with the right name on it.
+  // The synthesis was complete in the row; the welcome just never read
+  // it. One admin read (persona_prompt is server-only by design)
+  // grounds every prompt variant below, and also feeds the mood/arc
+  // block that previously did its own lazy second read.
+  const { data: personaRow } = await admin
+    .from("oracles")
+    .select("persona_prompt, voice_examples, legacy_answers, traits, created_at")
+    .eq("id", oracleId)
+    .maybeSingle<{
+      persona_prompt: string | null;
+      voice_examples: unknown;
+      legacy_answers: unknown;
+      traits: { ongoingArcTemplate?: string | null } | null;
+      created_at: string;
+    }>();
+
+  // Their full character — the same DNA every chat turn runs on.
+  const personaBlock = personaRow?.persona_prompt
+    ? `WHO YOU ARE — your full character. Everything below stays inside it:\n\n${personaRow.persona_prompt}\n\n---\n\n`
+    : "";
+
+  // Sample texts, if the synthesis produced them — the fastest way to
+  // pin the register of a two-line opener.
+  const voiceExamples = Array.isArray(personaRow?.voice_examples)
+    ? (personaRow.voice_examples as unknown[])
+        .filter((v): v is string => typeof v === "string" && v.trim().length > 0)
+        .slice(0, 5)
+    : [];
+  const voiceBlock = voiceExamples.length
+    ? `\n\nSAMPLE TEXTS in your voice — match their register, don't copy them:\n${voiceExamples
+        .map((v) => `- ${v}`)
+        .join("\n")}`
+    : "";
+
+  // A few real archive answers for legacy/inherited archives — the
+  // same accessor shape the stream route uses. First handful of
+  // answered questions, question text included so the content
+  // anchors, clamped so the welcome prompt stays light.
+  const archiveAnswersMap =
+    (personaRow?.legacy_answers as { answers?: Record<string, unknown> } | null)
+      ?.answers ?? {};
+  const archiveSelfMode =
+    (personaRow?.legacy_answers as { subject?: { mode?: unknown } } | null)
+      ?.subject?.mode === "self";
+  const archiveSnippet = LEGACY_QUESTIONS.flatMap((q) => {
+    const answer = archiveAnswersMap[q.id];
+    if (typeof answer !== "string" || !answer.trim()) return [];
+    const prompt = archiveSelfMode ? (q.promptSelf ?? q.prompt) : q.prompt;
+    return [`Q: ${prompt}\nA: ${answer.trim().slice(0, 240)}`];
+  })
+    .slice(0, 6)
+    .join("\n\n");
 
   // NOT FOR AN INHERITED COPY (2026-08-04). `textingStyle` is read from
   // profiles.texting_style of the CALLER — the only place that column is
@@ -361,6 +427,11 @@ ${archiveSnippet || "(no answers recorded — keep the welcome short and present
       ? beneficiaryMemorialPrompt
       : ownerSystemPrompt;
 
+  // Ground the chosen prompt in the actual persona: full character
+  // first (their DNA), the welcome instruction reads against it, and
+  // the voice samples pin the register.
+  systemPrompt = `${personaBlock}${systemPrompt}${voiceBlock}`;
+
   // Per-persona opener uniqueness. Rotates the "opener move" this
   // persona uses today (arrival / observation / question / dry /
   // tender / callback / present-moment / self-conscious) and
@@ -389,25 +460,15 @@ ${archiveSnippet || "(no answers recorded — keep the welcome short and present
 
     // Formula v5 — ongoing arc on the welcome message too. The
     // persona references their in-motion life if it fits ("about
-    // to head to PT," "sister's wedding this weekend"). Traits
-    // + created_at loaded lazily below because the welcome route
-    // resolves the oracle inside multiple branches; a small extra
-    // read is cheap on a rare route. Skip on the memorial branch —
+    // to head to PT," "sister's wedding this weekend"). Reads from
+    // the unified persona fetch above. Skip on the memorial branch —
     // the dead don't have arcs and it would be gross.
-    const { data: arcRow } = await admin
-      .from("oracles")
-      .select("traits, created_at")
-      .eq("id", oracleId)
-      .maybeSingle<{
-        traits: { ongoingArcTemplate?: string | null } | null;
-        created_at: string;
-      }>();
-    const arcTemplate = arcRow?.traits?.ongoingArcTemplate;
-    if (arcTemplate && arcRow?.created_at) {
+    const arcTemplate = personaRow?.traits?.ongoingArcTemplate;
+    if (arcTemplate && personaRow?.created_at) {
       const arc = currentArc(
         arcTemplate as Parameters<typeof currentArc>[0],
         oracleId,
-        arcRow.created_at,
+        personaRow.created_at,
       );
       const arcBlock = arcToPromptBlock(arc);
       if (arcBlock) {
