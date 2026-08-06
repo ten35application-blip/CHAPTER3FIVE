@@ -3,6 +3,7 @@ import { timingSafeEqual } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { scheduleAutoPopulate } from "@/lib/subscription/autoPopulate";
 import { PRICING } from "@/lib/pricing";
+import { recordGrantFailure } from "@/lib/billing/grantFailure";
 
 export const runtime = "nodejs";
 
@@ -243,14 +244,32 @@ export async function POST(request: NextRequest) {
       delta: packCredits.images,
     });
     if (msgErr || imgErr) {
-      // Loud: the user PAID. The claim row above is already written, so
-      // a RevenueCat retry short-circuits on 23505 — this log is the
-      // signal for a manual re-grant. Same posture as the Stripe path.
-      console.error(
-        `[revenuecat-webhook] pack credit grant failed for ${appUserId}:`,
-        msgErr?.message,
-        imgErr?.message,
-      );
+      // The user PAID — through Apple or Google this time. The claim
+      // row above is already written, so a RevenueCat retry
+      // short-circuits on 23505 and never re-attempts the grant: there
+      // is no automatic recovery, same shape as the Stripe paths. A
+      // console.error was the entire record until 2026-08-06; now it
+      // lands in grant_failures where a person will see it — the exact
+      // treatment every Stripe grant already gets. (Stripe ids are
+      // null here; purpose carries the store transaction instead.)
+      if (msgErr) {
+        await recordGrantFailure({
+          kind: "message_credits",
+          userId: appUserId,
+          delta: packCredits.messages,
+          purpose: `revenuecat:${event.product_id ?? "unknown"}:${txnId}`,
+          error: msgErr,
+        });
+      }
+      if (imgErr) {
+        await recordGrantFailure({
+          kind: "image_credits",
+          userId: appUserId,
+          delta: packCredits.images,
+          purpose: `revenuecat:${event.product_id ?? "unknown"}:${txnId}`,
+          error: imgErr,
+        });
+      }
       return NextResponse.json({ error: "Credit grant failed" }, { status: 500 });
     }
     console.log(
