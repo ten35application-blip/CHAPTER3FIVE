@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getRequestAuth } from "@/lib/api/mobileAuth";
 import { fingerprintTraits } from "@/lib/identity/fingerprint";
 import {
-  ageFromBirthday,
+  reconcileTraitsToAge,
   rollTraits,
   type Traits,
 } from "@/lib/identity/formula";
@@ -226,7 +226,7 @@ export async function POST(request: NextRequest) {
   let traits: Traits | null = null;
   let fingerprint: string | null = null;
   for (let attempt = 0; attempt < MAX_FINGERPRINT_REROLLS; attempt++) {
-    const candidate: Traits = {
+    let candidate: Traits = {
       ...rollTraits(),
       gender: vision.gender,
       cultural: vision.cultural,
@@ -238,14 +238,10 @@ export async function POST(request: NextRequest) {
       vision.perceivedAgeMin,
       vision.perceivedAgeMax,
     );
-    // Formula v5 age-gate re-apply — same 55+ gate rollAddressStyle
-    // uses, without re-rolling (see the web action's note).
-    if (
-      candidate.addressStyle === "hon_sweetheart" &&
-      ageFromBirthday(candidate.birthday) < 55
-    ) {
-      candidate.addressStyle = null;
-    }
+    // EVERY age-conditioned gate re-runs against the photo's age — see
+    // the web twin's note. Before the fingerprint, so the hash covers
+    // what persists.
+    candidate = reconcileTraitsToAge(candidate);
     const candidateFingerprint = fingerprintTraits(candidate);
     const { data: existing } = await supabase
       .from("oracles")

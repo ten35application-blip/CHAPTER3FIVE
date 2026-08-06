@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { normalizeLanguage, type SupportedLanguage } from "@/lib/i18n/language";
 import { arcToPromptBlock, currentArc } from "@/lib/identity/arc";
+import { arcContextFromTraits } from "@/lib/identity/formula";
 import { buildConciergePricingBlock } from "@/lib/identity/concierge";
 import { moodOfTheDay, moodToPromptBlock } from "@/lib/identity/mood";
 import { openerVarietyBlock } from "@/lib/identity/opener";
@@ -469,6 +470,8 @@ ${archiveSnippet || "(no answers recorded — keep the welcome short and present
         arcTemplate as Parameters<typeof currentArc>[0],
         oracleId,
         personaRow.created_at,
+        // Rotation eligibility — same filter as the stream route.
+        arcContextFromTraits(personaRow.traits),
       );
       const arcBlock = arcToPromptBlock(arc);
       if (arcBlock) {

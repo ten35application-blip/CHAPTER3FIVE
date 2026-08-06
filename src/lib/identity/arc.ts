@@ -22,7 +22,9 @@
  */
 
 import {
+  arcTemplateEligible,
   ONGOING_ARC_TEMPLATES,
+  type ArcEligibilityContext,
   type OngoingArcTemplate,
 } from "./formula";
 
@@ -156,12 +158,19 @@ export type OngoingArc = {
  * @param template - the arc template stored on Traits.ongoingArcTemplate
  * @param oracleId - persona id (used as FNV seed for arc rotation)
  * @param oracleCreatedAtIso - persona creation timestamp
+ * @param ctx - persona family context (2026-08-05). The ROTATION used
+ *   to draw the next arc from the full template list with no trait
+ *   awareness — so a childless persona whose initial roll was clean
+ *   would, within months, announce a child's first school week.
+ *   Callers pass arcContextFromTraits(oracle.traits); undefined keeps
+ *   the old behavior (legacy blobs without the fields).
  * @param nowIso - override for testing; defaults to "now"
  */
 export function currentArc(
   template: OngoingArcTemplate,
   oracleId: string,
   oracleCreatedAtIso: string,
+  ctx?: ArcEligibilityContext,
   nowIso?: string,
 ): OngoingArc | null {
   // Template comes in cast from traits JSONB in three call sites — a
@@ -202,10 +211,16 @@ export function currentArc(
     remainingWeeks -= stages.length;
     arcIndex += 1;
     // Deterministic next arc: FNV of (oracleId, arcIndex) picks the
-    // next template. Same shape as mood.ts.
+    // next template. Same shape as mood.ts. Drawn from the templates
+    // this persona can actually live (ctx) — determinism is preserved
+    // because the eligible pool is itself deterministic per persona.
+    const pool = ctx
+      ? ONGOING_ARC_TEMPLATES.filter((t) => arcTemplateEligible(t, ctx))
+      : ONGOING_ARC_TEMPLATES;
+    const drawFrom = pool.length > 0 ? pool : ONGOING_ARC_TEMPLATES;
     const key = `${oracleId}::arc::${arcIndex}`;
-    const idx = fnv1a(key) % ONGOING_ARC_TEMPLATES.length;
-    currentTemplate = ONGOING_ARC_TEMPLATES[idx];
+    const idx = fnv1a(key) % drawFrom.length;
+    currentTemplate = drawFrom[idx];
     isNewArc = true;
   }
   return null;

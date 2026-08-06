@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { redirectWithError } from "@/lib/action-errors";
 import { fingerprintTraits } from "@/lib/identity/fingerprint";
 import {
-  ageFromBirthday,
+  reconcileTraitsToAge,
   rollTraits,
   type Traits,
 } from "@/lib/identity/formula";
@@ -170,7 +170,7 @@ export async function createIdentityFromPhoto(
   let traits: Traits | null = null;
   let fingerprint: string | null = null;
   for (let attempt = 0; attempt < MAX_FINGERPRINT_REROLLS; attempt++) {
-    const candidate: Traits = {
+    let candidate: Traits = {
       ...rollTraits(),
       gender: vision.gender,
       cultural: vision.cultural,
@@ -182,17 +182,15 @@ export async function createIdentityFromPhoto(
       vision.perceivedAgeMin,
       vision.perceivedAgeMax,
     );
-    // Formula v5 age-gate re-apply: rollExpansion already ran against
-    // rollTraits's random pre-photo birthday, so an old-pre-roll +
-    // young-photo can survive with addressStyle="hon_sweetheart" on a
-    // 28-year-old. Re-enforce the same 55+ gate rollAddressStyle uses,
-    // without re-rolling (which would shift the overall probability).
-    if (
-      candidate.addressStyle === "hon_sweetheart" &&
-      ageFromBirthday(candidate.birthday) < 55
-    ) {
-      candidate.addressStyle = null;
-    }
+    // EVERY age-conditioned gate re-runs against the photo's age, not
+    // just addressStyle (the old single re-gate). rollTraits gated its
+    // rolls on the pre-photo birthday, so an 80-rolled/25-photo persona
+    // kept "lost her mother 38 years ago" (a loss predating her birth)
+    // and a 26-rolled/78-photo persona kept "With their parents".
+    // reconcileTraitsToAge mirrors each roll-time gate exactly and
+    // leaves passing values untouched. Runs BEFORE the fingerprint so
+    // the fingerprint hashes what actually persists.
+    candidate = reconcileTraitsToAge(candidate);
     const candidateFingerprint = fingerprintTraits(candidate);
     const { data: existing } = await supabase
       .from("oracles")

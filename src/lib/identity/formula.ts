@@ -3471,9 +3471,22 @@ export function rollHumorTarget(): HumorTarget | null {
   );
 }
 
-export function rollFamilyRole(): FamilyRole | null {
+export function rollFamilyRole(isOnlyChild?: boolean): FamilyRole | null {
+  // Birth-order roles must agree with the siblings roll: live data had
+  // "the_middle_kid" on an only child and "the_only_child" on the
+  // oldest of four — rolled independently before 2026-08-05.
+  const eligible =
+    isOnlyChild === undefined
+      ? FAMILY_ROLES
+      : FAMILY_ROLES.filter((r) =>
+          isOnlyChild
+            ? r !== "the_middle_kid" &&
+              r !== "the_youngest" &&
+              r !== "the_oldest"
+            : r !== "the_only_child",
+        );
   return maybeRoll(HUMANIZATION_ROLL_PROB.familyRole, () =>
-    pickOne(FAMILY_ROLES),
+    pickOne(eligible),
   );
 }
 
@@ -3483,9 +3496,13 @@ export function rollWhatTheyGoBy(): WhatTheyGoByStyle | null {
   );
 }
 
-export function rollKryptonite(): Kryptonite | null {
+export function rollKryptonite(isOnlyChild?: boolean): Kryptonite | null {
+  // "their sister's laugh" cannot be an only child's soft spot.
+  const eligible = isOnlyChild
+    ? KRYPTONITES.filter((k) => k !== "their sister's laugh")
+    : KRYPTONITES;
   return maybeRoll(HUMANIZATION_ROLL_PROB.kryptonite, () =>
-    pickOne(KRYPTONITES),
+    pickOne(eligible),
   );
 }
 
@@ -3505,9 +3522,33 @@ export function rollUserDisposition(): UserDisposition | null {
   );
 }
 
-export function rollEmploymentStatus(): EmploymentStatus | null {
+/** One shared truth for "can a person this age hold this status" —
+ *  used by the roller AND the from-photo age reconciler. Deliberately
+ *  loose: early retirees and late workers are real people; only the
+ *  impossible tails are excluded ("retired_years" landed on a
+ *  26-year-old in live data). */
+export function employmentStatusEligible(
+  s: EmploymentStatus,
+  ageYears: number,
+): boolean {
+  if (s === "retired_recently") return ageYears >= 52;
+  if (s === "retired_years") return ageYears >= 58;
+  if (s === "still_working") return ageYears <= 80;
+  if (s === "between_jobs") return ageYears <= 72;
+  if (s === "gig_freelance") return ageYears <= 78;
+  if (s === "second_act") return ageYears >= 30 && ageYears <= 80;
+  return true;
+}
+
+export function rollEmploymentStatus(ageYears?: number): EmploymentStatus | null {
+  const eligible =
+    ageYears === undefined
+      ? EMPLOYMENT_STATUSES
+      : EMPLOYMENT_STATUSES.filter((s) =>
+          employmentStatusEligible(s, ageYears),
+        );
   return maybeRoll(HUMANIZATION_ROLL_PROB.employmentStatus, () =>
-    pickOne(EMPLOYMENT_STATUSES),
+    pickOne(eligible.length > 0 ? eligible : EMPLOYMENT_STATUSES),
   );
 }
 
@@ -3527,9 +3568,45 @@ export function rollGriefPosture(): GriefPosture | null {
   );
 }
 
-export function rollOngoingArcTemplate(): OngoingArcTemplate | null {
+export type ArcEligibilityContext = {
+  hasKids: boolean;
+  isOnlyChild: boolean;
+  /** True when the pet roll is the no-pets/allergic entry. */
+  noPets: boolean;
+  ageYears: number;
+};
+
+/**
+ * Whether an arc template is livable by THIS persona. Exported so the
+ * arc ROTATION (lib/identity/arc.ts picks the next template when one
+ * completes) can use the same filter — the initial roll being clean is
+ * worthless if the rotation announces a child's first school week for
+ * a childless persona three months in.
+ */
+export function arcTemplateEligible(
+  template: OngoingArcTemplate,
+  ctx: ArcEligibilityContext,
+): boolean {
+  if (template === "kid_starting_school")
+    return ctx.hasKids && ctx.ageYears <= 55;
+  if (template === "sister_wedding") return !ctx.isOnlyChild;
+  if (template === "adopting_shelter_dog") return !ctx.noPets;
+  if (template === "training_for_a_race") return ctx.ageYears <= 72;
+  return true;
+}
+
+export function rollOngoingArcTemplate(
+  ctx?: ArcEligibilityContext,
+): OngoingArcTemplate | null {
+  // Trait-aware (2026-08-05): the arc roll ignored the persona —
+  // "kid_starting_school" for "No children", "sister_wedding" for an
+  // only child, "adopting_shelter_dog" for the allergic no-pets
+  // persona, "training_for_a_race" at 93.
+  const eligible = ctx
+    ? ONGOING_ARC_TEMPLATES.filter((t) => arcTemplateEligible(t, ctx))
+    : ONGOING_ARC_TEMPLATES;
   return maybeRoll(HUMANIZATION_ROLL_PROB.ongoingArcTemplate, () =>
-    pickOne(ONGOING_ARC_TEMPLATES),
+    pickOne(eligible.length > 0 ? eligible : ONGOING_ARC_TEMPLATES),
   );
 }
 
@@ -3538,6 +3615,15 @@ export function rollOngoingArcTemplate(): OngoingArcTemplate | null {
 export function rollExpansion(opts: {
   ageYears: number;
   hasLoss: boolean;
+  /** Family context (2026-08-05) — the cadences, roles, kryptonite
+   *  and arc rolls must not contradict the base bundle. All optional
+   *  so external callers keep working; omitted = unguarded, exactly
+   *  the pre-2026-08-05 behavior. */
+  isOnlyChild?: boolean;
+  hasKids?: boolean;
+  motherGone?: boolean;
+  fatherGone?: boolean;
+  noPets?: boolean;
 }): {
   addressStyle: AddressStyle | null;
   profanityRegister: ProfanityRegister | null;
@@ -3568,30 +3654,51 @@ export function rollExpansion(opts: {
     lexiconAbbreviationRegister: rollLexiconAbbreviationRegister(),
     textingFluency: rollTextingFluency(),
     humorTarget: rollHumorTarget(),
-    familyRole: rollFamilyRole(),
+    familyRole: rollFamilyRole(opts.isOnlyChild),
     whatTheyGoBy: rollWhatTheyGoBy(),
-    kryptonite: rollKryptonite(),
+    kryptonite: rollKryptonite(opts.isOnlyChild),
     pettyTrigger: rollPettyTrigger(),
     cantDo: rollCantDo(),
     userDisposition: rollUserDisposition(),
-    employmentStatus: rollEmploymentStatus(),
+    employmentStatus: rollEmploymentStatus(opts.ageYears),
     workRelationship: rollWorkRelationship(),
-    motherContactCadence: maybeRoll(
-      HUMANIZATION_ROLL_PROB.motherContactCadence,
-      rollContactCadence,
-    ),
-    fatherContactCadence: maybeRoll(
-      HUMANIZATION_ROLL_PROB.fatherContactCadence,
-      rollContactCadence,
-    ),
-    siblingContactCadence: maybeRoll(
-      HUMANIZATION_ROLL_PROB.siblingContactCadence,
-      rollContactCadence,
-    ),
+    // You do not have a texting cadence with the dead (2026-08-05).
+    // These rolled at 70%/70%/50% regardless of "Lost her early" or a
+    // parent being the rolled loss — a persona "texting weekly" with a
+    // dead mother — and the sibling cadence rolled for only children.
+    motherContactCadence: opts.motherGone
+      ? null
+      : maybeRoll(
+          HUMANIZATION_ROLL_PROB.motherContactCadence,
+          rollContactCadence,
+        ),
+    fatherContactCadence: opts.fatherGone
+      ? null
+      : maybeRoll(
+          HUMANIZATION_ROLL_PROB.fatherContactCadence,
+          rollContactCadence,
+        ),
+    siblingContactCadence: opts.isOnlyChild
+      ? null
+      : maybeRoll(
+          HUMANIZATION_ROLL_PROB.siblingContactCadence,
+          rollContactCadence,
+        ),
     // Only meaningful if there IS a loss. Otherwise force null so
     // the synthesizer isn't tempted to invent one to fill the field.
     griefPosture: opts.hasLoss ? rollGriefPosture() : null,
-    ongoingArcTemplate: rollOngoingArcTemplate(),
+    ongoingArcTemplate: rollOngoingArcTemplate(
+      opts.isOnlyChild !== undefined &&
+        opts.hasKids !== undefined &&
+        opts.noPets !== undefined
+        ? {
+            hasKids: opts.hasKids,
+            isOnlyChild: opts.isOnlyChild,
+            noPets: opts.noPets,
+            ageYears: opts.ageYears,
+          }
+        : undefined,
+    ),
   };
 }
 
@@ -3689,6 +3796,38 @@ function minAgeForLoss(relation: string): number {
 }
 
 /**
+ * The OTHER end of the loss-recency clamp (2026-08-05). minAgeForLoss
+ * bounds how LONG AGO a loss can be (the persona must have been old
+ * enough to remember the person); nothing bounded how RECENT — and for
+ * generational losses, recency implies the relative's age at death.
+ * Live data had Sung-Jin Park, 92, whose grandma died 35 years ago:
+ * he was 57, which puts her at ~130. The clamp built to kill
+ * impossible-loss math had recreated it one generation up.
+ *
+ * A relative who died N years ago was (age - N + generation gap) years
+ * old then. Capping that at a long-but-human lifespan yields a MINIMUM
+ * years-since for each generation:
+ *   grandparent  ≥ ~45 years older  → died no later than persona ~53
+ *   parent-tier  ≥ ~22 years older  → died no later than persona ~76
+ *   same-tier    no bound (sibling / best friend age with the persona)
+ */
+function minYearsSinceForLoss(relation: string, age: number): number {
+  const RELATIVE_MAX_AGE = 98;
+  const generationGap =
+    relation.includes("Grandma") ||
+    relation.includes("Grandpa") ||
+    relation.includes("grandparent")
+      ? 45
+      : relation.includes("mother") ||
+          relation.includes("father") ||
+          relation.includes("aunt or uncle")
+        ? 22
+        : null;
+  if (generationGap === null) return 1;
+  return Math.max(1, age + generationGap - RELATIVE_MAX_AGE);
+}
+
+/**
  * Which TRAUMA_AGES buckets are possible for a given trauma. Several
  * traumas name their own life stage ("Loss of a parent (young)",
  * "Childhood poverty", "grew up with") and several are adult-only by
@@ -3750,24 +3889,13 @@ export function rollTraits(): Traits {
   const siblings = pick(SIBLINGS);
   const isOnlyChild = siblings.startsWith("Only child");
 
-  // Grief texture. CLAMPED to the persona's own lifetime (2026-08-04).
-  // This used to be a flat 1–40 regardless of age, so ~4% of rolls
-  // dated a death BEFORE the persona was born and ~7% before they were
-  // five — while the trait text presupposes a relationship ("Grandma —
-  // still cooks her recipes"). The synthesizer was handed
-  // "(N years ago — reconcile with their age)", which cannot resolve an
-  // impossibility; the model had to silently break either the number or
-  // the relationship, and that papering-over is what reads as generated.
-  let deadRelative = pick(DEAD_RELATIVES);
-  // An only child cannot lose a sibling.
-  if (isOnlyChild && deadRelative.includes("sibling")) {
-    deadRelative = "An aunt or uncle who was like a parent";
-  }
-  const hasLoss = !deadRelative.startsWith("No immediate loss");
-  const maxYearsSince = Math.max(1, age - minAgeForLoss(deadRelative));
-  const deadRelativeYearsSince = hasLoss
-    ? 1 + pickInt(Math.min(40, maxYearsSince))
-    : 0;
+  // Parents hoisted (2026-08-05) so grief and the contact cadences can
+  // see them — "Lost her early" and a mother the persona "texts weekly"
+  // were previously rolled blind to each other.
+  const mother = pick(PARENT_RELATIONSHIPS);
+  const father = pick(FATHER_RELATIONSHIPS);
+  const motherLostEarly = mother === "Lost her early";
+  const fatherLostEarly = father === "Lost him early";
 
   // Household cluster (2026-08-04). relationshipHistory, livingSituation
   // and parenthood were three independent picks, so ~19% of rolls
@@ -3819,10 +3947,77 @@ export function rollTraits(): Traits {
   const livingSituation =
     livingOptions.length > 0 ? pick(livingOptions) : "Lives alone and likes it";
 
+  // Grief texture. CLAMPED to the persona's own lifetime (2026-08-04)
+  // and — 2026-08-05 — made COHERENT with everything rolled above it:
+  //
+  //   - an only child cannot lose a sibling (original guard)
+  //   - a "Lost her early" mother IS the immediate loss; rolling
+  //     "No immediate loss (knock on wood)" next to her was Marlena
+  //     Runningwater in live data — a persona who lost her mother
+  //     saying she'd lost no one
+  //   - Widowed asserts a loss too; "knock on wood" from a widow
+  //     reads as the machine showing through
+  //   - the years-since roll is bounded on BOTH ends now: old enough
+  //     to remember them (minAgeForLoss) and recent enough that the
+  //     relative's age at death stays human (minYearsSinceForLoss —
+  //     no more 130-year-old grandmothers)
+  let deadRelative = pick(DEAD_RELATIVES);
+  if (isOnlyChild && deadRelative.includes("sibling")) {
+    deadRelative = "An aunt or uncle who was like a parent";
+  }
+  if (deadRelative.startsWith("No immediate loss")) {
+    if (motherLostEarly) {
+      deadRelative = "Their mother";
+    } else if (fatherLostEarly) {
+      deadRelative = "Their father";
+    } else if (relationshipHistory === "Widowed") {
+      const losses = DEAD_RELATIVES.filter(
+        (d) =>
+          !d.startsWith("No immediate loss") &&
+          !(isOnlyChild && d.includes("sibling")),
+      );
+      deadRelative = pick(losses);
+    }
+  }
+  // (Considered, deliberately NOT guarded: deadRelative "Their mother"
+  // alongside mother "Close/warm" with no "lost early" — a warm
+  // relationship that ended in adulthood is a real human shape, not a
+  // contradiction. The cadence guard below is what keeps a dead parent
+  // from also texting weekly.)
+  const hasLoss = !deadRelative.startsWith("No immediate loss");
+  const maxYearsSince = Math.max(1, age - minAgeForLoss(deadRelative));
+  const lowYears = Math.min(
+    minYearsSinceForLoss(deadRelative, age),
+    maxYearsSince,
+  );
+  const highYears = Math.max(lowYears, Math.min(40, maxYearsSince));
+  const deadRelativeYearsSince = hasLoss
+    ? lowYears + pickInt(highYears - lowYears + 1)
+    : 0;
+
   let trauma = pick(TRAUMAS);
-  // Same impossibility, different table.
+  // Same impossibility, different table — plus three new guards
+  // (2026-08-05) for traumas that assert a relationship history the
+  // household cluster above may have contradicted:
+  //   "Own divorce" on a lifelong single; "Loss of a spouse/partner"
+  //   on someone whose spouse is alive; "Loss of a child" on a
+  //   childless persona whose parenthood is declared FIXED to the
+  //   synthesizer, which therefore couldn't reconcile it.
   if (isOnlyChild && trauma === "Loss of a sibling") {
     trauma = "Betrayal by best friend";
+  }
+  if (
+    trauma === "Own divorce" &&
+    relationshipHistory !== "Married once (divorced)" &&
+    relationshipHistory !== "Married multiple times"
+  ) {
+    trauma = "Job loss/career collapse";
+  }
+  if (trauma === "Loss of a spouse/partner" && relationshipHistory !== "Widowed") {
+    trauma = "Estrangement from family";
+  }
+  if (trauma === "Loss of a child" && !hasKids) {
+    trauma = "Miscarriage/infertility";
   }
   const traumaAge = pick(
     traumaAgesFor(trauma) as readonly (typeof TRAUMA_AGES)[number][],
@@ -3845,6 +4040,45 @@ export function rollTraits(): Traits {
     return ok.length > 0 ? pick(ok) : pick(list);
   }
 
+  // Pet before ritual (2026-08-05): "Evening walk with the dog" landed
+  // on "A cat named after a food" in live data (Adaeze Okonkwo), and
+  // "Calls mom every Sunday" could land on a persona whose mother is
+  // the rolled loss. The ritual now sees both.
+  const pet = pick(PETS);
+  const hasDogAtHome =
+    /lab mix|little dog|rescue mutt|Grand-dog/i.test(pet);
+  const motherGone = motherLostEarly || deadRelative === "Their mother";
+  const ritualOptions = DAILY_RITUALS.filter((r) => {
+    if (r === "Evening walk with the dog" && !hasDogAtHome) return false;
+    if (r === "Calls mom every Sunday" && motherGone) return false;
+    return true;
+  });
+  const dailyRitual =
+    ritualOptions.length > 0 ? pick(ritualOptions) : pick(DAILY_RITUALS);
+
+  // Accent must be compatible with heritage (2026-08-05). Four accents
+  // are ethnicity-bound in their own text; rolled independently of
+  // `cultural`, they produced e.g. Japanese heritage + "Boricua —
+  // Spanish and English in the same sentence", which the synthesizer's
+  // move-history escape hatch strains hard to paper over. Unbound
+  // accents (regional US, first-gen echo) stay open to everyone.
+  const cultural = pick(CULTURAL_BACKGROUNDS);
+  const ACCENT_HERITAGE_BOUND: Partial<
+    Record<(typeof REGIONAL_ACCENTS)[number], RegExp>
+  > = {
+    "Nigerian-accented English, precise and musical": /African|Caribbean/,
+    "Boricua — Spanish and English in the same sentence": /Puerto Rican/,
+    "Chicano English, East LA": /Mexican/,
+    "Miami — Spanglish flows without thinking":
+      /Cuban|Puerto Rican|Dominican|Mexican|South American|Caribbean/,
+  };
+  const accentOptions = REGIONAL_ACCENTS.filter((a) => {
+    const bound = ACCENT_HERITAGE_BOUND[a];
+    return !bound || bound.test(cultural);
+  });
+  const regionalAccent =
+    accentOptions.length > 0 ? pick(accentOptions) : pick(REGIONAL_ACCENTS);
+
   return {
     // GENDER (2026-08-04). "Prefer not to disclose" is a survey option,
     // not a human trait, and a flat pick handed it to a THIRD of all
@@ -3864,7 +4098,7 @@ export function rollTraits(): Traits {
     birthday,
     horoscope: horoscopeFromDate(birthday),
     sexualOrientation: pick(SEXUAL_ORIENTATIONS),
-    cultural: pick(CULTURAL_BACKGROUNDS),
+    cultural,
     mbti,
     enneagram: pick(ENNEAGRAM),
     trauma,
@@ -3874,8 +4108,8 @@ export function rollTraits(): Traits {
     coping: pick(COPING_MECHANISMS),
     moralCompass: pick(MORAL_COMPASSES),
     siblings,
-    mother: pick(PARENT_RELATIONSHIPS),
-    father: pick(FATHER_RELATIONSHIPS),
+    mother,
+    father,
     relationshipHistory,
     parenthood,
     communicationStyle: pick(COMMUNICATION_STYLES),
@@ -3896,7 +4130,7 @@ export function rollTraits(): Traits {
     weekendActivity: pick(WEEKEND_ACTIVITIES),
     hobby: pick(HOBBIES),
     sport: pickNonFamilyClashing(SPORTS),
-    dailyRitual: pick(DAILY_RITUALS),
+    dailyRitual,
     laugh: pick(LAUGHS),
     styleAesthetic: pick(STYLE_AESTHETICS),
     mannerism: pick(MANNERISMS),
@@ -3904,9 +4138,9 @@ export function rollTraits(): Traits {
     heightRange: pick(HEIGHT_RANGES),
     homeType: pick(HOME_TYPES),
     livingSituation,
-    pet: pick(PETS),
+    pet,
     classBackground: pick(CLASS_BACKGROUNDS),
-    regionalAccent: pick(REGIONAL_ACCENTS),
+    regionalAccent,
     mostRecentJoy: pickNonFamilyClashing(RECENT_JOYS),
     currentWorry: pickNonFamilyClashing(CURRENT_WORRIES),
     whatMakesThemCry: pickNonFamilyClashing(CRY_TRIGGERS),
@@ -3927,6 +4161,11 @@ export function rollTraits(): Traits {
     ...rollExpansion({
       ageYears: age,
       hasLoss: deadRelativeYearsSince > 0,
+      isOnlyChild,
+      hasKids,
+      motherGone,
+      fatherGone: fatherLostEarly || deadRelative === "Their father",
+      noPets: pet.startsWith("No pets"),
     }),
   };
 }
@@ -3946,4 +4185,120 @@ export function ageFromBirthday(iso: string): number {
     age--;
   }
   return age;
+}
+
+/**
+ * Re-reconcile every age-conditioned trait after the birthday changes.
+ *
+ * THE FROM-PHOTO ORDERING BUG (2026-08-05). rollTraits() gates its
+ * rolls against the ROLLED age; the photo path then overwrites the
+ * birthday with the photo's perceived age — after every gate already
+ * ran. Only addressStyle was re-checked. So a photo of a 78-year-old
+ * could keep "With their parents" (rolled under the age<40 gate), a
+ * 26-year-old photo could keep "lost her mother 38 years ago" (the
+ * pre-born-loss impossibility the clamp exists to kill), and grandkid
+ * traits rolled at 60 survived a rebind to 25.
+ *
+ * Everything here mirrors the corresponding roll-time gate exactly —
+ * one shared predicate wherever one exists (employmentStatusEligible,
+ * arcTemplateEligible, min/maxYearsSince math). Values that still pass
+ * their gates are returned untouched, so a rebind that lands near the
+ * rolled age is a no-op.
+ */
+export function reconcileTraitsToAge(traits: Traits): Traits {
+  const t: Traits = { ...traits };
+  const age = ageFromBirthday(t.birthday);
+  const hasKids = !t.parenthood.startsWith("No children");
+  const isOnlyChild = t.siblings.startsWith("Only child");
+
+  // Loss recency — both ends, same math as the roll.
+  if (t.deadRelativeYearsSince > 0) {
+    const maxY = Math.max(1, age - minAgeForLoss(t.deadRelative));
+    const lowY = Math.min(minYearsSinceForLoss(t.deadRelative, age), maxY);
+    const highY = Math.max(lowY, Math.min(40, maxY));
+    t.deadRelativeYearsSince = Math.min(
+      Math.max(t.deadRelativeYearsSince, lowY),
+      highY,
+    );
+  }
+
+  if (t.livingSituation === "With their parents" && age >= 40) {
+    t.livingSituation = "Lives alone and likes it";
+  }
+  if (t.addressStyle === "hon_sweetheart" && age < 55) {
+    t.addressStyle = null;
+  }
+
+  // Kid/grandkid-asserting list values — same regex gates as
+  // pickNonFamilyClashing at roll time.
+  const kidWord = /\bkids?\b|\bgrandkids?\b/i;
+  const grandkidWord = /\bgrandkids?\b/i;
+  const clashes = (v: string): boolean =>
+    (grandkidWord.test(v) && (!hasKids || age < 45)) ||
+    (kidWord.test(v) && !hasKids);
+  const refix = <T extends string>(v: T, list: readonly T[]): T => {
+    if (!clashes(v)) return v;
+    const ok = list.filter((x) => !clashes(x));
+    return ok.length > 0 ? pick(ok) : v;
+  };
+  t.vice = refix(t.vice, VICES);
+  t.favoriteShow = refix(t.favoriteShow, FAVORITE_SHOWS);
+  t.sport = refix(t.sport, SPORTS);
+  t.mostRecentJoy = refix(t.mostRecentJoy, RECENT_JOYS);
+  t.currentWorry = refix(t.currentWorry, CURRENT_WORRIES);
+  t.whatMakesThemCry = refix(t.whatMakesThemCry, CRY_TRIGGERS);
+
+  if (
+    t.employmentStatus &&
+    !employmentStatusEligible(t.employmentStatus, age)
+  ) {
+    const ok = EMPLOYMENT_STATUSES.filter((s) =>
+      employmentStatusEligible(s, age),
+    );
+    t.employmentStatus = ok.length > 0 ? pick(ok) : t.employmentStatus;
+  }
+
+  if (t.ongoingArcTemplate) {
+    const ctx: ArcEligibilityContext = {
+      hasKids,
+      isOnlyChild,
+      noPets: t.pet.startsWith("No pets"),
+      ageYears: age,
+    };
+    if (!arcTemplateEligible(t.ongoingArcTemplate, ctx)) {
+      const ok = ONGOING_ARC_TEMPLATES.filter((a) =>
+        arcTemplateEligible(a, ctx),
+      );
+      t.ongoingArcTemplate = ok.length > 0 ? pick(ok) : null;
+    }
+  }
+
+  return t;
+}
+
+/**
+ * Build an arc-eligibility context from a stored traits blob, for the
+ * arc ROTATION at chat time (lib/identity/arc.ts). Returns undefined
+ * when the blob doesn't carry the needed fields (legacy archives,
+ * partial rows) — the rotation then behaves exactly as before.
+ */
+export function arcContextFromTraits(
+  traits: unknown,
+): ArcEligibilityContext | undefined {
+  const t = traits as Partial<Traits> | null | undefined;
+  if (
+    !t ||
+    typeof t.parenthood !== "string" ||
+    typeof t.siblings !== "string" ||
+    typeof t.pet !== "string" ||
+    typeof t.birthday !== "string"
+  ) {
+    return undefined;
+  }
+  return {
+    hasKids: !t.parenthood.startsWith("No children"),
+    isOnlyChild: t.siblings.startsWith("Only child"),
+    noPets: t.pet.startsWith("No pets"),
+    ageYears: ageFromBirthday(t.birthday),
+  };
 }

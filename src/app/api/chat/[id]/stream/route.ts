@@ -3,7 +3,11 @@ import { after } from "next/server";
 import type Anthropic from "@anthropic-ai/sdk";
 import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { backfillVoiceExamples } from "@/lib/identity/backfillVoiceExamples";
-import { ageFromBirthday, coerceChronotype } from "@/lib/identity/formula";
+import {
+  ageFromBirthday,
+  arcContextFromTraits,
+  coerceChronotype,
+} from "@/lib/identity/formula";
 import { moodOfTheDay, moodToPromptBlock } from "@/lib/identity/mood";
 import { arcToPromptBlock, currentArc } from "@/lib/identity/arc";
 import { buildConciergePricingBlock } from "@/lib/identity/concierge";
@@ -936,6 +940,9 @@ export async function POST(
       arcTemplate as Parameters<typeof currentArc>[0],
       oracleId,
       oracle.created_at as string,
+      // Rotation eligibility — the next arc must be one THIS persona
+      // can live (no kid-starting-school for the childless).
+      arcContextFromTraits(oracle.traits),
     );
     const arcBlock = arcToPromptBlock(arc);
     if (arcBlock) {
