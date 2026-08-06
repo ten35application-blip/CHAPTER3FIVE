@@ -862,6 +862,54 @@ export async function canSendImageForMonthCap(
   return { ok: true, current: count, limit, usingCredit: false };
 }
 
+/**
+ * Display-side monthly counts — the SAME queries the two cap gates run
+ * (same month window, same Me-archive/help exemptions), extracted so
+ * the usage meters can show real numbers for accounts the gates skip.
+ *
+ * The cap functions short-circuit `plan.unlimited` with current: 0 —
+ * correct for enforcement (no reason to pay for two counts on every
+ * admin send), wrong for display: the admin demoing the app saw no
+ * meters at all and read the feature as missing (Wilson, 2026-08-06).
+ * Never used for enforcement; returns zeros on error because a broken
+ * meter should read empty, not block anything.
+ */
+export async function monthlyUsageCounts(
+  client: SupabaseClient,
+  userId: string,
+): Promise<{ messages: number; images: number }> {
+  try {
+    const monthStart = new Date();
+    monthStart.setUTCHours(0, 0, 0, 0);
+    monthStart.setUTCDate(1);
+    const exempt = await capExemptOracleIds(client, userId);
+    let msgQ = client
+      .from("messages")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("role", "user")
+      .gte("created_at", monthStart.toISOString());
+    let imgQ = client
+      .from("messages")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("role", "user")
+      .not("image_storage_path", "is", null)
+      .gte("created_at", monthStart.toISOString());
+    if (exempt.length > 0) {
+      msgQ = msgQ.not("oracle_id", "in", notInList(exempt));
+      imgQ = imgQ.not("oracle_id", "in", notInList(exempt));
+    }
+    const [{ count: messages }, { count: images }] = await Promise.all([
+      msgQ,
+      imgQ,
+    ]);
+    return { messages: messages ?? 0, images: images ?? 0 };
+  } catch {
+    return { messages: 0, images: 0 };
+  }
+}
+
 // trialSpotsRemaining removed in the 0096 pricing rework -- handle_new_user
 // no longer hands out trials on new signups, so the "N of 1000 seats
 // remaining" surface is meaningless. Existing trialers keep theirs until

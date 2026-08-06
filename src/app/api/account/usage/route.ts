@@ -4,6 +4,7 @@ import {
   canSendImageForMonthCap,
   canSendMessageForTierCap,
   getPlanTier,
+  monthlyUsageCounts,
 } from "@/lib/subscription";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -34,10 +35,24 @@ export async function GET(request: Request) {
   }
 
   const plan = await getPlanTier(supabase);
-  const [messages, images] = await Promise.all([
-    canSendMessageForTierCap(supabase, plan),
-    canSendImageForMonthCap(supabase, plan),
-  ]);
+  // Unlimited (admin) accounts: the cap gates short-circuit with 0, so
+  // count directly for display — the meters then show real numbers
+  // with "no limit" instead of vanishing for exactly the accounts that
+  // demo the app.
+  let messages: { current: number; limit: number };
+  let images: { current: number; limit: number };
+  if (plan.unlimited) {
+    const counts = await monthlyUsageCounts(supabase, user.id);
+    messages = { current: counts.messages, limit: 0 };
+    images = { current: counts.images, limit: 0 };
+  } else {
+    const [m, i] = await Promise.all([
+      canSendMessageForTierCap(supabase, plan),
+      canSendImageForMonthCap(supabase, plan),
+    ]);
+    messages = m;
+    images = i;
+  }
 
   // Pack-credit balances — billing state, admin read (same posture as
   // getPackCreditBalance; scoped to the caller's own row).

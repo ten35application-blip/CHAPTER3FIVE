@@ -5,6 +5,7 @@ import {
   canSendImageForMonthCap,
   canSendMessageForTierCap,
   getPlanTier,
+  monthlyUsageCounts,
 } from "@/lib/subscription";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ManageSubscriptionButton } from "@/app/(gated)/settings/_components/ManageSubscriptionButton";
@@ -90,8 +91,14 @@ export default async function UpgradePage({
   // management live HERE now, not in Settings — matching the mobile
   // Upgrade screen exactly. Same functions that enforce the caps, so
   // the meter can never disagree with the wall.
+  // Unlimited (admin) accounts get real counts with "no limit" instead
+  // of a vanished card — the account that demos the app most must be
+  // able to see the feature (limit 0 = unlimited to UsageMeter).
   const [msgCap, imgCap] = plan.unlimited
-    ? [null, null]
+    ? await monthlyUsageCounts(supabase, user.id).then((c) => [
+        { current: c.messages, limit: 0 },
+        { current: c.images, limit: 0 },
+      ])
     : await Promise.all([
         canSendMessageForTierCap(supabase, plan),
         canSendImageForMonthCap(supabase, plan),
@@ -373,8 +380,9 @@ function UsageMeter({
   limit: number;
   credits: number;
 }) {
+  const unlimited = limit <= 0;
   const ratio = limit > 0 ? Math.min(1, used / limit) : 0;
-  const low = ratio >= 0.8;
+  const low = !unlimited && ratio >= 0.8;
   return (
     <div className="mt-4">
       <div className="flex items-baseline justify-between">
@@ -382,16 +390,19 @@ function UsageMeter({
         <span
           className={`text-[13px] font-bold ${low ? "text-coral-strong" : "text-warm-300"}`}
         >
-          {used} of {limit}
-          {credits > 0 ? `  ·  +${credits} from packs` : ""}
+          {unlimited
+            ? `${used} sent · no limit`
+            : `${used} of ${limit}${credits > 0 ? `  ·  +${credits} from packs` : ""}`}
         </span>
       </div>
-      <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-warm-700">
-        <div
-          className={`h-1.5 rounded-full ${low ? "bg-coral-strong" : "bg-teal-strong"}`}
-          style={{ width: `${Math.round(ratio * 100)}%` }}
-        />
-      </div>
+      {unlimited ? null : (
+        <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-warm-700">
+          <div
+            className={`h-1.5 rounded-full ${low ? "bg-coral-strong" : "bg-teal-strong"}`}
+            style={{ width: `${Math.round(ratio * 100)}%` }}
+          />
+        </div>
+      )}
     </div>
   );
 }
