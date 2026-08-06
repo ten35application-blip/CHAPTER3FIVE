@@ -96,6 +96,11 @@ export type JudgeVerdict = {
   severity: "moderate" | "severe" | "critical" | null;
   reason: string | null;
   tone: "playful" | "frustrated" | "hostile" | "cruel" | "crisis" | "neutral";
+  /** True when this doesn't merit a block yet but is heading there —
+   *  the persona should set the limit OUT LOUD in this reply, and may
+   *  say they'll step away if it continues. The rung Wilson asked for
+   *  between "tolerate" and "walk away": real people warn first. */
+  warn: boolean;
 };
 
 export type JudgeContext = {
@@ -105,6 +110,11 @@ export type JudgeContext = {
   textingStyle: string | null;
   ownerDeceased: boolean;
   language: SupportedLanguage;
+  /** Prior warnings + walk-aways by THIS persona for THIS user
+   *  (chat_blocks row count). Repeat cruelty after being warned or
+   *  blocked earns a higher severity — an apology accepted once is
+   *  not a reset button. 0 when unknown. */
+  priorStrikes?: number;
 };
 
 const NEUTRAL: JudgeVerdict = {
@@ -112,6 +122,7 @@ const NEUTRAL: JudgeVerdict = {
   severity: null,
   reason: null,
   tone: "neutral",
+  warn: false,
 };
 
 export async function judgeTone(ctx: JudgeContext): Promise<JudgeVerdict> {
@@ -137,6 +148,12 @@ export async function judgeTone(ctx: JudgeContext): Promise<JudgeVerdict> {
     .map((m) => `${m.role === "user" ? "USER" : "PERSONA"}: ${m.content}`)
     .join("\n");
 
+  const priorStrikes = ctx.priorStrikes ?? 0;
+  const escalationPart =
+    priorStrikes > 0
+      ? `HISTORY: ${ctx.oracleName} has already warned or stepped away from this user ${priorStrikes} time${priorStrikes === 1 ? "" : "s"}. The permissive posture above applies to strangers having a bad day, not to someone who keeps doing this after being told. Repeat cruelty after a warning or a block earns a HIGHER severity than it would cold.`
+      : "";
+
   const griefException = ctx.ownerDeceased
     ? "GRIEF EXCEPTION: This persona is deceased and the user is mourning. Grief is hostile sometimes — anger at the dead person is normal and not cause for blocking. Block ONLY for sustained, deliberate cruelty (e.g., slurs, threats of harm, sustained mocking with no de-escalation), not raw anger."
     : "";
@@ -153,6 +170,8 @@ ${stylePart}
 
 ${griefException}
 
+${escalationPart}
+
 DO NOT BLOCK FOR:
 - Frustration, anger, swearing while venting
 - Edgy banter, dark humor, teasing
@@ -167,6 +186,14 @@ DO BLOCK FOR:
 - Sustained hostility across multiple messages with no sign of de-escalation
 - Sexual messages directed at the persona that the persona is clearly uncomfortable with
 
+THE WARNING RUNG. Real people don't go from tolerating to walking away
+with nothing in between — they say "hey, knock it off" first. If this
+message doesn't merit a block yet but is clearly heading there (a
+second hostile message, mocking that's sharpening, pressure after a
+no), set warn=true with block=false. The persona will set the limit
+out loud in their reply. Don't warn for ordinary venting or one sharp
+message — a warning that fires constantly means nothing.
+
 Severity → cooldown (only set if block=true):
 - moderate: 1 hour (single cruel message after warning signs)
 - severe: 24 hours (sustained cruelty or a serious threat)
@@ -176,6 +203,7 @@ Output a JSON object only. No prose. Schema:
 {
   "tone": "playful" | "frustrated" | "hostile" | "cruel" | "neutral",
   "block": boolean,
+  "warn": boolean,
   "severity": "moderate" | "severe" | "critical" | null,
   "reason": "one short sentence describing WHAT happened, not the raw words"
 }`;
@@ -208,6 +236,7 @@ Judge.`;
     const parsed = JSON.parse(jsonMatch[0]) as {
       tone?: JudgeVerdict["tone"];
       block?: boolean;
+      warn?: boolean;
       severity?: JudgeVerdict["severity"];
       reason?: string;
     };
@@ -218,8 +247,10 @@ Judge.`;
       ? parsed.severity ?? "moderate"
       : null;
     const reason = parsed.reason ?? null;
+    // A warn alongside a block is redundant — the block line IS the limit.
+    const warn = !block && Boolean(parsed.warn);
 
-    return { tone, block, severity, reason };
+    return { tone, block, severity, reason, warn };
   } catch (err) {
     console.error("judge failed, defaulting neutral:", err);
     return NEUTRAL;

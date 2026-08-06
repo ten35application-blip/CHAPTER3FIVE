@@ -53,6 +53,11 @@ import { formatGap, localDateLabel, timeOfDayLabel } from "@/lib/sleep";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { moderateImage } from "@/lib/moderation";
+import {
+  APOLOGY_ACCEPTED_BLOCK,
+  looksLikeApology,
+  warningBlockFor,
+} from "@/lib/safety/apology";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -233,29 +238,76 @@ export async function POST(
   // to this user + oracle; the check-in cron clears it and sends the
   // comeback line. A passed cooldown falls through (same self-heal the
   // mobile route does — the row stays until the cron closes it).
+  let apologyAccepted = false;
+  let priorStrikes = 0;
+  let recentWarningReason: string | null = null;
   {
-    const { data: activeBlock } = await createAdminClient()
+    const gateAdmin = createAdminClient();
+    // Strike history for the escalation ladder — warnings and blocks
+    // both count (head-count, cheap).
+    const { count: strikeCount } = await gateAdmin
       .from("chat_blocks")
-      .select("blocked_until, severity")
+      .select("id", { count: "exact", head: true })
+      .eq("oracle_id", oracleId)
+      .eq("user_id", user.id);
+    priorStrikes = strikeCount ?? 0;
+
+    const { data: activeBlock } = await gateAdmin
+      .from("chat_blocks")
+      .select("id, blocked_until, severity, reason, blocked_at, unblocked_at")
       .eq("oracle_id", oracleId)
       .eq("user_id", user.id)
-      .is("unblocked_at", null)
       .order("blocked_at", { ascending: false })
       .limit(1)
-      .maybeSingle<{ blocked_until: string; severity: string | null }>();
-    if (
+      .maybeSingle<{
+        id: string;
+        blocked_until: string;
+        severity: string | null;
+        reason: string | null;
+        blocked_at: string;
+        unblocked_at: string | null;
+      }>();
+    const blockActive =
       activeBlock &&
-      new Date(activeBlock.blocked_until).getTime() > Date.now()
+      !activeBlock.unblocked_at &&
+      new Date(activeBlock.blocked_until).getTime() > Date.now();
+    if (blockActive) {
+      // THE APOLOGY RUNG (2026-08-06) — same contract as the mobile
+      // route: a MODERATE block ends early on a genuine-looking
+      // apology, once, guarded; severe/critical never take the
+      // shortcut, and the strike history makes the next block longer.
+      // unblocked_at is stamped here deliberately: the persona answers
+      // the apology directly, so the check-in cron's separate comeback
+      // line would be a duplicate.
+      if (activeBlock.severity === "moderate" && looksLikeApology(userMessage)) {
+        await gateAdmin
+          .from("chat_blocks")
+          .update({ unblocked_at: new Date().toISOString() })
+          .eq("id", activeBlock.id);
+        apologyAccepted = true;
+      } else {
+        return NextResponse.json(
+          {
+            error: "blocked",
+            blocked: true,
+            blocked_until: activeBlock.blocked_until,
+            severity: activeBlock.severity,
+          },
+          { status: 403 },
+        );
+      }
+    } else if (
+      activeBlock &&
+      activeBlock.severity === "warning" &&
+      Date.now() - new Date(activeBlock.blocked_at).getTime() <
+        24 * 60 * 60 * 1000
     ) {
-      return NextResponse.json(
-        {
-          error: "blocked",
-          blocked: true,
-          blocked_until: activeBlock.blocked_until,
-          severity: activeBlock.severity,
-        },
-        { status: 403 },
-      );
+      // The web detector runs AFTER the reply streams (in after()), so
+      // a warning can't be voiced on the turn that earned it — it's
+      // voiced on the NEXT turn instead: if the latest strike is a
+      // fresh warning, this turn's prompt tells the persona to set the
+      // limit out loud.
+      recentWarningReason = activeBlock.reason;
     }
   }
 
@@ -1013,6 +1065,15 @@ export async function POST(
     system.push({ type: "text", text: DISTRESS_TONE_BLOCK });
   }
 
+  // The block ladder's voiced rungs (see lib/safety/apology.ts).
+  // Warning wins if both somehow coincide — setting the limit matters
+  // more than re-welcoming.
+  if (recentWarningReason !== null) {
+    system.push({ type: "text", text: warningBlockFor(recentWarningReason) });
+  } else if (apologyAccepted) {
+    system.push({ type: "text", text: APOLOGY_ACCEPTED_BLOCK });
+  }
+
   // Fable humanization #7 [Pro] — cross-persona awareness. The
   // persona knows the NAMES of the user's OTHER identities (with a
   // one-line description each) so they can casually reference them
@@ -1377,6 +1438,7 @@ export async function POST(
           const decision = await shouldPersonaBlock(
             historyForBlockCheck,
             user.id,
+            priorStrikes,
           );
           if (decision.block) {
             await handleBlockDecision({

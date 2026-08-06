@@ -34,6 +34,11 @@ import { extractMemoriesFromMessage } from "@/lib/memory/extract";
 import { moderateImage } from "@/lib/moderation";
 import { isTrialOnly, overFreeCap, recordAnthropicSpend } from "@/lib/spendGovernor";
 import {
+  APOLOGY_ACCEPTED_BLOCK,
+  looksLikeApology,
+  warningBlockFor,
+} from "@/lib/safety/apology";
+import {
   anyRecentTurnDistressed,
   DISTRESS_TONE_BLOCK,
 } from "@/lib/safety/distress";
@@ -685,8 +690,18 @@ export async function POST(request: NextRequest) {
   // profile.active_oracle_id — otherwise a block on convo A can gate
   // a send to convo B (Fable audit, 2026-07-30). Stream route already
   // does this correctly.
+  let apologyAccepted = false;
+  let priorStrikes = 0;
   if (conversationOracleId) {
     const blockClient = createAdminClient();
+    // Strike history for the escalation ladder — warnings and blocks
+    // both count. Head-count query, cheap.
+    const { count: strikeCount } = await blockClient
+      .from("chat_blocks")
+      .select("id", { count: "exact", head: true })
+      .eq("oracle_id", conversationOracleId)
+      .eq("user_id", user.id);
+    priorStrikes = strikeCount ?? 0;
     const { data: activeBlock } = await blockClient
       .from("chat_blocks")
       .select("id, blocked_until, severity")
@@ -705,7 +720,24 @@ export async function POST(request: NextRequest) {
       // and it filters by unblocked_at IS NULL. Touching it here
       // would make the cron skip this row and the persona would
       // never reach out.
-      if (!cooldownPassed) {
+      //
+      // THE APOLOGY RUNG (2026-08-06, Wilson's ladder). A MODERATE
+      // block — "stepping out, not slamming the door" — can end early
+      // if the person apologizes: the persona accepts, once, guarded.
+      // Severe and critical never take this shortcut, and the judge
+      // sees the strike history on every later message, so a hollow
+      // "sorry" buys one message of grace and a faster, longer block
+      // next time. We DO stamp unblocked_at here, deliberately — the
+      // persona is answering the apology directly, so the cron's
+      // separate comeback line would be a duplicate.
+      if (!cooldownPassed && activeBlock.severity === "moderate" &&
+          looksLikeApology(userMessage)) {
+        await blockClient
+          .from("chat_blocks")
+          .update({ unblocked_at: new Date().toISOString() })
+          .eq("id", activeBlock.id);
+        apologyAccepted = true;
+      } else if (!cooldownPassed) {
         return NextResponse.json(
           {
             error: "blocked",
@@ -1217,6 +1249,7 @@ ${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${s
     }
   }
 
+  let warnedThisTurn: string | null = null;
   // Tone judge — never overrides a crisis message. Decides whether
   // the persona walks away from this conversation. Permissive by
   // design (and even more so in memorial mode).
@@ -1228,6 +1261,7 @@ ${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${s
       textingStyle: profile.texting_style ?? null,
       ownerDeceased: memorialMode,
       language,
+      priorStrikes,
     });
 
     if (verdict.block && verdict.severity) {
@@ -1293,7 +1327,44 @@ ${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${s
         severity: verdict.severity,
       });
     }
+
+    // THE WARNING RUNG. Not block-worthy yet, but heading there: the
+    // persona sets the limit out loud in this very reply — and may say
+    // what happens next ("keep talking to me like that and i'm gone"),
+    // their call, in their voice. Logged as a pre-closed chat_blocks
+    // row (severity 'warning', already expired + closed so neither
+    // gate nor the comeback cron ever treats it as a walk-away) so the
+    // NEXT judgment sees the strike and escalates.
+    if (verdict.warn) {
+      warnedThisTurn = warningBlockFor(verdict.reason);
+      const nowIso = new Date().toISOString();
+      const { error: warnLogErr } = await createAdminClient()
+        .from("chat_blocks")
+        .insert({
+          oracle_id: profile.active_oracle_id,
+          user_id: user.id,
+          blocked_at: nowIso,
+          blocked_until: nowIso,
+          unblocked_at: nowIso,
+          severity: "warning",
+          reason: verdict.reason ?? "tone heading toward a block",
+        });
+      if (warnLogErr) {
+        console.error("[chat] warning-strike log failed:", warnLogErr);
+      }
+    }
   }
+
+  // Ladder parts — computed AFTER the judge (which sets warnedThisTurn)
+  // and appended to the assembled prompt below. A warned turn sets the
+  // limit out loud; an accepted apology shapes the comeback. Mutually
+  // exclusive in practice: an apology arrives INTO a block, a warning
+  // fires outside one.
+  const ladderPart = warnedThisTurn
+    ? `\n\n${warnedThisTurn}`
+    : apologyAccepted
+      ? `\n\n${APOLOGY_ACCEPTED_BLOCK}`
+      : "";
 
   // If the user attached an image, send it to Anthropic as a vision
   // input. URL-based images are supported by the API. The image lives
@@ -1332,7 +1403,7 @@ ${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${s
     const response = await anthropic.messages.create({
       model: ANTHROPIC_MODEL,
       max_tokens: 800,
-      system: systemPrompt,
+      system: systemPrompt + ladderPart,
       messages,
     });
 

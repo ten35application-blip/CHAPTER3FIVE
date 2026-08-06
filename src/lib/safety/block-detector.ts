@@ -65,6 +65,10 @@ type Turn = { role: "user" | "assistant"; content: string };
 export async function shouldPersonaBlock(
   recentMessages: readonly Turn[],
   userId?: string,
+  /** Prior warnings + walk-aways for this (user, persona). The
+   *  classifier is told, so repeat offenses after a warning escalate
+   *  instead of getting the stranger's benefit of the doubt. */
+  priorStrikes?: number,
 ): Promise<BlockDecision> {
   const userMessages = recentMessages.filter((m) => m.role === "user");
   if (userMessages.length === 0) return { block: false };
@@ -73,7 +77,7 @@ export async function shouldPersonaBlock(
   if (!flagged.hit) return { block: false };
 
   try {
-    return await classify(recentMessages, flagged.category, userId);
+    return await classify(recentMessages, flagged.category, userId, priorStrikes);
   } catch (err) {
     console.error("[safety/block] classifier failed, defaulting to no-block:", err);
     return { block: false };
@@ -117,6 +121,7 @@ async function classify(
   recent: readonly Turn[],
   category: "slur_or_threat" | "sexual_push",
   userId?: string,
+  priorStrikes?: number,
 ): Promise<BlockDecision> {
   const transcript = recent
     .map((m) => `${m.role === "user" ? "User" : "Persona"}: ${m.content}`)
@@ -136,6 +141,14 @@ A block is NOT warranted for:
 - Dark humor or gallows humor.
 - The user asking difficult questions.
 - A single sexual come-on that the persona can just redirect.
+
+Use "warning" when the pattern is forming but hasn't earned a real
+block yet — the persona will set the limit out loud on the next turn.
+${
+    priorStrikes && priorStrikes > 0
+      ? `HISTORY: this persona has already warned or stepped away from this user ${priorStrikes} time(s). The benefit of the doubt above is for strangers having a bad day — repeat behavior after a warning or block earns "temporary" where a first offense would earn "warning", and "permanent" where it would earn "temporary".`
+      : ""
+  }
 
 Screen category flagged: ${category}
 

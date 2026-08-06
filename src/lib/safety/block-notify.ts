@@ -34,12 +34,29 @@ export async function handleBlockDecision({
 
   // Compute the ban window. `permanent` = no unlock; `temporary` = 7 days;
   // `warning` = we log it but don't actually block. The warning tier
-  // exists so we can escalate later (2nd warning = temp, 3rd = perm)
-  // without shipping a new detector.
+  // exists so repeat offenses can escalate (the judges are told how many
+  // prior rows exist) and so the NEXT turn's prompt can have the persona
+  // set the limit out loud.
+  //
+  // A WARNING ROW MUST ARRIVE PRE-CLOSED (2026-08-06). It used to fall
+  // through to the `?? "9999-01-01"` permanent sentinel below with
+  // unblocked_at null — which was harmless when nothing read this table
+  // as a gate, and became a landmine the day both chat routes started
+  // 403ing on "latest row where unblocked_at is null and blocked_until
+  // > now". A tier whose own comment says "we log it but don't actually
+  // block" was producing the strongest block in the system: permanent,
+  // on both surfaces, invisible to the check-in cron (year 9999 never
+  // "expires", so no comeback message ever fired). One warning-level
+  // verdict silently killed the conversation forever.
+  //
+  // Pre-closed = blocked_until in the past AND unblocked_at stamped:
+  // both gates skip it, the cron's expired-and-unclosed filter skips
+  // it, and it still counts in the escalation history.
   let blockedUntil: string | null = null;
   let shouldSetOracleFlag = true;
   if (decision.severity === "warning") {
     shouldSetOracleFlag = false;
+    blockedUntil = now;
   } else if (decision.severity === "temporary") {
     blockedUntil = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
   }
@@ -67,6 +84,11 @@ export async function handleBlockDecision({
       blocked_until: blockedUntil ?? "9999-01-01T00:00:00Z", // sentinel for permanent
       severity: decision.severity,
       reason: decision.reason,
+      // Warnings arrive already closed — see above. Without this stamp
+      // the check-in cron's "expired and not yet closed" filter would
+      // match the row and send a comeback message for a walk-away that
+      // never happened.
+      ...(decision.severity === "warning" ? { unblocked_at: now } : {}),
     });
     if (error) console.error("[safety/block] chat_blocks insert failed:", error);
   } catch (err) {
