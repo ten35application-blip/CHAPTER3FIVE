@@ -899,7 +899,17 @@ export async function POST(
   // default when no user timezone is stored on this route); off by
   // ≤24h in far timezones, close enough for "did this day pass?"
   // reasoning without introducing a new profiles read.
-  if (!isConciergeOracle) {
+  //
+  // ALSO skipped for archives and memorial personas (2026-08-06).
+  // ca689bd gated mood, arc, grounding and pretend-delay on
+  // isArchiveOracle — but these three cues stayed on !isConciergeOracle
+  // alone, so the archive of someone who died was still told "Today is
+  // Tuesday", "It's evening where they are", and to greet like someone
+  // returning after days away. Those are the EXACT example sentences
+  // the mobile fix's comment named, still being injected on this
+  // surface. Mobile gates todayPart / timeOfDayPart / gapPart on
+  // archiveMode; the web now matches.
+  if (!isConciergeOracle && !isArchiveOracle && !memorialMode) {
     system.push({
       type: "text",
       text: `== Today ==\nToday is ${localDateLabel(null)}. Use this to notice when something they mentioned is coming up has already passed — ask how it went, once, when the moment fits.`,

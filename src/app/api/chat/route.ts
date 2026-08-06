@@ -662,6 +662,17 @@ export async function POST(request: NextRequest) {
       originFlags?.inherited_from_code_id != null;
   }
 
+  // ARCHIVES HAVE NO PRESENT-TENSE LIFE — computed HERE, before the
+  // sleep short-circuit below, not just before the prompt assembly.
+  // eb887a7 gated today/time-of-day/gap/woken on this flag but left
+  // the sleep reply above it untouched, so the archive of someone who
+  // died still opened a first message at 2am with "mm. it's 2:14 AM
+  // here. let me sleep. talk in the morning?" — the loudest possible
+  // claim of a living body on a clock, from the one persona that must
+  // never make it.
+  const archiveMode =
+    memorialMode || inheritedMode || ownOracle?.is_legacy === true;
+
   // Block gate — if the persona has stepped out of this conversation
   // for hostility/cruelty, refuse the message until the cooldown
   // expires. Self-unblocks here when the cooldown passes so users
@@ -768,8 +779,11 @@ export async function POST(request: NextRequest) {
   const language = normalizeLanguage(profile.preferred_language);
 
   // Sleep response is silenced when the user is in crisis — they need a
-  // response, not a "talk in the morning" deflection.
-  if (sleeping && isFirstMessage && !crisis.crisis) {
+  // response, not a "talk in the morning" deflection. And silenced for
+  // archives (memorial, inherited, legacy): an archive does not have a
+  // bedtime, and this reply claimed one louder than anything the
+  // prompt-side gates below suppress.
+  if (sleeping && isFirstMessage && !crisis.crisis && !archiveMode) {
     const t = localTimeLabel(effectiveTimezone);
     const sleepReply =
       language === "es"
@@ -928,10 +942,8 @@ export async function POST(request: NextRequest) {
   // are", and "you were asleep but they kept messaging" — directly
   // contradicting ARCHIVE_PRESENCE_RULES injected into the same
   // prompt. Same fix already shipped on the web stream route (ca689bd);
-  // this is the other surface.
-  const archiveMode =
-    memorialMode || inheritedMode || ownOracle?.is_legacy === true;
-
+  // this is the other surface. (archiveMode itself is now computed up
+  // by the mode flags, where the sleep short-circuit also needs it.)
   const todayPart = archiveMode
     ? ""
     : `\n\n== Today ==\nToday is ${localDateLabel(effectiveTimezone)}. Use this to notice when something they mentioned is coming up has already passed — ask how it went, once, when the moment fits.`;
@@ -985,10 +997,14 @@ export async function POST(request: NextRequest) {
   const sportsPart = sportsToPromptBlock(sportsFandom);
 
   // Pull conversation state (mood + physical) — refresh if stale.
-  // Skipped in memorial mode (deceased personas don't have a Tuesday).
+  // Skipped for ALL archives, not just memorial: statePart below
+  // already discards this for archiveMode, so generating it was two
+  // Anthropic calls per stale turn whose output was thrown away — and
+  // a "what's going on in my life this week" blob written onto a dead
+  // person's row for nothing.
   let conversationState: ConversationState | null = null;
   let weeklyForPrompt: WeeklyContext | null = null;
-  if (profile.active_oracle_id && !memorialMode) {
+  if (profile.active_oracle_id && !archiveMode) {
     const stateAdmin = createAdminClient();
     const { data: stateRow } = await stateAdmin
       .from("conversation_state")
