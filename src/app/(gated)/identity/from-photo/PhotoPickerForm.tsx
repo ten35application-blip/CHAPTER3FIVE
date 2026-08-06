@@ -58,7 +58,7 @@ export function PhotoPickerForm() {
     <form action={createIdentityFromPhoto} className="mt-8 w-full">
       <label className="flex w-full cursor-pointer flex-col items-center rounded-2xl border border-dashed border-warm-400/40 px-6 py-8 text-warm-300 transition-colors hover:border-warm-300 hover:text-warm-100">
         <span className="text-sm font-medium">
-          Choose a photo (JPEG, PNG, GIF, or WebP — up to 5 MB)
+          Choose a photo (JPEG, PNG, GIF, or WebP — up to 4 MB)
         </span>
         <input
           ref={inputRef}

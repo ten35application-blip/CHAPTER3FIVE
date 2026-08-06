@@ -54,7 +54,7 @@ const ACCEPTED_LEGACY_PHOTO_MIMES: readonly string[] = [
   "image/heic",
   "image/heif",
 ];
-const MAX_LEGACY_PHOTO_BYTES = 8 * 1024 * 1024;
+const MAX_LEGACY_PHOTO_BYTES = 4 * 1024 * 1024; // was 8 MB — above Vercel's 4.5 MB body limit, so 4.6-8 MB uploads died at the platform with an unreadable error
 
 /**
  * Step-0 photo upload for the legacy flow. The creator must pick a
@@ -86,7 +86,7 @@ export async function uploadLegacyPhoto(
     return { ok: false, error: "Pick a photo first." };
   }
   if (file.size > MAX_LEGACY_PHOTO_BYTES) {
-    return { ok: false, error: "That photo is over 8 MB — try a smaller one." };
+    return { ok: false, error: "That photo is over 4 MB — try a smaller one." };
   }
   if (!ACCEPTED_LEGACY_PHOTO_MIMES.includes(file.type)) {
     return { ok: false, error: "Use a JPEG, PNG, WebP, or HEIC image." };

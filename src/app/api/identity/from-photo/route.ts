@@ -23,7 +23,7 @@ import { canCreateOracle, claimFreeIdentitySlot } from "@/lib/subscription";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { randomUUID } from "node:crypto";
 
-const MAX_PHOTO_BYTES = 5 * 1024 * 1024; // 5 MB
+const MAX_PHOTO_BYTES = 4 * 1024 * 1024; // 4 MB — Vercel body limit is 4.5, promising 5 broke before our code ran
 const MAX_FINGERPRINT_REROLLS = 5;
 
 const SUPPORTED_MEDIA_TYPES: readonly SupportedImageMediaType[] = [
@@ -45,7 +45,7 @@ function fail(message: string, status = 400) {
  * createIdentityFromPhoto() server action. Multipart body with a
  * `photo` part; JSON out. Same six steps as the action:
  *
- *   1. Validate the upload (JPEG/PNG/GIF/WebP, ≤ 5 MB)
+ *   1. Validate the upload (JPEG/PNG/GIF/WebP, ≤ 4 MB)
  *   2. Claude Vision analyzes the photo (doubles as the safety gate)
  *   3. Seeded roll — vision overwrites only the look-derived fields
  *   4. Synthesize normally
@@ -158,7 +158,7 @@ export async function POST(request: NextRequest) {
     return fail("Pick a photo first.");
   }
   if (file.size > MAX_PHOTO_BYTES) {
-    return fail("That photo is over 5 MB. Try a smaller one.");
+    return fail("That photo is over 4 MB. Try a smaller one.");
   }
   const mediaType = file.type as SupportedImageMediaType;
   if (!SUPPORTED_MEDIA_TYPES.includes(mediaType)) {
@@ -195,7 +195,7 @@ export async function POST(request: NextRequest) {
         // diagnostic pass — remove the (${err.message}) suffix once
         // the ramp bug is fingerprinted).
         return fail(
-          `Our image analysis is having a moment (${err.message}). Try again in a few seconds.`,
+          `Our image analysis is having a moment. Give it a few seconds and try again.`,
           502,
         );
       }
@@ -205,7 +205,7 @@ export async function POST(request: NextRequest) {
         // model-outputted-prose. Retrying a 4xx won't help — user
         // needs the info.
         return fail(
-          `We got an odd response reading that photo (${err.message}). Try a different image.`,
+          `We couldn't read that photo properly. Try a different image.`,
           502,
         );
       }

@@ -12,7 +12,7 @@ const ACCEPTED_LEGACY_PHOTO_MIMES: readonly string[] = [
   "image/heic",
   "image/heif",
 ];
-const MAX_LEGACY_PHOTO_BYTES = 8 * 1024 * 1024;
+const MAX_LEGACY_PHOTO_BYTES = 4 * 1024 * 1024; // was 8 MB — above Vercel's 4.5 MB body limit, so 4.6-8 MB uploads died at the platform with an unreadable error
 
 function fail(message: string, status = 400) {
   return NextResponse.json({ ok: false, error: message }, { status });
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     return fail("Pick a photo first.");
   }
   if (file.size > MAX_LEGACY_PHOTO_BYTES) {
-    return fail("That photo is over 8 MB — try a smaller one.");
+    return fail("That photo is over 4 MB — try a smaller one.");
   }
   if (!ACCEPTED_LEGACY_PHOTO_MIMES.includes(file.type)) {
     return fail("Use a JPEG, PNG, WebP, or HEIC image.");

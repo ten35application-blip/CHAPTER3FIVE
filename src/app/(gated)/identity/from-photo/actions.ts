@@ -25,7 +25,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { randomUUID } from "node:crypto";
 
-const MAX_PHOTO_BYTES = 5 * 1024 * 1024; // 5 MB
+const MAX_PHOTO_BYTES = 4 * 1024 * 1024; // 4 MB — Vercel body limit is 4.5, promising 5 broke before our code ran
 const MAX_FINGERPRINT_REROLLS = 5;
 
 const SUPPORTED_MEDIA_TYPES: readonly SupportedImageMediaType[] = [
@@ -40,7 +40,7 @@ const ERROR_PATH = "/identity/from-photo";
 /**
  * Photo-to-identity (formula v4) — the $5-tier "blank slot" path.
  *
- *   1. Validate the upload (image/*, ≤ 5 MB).
+ *   1. Validate the upload (image/*, ≤ 4 MB).
  *   2. Claude Vision analyzes the photo (doubles as the safety gate).
  *   3. Roll traits normally, then overwrite ONLY the vision-derived
  *      fields (gender, cultural, heightRange, styleAesthetic) and align
@@ -94,7 +94,7 @@ export async function createIdentityFromPhoto(
     redirectWithError(ERROR_PATH, "Pick a photo first.");
   }
   if (file.size > MAX_PHOTO_BYTES) {
-    redirectWithError(ERROR_PATH, "That photo is over 5 MB. Try a smaller one.");
+    redirectWithError(ERROR_PATH, "That photo is over 4 MB. Try a smaller one.");
   }
   const mediaType = file.type as SupportedImageMediaType;
   if (!SUPPORTED_MEDIA_TYPES.includes(mediaType)) {
@@ -137,7 +137,7 @@ export async function createIdentityFromPhoto(
         // mode (2026-08-04 diagnostic — dial back once fingerprinted).
         redirectWithError(
           ERROR_PATH,
-          `Our image analysis is having a moment (${err.message}). Try again in a few seconds.`,
+          `Our image analysis is having a moment. Give it a few seconds and try again.`,
           err,
         );
       }
@@ -147,7 +147,7 @@ export async function createIdentityFromPhoto(
         // model-prose. Retry won't help a 4xx.
         redirectWithError(
           ERROR_PATH,
-          `We got an odd response reading that photo (${err.message}). Try a different image.`,
+          `We couldn't read that photo properly. Try a different image.`,
           err,
         );
       }
