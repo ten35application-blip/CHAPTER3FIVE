@@ -120,32 +120,51 @@ export async function GET(request: NextRequest) {
 
   // Eligible: not soft-deleted, not deceased, opted into outreach,
   // onboarding complete, has an active oracle.
-  const { data: candidates, error } = await admin
-    .from("profiles")
-    .select(
-      "id, oracle_name, preferred_language, timezone, texting_style, personality_type, emotional_flavor, active_oracle_id, birthdate, created_at, muted_conversations",
-    )
-    .eq("outreach_enabled", true)
-    .eq("onboarding_completed", true)
-    .is("deceased_at", null)
-    .is("deleted_at", null)
-    .not("active_oracle_id", "is", null)
-    .limit(BATCH);
+  //
+  // PAGED, ORDERED SCAN (2026-08-06). This was a bare `.limit(100)` on
+  // an UNORDERED query: past 100 eligible profiles Postgres returns an
+  // arbitrary — and effectively stable — slice, so everyone outside it
+  // would never receive a birthday message. Not delayed: never, and
+  // silently. Anniversaries only ACT on the tiny fraction whose date
+  // matches today, so scanning every page is cheap; the expensive part
+  // (Anthropic) still only runs on a hit. Ordered by id so paging is
+  // stable, and the existing wall-clock budget still ends the run on
+  // our own terms.
+  const candidates: ProfileRow[] = [];
+  for (let page = 0; ; page++) {
+    const { data: pageRows, error } = await admin
+      .from("profiles")
+      .select(
+        "id, oracle_name, preferred_language, timezone, texting_style, personality_type, emotional_flavor, active_oracle_id, birthdate, created_at, muted_conversations",
+      )
+      .eq("outreach_enabled", true)
+      .eq("onboarding_completed", true)
+      .is("deceased_at", null)
+      .is("deleted_at", null)
+      .not("active_oracle_id", "is", null)
+      .order("id", { ascending: true })
+      .range(page * BATCH, page * BATCH + BATCH - 1);
 
-  if (error) {
-    await admin.from("cron_runs").insert({
-      job: "anniversaries",
-      status: "error",
-      error: error.message,
-      duration_ms: Date.now() - startedAt,
-    });
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      await admin.from("cron_runs").insert({
+        job: "anniversaries",
+        status: "error",
+        error: error.message,
+        duration_ms: Date.now() - startedAt,
+      });
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    candidates.push(...((pageRows ?? []) as ProfileRow[]));
+    if (!pageRows || pageRows.length < BATCH) break;
+    // Stop collecting if we're already out of time — the loop below
+    // reports what it didn't reach.
+    if (budget.exhausted()) break;
   }
 
   let sent = 0;
   const errors: string[] = [];
 
-  for (const p of (candidates ?? []) as ProfileRow[]) {
+  for (const p of candidates) {
     // Stop on our own terms rather than being killed mid-loop. See
     // lib/cron/budget.ts — a truncated run used to write no heartbeat
     // at all, so nobody could tell it had been cut short.
@@ -158,6 +177,24 @@ export async function GET(request: NextRequest) {
     // reaching out — including on birthdays. This cron never consulted
     // the mute list at all before the block-contract fix.
     if (isOracleMuted(p.muted_conversations, p.active_oracle_id)) continue;
+
+    // NEVER speak AS an oracle without checking its state. This cron
+    // selected only from `profiles` and messaged via active_oracle_id,
+    // so a safety-blocked identity (it walked away for hostility), one
+    // sitting in the trash, or one the user archived could still send
+    // an unsolicited birthday message and fire a push. persona-outreach
+    // filters all three; this one filtered none. Deleted-but-still-
+    // active_oracle_id is common — soft-delete doesn't clear the
+    // pointer.
+    const { data: senderOracle } = await admin
+      .from("oracles")
+      .select("id")
+      .eq("id", p.active_oracle_id)
+      .is("deleted_at", null)
+      .is("blocked_at", null)
+      .is("conversation_archived_at", null)
+      .maybeSingle();
+    if (!senderOracle) continue;
     const todayMD = localMonthDay(p.timezone);
 
     const hits: AnniversaryHit[] = [];
