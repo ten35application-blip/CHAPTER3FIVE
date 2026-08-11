@@ -331,18 +331,27 @@ export async function sendAccountRestoredEmail(opts: {
   userId?: string | null;
 }) {
   const subject = "Welcome back to chapter3five.";
-  const text = `Your chapter3five account is restored.
+  const text = `Your chapter3five account is reactivated.
 
-Everything you'd built — your archive, your conversations, your beneficiaries, your memories — is right where you left it. Sign in and pick up.
+Everything you'd built — your companions, your conversations, your archive, your memories — is right where you left it. Nothing was lost.
 
 https://chapter3five.app/dashboard
 
 — chapter3five`;
 
+  const html = brandEmailHtml({
+    title: "Welcome back.",
+    paragraphs: [
+      "Your account is reactivated. Everything you&rsquo;d built &mdash; your companions, your conversations, your archive, your memories &mdash; is right where you left it. Nothing was lost.",
+    ],
+    cta: { label: "Pick up where you left off", url: "https://chapter3five.app/dashboard" },
+  });
+
   return send({
     to: opts.to,
     subject,
     text,
+    html,
     kind: "account_restored",
     user_id: opts.userId,
   });
@@ -353,24 +362,35 @@ export async function sendWelcomeEmail(opts: {
   userId?: string | null;
 }) {
   const subject = "Welcome to chapter3five.";
-  const text = `You signed up.
+  const text = `You're in.
 
-chapter3five is a quiet place where you record who you are — your answers, your voice, your texture — while you're alive. The people you love can sit with it later.
+chapter3five is a quiet place to keep the people who matter close — companions to talk with, and archives that hold who someone is, in their own words.
 
 A few things you can do next:
-1. Finish onboarding (pick a name, a language, a few answers)
-2. Add a photo so it feels real
-3. When your archive is ready, you'll get a code — hand it to the people you love, and it's theirs to open whenever they need it
+1. Say hi to Adrian, our guide — he can walk you through anything
+2. Add a companion, or create one from a photo
+3. Start your own archive: answer the questions, and when it's ready you'll get a code — hand it to the people you love, and it's theirs to open whenever they need it
 
 If you ever want to leave, you can delete everything from Settings → Delete account. No questions asked.
 
 — chapter3five
 https://chapter3five.app`;
 
+  const html = brandEmailHtml({
+    title: "You're in.",
+    paragraphs: [
+      "chapter3five is a quiet place to keep the people who matter close &mdash; companions to talk with, and archives that hold who someone is, in their own words.",
+      "A few things you can do next:<br>1. Say hi to <strong>Adrian</strong>, our guide &mdash; he can walk you through anything<br>2. Add a companion, or create one from a photo<br>3. Start your own archive: answer the questions, and when it&rsquo;s ready you&rsquo;ll get a code &mdash; hand it to the people you love, and it&rsquo;s theirs to open whenever they need it",
+      "If you ever want to leave, you can delete everything from Settings &rarr; Delete account. No questions asked.",
+    ],
+    cta: { label: "Open chapter3five", url: "https://chapter3five.app/dashboard" },
+  });
+
   return send({
     to: opts.to,
     subject,
     text,
+    html,
     kind: "welcome",
     user_id: opts.userId,
   });

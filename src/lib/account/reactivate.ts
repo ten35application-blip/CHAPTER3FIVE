@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { recordAudit } from "@/lib/notifications";
+import { recordAudit, sendAccountRestoredEmail } from "@/lib/notifications";
 
 /**
  * Reactivate a soft-deleted account inside its 30-day grace window.
@@ -84,6 +84,20 @@ export async function reactivateAccount(
     action: "account_reactivated",
     targetUserId: userId,
   });
+
+  // The welcome-back receipt. This used to live only on the webhook's
+  // restore_account branch — a purchase nothing can mint — so the real
+  // (self-serve) reactivation sent nothing. Fire-and-forget.
+  try {
+    const { data: authUser } = await admin.auth.admin.getUserById(userId);
+    if (authUser?.user?.email) {
+      sendAccountRestoredEmail({ to: authUser.user.email, userId }).catch(
+        (e) => console.error("restored email failed:", e),
+      );
+    }
+  } catch (e) {
+    console.error("restored email lookup failed:", e);
+  }
 
   return { ok: true };
 }

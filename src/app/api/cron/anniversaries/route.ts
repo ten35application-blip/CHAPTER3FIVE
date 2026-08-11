@@ -188,7 +188,7 @@ export async function GET(request: NextRequest) {
     // pointer.
     const { data: senderOracle } = await admin
       .from("oracles")
-      .select("id")
+      .select("id, name")
       .eq("id", p.active_oracle_id)
       .is("deleted_at", null)
       .is("blocked_at", null)
@@ -364,7 +364,11 @@ ${variety}
         // right oracle. anniversary_kind is kept for analytics.
         sendPushToUser({
           userId: p.id,
-          title: p.oracle_name ?? "your identity",
+          // The VERIFIED live sender's name — profiles.oracle_name is
+          // the stale single-oracle-era column (2026-08-11 comms audit:
+          // it ghost-named deleted identities). Brand fallback, never
+          // "your identity" — that's the ghost's phrasing.
+          title: (senderOracle.name as string | null) ?? "chapter3five",
           body: reply.length > 140 ? reply.slice(0, 140) + "…" : reply,
           data: {
             oracle_id: p.active_oracle_id,

@@ -505,7 +505,7 @@ export async function GET(request: NextRequest) {
         // Android stack notifications per conversation.
         await sendPushToUser({
           userId: profile.id,
-          title: (pick.oracle.name as string) ?? "your identity",
+          title: (pick.oracle.name as string) ?? "chapter3five",
           body: truncated,
           data: { oracle_id: pick.oracleId, kind: "companion_message" },
           categoryId: "companion_message",

@@ -13,6 +13,7 @@ import {
   type AllowedDoc,
 } from "@/lib/legal/acceptance";
 import { isAdmin } from "@/lib/admin/allowlist";
+import { sendWelcomeEmail } from "@/lib/notifications";
 
 /**
  * Record acceptance of the current Terms/EULA/Privacy/Guidelines bundle
@@ -83,6 +84,16 @@ export async function acceptTerms(formData: FormData) {
     // double-click / refresh doesn't flood the ledger with copies.
     // Genuine re-consent on a NEW version still writes a row because
     // terms_version changes on the version bump.
+    // FIRST-EVER acceptance = the real start of membership — send the
+    // welcome email HERE (2026-08-11 comms audit found sendWelcomeEmail
+    // had existed for months with zero callers: new signups never got
+    // any welcome at all). "First ever" is any-version, checked BEFORE
+    // this insert; fire-and-forget so mail trouble never blocks the
+    // consent flow.
+    const { count: priorAcceptances } = await admin
+      .from("terms_acceptances")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id);
     const cutoff = new Date(Date.now() - 60_000).toISOString();
     const { data: recent } = await admin
       .from("terms_acceptances")
@@ -102,6 +113,11 @@ export async function acceptTerms(formData: FormData) {
           ip_address: ip,
           user_agent: userAgent,
         });
+      if ((priorAcceptances ?? 0) === 0 && user.email) {
+        sendWelcomeEmail({ to: user.email, userId: user.id }).catch((e) =>
+          console.error("welcome email failed:", e),
+        );
+      }
       // 23505 = duplicate on the (user_id, terms_version) unique
       // index from 0089. Concurrent double-submit that slipped past
       // the read-check; the losing insert is the idempotent no-op.
