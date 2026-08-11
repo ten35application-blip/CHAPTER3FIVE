@@ -172,7 +172,21 @@ yourself" instructions invited drift; every template is now standalone):
 </html>
 ```
 
-## Template — Magic Link (if enabled)
+## Template — Magic Link (NOT USED — do not paste)
+
+Wilson 2026-08-11: magic-link sign-in is deliberately not offered.
+Verified in code: zero `signInWithOtp` call sites in either repo — the
+app's only auth flows are password sign-in, password sign-up, and
+password reset. This template exists ONLY so that if the product ever
+changes its mind, the branded shell is ready; pasting it today does
+nothing except style an email that is never triggered by our UI.
+
+(Technical footnote: with Supabase's Email provider on, the OTP
+capability exists at the API level regardless of our UI. That adds no
+real attack surface — a magic link is inbox-gated exactly like the
+password-reset email we DO send — but if the dashboard version offers
+a magic-link/OTP toggle under Authentication → Sign In / Providers →
+Email, turning it off is fine and matches intent.)
 
 ```html
 <!doctype html>
