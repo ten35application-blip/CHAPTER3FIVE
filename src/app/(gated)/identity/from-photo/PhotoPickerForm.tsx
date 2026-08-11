@@ -12,12 +12,12 @@ import { createIdentityFromPhoto } from "./actions";
  * the suspenders. useFormStatus must live INSIDE the <form>, hence the
  * child component.
  */
-function MeetThemButton() {
+function MeetThemButton({ disabled = false }: { disabled?: boolean }) {
   const { pending } = useFormStatus();
   return (
     <button
       type="submit"
-      disabled={pending}
+      disabled={pending || disabled}
       className="mt-6 flex h-14 w-full items-center justify-center rounded-full bg-amber text-lg font-semibold text-white shadow-[0_14px_36px_-10px_rgba(107,140,175,0.55),_0_4px_12px_rgba(232,138,118,0.12)] transition-all hover:-translate-y-px hover:shadow-[0_18px_44px_-10px_rgba(107,140,175,0.6),_0_6px_14px_rgba(232,138,118,0.15)] active:translate-y-0 active:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
     >
       {pending ? "Bringing them to life…" : "Meet them"}
@@ -35,6 +35,13 @@ function MeetThemButton() {
 export function PhotoPickerForm() {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  // Rights attestation (Wilson 2026-08-11, after the celebrity
+  // question). The Guidelines have always banned impersonating a real
+  // living person without permission — this puts that promise at the
+  // moment of upload, explicit and required, so every violation breaks
+  // a logged attestation instead of a page nobody re-reads. The server
+  // action enforces it too; this checkbox is the honest UI half.
+  const [attested, setAttested] = useState(false);
 
   // Revoke any previously-issued object URL so we don't leak blobs
   // across selections; also releases the last one on unmount.
@@ -97,7 +104,25 @@ export function PhotoPickerForm() {
         </div>
       ) : null}
 
-      <MeetThemButton />
+      <label className="mt-6 flex cursor-pointer items-start gap-3 rounded-2xl bg-ink-soft px-4 py-4 text-left ring-1 ring-warm-700 transition-all hover:ring-coral/40">
+        <input
+          type="checkbox"
+          name="photo_rights"
+          checked={attested}
+          onChange={(e) => setAttested(e.target.checked)}
+          required
+          className="mt-1 h-5 w-5 shrink-0 accent-coral"
+        />
+        <span className="text-sm leading-relaxed text-warm-200">
+          This photo is of <strong className="text-warm-50">me</strong>,
+          or of someone who{" "}
+          <strong className="text-warm-50">gave me permission</strong> to
+          use it — not a public figure, and not someone who hasn&rsquo;t
+          consented.
+        </span>
+      </label>
+
+      <MeetThemButton disabled={!attested} />
     </form>
   );
 }

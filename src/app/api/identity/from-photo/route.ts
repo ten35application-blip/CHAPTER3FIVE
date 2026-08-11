@@ -152,6 +152,17 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // ---- 0. Rights attestation (2026-08-11) — same enforcement as the
+  // web action: the mobile checkbox is UI, this is the wall. Every
+  // from-photo creation carries an explicit attestation that the
+  // uploader has rights to the photo (self, or permission given; not a
+  // public figure, not a non-consenting person).
+  if (formData.get("photo_rights") !== "on") {
+    return fail(
+      "Please confirm this photo is of you, or of someone who gave you permission.",
+    );
+  }
+
   // ---- 1. Validate the upload -------------------------------------------
   const file = formData.get("photo");
   if (!(file instanceof File) || file.size === 0) {

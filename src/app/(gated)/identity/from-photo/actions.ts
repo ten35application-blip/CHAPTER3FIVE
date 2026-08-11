@@ -88,6 +88,20 @@ export async function createIdentityFromPhoto(
     }
   }
 
+  // ---- 0. Rights attestation (2026-08-11) -------------------------------
+  // The client checkbox is the honest UI half; this is the enforcement
+  // half — a server action's id ships in the browser bundle and is
+  // callable with any FormData, so the promise must be checked where it
+  // can't be skipped. The Guidelines ban impersonating a real living
+  // person without permission; this makes every from-photo creation
+  // carry an explicit attestation of rights to the photo.
+  if (formData.get("photo_rights") !== "on") {
+    redirectWithError(
+      ERROR_PATH,
+      "Please confirm this photo is of you, or of someone who gave you permission.",
+    );
+  }
+
   // ---- 1. Validate the upload -------------------------------------------
   const file = formData.get("photo");
   if (!(file instanceof File) || file.size === 0) {
