@@ -17,6 +17,9 @@ const SOFT_DELETED_ALLOWED = [
   // Bearer (past this proxy), but a cookie session must not be bounced
   // off it either.
   "/api/account/reactivate",
+  // One-click email unsubscribe — must work for everyone the cron ever
+  // emailed, including accounts now in their deletion grace window.
+  "/api/outreach/unsubscribe",
   "/api/stripe",
   "/api/user/export",
   "/api/user/delete-account",

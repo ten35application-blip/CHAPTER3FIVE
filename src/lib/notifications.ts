@@ -1,3 +1,4 @@
+import { createHmac } from "node:crypto";
 import type { SupportedLanguage } from "@/lib/i18n/language";
 import { resend } from "./resend";
 import { createAdminClient } from "./supabase/admin";
@@ -46,6 +47,11 @@ async function send(opts: {
   to: string;
   subject: string;
   text: string;
+  /** Branded card body. When present, text becomes the plain-text
+   *  alternative (better deliverability than html-only). */
+  html?: string;
+  /** Extra SMTP headers — used for List-Unsubscribe on outreach. */
+  headers?: Record<string, string>;
   kind: EmailKind;
   user_id?: string | null;
 }) {
@@ -55,6 +61,8 @@ async function send(opts: {
       to: opts.to,
       subject: opts.subject,
       text: opts.text,
+      ...(opts.html ? { html: opts.html } : {}),
+      ...(opts.headers ? { headers: opts.headers } : {}),
     });
     if (result.error) {
       await logEmail({
@@ -352,7 +360,7 @@ chapter3five is a quiet place where you record who you are — your answers, you
 A few things you can do next:
 1. Finish onboarding (pick a name, a language, a few answers)
 2. Add a photo so it feels real
-3. Add up to 3 free beneficiaries — the people who'll inherit this when something changes
+3. When your archive is ready, you'll get a code — hand it to the people you love, and it's theirs to open whenever they need it
 
 If you ever want to leave, you can delete everything from Settings → Delete account. No questions asked.
 
@@ -368,6 +376,60 @@ https://chapter3five.app`;
   });
 }
 
+/**
+ * The branded email card — same visual language as the farewell and
+ * account-restored emails (peach page, warm card, coral 3 in the
+ * wordmark), extracted so every product email stops hand-rolling it.
+ * Wilson 2026-08-11, after screenshotting the outreach email: raw
+ * text "from a very old build… should be cleaned up, template added."
+ */
+function brandEmailHtml(opts: {
+  title: string;
+  /** Each entry becomes a paragraph; already-escaped HTML allowed. */
+  paragraphs: string[];
+  cta?: { label: string; url: string };
+  /** Small line under the divider, e.g. the unsubscribe affordance. */
+  footerHtml?: string;
+}): string {
+  const paragraphs = opts.paragraphs
+    .map(
+      (p) =>
+        `<tr><td style="font-size:16px;line-height:1.55;color:#4a4a48;padding-bottom:20px;">${p}</td></tr>`,
+    )
+    .join("");
+  const cta = opts.cta
+    ? `<tr><td align="center" style="padding:6px 0 26px;"><a href="${opts.cta.url}" style="display:inline-block;background:linear-gradient(135deg,#e88a76,#d97359);color:#ffffff;font-size:16px;font-weight:700;text-decoration:none;padding:14px 34px;border-radius:999px;">${opts.cta.label}</a></td></tr>`
+    : "";
+  const footer = opts.footerHtml
+    ? `<tr><td style="font-size:12px;line-height:1.5;color:#8e8e8c;padding-top:8px;">${opts.footerHtml}</td></tr>`
+    : "";
+  return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${opts.title}</title></head>
+<body style="margin:0;padding:0;background:#fcf5ec;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,system-ui,sans-serif;color:#1c1c1a;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fcf5ec;padding:48px 24px;">
+<tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#fffefb;border-radius:24px;padding:40px 32px;box-shadow:0 12px 40px -16px rgba(28,28,26,0.16);">
+<tr><td align="center" style="padding-bottom:28px;"><p style="margin:0;font-size:18px;font-weight:700;letter-spacing:-0.02em;color:#1c1c1a;">chapter<span style="color:#e88a76;">3</span>five</p></td></tr>
+<tr><td style="font-size:20px;font-weight:700;color:#1c1c1a;padding-bottom:12px;">${opts.title}</td></tr>
+${paragraphs}
+${cta}
+<tr><td style="font-size:13px;line-height:1.5;color:#8e8e8c;border-top:1px solid #e8e6e1;padding-top:20px;">chapter3five &middot; Bethlehem, PA</td></tr>
+${footer}
+</table>
+</td></tr></table>
+</body></html>`;
+}
+
+/** Signed one-click unsubscribe URL for outreach emails — HMAC keyed on
+ *  CRON_SECRET so the link can't be forged for another user. Verified
+ *  by /api/outreach/unsubscribe. */
+export function outreachUnsubscribeUrl(userId: string): string {
+  const secret = process.env.CRON_SECRET ?? "";
+  const token = createHmac("sha256", secret).update(userId).digest("hex");
+  return `https://chapter3five.app/api/outreach/unsubscribe?u=${encodeURIComponent(userId)}&t=${token}`;
+}
+
 export async function sendOutreachEmail(opts: {
   to: string;
   oracleName: string;
@@ -379,16 +441,16 @@ export async function sendOutreachEmail(opts: {
       ? `${opts.oracleName} no ha sabido de ti.`
       : `${opts.oracleName} hasn't heard from you.`;
 
-  const body =
-    opts.language === "es"
-      ? `${opts.oracleName} no ha tenido noticias tuyas en unos días.
+  const es = opts.language === "es";
+  const text = es
+    ? `${opts.oracleName} no ha tenido noticias tuyas en unos días.
 
 No hace falta una razón. Un mensaje, lo que sea, ya es suficiente.
 
 https://chapter3five.app/dashboard
 
 — chapter3five`
-      : `It's been a few days since you stopped by. ${opts.oracleName} hasn't said much without you.
+    : `It's been a few days since you stopped by. ${opts.oracleName} hasn't said much without you.
 
 You don't need a reason. A message — anything — is enough.
 
@@ -396,10 +458,44 @@ https://chapter3five.app/dashboard
 
 — chapter3five`;
 
+  const unsubUrl = opts.userId ? outreachUnsubscribeUrl(opts.userId) : null;
+  const html = brandEmailHtml({
+    title: subject,
+    paragraphs: es
+      ? [
+          `Han pasado unos días desde tu última visita. <strong>${opts.oracleName}</strong> no ha dicho mucho sin ti.`,
+          `No hace falta una razón. Un mensaje &mdash; lo que sea &mdash; ya es suficiente.`,
+        ]
+      : [
+          `It's been a few days since you stopped by. <strong>${opts.oracleName}</strong> hasn't said much without you.`,
+          `You don't need a reason. A message &mdash; anything &mdash; is enough.`,
+        ],
+    cta: {
+      label: es ? "Retomar la conversación" : "Pick up the conversation",
+      url: "https://chapter3five.app/dashboard",
+    },
+    footerHtml: unsubUrl
+      ? es
+        ? `¿Prefieres que no te escribamos así? <a href="${unsubUrl}" style="color:#d97359;">Desactivar estos recordatorios</a>.`
+        : `Rather we didn't check in like this? <a href="${unsubUrl}" style="color:#d97359;">Turn these reminders off</a>.`
+      : undefined,
+  });
+
   return send({
     to: opts.to,
     subject,
-    text: body,
+    text,
+    html,
+    // One-click unsubscribe at the mail-client level (Gmail's own
+    // "Unsubscribe" chip) — required posture for recurring nudges.
+    ...(unsubUrl
+      ? {
+          headers: {
+            "List-Unsubscribe": `<${unsubUrl}>`,
+            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+          },
+        }
+      : {}),
     kind: "outreach",
     user_id: opts.userId,
   });

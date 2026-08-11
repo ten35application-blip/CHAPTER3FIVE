@@ -103,15 +103,27 @@ export async function GET(request: NextRequest) {
       } catch {
         muted = [];
       }
-      // isOracleMuted, not a hand-rolled kind comparison — this loop
-      // compared kind === "owned" while the mute route writes "oracle",
-      // so the check was dead code and Block never blocked this cron.
-      if (
-        profile.active_oracle_id &&
-        isOracleMuted(muted, profile.active_oracle_id)
-      ) {
-        continue;
-      }
+      // NEVER EMAIL ABOUT A GHOST (Wilson 2026-08-11, holding a
+      // "your identity hasn't heard from you" email about an identity
+      // deleted long ago). profiles.oracle_name is a single-oracle-era
+      // column that nothing keeps current, and the old fallback mailed
+      // the generic phrase whenever it was stale. Resolve a LIVE
+      // companion instead — undeleted, unblocked, unarchived —
+      // preferring a personal one over the shared concierge; if the
+      // user has none, there is nobody to miss them: skip, no email.
+      const { data: liveOracles } = await supabase
+        .from("oracles")
+        .select("id, name, is_concierge")
+        .eq("user_id", profile.id)
+        .is("deleted_at", null)
+        .is("blocked_at", null)
+        .is("conversation_archived_at", null)
+        .order("is_concierge", { ascending: true })
+        .limit(5);
+      const companion = (liveOracles ?? []).find(
+        (o) => o.name && !isOracleMuted(muted, o.id),
+      );
+      if (!companion) continue;
 
       const { data: u } = await supabase.auth.admin.getUserById(profile.id);
       const email = u?.user?.email;
@@ -119,8 +131,10 @@ export async function GET(request: NextRequest) {
 
       await sendOutreachEmail({
         to: email,
-        oracleName: profile.oracle_name ?? "your identity",
+        oracleName: companion.name as string,
         language: normalizeLanguage(profile.preferred_language),
+        // Powers the unsubscribe link + header, and email_log attribution.
+        userId: profile.id,
       });
 
       await supabase
