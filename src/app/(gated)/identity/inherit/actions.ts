@@ -294,6 +294,8 @@ export async function redeemInheritCode(rawCode: string): Promise<void> {
       const session = await stripe.checkout.sessions.create({
         mode: "payment",
         payment_method_types: ["card"],
+        // PA sales-tax collection; Checkout collects the billing address.
+        automatic_tax: { enabled: true },
         customer_email: user.email ?? undefined,
         line_items: [{ price: priceId as string, quantity: 1 }],
         metadata: {

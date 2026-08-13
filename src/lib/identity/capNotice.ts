@@ -509,6 +509,8 @@ export async function respondWithTopoffLink(opts: {
         const session = await stripe.checkout.sessions.create({
           mode: "payment",
           payment_method_types: ["card"],
+          // PA sales-tax collection; Checkout collects the billing address.
+          automatic_tax: { enabled: true },
           customer_email: opts.userEmail ?? undefined,
           line_items: [{ price: priceId, quantity: 1 }],
           // Scoped to THIS buyer: the webhook credits metadata.user_id,

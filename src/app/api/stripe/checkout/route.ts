@@ -170,8 +170,15 @@ export async function POST(request: NextRequest) {
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       payment_method_types: ["card"],
+      // PA sales-tax collection. A reused customer needs customer_update
+      // so Checkout may save the address it collects — automatic_tax
+      // rejects a bare `customer` without it.
+      automatic_tax: { enabled: true },
       ...(profile?.stripe_customer_id
-        ? { customer: profile.stripe_customer_id }
+        ? {
+            customer: profile.stripe_customer_id,
+            customer_update: { address: "auto" as const },
+          }
         : { customer_email: user.email ?? undefined }),
       line_items: [{ price: priceId, quantity: 1 }],
       // App Store 3.1.2 + auto-renew disclosure: this text is repeated
@@ -249,6 +256,10 @@ export async function POST(request: NextRequest) {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card"],
+      // PA sales-tax collection (registration active since 2026-08-12).
+      // Checkout collects the billing address it needs; prices are
+      // tax-exclusive by the account's USD default.
+      automatic_tax: { enabled: true },
       customer_email: user.email ?? undefined,
       line_items: [{ price: priceId, quantity: 1 }],
       metadata: {
@@ -296,6 +307,10 @@ export async function POST(request: NextRequest) {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card"],
+      // PA sales-tax collection (registration active since 2026-08-12).
+      // Checkout collects the billing address it needs; prices are
+      // tax-exclusive by the account's USD default.
+      automatic_tax: { enabled: true },
       customer_email: user.email ?? undefined,
       line_items: [{ price: priceId, quantity: 1 }],
       metadata: {
@@ -344,6 +359,10 @@ export async function POST(request: NextRequest) {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card"],
+      // PA sales-tax collection (registration active since 2026-08-12).
+      // Checkout collects the billing address it needs; prices are
+      // tax-exclusive by the account's USD default.
+      automatic_tax: { enabled: true },
       customer_email: user.email ?? undefined,
       line_items: [{ price: priceId, quantity: 1 }],
       metadata: {
@@ -397,6 +416,10 @@ export async function POST(request: NextRequest) {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card"],
+      // PA sales-tax collection (registration active since 2026-08-12).
+      // Checkout collects the billing address it needs; prices are
+      // tax-exclusive by the account's USD default.
+      automatic_tax: { enabled: true },
       customer_email: user.email ?? undefined,
       line_items: [{ price: priceId, quantity: 1 }],
       metadata: {
