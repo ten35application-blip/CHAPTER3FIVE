@@ -3,6 +3,12 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://chapter3five.app"),
+  // Google Search Console ownership proof (2026-08-13) — required by
+  // Play Console's organization website-verification step. Renders as
+  // <meta name="google-site-verification" ...> on every page.
+  verification: {
+    google: "aWJAO0vCqFU5DnRFwPj76dylMaoNVN9Xqq1J6EWAnjc",
+  },
   title: "chapter3five — someone to talk to. someone to keep.",
   description:
     "For the moments you want to reach out. And the people worth keeping. Talk to someone made just for you — or leave someone you love a way to still be talked to.",
