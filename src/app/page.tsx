@@ -766,7 +766,7 @@ export default function Home() {
           </div>
 
           <p className="mt-12 text-center text-sm text-warm-400 sm:text-left">
-            &copy; 2026 chapter3five &middot; Bethlehem, PA
+            &copy; 2026 CHAPTER3FIVE LLC &middot; Bethlehem, PA
           </p>
         </div>
       </footer>
