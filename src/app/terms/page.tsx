@@ -63,7 +63,8 @@ export default function TermsPage() {
           chapter3five is a place where you can create an AI companion to talk
           to — one made just for you right now, or one you prepare and leave
           for someone you love. These Terms of Service (&quot;Terms&quot;) are
-          a binding agreement between you and chapter3five
+          a binding agreement between you and CHAPTER3FIVE LLC, a
+          Pennsylvania limited liability company
           (&quot;chapter3five,&quot; &quot;we,&quot; &quot;us&quot;). By
           creating an account or using the service, you agree to them.
         </p>
