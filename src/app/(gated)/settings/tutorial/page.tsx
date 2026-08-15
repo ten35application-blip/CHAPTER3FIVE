@@ -126,7 +126,7 @@ export default async function TutorialPage() {
                     We roll a full trait bundle &mdash; age, background,
                     humor, wounds, hobbies, the town they live in, the food
                     they can&rsquo;t leave the house without &mdash; then
-                    hand it to our AI to synthesize a whole person from it.
+                    write a whole person from it.
                     Takes about a minute. <strong>You get who you get.</strong>{" "}
                     No re-rolls: someone specific was made for you.
                   </>
@@ -136,9 +136,9 @@ export default async function TutorialPage() {
                 title: "From a photo",
                 body: (
                   <>
-                    Upload a portrait. Our AI reads it &mdash; apparent age,
-                    features, style, mood &mdash; and uses that reading to
-                    steer the identity we build.{" "}
+                    Upload a portrait. We read what the photo shows &mdash;
+                    apparent age, features, style, mood &mdash; and that
+                    reading steers the identity we build.{" "}
                     <strong>The photo becomes their face.</strong> No
                     generated face on top.
                   </>
@@ -301,15 +301,10 @@ export default async function TutorialPage() {
               real person.
             </li>
             <li>
-              <strong>Reporting.</strong> The in-app report flow is coming
-              soon. In the meantime, email us from{" "}
-              <Link
-                href="/settings/help"
-                className="font-semibold underline underline-offset-4 hover:text-coral-strong"
-              >
-                Get help
-              </Link>{" "}
-              and we&rsquo;ll take it seriously.
+              <strong>Reporting.</strong> Tap any identity&rsquo;s
+              portrait to report a message or the identity itself &mdash;
+              a human reviews every report. Blocking lives in the same
+              place.
             </li>
           </ul>
         </TutorialCard>
@@ -346,8 +341,8 @@ export default async function TutorialPage() {
               on any plan.
             </li>
             <li>
-              <strong>Extras:</strong> {EXTRA_IDENTITY_PRICE_LABEL}/month
-              per identity beyond the plan, and one-time add-on packs
+              <strong>Extras:</strong> {EXTRA_IDENTITY_PRICE_LABEL}{" "}
+              one-time per identity slot beyond the plan, and one-time add-on packs
               from {PACK_FROM_PRICE_LABEL} for extra messages or images.
             </li>
             <li>
