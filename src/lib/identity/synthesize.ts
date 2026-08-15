@@ -635,25 +635,44 @@ export async function synthesizePersona(
   traits: Traits,
 ): Promise<SynthesizedPersona> {
   let response;
-  try {
-    response = await anthropic.messages.create({
-      model: ANTHROPIC_MODEL,
-      // 700–1000 word persona_prompt + name + hook + JSON escaping needs
-      // more headroom than the old 2–4 paragraph format; truncation here
-      // means malformed JSON and a wasted roll.
-      max_tokens: 8192,
-      system: SYSTEM_PROMPT,
-      output_config: {
-        format: {
-          type: "json_schema",
-          schema: OUTPUT_SCHEMA,
+  // Transient-error retry (2026-08-15): a single 429/5xx/overload from
+  // the model API used to surface straight to the user as "Couldn't
+  // finish meeting them" — the audit's rapid-fire creations proved it.
+  // Two bounded retries with backoff absorb the blips; refusal and
+  // malformed responses are never retried (they'd just repeat).
+  const RETRYABLE = new Set([429, 500, 502, 503, 529]);
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt > 0) {
+      await new Promise((r) => setTimeout(r, attempt * 1500));
+    }
+    try {
+      response = await anthropic.messages.create({
+        model: ANTHROPIC_MODEL,
+        // 700–1000 word persona_prompt + name + hook + JSON escaping needs
+        // more headroom than the old 2–4 paragraph format; truncation here
+        // means malformed JSON and a wasted roll.
+        max_tokens: 8192,
+        system: SYSTEM_PROMPT,
+        output_config: {
+          format: {
+            type: "json_schema",
+            schema: OUTPUT_SCHEMA,
+          },
         },
-      },
-      messages: [{ role: "user", content: traitsToPrompt(traits) }],
-    });
-  } catch (err) {
+        messages: [{ role: "user", content: traitsToPrompt(traits) }],
+      });
+      break;
+    } catch (err) {
+      lastErr = err;
+      const status = (err as { status?: number })?.status;
+      if (status !== undefined && !RETRYABLE.has(status)) break;
+      // undefined status = connection-level failure — retryable.
+    }
+  }
+  if (!response) {
     throw new SynthesisError(
-      err instanceof Error ? err.message : "network error",
+      lastErr instanceof Error ? lastErr.message : "network error",
       "network",
     );
   }
