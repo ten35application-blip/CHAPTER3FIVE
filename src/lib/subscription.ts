@@ -309,7 +309,14 @@ export async function canCreateOracle(
           // redemption and must never eat the user's self-creation
           // quota.
           .is("inherited_at", null)
-          .is("deleted_at", null)
+          // LIFETIME COUNT (Wilson 2026-08-15: "you get what you
+          // get"): a creation consumes its slot permanently — the
+          // deleted_at filter is deliberately ABSENT, so deleting a
+          // companion does NOT free the slot. This closes the
+          // create→delete→create farming loop (each creation costs
+          // real synthesis + portrait compute) with zero counters:
+          // the only ways to create more are a higher plan or a
+          // purchased extra slot.
           // Me (self-archive, 0125) is a separate free slot on all
           // tiers per Wilson's Phase-2 lock. Excluded from the
           // companion tally.
