@@ -187,28 +187,22 @@ export async function canChatWithOracle(
     } = await client.auth.getUser();
     if (!user) return false;
 
-    const { data: profile } = await client
-      .from("profiles")
-      .select("free_identity_id")
-      .eq("id", user.id)
-      .maybeSingle<{ free_identity_id: string | null }>();
-    if (profile?.free_identity_id === oracleId) return true;
-
-    // Inherited copies (0111) are owned rows stamped with inherited_at
-    // at redemption. Redemption was paid ($5 flat per code), so the
-    // copy stays chattable on every tier -- including Free accounts
-    // whose free_identity_id points elsewhere. Keyed on inherited_at,
-    // not the code FK: the marker survives the creator deleting their
-    // account (which cascades inherit_codes away).
-    const { data: inherited } = await client
+    // Ownership rule (Wilson 2026-08-15, with the à-la-carte tier
+    // model): every oracle row a user owns exists because it was
+    // included, purchased ($5 slot / inherited redemption / legacy
+    // archive), or grandfathered — so ownership IS the chat
+    // permission on every tier. Free-tier volume is governed by the
+    // monthly message allowance, not by which companion they talk
+    // to. (free_identity_id is now vestigial; left in place for
+    // grandfathered rows.)
+    const { data: owned } = await client
       .from("oracles")
       .select("id")
       .eq("id", oracleId)
       .eq("user_id", user.id)
-      .not("inherited_at", "is", null)
       .is("deleted_at", null)
       .maybeSingle();
-    return inherited !== null;
+    return owned !== null;
   } catch {
     return false;
   }
@@ -340,35 +334,31 @@ export async function canCreateOracle(
 
     const currentCount = count ?? 0;
 
-    if (!isProUser) {
-      // Free tier — one identity, ever. Once free_identity_id is
-      // set (via claimFreeIdentitySlot), they need Pro to make more.
-      if (profile.free_identity_id) {
-        return { ok: false, reason: "upgrade_required", currentCount, quota: 1 };
-      }
-      return { ok: true };
-    }
-
-    // Basic subscribers get the smaller self-created ceiling (2
-    // formula + 1 photo = 3); Pro / trial / admin get 5. Add-on
-    // credits stack on top of whichever base applies.
-    //
-    // The stripe_customer_id condition was removed 2026-08-04 for the
-    // same reason as getPlanTier above: an IAP subscriber never has
-    // one, so a $5 Apple Basic purchase was silently granted the Pro
-    // ceiling of 5 identities. subscription_tier is written by all
-    // three payment paths and is authoritative on its own; null still
-    // means comped/trial and still gets the Pro ceiling.
+    // Tier model (Wilson 2026-08-15): the subscription sets the
+    // INCLUDED shelf — Free 0, Basic 3, Pro/trial/admin 5 — and
+    // purchased extra slots ($5 each, extra_oracle_credits) stack on
+    // top of EVERY tier, including Free. A person who wants no
+    // monthly plan but buys a companion now and then is a customer,
+    // not an error. (Free still always has Adrian + the self-archive;
+    // those never touch this quota.)
     const isBasicUser =
       !isAdmin(userEmail) &&
       profile.subscription_tier === "basic" &&
       profile.pro_until &&
       new Date(profile.pro_until).getTime() > now;
-    const baseQuota = isBasicUser
-      ? PRICING.basicTotalIdentitiesPerPlan
-      : PRICING.totalIdentitiesPerPlan;
+    const baseQuota = isProUser
+      ? isBasicUser
+        ? PRICING.basicTotalIdentitiesPerPlan
+        : PRICING.totalIdentitiesPerPlan
+      : 0;
     const quota = baseQuota + (profile.extra_oracle_credits ?? 0);
     if (currentCount >= quota) {
+      // Free with no purchased slots: steer to the upgrade surface,
+      // which offers BOTH paths (a plan or a $5 slot). Everyone else
+      // at their ceiling gets the buy-another-slot message.
+      if (!isProUser && quota === 0) {
+        return { ok: false, reason: "upgrade_required", currentCount, quota };
+      }
       return {
         ok: false,
         reason: "quota_reached",
