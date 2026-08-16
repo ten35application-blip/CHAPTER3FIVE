@@ -5,6 +5,7 @@ import { redirectWithError } from "@/lib/action-errors";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { SubmitButton } from "./SubmitButton";
+import { GuidedDobInput } from "./GuidedDobInput";
 
 export const metadata = {
   title: "Begin a chapter · chapter3five",
@@ -271,20 +272,11 @@ export default async function SignupPage({
             <span className="text-sm font-medium text-warm-200">
               Date of birth
             </span>
-            <input
-              type="text"
-              name="date_of_birth"
-              inputMode="numeric"
-              autoComplete="bday"
-              required
-              pattern="\d{4}-\d{2}-\d{2}"
-              placeholder="Date of birth (YYYY-MM-DD)"
-              className="h-12 rounded-2xl bg-ink-soft px-4 text-base text-warm-50 outline-none ring-1 ring-warm-700 placeholder:text-warm-400 focus:ring-2 focus:ring-coral"
-            />
+            <GuidedDobInput />
           </label>
           <p className="text-xs leading-relaxed text-warm-400">
-            Chapter3five is 18+. We ask so we can verify eligibility once, not
-            to track you.
+            Year, then month, then day — like 1990-04-25. Chapter3five is 18+;
+            we ask so we can verify eligibility once, not to track you.
           </p>
 
           <SubmitButton />
