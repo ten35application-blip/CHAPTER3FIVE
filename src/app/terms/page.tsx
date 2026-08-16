@@ -603,6 +603,25 @@ export default function TermsPage() {
           except through interfaces we provide.
         </p>
         <p>
+          <strong>Photos and likeness — the hard line.</strong> When you
+          create a companion from a photo, you are promising that the
+          photo is <strong>of you</strong>, or of someone who{" "}
+          <strong>gave you permission</strong> to use it. Do not upload
+          public figures, celebrities, or anyone who has not agreed —
+          living or dead. A companion is not a way to make a version of
+          someone who never consented to exist here.
+        </p>
+        <p>
+          If we learn that an identity was built from someone&rsquo;s
+          likeness without permission — because it is reported, because
+          the person or their family contacts us, or because we find it
+          ourselves — <strong>we delete that identity</strong>, and{" "}
+          <strong>no refund is issued</strong> for it, for any slot it
+          consumed, or for the month. Repeated violations end the
+          account. Anyone can report an identity from inside the app by
+          tapping its portrait, and a person reviews every report.
+        </p>
+        <p>
           <strong>Community standards enforcement — identities can block
           you.</strong> Identities can and will end conversations with users
           who repeatedly abuse them, including persistent verbal aggression,
