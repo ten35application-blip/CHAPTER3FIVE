@@ -103,7 +103,19 @@ type RevenueCatEvent = {
   // between. No product/entitlement fields accompany them.
   transferred_from?: string[] | null;
   transferred_to?: string[] | null;
+  // BILLING_ISSUE only: how long the store keeps the subscription
+  // alive while it retries the card.
+  grace_period_expiration_at_ms?: number | null;
 };
+
+/**
+ * Sentinel expiry for entitlements the store reports with no
+ * expiration (NON_RENEWING lifetime purchases). Every server-side
+ * tier gate reads profiles.pro_until, so "no expiry" must still land
+ * there as a date or the customer pays and gates them as Free
+ * (audit finding #10).
+ */
+const FAR_FUTURE_ISO = "2099-01-01T00:00:00.000Z";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -183,22 +195,35 @@ export async function POST(request: NextRequest) {
       .in("user_id", fromIds);
     const nowIso = new Date().toISOString();
     if (oldRows && oldRows.length > 0) {
-      const moved = oldRows.map((r) => ({
-        ...r,
-        user_id: toId,
-        revenuecat_user_id: toId,
-        updated_at: nowIso,
-      }));
-      const { error: moveErr } = await adminT
+      // Move by UPDATE-in-place, not select-copy-insert: the rows carry
+      // original_transaction_id, which has its own UNIQUE index, so
+      // inserting a copy while the old row still exists is a guaranteed
+      // 23505 → 500 → RevenueCat retry loop (audit finding #1 — the
+      // first version of this handler did exactly that). Updating the
+      // owner never collides with the transaction-id index. Clear the
+      // destination's same-name entitlements first so the
+      // (user_id, entitlement_id) key can't collide either.
+      const { error: clearErr } = await adminT
         .from("iap_entitlements")
-        .upsert(moved, { onConflict: "user_id,entitlement_id" });
+        .delete()
+        .eq("user_id", toId)
+        .in("entitlement_id", oldRows.map((r) => r.entitlement_id));
+      const { error: moveErr } = clearErr
+        ? { error: clearErr }
+        : await adminT
+            .from("iap_entitlements")
+            .update({
+              user_id: toId,
+              revenuecat_user_id: toId,
+              updated_at: nowIso,
+            })
+            .in("user_id", fromIds);
       if (moveErr) {
         console.error(
           `[revenuecat-webhook] TRANSFER move failed → ${toId}: ${moveErr.message}`,
         );
         return NextResponse.json({ error: "Transfer move failed" }, { status: 500 });
       }
-      await adminT.from("iap_entitlements").delete().in("user_id", fromIds);
 
       // Re-derive the tier from what moved (pro beats basic, matching
       // the resolution below) and sync the profile so tier gates see it.
@@ -211,17 +236,20 @@ export async function POST(request: NextRequest) {
           ? ("basic" as const)
           : null;
       if (movedTier) {
-        const until = live
-          .filter((r) => r.entitlement_id === movedTier && r.expires_at)
-          .map((r) => r.expires_at as string)
-          .sort()
-          .pop();
-        if (until) {
-          await adminT
-            .from("profiles")
-            .update({ pro_until: until, subscription_tier: movedTier })
-            .eq("id", toId);
-        }
+        const until =
+          live
+            .filter((r) => r.entitlement_id === movedTier && r.expires_at)
+            .map((r) => r.expires_at as string)
+            .sort()
+            .pop() ?? FAR_FUTURE_ISO; // null expiry = lifetime row
+        await adminT
+          .from("profiles")
+          .update({
+            pro_until: until,
+            subscription_tier: movedTier,
+            plan_source: "iap",
+          })
+          .eq("id", toId);
         scheduleAutoPopulate(toId, movedTier);
       }
       console.log(
@@ -246,6 +274,12 @@ export async function POST(request: NextRequest) {
     "NON_RENEWING_PURCHASE",
     "CANCELLATION",
     "EXPIRATION",
+    // Card is failing but the store keeps the sub alive through its
+    // grace period — extend access to match (audit finding #3).
+    "BILLING_ISSUE",
+    // Store/developer extended the subscription (outage compensation
+    // etc.) — carry the new expiry forward (audit finding #4).
+    "SUBSCRIPTION_EXTENDED",
   ]);
   if (!handled.has(type)) {
     console.log(`[revenuecat-webhook] ignoring event type ${type}`);
@@ -256,11 +290,21 @@ export async function POST(request: NextRequest) {
   const appUserId = event.app_user_id ?? "";
   if (!UUID_RE.test(appUserId)) {
     // $RCAnonymousID:… — a purchase made before Purchases.configure ran
-    // with a Supabase session. RevenueCat will re-fire under the real
-    // id after logIn/aliasing; ack so it doesn't retry this one forever.
+    // with a Supabase session. RevenueCat does NOT replay past events
+    // after aliasing (audit finding #7) — the money is real and the
+    // grant won't land until the next renewal, so leave a reconcilable
+    // trail instead of only a log line. Ack so RC doesn't retry.
     console.warn(
       `[revenuecat-webhook] ${type} for non-UUID app_user_id (${appUserId.slice(0, 24)}…) — skipping`,
     );
+    if (type !== "EXPIRATION" && type !== "CANCELLATION") {
+      await recordGrantFailure({
+        kind: "unrecognized_purchase",
+        userId: null,
+        purpose: `revenuecat:anonymous:${type}:${event.product_id ?? "?"}:${appUserId.slice(0, 48)} (txn ${event.original_transaction_id ?? "?"})`,
+        error: new Error("purchase event under RC anonymous app_user_id"),
+      });
+    }
     return NextResponse.json({ received: true, skipped: "anonymous-app-user-id" });
   }
 
@@ -398,11 +442,40 @@ export async function POST(request: NextRequest) {
       ? new Date(
           Math.min(event.expiration_at_ms ?? Date.now(), Date.now()),
         ).toISOString()
-      : typeof event.expiration_at_ms === "number"
-        ? new Date(event.expiration_at_ms).toISOString()
-        : null;
+      : type === "BILLING_ISSUE"
+        ? // The store entitles the user through the grace window while
+          // it retries their card; mirror that instead of letting the
+          // original period end lock them out mid-retry.
+          typeof event.grace_period_expiration_at_ms === "number"
+          ? new Date(event.grace_period_expiration_at_ms).toISOString()
+          : typeof event.expiration_at_ms === "number"
+            ? new Date(event.expiration_at_ms).toISOString()
+            : null
+        : typeof event.expiration_at_ms === "number"
+          ? new Date(event.expiration_at_ms).toISOString()
+          : null;
+
+  // A BILLING_ISSUE that carries no usable window has nothing to
+  // mirror — never let it fall through and write a null (= lifetime)
+  // expiry for a sub whose card is bouncing.
+  if (type === "BILLING_ISSUE" && expiresAt === null) {
+    return NextResponse.json({ received: true, skipped: "billing-issue-no-window" });
+  }
 
   const admin = createAdminClient();
+
+  // A store transaction belongs to exactly one account. If this event
+  // arrives under a new user while an old account still mirrors the
+  // same original_transaction_id, the upsert below would trip that
+  // column's UNIQUE index → 23505 → permanent RevenueCat retry loop
+  // (audit finding #1). Evict the stale owner first.
+  if (event.original_transaction_id) {
+    await admin
+      .from("iap_entitlements")
+      .delete()
+      .eq("original_transaction_id", event.original_transaction_id)
+      .neq("user_id", appUserId);
+  }
   const rows = entitlementIds.map((entitlementId) => ({
     user_id: appUserId,
     entitlement_id: entitlementId,
@@ -482,7 +555,15 @@ export async function POST(request: NextRequest) {
   // CANCELLATION: RevenueCat keeps access until expires_at even
   // when auto-renew is off — mirror that by writing pro_until to
   // the future expiry. Cancel-then-resubscribe flows work.
-  if (tier && expiresAt !== null) {
+  // Lifetime purchases (NON_RENEWING, null expiry) still need to land
+  // in profiles or every tier gate reads the buyer as Free (audit
+  // finding #10). Only that event type earns the sentinel — a missing
+  // expiry on anything else stays a no-op.
+  const profileUntil =
+    expiresAt ??
+    (type === "NON_RENEWING_PURCHASE" ? FAR_FUTURE_ISO : null);
+
+  if (tier && profileUntil !== null) {
     // CROSS-CHANNEL GUARD (2026-08-04). pro_until is one scalar with no
     // source column, written by BOTH webhooks. This update used to be
     // unconditional, so an Apple EXPIRATION — which deliberately forces
@@ -503,10 +584,11 @@ export async function POST(request: NextRequest) {
     // write is actually LATER than what is already there.
     const { data: current } = await admin
       .from("profiles")
-      .select("pro_until, stripe_subscription_id, subscription_status")
+      .select("pro_until, subscription_tier, stripe_subscription_id, subscription_status")
       .eq("id", appUserId)
       .maybeSingle<{
         pro_until: string | null;
+        subscription_tier: string | null;
         stripe_subscription_id: string | null;
         subscription_status: string | null;
       }>();
@@ -516,11 +598,18 @@ export async function POST(request: NextRequest) {
       current.subscription_status !== "canceled";
     const wouldShorten =
       !!current?.pro_until &&
-      new Date(expiresAt).getTime() < new Date(current.pro_until).getTime();
+      new Date(profileUntil).getTime() < new Date(current.pro_until).getTime();
+    // Audit finding #2: dates alone don't protect the TIER. A Stripe
+    // Pro subscriber who also holds an Apple Basic sub had every Basic
+    // RENEWAL (whose expiry lands later mid-cycle) overwrite
+    // subscription_tier to "basic" — paying $10 and living under $5
+    // caps. A cross-channel write may extend time, never lower rank.
+    const wouldLowerTier =
+      current?.subscription_tier === "pro" && tier === "basic";
 
-    if (wouldShorten && stripeHoldsAccount) {
+    if ((wouldShorten || wouldLowerTier) && stripeHoldsAccount) {
       console.log(
-        `[revenuecat-webhook] ${type} for ${appUserId} would shorten pro_until but Stripe subscription ${current?.stripe_subscription_id} is active — leaving entitlement alone`,
+        `[revenuecat-webhook] ${type} for ${appUserId} would ${wouldLowerTier ? "lower tier" : "shorten pro_until"} but Stripe subscription ${current?.stripe_subscription_id} is active — leaving entitlement alone`,
       );
       // iap_entitlements above still records the Apple-side truth.
       return NextResponse.json({ received: true, skipped: "stripe-holds-account" });
@@ -529,8 +618,12 @@ export async function POST(request: NextRequest) {
     const { error: profileErr } = await admin
       .from("profiles")
       .update({
-        pro_until: expiresAt,
+        pro_until: profileUntil,
         subscription_tier: tier,
+        // The upgrade surfaces steer "how do I cancel?" from this —
+        // stale "stripe" here sent IAP subscribers to the web portal
+        // for a sub that only exists in the store (audit finding #9).
+        plan_source: "iap",
       })
       .eq("id", appUserId);
     if (profileErr) {

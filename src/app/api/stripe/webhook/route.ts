@@ -854,6 +854,10 @@ async function handleSubscriptionDeleted(
       cancel_at_period_end: null,
       current_period_end: null,
       subscription_tier: null,
+      // Stale "stripe" here mis-steered a user who later subscribed
+      // via the store: the app told them to cancel on the web for a
+      // sub that only existed in Apple (audit finding #9).
+      plan_source: "none",
     })
     .eq("id", profile.id);
 
