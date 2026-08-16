@@ -59,12 +59,13 @@ export async function GET(request: Request) {
   // getPackCreditBalance; scoped to the caller's own row).
   const { data: credits } = await createAdminClient()
     .from("profiles")
-    .select("message_credits, image_credits, plan_source")
+    .select("message_credits, image_credits, plan_source, pro_until")
     .eq("id", user.id)
     .maybeSingle<{
       message_credits: number | null;
       image_credits: number | null;
       plan_source: string | null;
+      pro_until: string | null;
     }>();
 
   // Opportunistic self-heal (2026-08-15, atomic-delivery work): if a
@@ -124,6 +125,10 @@ export async function GET(request: Request) {
     // subscriber, who RevenueCat has never heard of and who was one tap
     // from paying twice.
     source: credits?.plan_source ?? null,
+    /** End of the paid window. Lets the app say "you're on Pro until
+     *  August 17" instead of leaving people guessing when a scheduled
+     *  downgrade or renewal actually takes effect. */
+    period_end: credits?.pro_until ?? null,
     /** True when this subscription's companions were already created on
      *  an account that has since been deleted. The client explains it
      *  rather than showing an empty dashboard. */
