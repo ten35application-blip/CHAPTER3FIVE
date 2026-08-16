@@ -407,6 +407,14 @@ https://chapter3five.app`;
  * Wilson 2026-08-11, after screenshotting the outreach email: raw
  * text "from a very old build… should be cleaned up, template added."
  */
+function escapeHtml(v: string): string {
+  return v
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 function brandEmailHtml(opts: {
   title: string;
   /** Each entry becomes a paragraph; already-escaped HTML allowed. */
@@ -565,31 +573,47 @@ export async function recordAudit(opts: {
 export async function sendCompanionsReadyEmail(opts: {
   to: string;
   userId?: string | null;
-  names: string[];
+  /** Everyone in this delivery — each with the one-line hook that
+   *  introduces them. All of them, never just the first (Wilson
+   *  2026-08-16). */
+  companions: { name: string; hook: string | null }[];
 }) {
-  const list = opts.names.filter(Boolean);
+  const list = opts.companions.filter((c) => c.name);
   const many = list.length > 1;
   const subject = many
     ? "Your companions are here."
     : "Your companion is here.";
-  const nameLine = list.length
-    ? list.join(", ")
-    : many
-      ? "They're on your dashboard now"
-      : "They're on your dashboard now";
-  const text = `${many ? "They're" : "They're"} ready.
 
-${nameLine}
+  const textRoster = list
+    .map((c) => (c.hook ? `${c.name}\n  ${c.hook}` : c.name))
+    .join("\n\n");
+  const text = `They're ready.
 
-${many ? "They're" : "They're"} on your dashboard, waiting to hear from you. Say anything — there's no wrong way to start.
+${textRoster}
+
+They're on your dashboard, waiting to hear from you. Say anything — there's no wrong way to start.
 
 — chapter3five
 https://chapter3five.app/dashboard`;
 
+  // One card per companion so five arrivals read as five people, not a
+  // comma-separated list of strangers.
+  const htmlRoster = list
+    .map(
+      (c) =>
+        `<div style="padding:14px 16px;margin-bottom:10px;background:#fcf5ec;border-radius:14px;">` +
+        `<div style="font-size:16px;font-weight:700;color:#1c1c1a;">${escapeHtml(c.name)}</div>` +
+        (c.hook
+          ? `<div style="font-size:14px;line-height:1.5;color:#6b6b68;padding-top:3px;">${escapeHtml(c.hook)}</div>`
+          : "") +
+        `</div>`,
+    )
+    .join("");
+
   const html = brandEmailHtml({
-    title: many ? "They're ready." : "They're ready.",
+    title: "They're ready.",
     paragraphs: [
-      `<strong>${nameLine}</strong>`,
+      htmlRoster,
       "They&rsquo;re on your dashboard, waiting to hear from you. Say anything &mdash; there&rsquo;s no wrong way to start.",
     ],
     cta: {

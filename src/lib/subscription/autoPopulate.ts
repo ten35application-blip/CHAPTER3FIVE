@@ -292,16 +292,20 @@ export async function autoPopulateForSubscribe(
           try {
             const [{ data: who }, { data: revealed }] = await Promise.all([
               admin.auth.admin.getUserById(userId),
-              admin.from("oracles").select("name").in("id", revealIds),
+              admin
+                .from("oracles")
+                .select("name, one_line_hook")
+                .in("id", revealIds),
             ]);
             const email = who?.user?.email;
             if (email) {
               await sendCompanionsReadyEmail({
                 to: email,
                 userId,
-                names: (revealed ?? [])
-                  .map((r) => r.name as string)
-                  .filter(Boolean),
+                companions: (revealed ?? []).map((r) => ({
+                  name: r.name as string,
+                  hook: (r.one_line_hook as string | null) ?? null,
+                })),
               });
             }
           } catch (mailErr) {
