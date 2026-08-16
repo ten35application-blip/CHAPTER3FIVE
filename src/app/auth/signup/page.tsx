@@ -117,6 +117,21 @@ async function signUp(formData: FormData) {
     );
   }
 
+  // Duplicate signup, disguised as success. Supabase won't confirm that
+  // an address is registered — it answers with a success-shaped
+  // response whose identities array is EMPTY, and sends no email. The
+  // "check your inbox" screen that followed pointed at mail that never
+  // existed (Wilson 2026-08-16). Same read as the mobile signup.
+  if (
+    signUpData?.user &&
+    (signUpData.user.identities?.length ?? 0) === 0
+  ) {
+    redirectWithError(
+      "/auth/signup",
+      "That email already has an account. Try signing in, or use “Forgot password”.",
+    );
+  }
+
   // Persist DOB via the admin client — 0090 puts date_of_birth in the
   // protect_billing_columns denylist so a user can't PATCH it later
   // via the anon key to change the age they registered as. Best-
