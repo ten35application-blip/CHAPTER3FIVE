@@ -25,7 +25,9 @@ function SigninInner() {
   // that says take me back to the app").
   const params = useSearchParams();
   const confirmed = params.get("confirmed") === "1";
-  const [email, setEmail] = useState("");
+  // Arriving straight from the verification link: the address is
+  // already known, so only the password is left to type.
+  const [email, setEmail] = useState(params.get("email") ?? "");
   const [password, setPassword] = useState("");
   // A dead or already-used confirmation link lands here with its own
   // explanation (/auth/confirm). Seed the same banner the sign-in form

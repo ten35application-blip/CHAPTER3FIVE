@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.verifyOtp({
+  const { data, error } = await supabase.auth.verifyOtp({
     token_hash: tokenHash,
     type,
   });
@@ -75,7 +75,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL("/auth/update-password", request.url));
   }
 
-  return NextResponse.redirect(
-    new URL("/auth/signin?confirmed=1", request.url),
-  );
+  // Carry the address forward so the sign-in form arrives already
+  // filled in and all they have to type is a password — the way
+  // Instagram and X hand you back after verifying (Wilson 2026-08-16).
+  // It's the address they just proved they own, so echoing it to
+  // themselves reveals nothing they didn't type minutes ago.
+  const verifiedEmail = data?.user?.email ?? null;
+  const next = verifiedEmail
+    ? `/auth/signin?confirmed=1&email=${encodeURIComponent(verifiedEmail)}`
+    : "/auth/signin?confirmed=1";
+  return NextResponse.redirect(new URL(next, request.url));
 }
