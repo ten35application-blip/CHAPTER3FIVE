@@ -77,6 +77,44 @@ export async function GET(request: Request) {
     scheduleAutoPopulate(user.id, plan.tier);
   }
 
+  // Did this subscription already spend its companions on an earlier
+  // account? (Someone deleted their account and signed up again; the
+  // mint ledger is keyed to the STORE transaction, so it remembers.)
+  // Without a word from us they'd sit on a paid, permanently empty
+  // dashboard wondering what they bought — silence is the one thing
+  // that must never happen after someone pays (Wilson 2026-08-16:
+  // "shouldn't that person get that message?").
+  let companionsSpentElsewhere = false;
+  if (plan.tier === "basic" || plan.tier === "pro") {
+    const admin = createAdminClient();
+    const { count: owned } = await admin
+      .from("oracles")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("is_concierge", false)
+      .eq("is_self_archive", false)
+      .is("inherited_at", null)
+      .is("deleted_at", null);
+    if ((owned ?? 0) === 0) {
+      const { data: ent } = await admin
+        .from("iap_entitlements")
+        .select("original_transaction_id")
+        .eq("user_id", user.id)
+        .in("entitlement_id", ["basic", "pro"])
+        .not("original_transaction_id", "is", null)
+        .limit(1)
+        .maybeSingle<{ original_transaction_id: string | null }>();
+      if (ent?.original_transaction_id) {
+        const { data: ledger } = await admin
+          .from("iap_mint_ledger")
+          .select("minted_random")
+          .eq("original_transaction_id", ent.original_transaction_id)
+          .maybeSingle<{ minted_random: number }>();
+        companionsSpentElsewhere = (ledger?.minted_random ?? 0) > 0;
+      }
+    }
+  }
+
   return NextResponse.json({
     tier: plan.tier,
     unlimited: plan.unlimited === true,
@@ -86,6 +124,10 @@ export async function GET(request: Request) {
     // subscriber, who RevenueCat has never heard of and who was one tap
     // from paying twice.
     source: credits?.plan_source ?? null,
+    /** True when this subscription's companions were already created on
+     *  an account that has since been deleted. The client explains it
+     *  rather than showing an empty dashboard. */
+    companions_spent_elsewhere: companionsSpentElsewhere,
     messages: {
       used: messages.current,
       limit: messages.limit,
