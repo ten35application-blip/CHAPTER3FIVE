@@ -434,6 +434,7 @@ function brandEmailHtml(opts: {
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fcf5ec;padding:48px 24px;">
 <tr><td align="center">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#fffefb;border-radius:24px;padding:40px 32px;box-shadow:0 12px 40px -16px rgba(28,28,26,0.16);">
+<tr><td align="center" style="padding-bottom:14px;"><img src="https://chapter3five.app/logo-transparent.png" width="60" height="60" alt="chapter3five" style="display:block;width:60px;height:60px;border:0;outline:none;text-decoration:none;"></td></tr>
 <tr><td align="center" style="padding-bottom:28px;"><p style="margin:0;font-size:18px;font-weight:700;letter-spacing:-0.02em;color:#1c1c1a;">chapter<span style="color:#e88a76;">3</span>five</p></td></tr>
 <tr><td style="font-size:20px;font-weight:700;color:#1c1c1a;padding-bottom:12px;">${opts.title}</td></tr>
 ${paragraphs}
