@@ -282,10 +282,31 @@ export async function POST(request: NextRequest) {
     (e): e is string => typeof e === "string" && e.length > 0,
   );
   if (entitlementIds.length === 0) {
-    console.warn(
-      `[revenuecat-webhook] ${type} for product ${event.product_id ?? "?"} carries no entitlement_ids — attach the product to an entitlement in RevenueCat`,
-    );
-    return NextResponse.json({ received: true, skipped: "no-entitlements" });
+    // A known subscription product with a detached entitlement is a
+    // paying customer about to receive nothing — infer the entitlement
+    // from the product id and keep going (the tripwire below records
+    // the misconfiguration). Only unknown products still bail.
+    const pid = event.product_id ?? "";
+    const inferred = pid.includes(".pro.")
+      ? PRO_ENTITLEMENT_ID
+      : pid.includes(".basic.")
+        ? BASIC_ENTITLEMENT_ID
+        : null;
+    if (inferred) {
+      entitlementIds.push(inferred);
+      await recordGrantFailure({
+        kind: "message_credits",
+        userId: appUserId,
+        delta: 0,
+        purpose: `revenuecat:no-entitlement:${pid} (attach it to the "${inferred}" entitlement in RevenueCat; tier inferred from product id)`,
+        error: new Error("subscription product carried no entitlement_ids"),
+      });
+    } else {
+      console.warn(
+        `[revenuecat-webhook] ${type} for product ${pid || "?"} carries no entitlement_ids — attach the product to an entitlement in RevenueCat`,
+      );
+      return NextResponse.json({ received: true, skipped: "no-entitlements" });
+    }
   }
 
   const expiresAt =
@@ -328,6 +349,34 @@ export async function POST(request: NextRequest) {
   let tier: "basic" | "pro" | null = null;
   if (entitlementIds.includes(PRO_ENTITLEMENT_ID)) tier = "pro";
   else if (entitlementIds.includes(BASIC_ENTITLEMENT_ID)) tier = "basic";
+
+  // TRIPWIRE (Wilson 2026-08-15: "people who pay for pro get pro").
+  // The product id names the money; the entitlement names what we
+  // deliver. If someone paid for a .pro. product but RevenueCat's
+  // dashboard attachment resolves it to anything less than pro, that
+  // is a paying customer being under-delivered by configuration —
+  // land it in grant_failures where a person will see it, and deliver
+  // the tier the money actually bought.
+  const productId = event.product_id ?? "";
+  if (productId.includes(".pro.") && tier !== "pro") {
+    await recordGrantFailure({
+      kind: "message_credits",
+      userId: appUserId,
+      delta: 0,
+      purpose: `revenuecat:entitlement-mismatch:${productId}→${tier ?? "none"} (attach ${productId} to the "pro" entitlement in RevenueCat)`,
+      error: new Error("pro product resolved to non-pro entitlement"),
+    });
+    tier = "pro";
+  } else if (productId.includes(".basic.") && tier === null) {
+    await recordGrantFailure({
+      kind: "message_credits",
+      userId: appUserId,
+      delta: 0,
+      purpose: `revenuecat:entitlement-mismatch:${productId}→none (attach ${productId} to the "basic" entitlement in RevenueCat)`,
+      error: new Error("basic product resolved to no entitlement"),
+    });
+    tier = "basic";
+  }
 
   // Blocker fix (2026-08-03 audit): mirror the entitlement into
   // profiles.pro_until + profiles.subscription_tier so every
