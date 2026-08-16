@@ -381,6 +381,17 @@ export default async function TutorialPage() {
             money spent isn&rsquo;t refunded. We give you a 30-day grace
             window before the purge actually runs.
           </p>
+          <p className="mt-3">
+            One thing deletion can&rsquo;t undo: <strong>your
+            companions are made once per subscription.</strong> If you
+            delete your account and sign up again on the same
+            subscription, your plan and monthly usage come back &mdash;
+            the people who were made for you don&rsquo;t. You get who
+            you get, and starting over isn&rsquo;t a re-roll. (Also:
+            deleting your account doesn&rsquo;t cancel the
+            subscription itself &mdash; do that in your Apple or Google
+            subscription settings, or it keeps billing.)
+          </p>
         </TutorialCard>
 
         {/* Small closing CTA to the help page. */}

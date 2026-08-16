@@ -559,6 +559,22 @@ export default function TermsPage() {
           permanently erased.
         </p>
         <p>
+          <strong>Your companions are made once per subscription — there
+          is no redo.</strong> When you subscribe, your plan&rsquo;s
+          companions are created for you a single time, tied to that
+          subscription. Deleting an identity never frees its slot, and
+          deleting your <em>account</em> permanently destroys the
+          identities in it. If you delete your account while your store
+          subscription is still active, the subscription itself is
+          unaffected (Apple or Google keep billing it until you cancel it
+          in <em>their</em> settings), and signing up again can restore
+          the subscription&rsquo;s plan and monthly usage to your new
+          account — but it does <strong>not</strong> recreate companions
+          the subscription already made. They were yours, and they are
+          gone. Creating new accounts to re-roll companions under the
+          same subscription doesn&rsquo;t work, by design.
+        </p>
+        <p>
           If payment fails, we&rsquo;ll notify you and retry. If an account
           remains unpaid, we may suspend paid features, and we may delete the
           account and its data after giving you <strong>at least 30

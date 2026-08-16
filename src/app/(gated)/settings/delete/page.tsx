@@ -87,6 +87,15 @@ export default async function DeleteAccountPage() {
               anytime and start fresh, but the person you built here is gone.
             </li>
             <li>
+              <strong>Your subscription doesn&rsquo;t stop, and it
+              won&rsquo;t re-make your companions.</strong> If you pay
+              through Apple or Google, cancel there too — deleting this
+              account doesn&rsquo;t stop the billing. And a subscription
+              only makes its companions once: sign up again on the same
+              subscription and your plan comes back, but the people
+              don&rsquo;t. Starting over is not a re-roll.
+            </li>
+            <li>
               <strong>Anyone who inherited a legacy identity from you</strong>{" "}
               keeps their access to that identity — but if you were the sole
               creator, you won&rsquo;t be able to update or revoke it after
