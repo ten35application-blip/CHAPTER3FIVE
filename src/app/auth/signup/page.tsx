@@ -80,6 +80,11 @@ async function signUp(formData: FormData) {
   const { data: signUpData, error } = await supabase.auth.signUp({
     email,
     password,
+    options: {
+      // Same celebrated landing the mobile app uses — the signin page
+      // shows "Your email is verified ✓" + an open-the-app button.
+      emailRedirectTo: "https://chapter3five.app/auth/signin?confirmed=1",
+    },
   });
 
   if (error) {

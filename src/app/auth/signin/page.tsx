@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -16,8 +17,13 @@ import { createClient } from "@/lib/supabase/client";
  * the recorded acceptance lives at /onboarding, the (gated) layout
  * enforces it.
  */
-export default function SigninPage() {
+function SigninInner() {
   const router = useRouter();
+  // Arriving from the confirmation email (?confirmed=1 — both signup
+  // flows point their verification links here). Celebrate + offer the
+  // app deep link (Wilson 2026-08-15: "email is verified and a button
+  // that says take me back to the app").
+  const confirmed = useSearchParams().get("confirmed") === "1";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -113,6 +119,26 @@ export default function SigninPage() {
         </h1>
         <p className="mt-3 text-base text-warm-300">Sign in to continue.</p>
 
+        {confirmed ? (
+          <div className="mt-6 w-full rounded-2xl border border-teal/40 bg-teal/10 px-4 py-4 text-center">
+            <p className="text-sm font-semibold text-warm-50">
+              Your email is verified. ✓
+            </p>
+            <p className="mt-1 text-sm text-warm-300">
+              Registered in the app? Head back and sign in there.
+            </p>
+            <a
+              href="chapter3fiveapp://"
+              className="mt-3 inline-block rounded-full bg-coral px-6 py-2.5 text-sm font-bold text-white transition-colors hover:bg-coral-strong"
+            >
+              Open the chapter3five app
+            </a>
+            <p className="mt-2 text-xs text-warm-400">
+              Or just sign in below to use the web.
+            </p>
+          </div>
+        ) : null}
+
         {error ? (
           <p
             role="alert"
@@ -192,5 +218,15 @@ export default function SigninPage() {
         </p>
       </div>
     </main>
+  );
+}
+
+
+// useSearchParams demands a Suspense boundary at prerender time.
+export default function SigninPage() {
+  return (
+    <Suspense fallback={null}>
+      <SigninInner />
+    </Suspense>
   );
 }
