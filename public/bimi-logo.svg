@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" version="1.2" baseProfile="tiny-ps" viewBox="0 0 1024 1024">
+  <title>chapter3five</title>
+  <rect width="1024" height="1024" fill="#FCF5EC"/>
+  <path d="M 420 512 C 460 470 480 470 512 512 C 544 554 564 554 604 512" fill="none" stroke="#E88A76" stroke-width="26" stroke-linecap="round"/>
+  <circle cx="278" cy="512" r="150" fill="#E88A76"/>
+  <circle cx="746" cy="512" r="150" fill="#7EC4C4"/>
+</svg>
