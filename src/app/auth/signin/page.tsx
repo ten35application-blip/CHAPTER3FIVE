@@ -131,10 +131,19 @@ function SigninInner() {
               Your email is verified. ✓
             </p>
             <p className="mt-1 text-sm text-warm-300">
-              Registered in the app? Head back and sign in there.
+              Registered in the app? Tap below — we&rsquo;ll take you
+              straight to sign-in with your email filled in.
             </p>
+            {/* Land INSIDE the app on its sign-in screen with the
+                just-verified address already filled in, rather than
+                dumping people at whatever screen the app opens to
+                (Wilson 2026-08-16). */}
             <a
-              href="chapter3fiveapp://"
+              href={
+                email
+                  ? `chapter3fiveapp://auth/signin?email=${encodeURIComponent(email)}`
+                  : "chapter3fiveapp://auth/signin"
+              }
               className="mt-3 inline-block rounded-full bg-coral px-6 py-2.5 text-sm font-bold text-white transition-colors hover:bg-coral-strong"
             >
               Open the chapter3five app

@@ -61,10 +61,17 @@ export default async function RestorePage({
           Welcome back.
         </h1>
         <p className="mt-4 text-base leading-relaxed text-warm-200">
-          Your account is scheduled for permanent deletion on{" "}
+          You asked us to delete this account, and that is scheduled for{" "}
           <strong className="text-warm-100">{purgeDate}</strong>. Until
-          then, everything is still here — every identity, every
+          then everything is still here — every companion, every
           conversation, every photo.
+        </p>
+        <p className="mt-3 text-base leading-relaxed text-warm-200">
+          Reactivating cancels the deletion and brings your circle back
+          with it. Anything that already reached its own purge date
+          may not return, so give your circle a look once you&rsquo;re
+          in. If you do nothing, everything here is erased on that date
+          and no one — not even us — can bring it back.
         </p>
 
         {error ? (
@@ -78,7 +85,7 @@ export default async function RestorePage({
             type="submit"
             className="bg-gradient-cta flex h-14 w-full items-center justify-center rounded-full text-lg font-semibold text-white shadow-[0_14px_36px_-10px_rgba(217,115,89,0.5)] transition-all hover:-translate-y-px active:opacity-90"
           >
-            Reactivate my account
+            Keep my account
           </button>
         </form>
 
