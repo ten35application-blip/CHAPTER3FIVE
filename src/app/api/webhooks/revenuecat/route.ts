@@ -106,6 +106,10 @@ type RevenueCatEvent = {
   // BILLING_ISSUE only: how long the store keeps the subscription
   // alive while it retries the card.
   grace_period_expiration_at_ms?: number | null;
+  // CANCELLATION only: why. "CUSTOMER_SUPPORT" is the store telling us
+  // the money was REFUNDED, which is categorically different from a
+  // user switching off auto-renew.
+  cancel_reason?: string | null;
 };
 
 /**
@@ -116,6 +120,23 @@ type RevenueCatEvent = {
  * (audit finding #10).
  */
 const FAR_FUTURE_ISO = "2099-01-01T00:00:00.000Z";
+
+/**
+ * Was this cancellation a REFUND? Apple and Google report a refunded
+ * purchase as a CANCELLATION carrying a support reason. The difference
+ * matters: someone who turns off auto-renew keeps what they paid for
+ * until the period ends, while someone who got their money back should
+ * not still be holding the goods. Stripe's webhook has always reversed
+ * refunded credits; the store path never did (Wilson 2026-08-16: "does
+ * refunds work perfectly?" — it did not).
+ */
+function isRefund(event: { type?: string; cancel_reason?: string | null }) {
+  return (
+    event.type === "CANCELLATION" &&
+    (event.cancel_reason === "CUSTOMER_SUPPORT" ||
+      event.cancel_reason === "DEVELOPER_INITIATED")
+  );
+}
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -322,11 +343,51 @@ export async function POST(request: NextRequest) {
   // not an entitlement and should never have been routed through them.
   const packCredits = PACK_CREDITS[event.product_id ?? ""];
   if (packCredits) {
+    // REFUNDED PACK → take the credits back. The comment that used to
+    // live here claimed Stripe doesn't claw back either; that was
+    // wrong — handleChargeRefunded reverses the grant. So a pack
+    // refunded through Apple or Google left the buyer holding every
+    // message they'd been given, money returned, repeatable at will.
+    // The claim row is the idempotency guard: it exists only while the
+    // grant stands, so deleting it first makes a replayed refund a
+    // no-op instead of a double clawback.
+    if (isRefund(event)) {
+      const adminRefund = createAdminClient();
+      const refundTxn =
+        event.original_transaction_id ??
+        event.id ??
+        `${appUserId}:${event.product_id}`;
+      const { data: claim } = await adminRefund
+        .from("iap_entitlements")
+        .delete()
+        .eq("user_id", appUserId)
+        .eq("entitlement_id", `pack:${refundTxn}`)
+        .select("entitlement_id");
+      if (!claim || claim.length === 0) {
+        return NextResponse.json({ received: true, skipped: "pack-refund-already-applied" });
+      }
+      // greatest(0, …) inside the RPC floors the balance, so a buyer
+      // who already spent the credits simply lands at zero rather than
+      // going negative.
+      await adminRefund.rpc("increment_profile_counter", {
+        target_user_id: appUserId,
+        counter_name: "message_credits",
+        delta: -packCredits.messages,
+      });
+      await adminRefund.rpc("increment_profile_counter", {
+        target_user_id: appUserId,
+        counter_name: "image_credits",
+        delta: -packCredits.images,
+      });
+      console.log(
+        `[revenuecat-webhook] refunded pack ${event.product_id} for ${appUserId}: -${packCredits.messages} messages, -${packCredits.images} images`,
+      );
+      return NextResponse.json({ received: true, refunded: "pack" });
+    }
     if (type !== "NON_RENEWING_PURCHASE" && type !== "INITIAL_PURCHASE") {
-      // CANCELLATION/EXPIRATION on a consumable is a refund signal;
-      // credits are not clawed back here (the Stripe path doesn't
-      // either — see the revert block in stripe/webhook). Ack and move
-      // on rather than re-granting on a replay of a terminal event.
+      // A non-refund terminal event on a consumable (plain expiry, a
+      // replayed cancellation) changes nothing — the credits were
+      // legitimately bought and possibly spent.
       return NextResponse.json({ received: true, ignored: `${type}-pack` });
     }
     const adminPack = createAdminClient();
@@ -438,7 +499,12 @@ export async function POST(request: NextRequest) {
   }
 
   const expiresAt =
-    type === "EXPIRATION"
+    // A refunded SUBSCRIPTION ends now. Keeping someone entitled after
+    // the store handed their money back is the same hole as the pack
+    // case, one tier up.
+    isRefund(event)
+      ? new Date().toISOString()
+      : type === "EXPIRATION"
       ? new Date(
           Math.min(event.expiration_at_ms ?? Date.now(), Date.now()),
         ).toISOString()
