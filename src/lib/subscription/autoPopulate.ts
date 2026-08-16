@@ -130,37 +130,78 @@ export async function autoPopulateForSubscribe(
       (sibRows ?? []).map((r) => r.traits),
     );
 
+    // 4b. HEAL PASS first (2026-08-15): finish any provisioning rows a
+    //     previous truncated/failed run left behind — retry their faces
+    //     and fold them into the reveal batch below. Idempotent.
+    const revealIds: string[] = [];
+    const { data: orphans } = await admin
+      .from("oracles")
+      .select("id, traits, avatar_url")
+      .eq("user_id", userId)
+      .eq("provisioning", true)
+      .is("deleted_at", null);
+    for (const o of orphans ?? []) {
+      if (!o.avatar_url) {
+        try {
+          await generateAndSaveFace(o.id as string, o.traits as never);
+        } catch (err) {
+          console.error(
+            `[autoPopulate] ${userId} — heal face failed for ${o.id}:`,
+            err,
+          );
+          continue; // stays hidden; next run retries
+        }
+      }
+      revealIds.push(o.id as string);
+    }
+
+    // ATOMIC DELIVERY (Wilson 2026-08-15: "they should all come in at
+    // the same time"): each identity is inserted provisioning=true
+    // (invisible), its face is AWAITED, and the entire batch flips
+    // visible in one update at the end — names and faces land
+    // together, never a faceless row on anyone's dashboard.
     for (let i = 0; i < randomToCreate; i++) {
-      try {
-        const result = await createOneRandomIdentity(
-          admin,
-          userId,
-          avoidDistinctive,
-        );
-        if (result) {
-          for (const v of distinctiveValuesFromTraits([result.traits])) {
-            avoidDistinctive.add(v);
-          }
-          // Fire-and-forget face gen. generateAndSaveFace never
-          // throws; landing in Replicate is a 15-40s round-trip
-          // and we don't want to serialize on it — the identity
-          // is already usable with the letter-fallback avatar the
-          // dashboard renders when avatar_url is null.
-          void generateAndSaveFace(result.oracleId, result.traits).catch(
-            (faceErr) => {
-              console.error(
-                `[autoPopulate] ${userId} — face gen failed for ${result.oracleId}:`,
-                faceErr,
-              );
-            },
+      let created: { oracleId: string; traits: unknown } | null = null;
+      for (let attempt = 0; attempt < 2 && !created; attempt++) {
+        try {
+          created = await createOneRandomIdentity(
+            admin,
+            userId,
+            avoidDistinctive,
+          );
+        } catch (err) {
+          console.error(
+            `[autoPopulate] ${userId} — identity ${i + 1}/${randomToCreate} attempt ${attempt + 1} failed:`,
+            err,
           );
         }
-      } catch (err) {
+      }
+      if (!created) continue; // heal pass on a later run tops this up
+      for (const v of distinctiveValuesFromTraits([created.traits as never])) {
+        avoidDistinctive.add(v);
+      }
+      try {
+        await generateAndSaveFace(created.oracleId, created.traits as never);
+        revealIds.push(created.oracleId);
+      } catch (faceErr) {
         console.error(
-          `[autoPopulate] ${userId} — identity ${i + 1}/${randomToCreate} failed:`,
-          err,
+          `[autoPopulate] ${userId} — face gen failed for ${created.oracleId} (stays hidden for heal):`,
+          faceErr,
         );
-        // Keep going — a partial populate is better than none.
+      }
+    }
+
+    // 5. The reveal: the whole batch becomes visible in one write.
+    if (revealIds.length > 0) {
+      const { error: revealErr } = await admin
+        .from("oracles")
+        .update({ provisioning: false })
+        .in("id", revealIds);
+      if (revealErr) {
+        console.error(
+          `[autoPopulate] ${userId} — reveal update failed:`,
+          revealErr,
+        );
       }
     }
   } finally {
@@ -345,6 +386,7 @@ async function createOneRandomIdentity(
       texting_fluency: traits.textingFluency ?? null,
       pet_name: persona.pet_name ?? null,
       creation_source: "random",
+      provisioning: true,
     })
     .select("id")
     .single();

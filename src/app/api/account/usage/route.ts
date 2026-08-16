@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { scheduleAutoPopulate } from "@/lib/subscription/autoPopulate";
 import { getRequestAuth } from "@/lib/api/mobileAuth";
 import {
   canSendImageForMonthCap,
@@ -65,6 +66,16 @@ export async function GET(request: Request) {
       image_credits: number | null;
       plan_source: string | null;
     }>();
+
+  // Opportunistic self-heal (2026-08-15, atomic-delivery work): if a
+  // subscribe-time populate was truncated or partially failed, finish
+  // it whenever the subscriber's app checks usage — the upgrade screen
+  // polls this right after purchase, making it the natural repair
+  // heartbeat. Lock-guarded and count-driven inside, so repeat calls
+  // are cheap no-ops.
+  if (plan.tier === "basic" || plan.tier === "pro") {
+    scheduleAutoPopulate(user.id, plan.tier);
+  }
 
   return NextResponse.json({
     tier: plan.tier,

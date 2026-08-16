@@ -1,7 +1,6 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { after } from "next/server";
 import { redirectWithError } from "@/lib/action-errors";
 import { generateAndSaveFace } from "@/lib/faces/generate";
 import { fingerprintTraits } from "@/lib/identity/fingerprint";
@@ -181,6 +180,7 @@ export async function createIdentity(): Promise<void> {
       // production for nine days and the retry button re-ran the same
       // doomed insert. autoPopulate.ts always wrote 'random' correctly.
       creation_source: "random",
+      provisioning: true,
     })
     .select("id")
     .single();
@@ -197,17 +197,24 @@ export async function createIdentity(): Promise<void> {
   // (profiles.free_identity_id, NULL-only, server-side write).
   await claimFreeIdentitySlot(user.id, inserted.id);
 
-  // Fire-and-forget face generation. `after()` runs once the redirect
-  // response is sent — Flux Pro takes 15–40s and must never block the
-  // reveal. generateAndSaveFace never throws; failures land in
-  // oracles.face_generation_status for later retry via
-  // POST /api/faces/generate (force) or /api/faces/backfill.
-  // (const captures: `after`'s closure can't rely on `let` narrowing.)
+  // ATOMIC REVEAL (2026-08-15): face is AWAITED so the identity
+  // arrives complete — name and portrait together, matching the
+  // mobile twin. One retry; on persistent failure reveal anyway
+  // (letter avatar beats a dead-end after a watched loader).
   const oracleId = inserted.id;
   const rolledTraits = traits;
-  after(async () => {
-    await generateAndSaveFace(oracleId, rolledTraits);
-  });
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      await generateAndSaveFace(oracleId, rolledTraits);
+      break;
+    } catch (err) {
+      console.error("[identity/new] face gen attempt failed:", err);
+    }
+  }
+  await createAdminClient()
+    .from("oracles")
+    .update({ provisioning: false })
+    .eq("id", oracleId);
 
   redirect(`/identity/new?id=${inserted.id}`);
 }

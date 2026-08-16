@@ -831,7 +831,7 @@ function AutoPopulateBanner() {
         className="inline-flex h-5 w-5 flex-shrink-0 animate-spin rounded-full border-2 border-teal/30 border-t-teal-strong"
       />
       <span className="flex-1 text-[13px] leading-snug text-warm-100">
-        Your companions are being created — they&rsquo;ll appear shortly.
+        We&rsquo;re making your companions now — check back in about five minutes. Your photo companion is already here: tap it to upload a photo.
       </span>
     </div>
   );

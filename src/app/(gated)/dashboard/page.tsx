@@ -93,6 +93,7 @@ export default async function DashboardPage({
     .select(
       "id, name, avatar_url, is_starred, manually_unread, created_at, conversation_archived_at, is_legacy, user_id, inherited_at, is_concierge, is_photo_placeholder",
     )
+    .eq("provisioning", false)
     .is("deleted_at", null)
     .order("is_starred", { ascending: false })
     .order("created_at", { ascending: false });

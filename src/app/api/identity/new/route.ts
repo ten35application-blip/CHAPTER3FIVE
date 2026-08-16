@@ -179,6 +179,8 @@ export async function POST(request: NextRequest) {
       // 'randomize' value made every formula insert fail 23514 after
       // the synthesis had already run. Both twins fixed together.
       creation_source: "random",
+      // Hidden until the face is ready — atomic reveal (2026-08-15).
+      provisioning: true,
     })
     .select("id")
     .single();
@@ -194,13 +196,26 @@ export async function POST(request: NextRequest) {
   // First identity created claims the post-trial Free-tier slot.
   await claimFreeIdentitySlot(user.id, inserted.id);
 
-  // Fire-and-forget face generation, exactly like the web action —
-  // Flux Pro takes 15–40s and must never block the reveal.
+  // ATOMIC REVEAL (2026-08-15, "they should all come in at the same
+  // time"): the face is AWAITED so the identity arrives complete —
+  // name and portrait together. The loader copy already promises
+  // "about a minute"; the extra ~20-30s lives inside that promise.
+  // One retry; if the face still fails, reveal anyway (letter avatar
+  // beats a dead-end for a user who watched the loader).
   const oracleId = inserted.id as string;
   const rolledTraits = traits;
-  after(async () => {
-    await generateAndSaveFace(oracleId, rolledTraits);
-  });
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      await generateAndSaveFace(oracleId, rolledTraits);
+      break;
+    } catch (err) {
+      console.error("[api/identity/new] face gen attempt failed:", err);
+    }
+  }
+  await admin
+    .from("oracles")
+    .update({ provisioning: false })
+    .eq("id", oracleId);
 
   return NextResponse.json({ id: oracleId });
 }
