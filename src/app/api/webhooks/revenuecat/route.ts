@@ -4,6 +4,11 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { scheduleAutoPopulate } from "@/lib/subscription/autoPopulate";
 import { PRICING } from "@/lib/pricing";
 import { recordGrantFailure } from "@/lib/billing/grantFailure";
+import {
+  sendPackPurchasedEmail,
+  sendPlanStartedEmail,
+  sendRefundProcessedEmail,
+} from "@/lib/notifications";
 
 export const runtime = "nodejs";
 
@@ -136,6 +141,20 @@ function isRefund(event: { type?: string; cancel_reason?: string | null }) {
     (event.cancel_reason === "CUSTOMER_SUPPORT" ||
       event.cancel_reason === "DEVELOPER_INITIATED")
   );
+}
+
+/** The account's email, or null. Every receipt below is best-effort:
+ *  a mail failure must never fail the money path. */
+async function emailFor(
+  admin: ReturnType<typeof createAdminClient>,
+  userId: string,
+): Promise<string | null> {
+  try {
+    const { data } = await admin.auth.admin.getUserById(userId);
+    return data?.user?.email ?? null;
+  } catch {
+    return null;
+  }
 }
 
 const UUID_RE =
@@ -382,6 +401,15 @@ export async function POST(request: NextRequest) {
       console.log(
         `[revenuecat-webhook] refunded pack ${event.product_id} for ${appUserId}: -${packCredits.messages} messages, -${packCredits.images} images`,
       );
+      const refundTo = await emailFor(adminRefund, appUserId);
+      if (refundTo) {
+        await sendRefundProcessedEmail({
+          to: refundTo,
+          userId: appUserId,
+          what: "Your add-on pack",
+          detail: `The ${packCredits.messages} messages and ${packCredits.images} photos it added have been removed from your account.`,
+        }).catch(() => {});
+      }
       return NextResponse.json({ received: true, refunded: "pack" });
     }
     if (type !== "NON_RENEWING_PURCHASE" && type !== "INITIAL_PURCHASE") {
@@ -464,6 +492,15 @@ export async function POST(request: NextRequest) {
     console.log(
       `[revenuecat-webhook] granted pack ${event.product_id} to ${appUserId}: +${packCredits.messages} messages, +${packCredits.images} images`,
     );
+    const packTo = await emailFor(adminPack, appUserId);
+    if (packTo) {
+      await sendPackPurchasedEmail({
+        to: packTo,
+        userId: appUserId,
+        messages: packCredits.messages,
+        images: packCredits.images,
+      }).catch(() => {});
+    }
     return NextResponse.json({ received: true, granted: "pack" });
   }
 
@@ -758,6 +795,25 @@ export async function POST(request: NextRequest) {
   // nothing new.
   if (AUTO_POPULATE_TRIGGER_TYPES.has(type) && tier) {
     scheduleAutoPopulate(appUserId, tier);
+  }
+
+  // Enrollment receipt in our own words. Apple's receipt proves the
+  // charge; this one says what the money bought. Only on the events
+  // that START a plan — a renewal doesn't need congratulating, and a
+  // refund is handled above.
+  if (
+    (type === "INITIAL_PURCHASE" || type === "PRODUCT_CHANGE") &&
+    tier &&
+    !isRefund(event)
+  ) {
+    const planTo = await emailFor(admin, appUserId);
+    if (planTo) {
+      await sendPlanStartedEmail({
+        to: planTo,
+        userId: appUserId,
+        tier,
+      }).catch(() => {});
+    }
   }
 
   return NextResponse.json({ received: true, type, entitlements: entitlementIds });

@@ -46,6 +46,7 @@ import {
 } from "@/lib/identity/synthesize";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PRICING } from "@/lib/pricing";
+import { sendCompanionsReadyEmail } from "@/lib/notifications";
 
 const MAX_FINGERPRINT_REROLLS = 5;
 
@@ -285,6 +286,30 @@ export async function autoPopulateForSubscribe(
           console.log(
             `[autoPopulate] ${userId} — revealed ${revealIds.length} companion(s); roster complete at ${wouldBeVisible}/${randomTarget}`,
           );
+          // The wait is over — tell them. "Check back in about five
+          // minutes" is the only thing this app asks anyone to wait
+          // for, and a promise nobody closes is just a worry.
+          try {
+            const [{ data: who }, { data: revealed }] = await Promise.all([
+              admin.auth.admin.getUserById(userId),
+              admin.from("oracles").select("name").in("id", revealIds),
+            ]);
+            const email = who?.user?.email;
+            if (email) {
+              await sendCompanionsReadyEmail({
+                to: email,
+                userId,
+                names: (revealed ?? [])
+                  .map((r) => r.name as string)
+                  .filter(Boolean),
+              });
+            }
+          } catch (mailErr) {
+            console.error(
+              `[autoPopulate] ${userId} — companions-ready email failed:`,
+              mailErr,
+            );
+          }
         }
       } else {
         console.log(

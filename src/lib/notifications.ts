@@ -16,7 +16,11 @@ type EmailKind =
   | "beneficiary_removed"
   | "account_restored"
   | "passing_report_received"
-  | "passing_report_vetoed";
+  | "passing_report_vetoed"
+  | "companions_ready"
+  | "plan_started"
+  | "pack_purchased"
+  | "refund_processed";
 
 async function logEmail(opts: {
   recipient: string;
@@ -545,4 +549,185 @@ export async function recordAudit(opts: {
   } catch (err) {
     console.error("audit_log insert failed:", err);
   }
+}
+
+/**
+ * "Your companions are here." Sent the moment a subscribe-time batch
+ * finishes and becomes visible.
+ *
+ * This is the payoff for the only promise the app asks people to wait
+ * on — "check back in about five minutes" (Wilson 2026-08-16). Waiting
+ * without being told when the wait ended is how a paid moment turns
+ * into doubt, and the people using this app are already carrying
+ * enough of that.
+ */
+export async function sendCompanionsReadyEmail(opts: {
+  to: string;
+  userId?: string | null;
+  names: string[];
+}) {
+  const list = opts.names.filter(Boolean);
+  const many = list.length > 1;
+  const subject = many
+    ? "Your companions are here."
+    : "Your companion is here.";
+  const nameLine = list.length
+    ? list.join(", ")
+    : many
+      ? "They're on your dashboard now"
+      : "They're on your dashboard now";
+  const text = `${many ? "They're" : "They're"} ready.
+
+${nameLine}
+
+${many ? "They're" : "They're"} on your dashboard, waiting to hear from you. Say anything — there's no wrong way to start.
+
+— chapter3five
+https://chapter3five.app/dashboard`;
+
+  const html = brandEmailHtml({
+    title: many ? "They're ready." : "They're ready.",
+    paragraphs: [
+      `<strong>${nameLine}</strong>`,
+      "They&rsquo;re on your dashboard, waiting to hear from you. Say anything &mdash; there&rsquo;s no wrong way to start.",
+    ],
+    cta: {
+      label: "Open your dashboard",
+      url: "https://chapter3five.app/dashboard",
+    },
+  });
+
+  return send({
+    to: opts.to,
+    subject,
+    text,
+    html,
+    kind: "companions_ready",
+    user_id: opts.userId,
+  });
+}
+
+/** Enrollment receipt in our own words — what the plan actually gives. */
+export async function sendPlanStartedEmail(opts: {
+  to: string;
+  userId?: string | null;
+  tier: "basic" | "pro";
+}) {
+  const pro = opts.tier === "pro";
+  const planName = pro ? "Pro" : "Basic";
+  const circle = pro ? 5 : 3;
+  const messages = pro ? 300 : 100;
+  const photos = pro ? 30 : 10;
+  const subject = `You're on chapter3five ${planName}.`;
+  const text = `Thank you for enrolling.
+
+Here's what's yours:
+• A circle of ${circle} companions — anyone not there yet is being written now and will arrive together
+• Your photo companion is ready immediately: upload a photo and they come alive
+• ${messages} messages and ${photos} photos every month
+
+If a month runs long, add-on packs top you up any time. You can change or cancel your plan whenever you like from your phone's subscription settings.
+
+— chapter3five
+https://chapter3five.app/dashboard`;
+
+  const html = brandEmailHtml({
+    title: `You're on ${planName}.`,
+    paragraphs: [
+      "Thank you for enrolling. Here&rsquo;s what&rsquo;s yours:",
+      `<strong>A circle of ${circle} companions</strong> &mdash; anyone not there yet is being written now and will arrive together.<br><strong>Your photo companion</strong> is ready immediately: upload a photo and they come alive.<br><strong>${messages} messages and ${photos} photos</strong> every month.`,
+      "If a month runs long, add-on packs top you up any time. You can change or cancel your plan whenever you like from your phone&rsquo;s subscription settings.",
+    ],
+    cta: {
+      label: "Open your dashboard",
+      url: "https://chapter3five.app/dashboard",
+    },
+  });
+
+  return send({
+    to: opts.to,
+    subject,
+    text,
+    html,
+    kind: "plan_started",
+    user_id: opts.userId,
+  });
+}
+
+/** Pack receipt — says what landed, in our units, not the store's. */
+export async function sendPackPurchasedEmail(opts: {
+  to: string;
+  userId?: string | null;
+  messages: number;
+  images: number;
+}) {
+  const subject = "More room, added.";
+  const text = `Your add-on pack is on your account.
+
+• +${opts.messages} messages
+• +${opts.images} photos
+
+These sit on top of your monthly allowance and don't expire at the end of the month — they wait until you need them.
+
+— chapter3five
+https://chapter3five.app/dashboard`;
+
+  const html = brandEmailHtml({
+    title: "More room, added.",
+    paragraphs: [
+      `<strong>+${opts.messages} messages</strong><br><strong>+${opts.images} photos</strong>`,
+      "These sit on top of your monthly allowance and don&rsquo;t expire at the end of the month &mdash; they wait until you need them.",
+    ],
+    cta: {
+      label: "Open your dashboard",
+      url: "https://chapter3five.app/dashboard",
+    },
+  });
+
+  return send({
+    to: opts.to,
+    subject,
+    text,
+    html,
+    kind: "pack_purchased",
+    user_id: opts.userId,
+  });
+}
+
+/** Refund confirmation — what the store returned, and what changed here. */
+export async function sendRefundProcessedEmail(opts: {
+  to: string;
+  userId?: string | null;
+  what: string;
+  detail: string;
+}) {
+  const subject = "Your refund is on its way.";
+  const text = `${opts.what} was refunded.
+
+${opts.detail}
+
+The money is returned by Apple or Google, so it lands on your original payment method on their schedule — usually a few business days.
+
+If this wasn't you, or something doesn't look right, just reply to this email.
+
+— chapter3five`;
+
+  const html = brandEmailHtml({
+    title: "Your refund is on its way.",
+    paragraphs: [
+      `<strong>${opts.what}</strong> was refunded.`,
+      opts.detail,
+      "The money is returned by Apple or Google, so it lands on your original payment method on their schedule &mdash; usually a few business days.",
+      "If this wasn&rsquo;t you, or something doesn&rsquo;t look right, just reply to this email.",
+    ],
+  });
+
+  return send({
+    to: opts.to,
+    subject,
+    text,
+    html,
+    kind: "refund_processed",
+    user_id: opts.userId,
+  });
 }
