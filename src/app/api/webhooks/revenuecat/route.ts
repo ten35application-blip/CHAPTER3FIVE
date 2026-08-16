@@ -99,6 +99,10 @@ type RevenueCatEvent = {
   original_transaction_id?: string | null;
   id?: string;
   environment?: string;
+  // TRANSFER events only: the app user ids the store receipt moved
+  // between. No product/entitlement fields accompany them.
+  transferred_from?: string[] | null;
+  transferred_to?: string[] | null;
 };
 
 const UUID_RE =
@@ -152,6 +156,86 @@ export async function POST(request: NextRequest) {
   const type = event.type ?? "UNKNOWN";
   if (type === "TEST") {
     return NextResponse.json({ received: true, test: true });
+  }
+
+  // ── TRANSFER ────────────────────────────────────────────────────
+  // A store receipt moved between app user ids (same phone, new
+  // account — e.g. re-register then Restore Purchases). The event
+  // carries NO product/entitlement fields, only the two ids, and
+  // ignoring it left the new account with nothing until the next
+  // renewal — up to a month in production (Wilson hit this live
+  // 2026-08-15: Apple said Pro, the app said Basic, the backend said
+  // nothing). Move the old account's entitlement rows to the new one
+  // and re-sync the profile tier from what moved.
+  if (type === "TRANSFER") {
+    const toId =
+      (event.transferred_to ?? []).find((id) => UUID_RE.test(id)) ?? null;
+    const fromIds = (event.transferred_from ?? []).filter(
+      (id) => UUID_RE.test(id) && id !== toId,
+    );
+    if (!toId || fromIds.length === 0) {
+      return NextResponse.json({ received: true, skipped: "transfer-no-uuid" });
+    }
+    const adminT = createAdminClient();
+    const { data: oldRows } = await adminT
+      .from("iap_entitlements")
+      .select("entitlement_id, product_id, expires_at, platform, original_transaction_id")
+      .in("user_id", fromIds);
+    const nowIso = new Date().toISOString();
+    if (oldRows && oldRows.length > 0) {
+      const moved = oldRows.map((r) => ({
+        ...r,
+        user_id: toId,
+        revenuecat_user_id: toId,
+        updated_at: nowIso,
+      }));
+      const { error: moveErr } = await adminT
+        .from("iap_entitlements")
+        .upsert(moved, { onConflict: "user_id,entitlement_id" });
+      if (moveErr) {
+        console.error(
+          `[revenuecat-webhook] TRANSFER move failed → ${toId}: ${moveErr.message}`,
+        );
+        return NextResponse.json({ error: "Transfer move failed" }, { status: 500 });
+      }
+      await adminT.from("iap_entitlements").delete().in("user_id", fromIds);
+
+      // Re-derive the tier from what moved (pro beats basic, matching
+      // the resolution below) and sync the profile so tier gates see it.
+      const live = oldRows.filter(
+        (r) => r.expires_at === null || new Date(r.expires_at) > new Date(),
+      );
+      const movedTier = live.some((r) => r.entitlement_id === PRO_ENTITLEMENT_ID)
+        ? ("pro" as const)
+        : live.some((r) => r.entitlement_id === BASIC_ENTITLEMENT_ID)
+          ? ("basic" as const)
+          : null;
+      if (movedTier) {
+        const until = live
+          .filter((r) => r.entitlement_id === movedTier && r.expires_at)
+          .map((r) => r.expires_at as string)
+          .sort()
+          .pop();
+        if (until) {
+          await adminT
+            .from("profiles")
+            .update({ pro_until: until, subscription_tier: movedTier })
+            .eq("id", toId);
+        }
+        scheduleAutoPopulate(toId, movedTier);
+      }
+      console.log(
+        `[revenuecat-webhook] TRANSFER moved ${oldRows.length} entitlement(s) ${fromIds.join(",")} → ${toId} (tier ${movedTier ?? "none"})`,
+      );
+      return NextResponse.json({ received: true, transferred: oldRows.length });
+    }
+    // Nothing to move (the old account's rows were deleted with it).
+    // The next store event under the new id fills the gap; log so a
+    // stuck account has a trail.
+    console.warn(
+      `[revenuecat-webhook] TRANSFER ${fromIds.join(",")} → ${toId} had no rows to move`,
+    );
+    return NextResponse.json({ received: true, transferred: 0 });
   }
 
   const handled = new Set([
