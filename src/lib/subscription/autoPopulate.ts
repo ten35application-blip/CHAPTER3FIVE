@@ -90,8 +90,41 @@ export async function autoPopulateForSubscribe(
       countExistingPhotoCompanion(admin, userId),
     ]);
 
-    const randomToCreate = Math.max(0, randomTarget - existingRandom);
-    const placeholderToCreate = Math.max(0, 1 - existingPlaceholder);
+    let randomToCreate = Math.max(0, randomTarget - existingRandom);
+    let placeholderToCreate = Math.max(0, 1 - existingPlaceholder);
+
+    // TRANSACTION MINT BUDGET (Wilson 2026-08-16: "make a bunch of
+    // emails … same apple id"). Account-level counting resets when the
+    // account is deleted; the store transaction doesn't. A subscription
+    // mints its tier's companions once, EVER — cycling accounts under
+    // one Apple/Google sub transfers the plan but arrives with the
+    // budget already spent. An upgrade keeps its transaction id, so a
+    // Basic→Pro top-up (target 4, minted 2) still works. Stripe subs
+    // have no store transaction: unaffected (a new web signup can't
+    // reuse a Stripe sub without paying again).
+    const txnId = await activeStoreTransactionId(admin, userId);
+    if (txnId) {
+      const { data: ledger } = await admin
+        .from("iap_mint_ledger")
+        .select("minted_random, minted_placeholder")
+        .eq("original_transaction_id", txnId)
+        .maybeSingle<{ minted_random: number; minted_placeholder: number }>();
+      const mintedRandom = ledger?.minted_random ?? 0;
+      const mintedPlaceholder = ledger?.minted_placeholder ?? 0;
+      randomToCreate = Math.min(
+        randomToCreate,
+        Math.max(0, randomTarget - mintedRandom),
+      );
+      placeholderToCreate = Math.min(
+        placeholderToCreate,
+        Math.max(0, 1 - mintedPlaceholder),
+      );
+      if (ledger && (mintedRandom > 0 || mintedPlaceholder > 0)) {
+        console.log(
+          `[autoPopulate] ${userId} txn=${txnId} — ledger minted random=${mintedRandom} placeholder=${mintedPlaceholder}; budget caps creation to random=${randomToCreate} placeholder=${placeholderToCreate}`,
+        );
+      }
+    }
 
     console.log(
       `[autoPopulate] ${userId} tier=${tier} — existing random=${existingRandom} placeholder=${existingPlaceholder}; creating random=${randomToCreate} placeholder=${placeholderToCreate}`,
@@ -100,9 +133,12 @@ export async function autoPopulateForSubscribe(
     // 3. Ensure the photo placeholder FIRST so the user's very
     //    first dashboard load has something to see even if the
     //    persona synthesis calls run long. Cheap DB insert.
+    let placeholderCreated = 0;
     if (placeholderToCreate > 0) {
       try {
-        await createPhotoPlaceholder(admin, userId);
+        placeholderCreated = (await createPhotoPlaceholder(admin, userId))
+          ? 1
+          : 0;
       } catch (err) {
         console.error(
           `[autoPopulate] ${userId} — placeholder create failed:`,
@@ -160,6 +196,7 @@ export async function autoPopulateForSubscribe(
     // (invisible), its face is AWAITED, and the entire batch flips
     // visible in one update at the end — names and faces land
     // together, never a faceless row on anyone's dashboard.
+    let randomCreated = 0;
     for (let i = 0; i < randomToCreate; i++) {
       let created: { oracleId: string; traits: unknown } | null = null;
       for (let attempt = 0; attempt < 2 && !created; attempt++) {
@@ -177,6 +214,7 @@ export async function autoPopulateForSubscribe(
         }
       }
       if (!created) continue; // heal pass on a later run tops this up
+      randomCreated++;
       for (const v of distinctiveValuesFromTraits([created.traits as never])) {
         avoidDistinctive.add(v);
       }
@@ -187,6 +225,33 @@ export async function autoPopulateForSubscribe(
         console.error(
           `[autoPopulate] ${userId} — face gen failed for ${created.oracleId} (stays hidden for heal):`,
           faceErr,
+        );
+      }
+    }
+
+    // 4c. Spend the transaction's mint budget for what actually got
+    //     minted this run. Read-modify-write is safe here: the per-user
+    //     populate lock serializes runs, and a store transaction has
+    //     exactly one owning user at a time.
+    if (txnId && (randomCreated > 0 || placeholderCreated > 0)) {
+      try {
+        const { data: cur } = await admin
+          .from("iap_mint_ledger")
+          .select("minted_random, minted_placeholder")
+          .eq("original_transaction_id", txnId)
+          .maybeSingle<{ minted_random: number; minted_placeholder: number }>();
+        await admin.from("iap_mint_ledger").upsert({
+          original_transaction_id: txnId,
+          minted_random: (cur?.minted_random ?? 0) + randomCreated,
+          minted_placeholder:
+            (cur?.minted_placeholder ?? 0) + placeholderCreated,
+          last_user_id: userId,
+          updated_at: new Date().toISOString(),
+        });
+      } catch (err) {
+        console.error(
+          `[autoPopulate] ${userId} — mint ledger write failed:`,
+          err,
         );
       }
     }
@@ -241,6 +306,27 @@ export function scheduleAutoPopulate(
 // ---------------------------------------------------------------
 // Internals
 // ---------------------------------------------------------------
+
+/**
+ * The store transaction backing the user's current basic/pro
+ * entitlement, if any. Stripe-only subscribers return null (no store
+ * transaction exists; the mint budget doesn't apply to them).
+ */
+async function activeStoreTransactionId(
+  admin: AdminClient,
+  userId: string,
+): Promise<string | null> {
+  const { data } = await admin
+    .from("iap_entitlements")
+    .select("original_transaction_id, updated_at")
+    .eq("user_id", userId)
+    .in("entitlement_id", ["basic", "pro"])
+    .not("original_transaction_id", "is", null)
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<{ original_transaction_id: string | null }>();
+  return data?.original_transaction_id ?? null;
+}
 
 async function tryAcquireLock(
   admin: AdminClient,
@@ -427,12 +513,12 @@ async function createOneRandomIdentity(
 async function createPhotoPlaceholder(
   admin: AdminClient,
   userId: string,
-): Promise<void> {
+): Promise<boolean> {
   // Belt: recheck under the lock. The outer lock already serializes,
   // but a stale-reclaim can hand the lock to run #2 mid-way through
   // run #1's placeholder insert; the recheck stops doubles.
   const alreadyExists = await countExistingPhotoCompanion(admin, userId);
-  if (alreadyExists > 0) return;
+  if (alreadyExists > 0) return false;
 
   const { error } = await admin.from("oracles").insert({
     user_id: userId,
@@ -446,5 +532,7 @@ async function createPhotoPlaceholder(
       `[autoPopulate] ${userId} — placeholder insert failed:`,
       error,
     );
+    return false;
   }
+  return true;
 }
