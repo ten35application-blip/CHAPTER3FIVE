@@ -464,6 +464,33 @@ export async function POST(request: NextRequest) {
 
   const admin = createAdminClient();
 
+  // The id can be a VALID UUID for an account that no longer exists —
+  // RevenueCat keeps firing renewals under a deleted account's id.
+  // Without this check those events evicted the CURRENT owner's row
+  // below, then failed the dead-user insert on the FK, 500-looped on
+  // retry, and starved the real account of its plan (Wilson hit it
+  // live 2026-08-16). Ack dead-user events; leave a reconcilable trail
+  // for anything that grants.
+  const { data: ownerProfile } = await admin
+    .from("profiles")
+    .select("id")
+    .eq("id", appUserId)
+    .maybeSingle<{ id: string }>();
+  if (!ownerProfile) {
+    console.warn(
+      `[revenuecat-webhook] ${type} for deleted account ${appUserId} — acking without state change`,
+    );
+    if (type !== "EXPIRATION" && type !== "CANCELLATION") {
+      await recordGrantFailure({
+        kind: "unrecognized_purchase",
+        userId: null,
+        purpose: `revenuecat:deleted-account:${type}:${event.product_id ?? "?"}:${appUserId} (txn ${event.original_transaction_id ?? "?"} — restore purchases on the live account moves it)`,
+        error: new Error("store event for a deleted account"),
+      });
+    }
+    return NextResponse.json({ received: true, skipped: "deleted-account" });
+  }
+
   // A store transaction belongs to exactly one account. If this event
   // arrives under a new user while an old account still mirrors the
   // same original_transaction_id, the upsert below would trip that
