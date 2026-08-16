@@ -256,16 +256,39 @@ export async function autoPopulateForSubscribe(
       }
     }
 
-    // 5. The reveal: the whole batch becomes visible in one write.
+    // 5. The reveal — ALL OR NOTHING (Wilson 2026-08-16: "they should
+    //    ALL come in at the same time, don't show in the contact list
+    //    and dashboard until they all come in"). Revealing whatever
+    //    happened to succeed is how someone paid for three companions
+    //    and watched them trickle in one at a time. If the roster isn't
+    //    whole yet, everything stays hidden and the next heal pass
+    //    finishes the job — the banner keeps saying "we're making your
+    //    companions," which is the truth.
+    //
+    //    The photo placeholder is deliberately exempt: it's created
+    //    visible from the start so there's something to tap while the
+    //    rest are written (Wilson loves that it lands instantly).
     if (revealIds.length > 0) {
-      const { error: revealErr } = await admin
-        .from("oracles")
-        .update({ provisioning: false })
-        .in("id", revealIds);
-      if (revealErr) {
-        console.error(
-          `[autoPopulate] ${userId} — reveal update failed:`,
-          revealErr,
+      const alreadyVisible = await countVisibleRandom(admin, userId);
+      const wouldBeVisible = alreadyVisible + revealIds.length;
+      if (wouldBeVisible >= randomTarget) {
+        const { error: revealErr } = await admin
+          .from("oracles")
+          .update({ provisioning: false })
+          .in("id", revealIds);
+        if (revealErr) {
+          console.error(
+            `[autoPopulate] ${userId} — reveal update failed:`,
+            revealErr,
+          );
+        } else {
+          console.log(
+            `[autoPopulate] ${userId} — revealed ${revealIds.length} companion(s); roster complete at ${wouldBeVisible}/${randomTarget}`,
+          );
+        }
+      } else {
+        console.log(
+          `[autoPopulate] ${userId} — holding ${revealIds.length} companion(s) hidden: roster would be ${wouldBeVisible}/${randomTarget}. Heal pass will finish and reveal them together.`,
         );
       }
     }
@@ -369,6 +392,26 @@ async function countExistingRandom(
     .eq("is_concierge", false)
     .eq("is_self_archive", false)
     .eq("is_photo_placeholder", false)
+    .is("inherited_at", null)
+    .is("deleted_at", null);
+  return count ?? 0;
+}
+
+/** Random companions the user can actually SEE right now. The
+ *  all-or-nothing reveal compares this against the tier's target so a
+ *  half-finished roster stays hidden instead of trickling in. */
+async function countVisibleRandom(
+  admin: AdminClient,
+  userId: string,
+): Promise<number> {
+  const { count } = await admin
+    .from("oracles")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("is_concierge", false)
+    .eq("is_self_archive", false)
+    .eq("is_photo_placeholder", false)
+    .eq("provisioning", false)
     .is("inherited_at", null)
     .is("deleted_at", null);
   return count ?? 0;

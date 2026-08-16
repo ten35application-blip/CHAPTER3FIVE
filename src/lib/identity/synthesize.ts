@@ -651,8 +651,11 @@ export async function synthesizePersona(
         model: ANTHROPIC_MODEL,
         // 700–1000 word persona_prompt + name + hook + JSON escaping needs
         // more headroom than the old 2–4 paragraph format; truncation here
-        // means malformed JSON and a wasted roll.
-        max_tokens: 8192,
+        // means malformed JSON and a wasted roll. Doubled 2026-08-16 after
+        // the purchase drill caught real truncations: a long monologue plus
+        // 5 events plus 8 voice examples can crowd 8k, and the cost of the
+        // headroom is nothing next to a companion that doesn't show up.
+        max_tokens: 16000,
         system: SYSTEM_PROMPT,
         output_config: {
           format: {
@@ -662,6 +665,21 @@ export async function synthesizePersona(
         },
         messages: [{ role: "user", content: traitsToPrompt(traits) }],
       });
+      // A response that ran out of tokens is CUT OFF mid-monologue: its
+      // JSON won't parse (or will fail the section checks) and the old
+      // code let it fall through to "malformed", which is deliberately
+      // never retried — so one truncation silently cost a companion
+      // until some later heal pass tried again. That is the "it came in
+      // super late" complaint (Wilson 2026-08-15). Truncation is a
+      // transient shape problem, not a refusal: retry it here.
+      if (response.stop_reason === "max_tokens") {
+        console.warn(
+          `[synthesize] response truncated at max_tokens (attempt ${attempt + 1}) — retrying`,
+        );
+        lastErr = new Error("response truncated at max_tokens");
+        response = undefined;
+        continue;
+      }
       break;
     } catch (err) {
       lastErr = err;
