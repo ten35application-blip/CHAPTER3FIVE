@@ -491,17 +491,41 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ received: true, skipped: "deleted-account" });
   }
 
-  // A store transaction belongs to exactly one account. If this event
-  // arrives under a new user while an old account still mirrors the
-  // same original_transaction_id, the upsert below would trip that
-  // column's UNIQUE index → 23505 → permanent RevenueCat retry loop
-  // (audit finding #1). Evict the stale owner first.
+  // One store transaction, one row — enforced by the UNIQUE index on
+  // original_transaction_id. Anything else still holding this
+  // transaction must go before the upsert, or Postgres raises 23505,
+  // we 500, and RevenueCat retries the same event forever.
+  //
+  // TWO stale holders exist, and BOTH are ordinary customer journeys:
+  //
+  //   1. Another account — they re-registered and restored (the
+  //      transfer case).
+  //   2. THE SAME account under a different entitlement — an UPGRADE.
+  //      Apple and Google keep the original_transaction_id across a
+  //      plan change, so a Basic→Pro upgrade tries to add a "pro" row
+  //      while the "basic" row still owns that id. This is the bug
+  //      behind "I paid for Pro and it made me Basic" (Wilson
+  //      2026-08-16, reproduced in the purchase drill): the upgrade
+  //      event could NEVER land, on any account, ever.
+  //
+  // Delete every holder that isn't a row we're about to write.
   if (event.original_transaction_id) {
-    await admin
+    const keep = entitlementIds
+      .filter((e) => /^[\w.-]+$/.test(e))
+      .join(",");
+    let stale = admin
       .from("iap_entitlements")
       .delete()
-      .eq("original_transaction_id", event.original_transaction_id)
-      .neq("user_id", appUserId);
+      .eq("original_transaction_id", event.original_transaction_id);
+    stale = keep
+      ? stale.or(`user_id.neq.${appUserId},entitlement_id.not.in.(${keep})`)
+      : stale.neq("user_id", appUserId);
+    const { error: staleErr } = await stale;
+    if (staleErr) {
+      console.error(
+        `[revenuecat-webhook] stale-transaction eviction failed for ${event.original_transaction_id}: ${staleErr.message}`,
+      );
+    }
   }
   const rows = entitlementIds.map((entitlementId) => ({
     user_id: appUserId,
