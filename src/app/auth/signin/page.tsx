@@ -23,10 +23,14 @@ function SigninInner() {
   // flows point their verification links here). Celebrate + offer the
   // app deep link (Wilson 2026-08-15: "email is verified and a button
   // that says take me back to the app").
-  const confirmed = useSearchParams().get("confirmed") === "1";
+  const params = useSearchParams();
+  const confirmed = params.get("confirmed") === "1";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  // A dead or already-used confirmation link lands here with its own
+  // explanation (/auth/confirm). Seed the same banner the sign-in form
+  // uses so the person isn't left guessing why nothing happened.
+  const [error, setError] = useState<string | null>(params.get("error"));
   const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [resetting, setResetting] = useState(false);
