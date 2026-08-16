@@ -738,18 +738,26 @@ export async function POST(request: NextRequest) {
     // write is actually LATER than what is already there.
     const { data: current } = await admin
       .from("profiles")
-      .select("pro_until, subscription_tier, stripe_subscription_id, subscription_status")
+      .select("pro_until, subscription_tier, stripe_subscription_id, subscription_status, plan_source")
       .eq("id", appUserId)
       .maybeSingle<{
         pro_until: string | null;
         subscription_tier: string | null;
         stripe_subscription_id: string | null;
         subscription_status: string | null;
+        plan_source: string | null;
       }>();
 
     const stripeHoldsAccount =
       !!current?.stripe_subscription_id &&
       current.subscription_status !== "canceled";
+    // A comped account (demo, review, support make-good) must not be
+    // demoted by a store event. App Review test-purchases run on
+    // sandbox subscriptions that expire in MINUTES — without this, a
+    // reviewer buying Pro would knock the demo account down to Free
+    // partway through their own review (found 2026-08-16 while a
+    // reviewer was live in the app).
+    const compedAccount = current?.plan_source === "admin_grant";
     const wouldShorten =
       !!current?.pro_until &&
       new Date(profileUntil).getTime() < new Date(current.pro_until).getTime();
@@ -761,12 +769,15 @@ export async function POST(request: NextRequest) {
     const wouldLowerTier =
       current?.subscription_tier === "pro" && tier === "basic";
 
-    if ((wouldShorten || wouldLowerTier) && stripeHoldsAccount) {
+    if ((wouldShorten || wouldLowerTier) && (stripeHoldsAccount || compedAccount)) {
       console.log(
         `[revenuecat-webhook] ${type} for ${appUserId} would ${wouldLowerTier ? "lower tier" : "shorten pro_until"} but Stripe subscription ${current?.stripe_subscription_id} is active — leaving entitlement alone`,
       );
-      // iap_entitlements above still records the Apple-side truth.
-      return NextResponse.json({ received: true, skipped: "stripe-holds-account" });
+      // iap_entitlements above still records the store-side truth.
+      return NextResponse.json({
+        received: true,
+        skipped: compedAccount ? "comped-account" : "stripe-holds-account",
+      });
     }
 
     const { error: profileErr } = await admin
