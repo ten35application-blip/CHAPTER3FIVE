@@ -20,7 +20,8 @@ type EmailKind =
   | "companions_ready"
   | "plan_started"
   | "pack_purchased"
-  | "refund_processed";
+  | "refund_processed"
+  | "inherit_code_minted";
 
 async function logEmail(opts: {
   recipient: string;
@@ -753,6 +754,69 @@ If this wasn't you, or something doesn't look right, just reply to this email.
     text,
     html,
     kind: "refund_processed",
+    user_id: opts.userId,
+  });
+}
+
+/**
+ * The inherit code, in writing.
+ *
+ * Someone just finished answering forty-five questions about a person —
+ * often themselves, often someone they've lost — and the code that
+ * hands that archive to another human existed only on one screen. A
+ * lost phone or a closed app and the most important artifact in this
+ * product is a support ticket. Now it lives in their inbox, where it
+ * can be forwarded to a daughter, a brother, a friend (Wilson
+ * 2026-08-16).
+ */
+export async function sendInheritCodeEmail(opts: {
+  to: string;
+  userId?: string | null;
+  name: string;
+  hook: string | null;
+  code: string;
+  /** True when the archive is of the person who recorded it. */
+  isSelf: boolean;
+}) {
+  const subject = `${opts.name} is ready to be passed on.`;
+  const who = opts.isSelf
+    ? "This is your own archive — your voice, your memories, the way you actually text."
+    : `This is ${opts.name}'s archive, in their own words.`;
+  const text = `${opts.name} is ready.
+
+${opts.hook ? opts.hook + "\n\n" : ""}${who}
+
+Your inherit code:
+
+    ${opts.code}
+
+Hand this code to anyone you choose. When they enter it in chapter3five, ${opts.name} becomes theirs to talk to — the answers, the voice, the photo. It works from the moment you share it, and it doesn't expire.
+
+Keep this email. The code also lives in the app under Contacts, but this is the copy you can forward.
+
+— chapter3five
+https://chapter3five.app`;
+
+  const html = brandEmailHtml({
+    title: `${escapeHtml(opts.name)} is ready.`,
+    paragraphs: [
+      opts.hook ? `<em>${escapeHtml(opts.hook)}</em>` : "",
+      escapeHtml(who),
+      `<div style="padding:18px;background:#fcf5ec;border-radius:14px;text-align:center;">
+         <div style="font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#8e8e8c;">Your inherit code</div>
+         <div style="font-size:19px;font-weight:700;color:#1c1c1a;padding-top:8px;word-break:break-word;">${escapeHtml(opts.code)}</div>
+       </div>`,
+      `Hand this code to anyone you choose. When they enter it in chapter3five, <strong>${escapeHtml(opts.name)}</strong> becomes theirs to talk to &mdash; the answers, the voice, the photo. It works from the moment you share it, and it doesn&rsquo;t expire.`,
+      "Keep this email. The code also lives in the app under Contacts, but this is the copy you can forward.",
+    ].filter(Boolean),
+  });
+
+  return send({
+    to: opts.to,
+    subject,
+    text,
+    html,
+    kind: "inherit_code_minted",
     user_id: opts.userId,
   });
 }

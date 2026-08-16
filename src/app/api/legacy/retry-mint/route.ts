@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { sendInheritCodeEmail } from "@/lib/notifications";
 import { getRequestAuth } from "@/lib/api/mobileAuth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { mintInheritCode } from "@/lib/legacy/mint";
@@ -45,13 +46,19 @@ export async function POST(request: NextRequest) {
 
   const { data: oracle } = await supabase
     .from("oracles")
-    .select("id, is_legacy")
+    .select("id, is_legacy, name, one_line_hook, is_self_archive")
     .eq("id", oracleId)
     .eq("user_id", user.id)
     .eq("is_legacy", true)
     .is("inherited_at", null)
     .is("deleted_at", null)
-    .maybeSingle<{ id: string; is_legacy: boolean | null }>();
+    .maybeSingle<{
+      id: string;
+      is_legacy: boolean | null;
+      name: string | null;
+      one_line_hook: string | null;
+      is_self_archive: boolean | null;
+    }>();
   if (!oracle) {
     return NextResponse.json(
       { error: "That identity isn't one we can make a code for." },
@@ -81,6 +88,24 @@ export async function POST(request: NextRequest) {
       },
       { status: 500 },
     );
+  }
+
+  // Same inbox copy the first-time mint sends — this path exists
+  // precisely because the original mint failed, so it's the one place
+  // a person most needs the code written down somewhere durable.
+  if (user.email) {
+    try {
+      await sendInheritCodeEmail({
+        to: user.email,
+        userId: user.id,
+        name: oracle.name ?? "Your archive",
+        hook: oracle.one_line_hook ?? null,
+        code,
+        isSelf: oracle.is_self_archive === true,
+      });
+    } catch (mailErr) {
+      console.error("[api/legacy/retry-mint] inherit-code email failed:", mailErr);
+    }
   }
 
   return NextResponse.json({ ok: true, code });

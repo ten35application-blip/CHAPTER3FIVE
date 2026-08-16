@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { sendInheritCodeEmail } from "@/lib/notifications";
 import { getRequestAuth } from "@/lib/api/mobileAuth";
 import { isAdmin } from "@/lib/admin/allowlist";
 import {
@@ -279,6 +280,24 @@ export async function POST(request: NextRequest) {
 
   // The draft has served its purpose.
   await supabase.from("legacy_drafts").delete().eq("user_id", user.id);
+
+  // Put the code in their inbox. Best-effort: the archive and the code
+  // already exist, and a mail failure must never turn a finished
+  // forty-five-question sitting into an error.
+  if (code && user.email) {
+    try {
+      await sendInheritCodeEmail({
+        to: user.email,
+        userId: user.id,
+        name: persona.name,
+        hook: persona.one_line_hook ?? null,
+        code,
+        isSelf: currentMode === "self",
+      });
+    } catch (mailErr) {
+      console.error("[api/legacy/complete] inherit-code email failed:", mailErr);
+    }
+  }
 
   return NextResponse.json({ oracle_id: inserted.id, inherit_code: code });
 }
