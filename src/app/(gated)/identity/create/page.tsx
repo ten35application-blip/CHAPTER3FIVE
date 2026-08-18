@@ -328,17 +328,34 @@ export default async function IdentityCreatePage({
           // lie. Quota logic underneath is untouched, so a user who
           // really does have a slot left still gets the free path.
           statusLabel={
-            randomOverQuota ? `$${extraCents / 100}` : undefined
+            randomOverQuota
+              ? isProUser
+                ? `$${extraCents / 100}`
+                : "Basic or Pro"
+              : undefined
           }
         >
           {randomOverQuota ? (
-            <BuyExtraCompanionCTA
-              checkoutEnabled={extraOracleCheckoutEnabled}
-              priceCents={extraCents}
-              fallbackHref="/upgrade"
-              label={`Buy 1 more slot · $${extraCents / 100}`}
-              tone="coral"
-            />
+            // Free tier must never be sold an extra slot: the credit
+            // only counts ON TOP of a plan (canCreateOracle's free
+            // branch ignores it), so the $5 would buy nothing until
+            // they subscribe (Wilson 2026-08-19: "want extra
+            // companions? upgrade to Basic or Pro").
+            isProUser ? (
+              <BuyExtraCompanionCTA
+                checkoutEnabled={extraOracleCheckoutEnabled}
+                priceCents={extraCents}
+                fallbackHref="/upgrade"
+                label={`Buy 1 more slot · $${extraCents / 100}`}
+                tone="coral"
+              />
+            ) : (
+              <SolidPillLink
+                href="/upgrade"
+                label="Unlock more with Basic or Pro"
+                tone="coral"
+              />
+            )
           ) : (
             <SolidPillLink
               href="/identity/new"
@@ -372,7 +389,9 @@ export default async function IdentityCreatePage({
             hasUnfilledPlaceholder
               ? "Already yours · waiting on a photo"
               : photoOverQuota
-                ? `$${extraCents / 100}`
+                ? isProUser
+                  ? `$${extraCents / 100}`
+                  : "Basic or Pro"
                 : undefined
           }
         >
@@ -383,13 +402,21 @@ export default async function IdentityCreatePage({
               tone="teal"
             />
           ) : photoOverQuota ? (
-            <BuyExtraCompanionCTA
-              checkoutEnabled={extraOracleCheckoutEnabled}
-              priceCents={extraCents}
-              fallbackHref="/upgrade"
-              label={`Buy 1 more slot · $${extraCents / 100}`}
-              tone="teal"
-            />
+            isProUser ? (
+              <BuyExtraCompanionCTA
+                checkoutEnabled={extraOracleCheckoutEnabled}
+                priceCents={extraCents}
+                fallbackHref="/upgrade"
+                label={`Buy 1 more slot · $${extraCents / 100}`}
+                tone="teal"
+              />
+            ) : (
+              <SolidPillLink
+                href="/upgrade"
+                label="Unlock more with Basic or Pro"
+                tone="teal"
+              />
+            )
           ) : (
             <SolidPillLink
               href="/identity/from-photo"
