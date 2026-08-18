@@ -30,6 +30,34 @@ export const maxDuration = 300;
  * PRICING's spec: every pack credits BOTH counters, never either/or.
  * Product ids match chapter3five-app/app/upgrade.tsx PRODUCT_PREFIX.
  */
+/**
+ * The three $4.99 store consumables that grant ONE credit each —
+ * the mobile twins of the web's Stripe purchases (2026-08-19, "the
+ * right fucking way": no more Stripe-in-browser on phones). Counter
+ * names ride the same SECURITY DEFINER RPC allowlist the Stripe
+ * webhook already uses for the identical grants.
+ */
+const CREDIT_PRODUCTS: Record<
+  string,
+  { counter: string; refundWhat: string; refundDetail: string }
+> = {
+  "chapter3five.unlock.inherit": {
+    counter: "inherited_slot_credits",
+    refundWhat: "Your archive-unlock purchase",
+    refundDetail: "The unused unlock was removed from your account.",
+  },
+  "chapter3five.slot.extra": {
+    counter: "extra_oracle_credits",
+    refundWhat: "Your extra companion slot",
+    refundDetail: "The unused slot was removed from your account.",
+  },
+  "chapter3five.archive.other": {
+    counter: "other_identity_credits",
+    refundWhat: "Your archive purchase",
+    refundDetail: "The unused archive credit was removed from your account.",
+  },
+};
+
 const PACK_CREDITS: Record<string, { messages: number; images: number }> = {
   "chapter3five.pack.small": {
     messages: PRICING.packSmallMessages,
@@ -357,6 +385,95 @@ export async function POST(request: NextRequest) {
   // showed "You're in — your purchase is active on your account", and
   // the user went back to a hard message cap. Only the Stripe webhook
   // ever granted pack credits.
+  // ── $4.99 single-credit consumables (inherit unlock / extra slot /
+  // other-archive mint). Same lifecycle as the packs: claim row keyed
+  // by store transaction is the idempotency guard both directions —
+  // purchases grant once, refunds claw back once and keep the row's
+  // memory (renamed) so stale duplicate purchase deliveries can never
+  // re-grant after a refund.
+  const creditProduct = CREDIT_PRODUCTS[event.product_id ?? ""];
+  if (creditProduct) {
+    const adminCredit = createAdminClient();
+    const creditTxn =
+      event.original_transaction_id ?? event.id ?? `${appUserId}:${event.product_id}`;
+    if (isRefund(event)) {
+      const { data: claim } = await adminCredit
+        .from("iap_entitlements")
+        .update({ entitlement_id: `credit-refunded:${creditTxn}`, updated_at: now })
+        .eq("user_id", appUserId)
+        .eq("entitlement_id", `credit:${creditTxn}`)
+        .select("entitlement_id");
+      if (!claim || claim.length === 0) {
+        return NextResponse.json({ received: true, skipped: "credit-refund-already-applied" });
+      }
+      await adminCredit.rpc("increment_profile_counter", {
+        target_user_id: appUserId,
+        counter_name: creditProduct.counter,
+        delta: -1,
+      });
+      const refundTo = await emailFor(adminCredit, appUserId);
+      if (refundTo) {
+        await sendRefundProcessedEmail({
+          to: refundTo,
+          userId: appUserId,
+          what: creditProduct.refundWhat,
+          detail: creditProduct.refundDetail,
+        }).catch(() => {});
+      }
+      return NextResponse.json({ received: true, refunded: "credit" });
+    }
+    if (type !== "NON_RENEWING_PURCHASE" && type !== "INITIAL_PURCHASE") {
+      return NextResponse.json({ received: true, ignored: `${type}-credit` });
+    }
+    const { error: creditClaimErr } = await adminCredit
+      .from("iap_entitlements")
+      .insert({
+        user_id: appUserId,
+        entitlement_id: `credit:${creditTxn}`,
+        product_id: event.product_id ?? "unknown",
+        expires_at: null,
+        platform: platformFromStore(event.store),
+        revenuecat_user_id: appUserId,
+        original_transaction_id: event.original_transaction_id ?? null,
+        updated_at: now,
+      });
+    if (creditClaimErr) {
+      if ((creditClaimErr as { code?: string }).code === "23505") {
+        return NextResponse.json({ received: true, skipped: "credit-already-granted" });
+      }
+      console.error(
+        `[revenuecat-webhook] credit claim failed for ${appUserId}: ${creditClaimErr.message}`,
+      );
+      return NextResponse.json({ error: "Credit claim failed" }, { status: 500 });
+    }
+    const { error: grantErr } = await adminCredit.rpc("increment_profile_counter", {
+      target_user_id: appUserId,
+      counter_name: creditProduct.counter,
+      delta: 1,
+    });
+    if (grantErr) {
+      // Paid through Apple or Google, grant failed, claim row already
+      // written so a retry short-circuits — a person must see this.
+      await recordGrantFailure({
+        kind:
+          creditProduct.counter === "inherited_slot_credits"
+            ? "inherited_slot"
+            : creditProduct.counter === "other_identity_credits"
+              ? "other_identity_create"
+              : "unrecognized_purchase",
+        userId: appUserId,
+        delta: 1,
+        purpose: `rc:${event.product_id} txn=${creditTxn}`,
+        error: grantErr,
+      });
+      return NextResponse.json({ error: "Credit grant failed" }, { status: 500 });
+    }
+    console.log(
+      `[revenuecat-webhook] granted ${creditProduct.counter} +1 to ${appUserId} (${event.product_id})`,
+    );
+    return NextResponse.json({ received: true, granted: "credit" });
+  }
+
   //
   // Handled here, ahead of the entitlement checks, because a pack is
   // not an entitlement and should never have been routed through them.

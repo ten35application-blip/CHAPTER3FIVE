@@ -178,21 +178,14 @@ export async function canChatWithOracle(
     const conciergeId = await getConciergeId();
     if (conciergeId && oracleId === conciergeId) return true;
 
-    // Resolve the user once, then use it for both the free_identity_id
-    // read and the inherited-copy fallback. RLS on both tables scopes
-    // to auth.uid(), so a plain SELECT with the explicit
-    // .eq('user_id', user.id) belt is the authorization.
+    // RLS scopes to auth.uid(); the explicit .eq('user_id') is the
+    // belt. The free_identity_id branch that used to live here is
+    // GONE (Wilson 2026-08-19): free talks to Adrian, full stop —
+    // with the single ruled exception below.
     const {
       data: { user },
     } = await client.auth.getUser();
     if (!user) return false;
-
-    const { data: profile } = await client
-      .from("profiles")
-      .select("free_identity_id")
-      .eq("id", user.id)
-      .maybeSingle<{ free_identity_id: string | null }>();
-    if (profile?.free_identity_id === oracleId) return true;
 
     // Inherited copies (0111) are owned rows stamped with inherited_at
     // at redemption. Redemption was paid ($5 flat per code), so the
@@ -348,12 +341,13 @@ export async function canCreateOracle(
     const currentCount = count ?? 0;
 
     if (!isProUser) {
-      // Free tier — one identity, ever. Once free_identity_id is
-      // set (via claimFreeIdentitySlot), they need Pro to make more.
-      if (profile.free_identity_id) {
-        return { ok: false, reason: "upgrade_required", currentCount, quota: 1 };
-      }
-      return { ok: true };
+      // Free tier creates NOTHING from the formula or a photo —
+      // synthesis costs real money on an account that may never pay
+      // (Wilson 2026-08-19: free is Adrian + the archive walks, THAT'S
+      // IT; the walks have their own gates and don't pass through
+      // here). The old rule granted one free identity ever; that
+      // giveaway is closed.
+      return { ok: false, reason: "upgrade_required", currentCount, quota: 0 };
     }
 
     // Basic subscribers get the smaller self-created ceiling (2

@@ -220,10 +220,13 @@ export default async function IdentityCreatePage({
   //     A user who buys and hasn't spent yet reads as under quota again
   //     (label flips back to "Included · N remaining" so they can
   //     actually click Roll and use the credit they paid for).
+  // Free tier: ALWAYS over (Wilson 2026-08-19 — free creates nothing
+  // from the formula or a photo; the one-identity-ever giveaway is
+  // closed). The card renders the Basic-or-Pro door.
   const randomOverQuota = adminBypass
     ? false
     : !isProUser
-      ? Boolean(profile?.free_identity_id)
+      ? true
       : randomCount >= baseRandomQuota + extraCredits;
 
   const randomRemaining = adminBypass
@@ -244,10 +247,7 @@ export default async function IdentityCreatePage({
   //     over (one-identity-ever gate closed on the photo card too).
   const photoOverQuota = adminBypass
     ? false
-    : hasFilledPhoto ||
-      (!isProUser &&
-        Boolean(profile?.free_identity_id) &&
-        !hasUnfilledPlaceholder);
+    : hasFilledPhoto || (!isProUser && !hasUnfilledPlaceholder);
 
   // The $5 extra-companion SKU depends on the Stripe env — when it's
   // absent the checkout POST returns 503. Feature-flag the paid CTAs

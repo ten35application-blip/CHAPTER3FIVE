@@ -50,6 +50,9 @@ export type Identity = {
    *  is_starred on it is global, not per-user, and the pin controls
    *  are suppressed for it. */
   is_concierge?: boolean;
+  /** Redemption stamp — a $5-redeemed copy stays talkable on every
+   *  tier, Free included (Wilson's ruling 2026-08-19). */
+  inherited_at?: string | null;
 };
 
 type Props = {
@@ -118,7 +121,18 @@ export function DashboardContent({
     }
   }, [welcomed]);
 
-  const isLocked = (id: string) => !isPro && id !== freeIdentityId;
+  // Free talks to Adrian and to $5-redeemed copies — nothing else
+  // (Wilson 2026-08-19: "TALK TO ADRIAN … THAT'S IT", plus his ruled
+  // exception for paid redemptions). The free_identity_id unlock is
+  // retired along with the free-identity giveaway itself; the prop
+  // stays wired so a rollback is one line.
+  const lockedById = new Map(
+    identities.map((p) => [
+      p.id,
+      !isPro && !p.is_concierge && !p.inherited_at && p.id !== freeIdentityId,
+    ]),
+  );
+  const isLocked = (id: string) => lockedById.get(id) ?? !isPro;
 
   const favorites = useMemo(
     () => identities.filter((i) => i.is_starred),

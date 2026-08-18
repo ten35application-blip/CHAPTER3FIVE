@@ -366,7 +366,10 @@ export default async function DashboardPage({
   // chips; past the trial, every identity except the free one gets a
   // "Pro" chip and its row routes to /upgrade instead of the chat.
   const pro = await isPro(supabase);
-  const freeIdentityId = pro ? null : await getFreeIdentityId(supabase);
+  // Free-identity unlock RETIRED (Wilson 2026-08-19): free talks to
+  // Adrian and $5-redeemed copies only. Passing null keeps the prop
+  // wired so restoring the old behavior is this one line.
+  const freeIdentityId: string | null = null;
   // Tier for the top-left chip — the ONE money home's front door
   // (Wilson 2026-08-06): every plan sees a chip now. Free = "Upgrade";
   // Basic = "Go Pro" (Pro still exists above it); Pro / trial / admin =
