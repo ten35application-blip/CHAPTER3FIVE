@@ -166,10 +166,14 @@ export async function discardLegacyDraft(formData: FormData): Promise<void> {
   const rawMode = String(formData.get("mode") ?? "");
   const mode = rawMode === "self" || rawMode === "other" ? rawMode : "other";
 
+  // 0138: scoped to the mode being restarted. With per-mode drafts
+  // this action's only remaining caller is a deliberate "start fresh"
+  // on one slot — the other slot's draft is none of its business.
   const { error } = await supabase
     .from("legacy_drafts")
     .delete()
-    .eq("user_id", user.id);
+    .eq("user_id", user.id)
+    .eq("mode", mode);
   if (error) {
     redirectWithError(
       `/identity/legacy/new?mode=${mode}`,
@@ -191,14 +195,18 @@ export async function saveLegacyDraft(payload: DraftPayload): Promise<void> {
     ? Math.max(0, Math.min(LEGACY_QUESTION_COUNT, payload.currentStep))
     : 0;
 
+  // Per-mode rows (0138): the sanitized subject's mode names the row,
+  // so a self walk and an other walk autosave side by side.
+  const subject = sanitizeSubject(payload.subject, user.id);
   const { error } = await supabase.from("legacy_drafts").upsert(
     {
       user_id: user.id,
-      subject: sanitizeSubject(payload.subject, user.id),
+      mode: subject.mode === "self" ? "self" : "other",
+      subject,
       answers: sanitizeAnswers(payload.answers),
       current_step: step,
     },
-    { onConflict: "user_id" },
+    { onConflict: "user_id,mode" },
   );
   if (error) {
     console.error("[saveLegacyDraft] upsert failed", error);
@@ -502,8 +510,14 @@ export async function completeLegacyIdentity(payload: {
     user.id,
   );
 
-  // The draft has served its purpose.
-  await supabase.from("legacy_drafts").delete().eq("user_id", user.id);
+  // The draft has served its purpose — but ONLY this walk's draft
+  // (0138): finishing one slot must never wipe the other slot's
+  // work in progress.
+  await supabase
+    .from("legacy_drafts")
+    .delete()
+    .eq("user_id", user.id)
+    .eq("mode", currentMode);
 
   // Land in Settings so the freshly-minted code + the native Share
   // button surface in one place. The `?minted=` param triggers a

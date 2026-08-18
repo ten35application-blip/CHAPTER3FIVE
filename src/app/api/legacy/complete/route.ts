@@ -278,8 +278,14 @@ export async function POST(request: NextRequest) {
   // codeless legacy archive from state.
   const code = await mintInheritCode(createAdminClient(), inserted.id, user.id);
 
-  // The draft has served its purpose.
-  await supabase.from("legacy_drafts").delete().eq("user_id", user.id);
+  // The draft has served its purpose — but ONLY this walk's draft
+  // (0138): finishing your own archive must never wipe a half-written
+  // archive about someone you love sitting in the other slot.
+  await supabase
+    .from("legacy_drafts")
+    .delete()
+    .eq("user_id", user.id)
+    .eq("mode", currentMode);
 
   // Put the code in their inbox. Best-effort: the archive and the code
   // already exist, and a mail failure must never turn a finished

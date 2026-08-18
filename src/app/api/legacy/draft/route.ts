@@ -37,17 +37,43 @@ export async function GET(request: NextRequest) {
 
   // NO plan gate — the legacy flow is open to every tier (July 2026
   // flat-fee rework), matching the web page.
-  const { data: draft } = await supabase
+  //
+  // Per-mode drafts (0138): ?mode=self|other returns THAT walk's
+  // draft. No mode param = a pre-0138 client that still believes in
+  // one draft per account — hand it the most recently touched one so
+  // it resumes whatever the user last worked on. `drafts` summarizes
+  // every walk in progress for the picker's "Finish the walk" labels.
+  const url = new URL(request.url);
+  const modeParam = url.searchParams.get("mode");
+  const mode: "self" | "other" | null =
+    modeParam === "self" || modeParam === "other" ? modeParam : null;
+
+  let query = supabase
     .from("legacy_drafts")
-    .select("subject, answers, current_step")
+    .select("subject, answers, current_step, mode")
     .eq("user_id", user.id)
-    .maybeSingle();
+    .order("updated_at", { ascending: false });
+  if (mode) query = query.eq("mode", mode);
+  const { data: rows } = await query;
+
+  const draft = rows?.[0] ?? null;
+  const drafts = (mode ? (rows ?? []) : (rows ?? [])).map((r) => ({
+    mode: r.mode as string,
+    has_content:
+      Object.values((r.answers as Record<string, string>) ?? {}).some((a) =>
+        a?.trim(),
+      ) || !!(r.subject as { name?: string } | null)?.name,
+    subject_ready:
+      !!(r.subject as { name?: string } | null)?.name &&
+      !!(r.subject as { photoUrl?: string } | null)?.photoUrl,
+  }));
 
   return NextResponse.json({
     questions: LEGACY_QUESTIONS,
     categoryLabels: LEGACY_CATEGORY_LABELS,
     questionCount: LEGACY_QUESTION_COUNT,
-    draft: draft ?? null,
+    draft,
+    drafts,
   });
 }
 
@@ -74,17 +100,23 @@ export async function PUT(request: NextRequest) {
     ? Math.max(0, Math.min(LEGACY_QUESTION_COUNT, payload.currentStep as number))
     : 0;
 
+  // The sanitized subject's mode names the row (0138: one draft per
+  // mode). sanitizeLegacySubject guarantees "self" | "other", so
+  // pre-0138 clients that never send an explicit mode still land on
+  // a valid row instead of a constraint error.
+  const subject = sanitizeLegacySubject(
+    (payload.subject ?? {}) as LegacySubject,
+    user.id,
+  );
   const { error } = await supabase.from("legacy_drafts").upsert(
     {
       user_id: user.id,
-      subject: sanitizeLegacySubject(
-    (payload.subject ?? {}) as LegacySubject,
-    user.id,
-  ),
+      mode: subject.mode === "self" ? "self" : "other",
+      subject,
       answers: sanitizeLegacyAnswers(payload.answers ?? {}),
       current_step: step,
     },
-    { onConflict: "user_id" },
+    { onConflict: "user_id,mode" },
   );
   if (error) {
     console.error("[api/legacy/draft] upsert failed", error);
