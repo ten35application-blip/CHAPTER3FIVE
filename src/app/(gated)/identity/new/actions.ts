@@ -14,6 +14,7 @@ import {
   SynthesisError,
 } from "@/lib/identity/synthesize";
 import { canCreateOracle, claimFreeIdentitySlot } from "@/lib/subscription";
+import { sendCompanionsReadyEmail } from "@/lib/notifications";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -196,6 +197,22 @@ export async function createIdentity(): Promise<void> {
   // First identity created claims the post-trial Free-tier slot
   // (profiles.free_identity_id, NULL-only, server-side write).
   await claimFreeIdentitySlot(user.id, inserted.id);
+
+  // "Your companion is here." — the same arrival email bundle
+  // deliveries send, for a single creation (Wilson 2026-08-19: an
+  // email when you create an identity). Best-effort: mail trouble
+  // never fails a creation someone just paid for.
+  if (user.email) {
+    sendCompanionsReadyEmail({
+      to: user.email,
+      userId: user.id,
+      companions: [
+        { name: persona.name, hook: persona.one_line_hook ?? null },
+      ],
+    }).catch((err) =>
+      console.error("companion-ready email failed:", err),
+    );
+  }
 
   // ATOMIC REVEAL (2026-08-15): face is AWAITED so the identity
   // arrives complete — name and portrait together, matching the

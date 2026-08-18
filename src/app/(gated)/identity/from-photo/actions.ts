@@ -21,6 +21,7 @@ import {
   type SupportedImageMediaType,
 } from "@/lib/identity/vision";
 import { canCreateOracle, claimFreeIdentitySlot } from "@/lib/subscription";
+import { sendCompanionsReadyEmail } from "@/lib/notifications";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { randomUUID } from "node:crypto";
@@ -312,6 +313,22 @@ export async function createIdentityFromPhoto(
   // (profiles.free_identity_id, NULL-only, server-side write). Before
   // the avatar upload — its soft-failure path redirects early.
   await claimFreeIdentitySlot(user.id, oracleId);
+
+  // "Your companion is here." — the same arrival email bundle
+  // deliveries send, for a single creation (Wilson 2026-08-19: an
+  // email when you create an identity). Best-effort: mail trouble
+  // never fails a creation someone just paid for.
+  if (user.email) {
+    sendCompanionsReadyEmail({
+      to: user.email,
+      userId: user.id,
+      companions: [
+        { name: persona.name, hook: persona.one_line_hook ?? null },
+      ],
+    }).catch((err) =>
+      console.error("companion-ready email failed:", err),
+    );
+  }
 
   // Uploads go through the service role (bypasses storage RLS — same as
   // generated faces; see 0058/0060 notes). The user's photo IS the

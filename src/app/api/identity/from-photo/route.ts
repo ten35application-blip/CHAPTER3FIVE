@@ -20,6 +20,7 @@ import {
 } from "@/lib/identity/vision";
 import { requireTermsAccepted } from "@/lib/legal/gate";
 import { canCreateOracle, claimFreeIdentitySlot } from "@/lib/subscription";
+import { sendCompanionsReadyEmail } from "@/lib/notifications";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { randomUUID } from "node:crypto";
 
@@ -394,6 +395,22 @@ export async function POST(request: NextRequest) {
     // the auto-populate helper post-subscribe; the free-slot claim
     // doesn't apply to a paid-tier row.
     await claimFreeIdentitySlot(user.id, oracleId);
+
+  // "Your companion is here." — the same arrival email bundle
+  // deliveries send, for a single creation (Wilson 2026-08-19: an
+  // email when you create an identity). Best-effort: mail trouble
+  // never fails a creation someone just paid for.
+  if (user.email) {
+    sendCompanionsReadyEmail({
+      to: user.email,
+      userId: user.id,
+      companions: [
+        { name: persona.name, hook: persona.one_line_hook ?? null },
+      ],
+    }).catch((err) =>
+      console.error("companion-ready email failed:", err),
+    );
+  }
   }
 
   // The user's photo IS the avatar — no Replicate for this path.
