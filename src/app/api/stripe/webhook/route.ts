@@ -5,6 +5,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import {
   recordAudit,
   sendAccountRestoredEmail,
+  sendPackPurchasedEmail,
+  sendPlanStartedEmail,
+  sendRefundProcessedEmail,
 } from "@/lib/notifications";
 import { scheduleAutoPopulate } from "@/lib/subscription/autoPopulate";
 import type Stripe from "stripe";
@@ -419,6 +422,22 @@ async function handleCheckoutCompleted(
           error: imgErr,
         });
       }
+
+      // Pack receipt — mirrors the store rail's email. Only when both
+      // grants actually landed: a receipt for credits that failed to
+      // arrive would be a lie, and the grant_failures row above is
+      // already routing that case to a person.
+      if (!msgErr && !imgErr) {
+        const { data: packBuyer } = await admin.auth.admin.getUserById(userId);
+        if (packBuyer?.user?.email) {
+          sendPackPurchasedEmail({
+            to: packBuyer.user.email,
+            userId,
+            messages: grants.messages,
+            images: grants.images,
+          }).catch((e) => console.error("pack email failed:", e));
+        }
+      }
     } else {
       // Worst case of the set: the money arrived and we cannot map it
       // to anything, so we know they paid and not what for. Recorded
@@ -634,6 +653,20 @@ async function handleSubscriptionCheckout(
   }
 
   await recordEvent(event, admin, userId);
+
+  // Plan receipt — the store rail has sent this since 2026-08-16 while
+  // web subscribers got nothing (Wilson's email audit 2026-08-19).
+  // Fire-and-forget; the stripe_events dedupe at the top of POST means
+  // a webhook re-delivery never reaches this line twice.
+  const { data: buyer } = await admin.auth.admin.getUserById(userId);
+  if (buyer?.user?.email) {
+    sendPlanStartedEmail({
+      to: buyer.user.email,
+      userId,
+      tier: resolvedTier,
+      channel: "web",
+    }).catch((e) => console.error("plan email failed:", e));
+  }
 
   // Phase 3: fill their circle so it isn't empty on first
   // post-payment open. Runs as background work via after(); the
@@ -1044,6 +1077,57 @@ async function handleChargeRefunded(event: Stripe.Event, admin: AdminClient) {
         err,
       );
     }
+  }
+
+  // Refund receipt — the store rail has sent this since 2026-08-16;
+  // web refunds went silent. Only on the claiming delivery (the
+  // refundClaimed gate above already returned for repeats), with
+  // channel "web" so the copy names the card, not Apple or Google.
+  const refundWording: Record<string, { what: string; detail: string }> = {
+    basic_monthly: {
+      what: "Your chapter3five Basic payment",
+      detail: "If your plan was cancelled as part of this, that change shows on your account right away.",
+    },
+    pro_monthly: {
+      what: "Your chapter3five Pro payment",
+      detail: "If your plan was cancelled as part of this, that change shows on your account right away.",
+    },
+    pack_small: {
+      what: "Your add-on pack",
+      detail: "The pack's messages and photos were removed from your balance — anything already used simply stops at zero.",
+    },
+    pack_medium: {
+      what: "Your add-on pack",
+      detail: "The pack's messages and photos were removed from your balance — anything already used simply stops at zero.",
+    },
+    pack_large: {
+      what: "Your add-on pack",
+      detail: "The pack's messages and photos were removed from your balance — anything already used simply stops at zero.",
+    },
+    inherited_slot_purchase: {
+      what: "Your archive-unlock purchase",
+      detail: "The unused unlock was removed from your account.",
+    },
+    other_identity_create: {
+      what: "Your archive purchase",
+      detail: "The unused archive credit was removed from your account.",
+    },
+  };
+  const wording = refundWording[payment.purpose ?? ""] ?? {
+    what: "Your chapter3five purchase",
+    detail: "What this payment covered was removed from your account.",
+  };
+  const { data: refunded } = await admin.auth.admin.getUserById(
+    payment.user_id,
+  );
+  if (refunded?.user?.email) {
+    sendRefundProcessedEmail({
+      to: refunded.user.email,
+      userId: payment.user_id,
+      what: wording.what,
+      detail: wording.detail,
+      channel: "web",
+    }).catch((e) => console.error("refund email failed:", e));
   }
 
   await recordEvent(event, admin, payment.user_id);

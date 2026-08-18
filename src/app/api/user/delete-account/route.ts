@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getRequestAuth } from "@/lib/api/mobileAuth";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { recordAudit } from "@/lib/notifications";
+import { recordAudit, sendAccountDeletedEmail } from "@/lib/notifications";
 
 export const runtime = "nodejs";
 
@@ -131,6 +131,17 @@ export async function POST(request: NextRequest) {
       targetUserId: user.id,
       details: { scheduled_purge_at: purgeAt.toISOString() },
     });
+
+    // Farewell receipt — same email the web delete sends. Only on the
+    // stamping call (a repeat delete is a no-op and must not re-mail),
+    // and fire-and-forget: mail trouble never blocks the deletion the
+    // user just confirmed twice.
+    if (user.email) {
+      const to = user.email;
+      sendAccountDeletedEmail({ to, userId: user.id }).catch((err) =>
+        console.error("[delete-account] farewell email failed:", err),
+      );
+    }
   }
 
   // Sign out the session on the server side; the client will also

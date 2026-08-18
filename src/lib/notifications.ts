@@ -21,7 +21,8 @@ type EmailKind =
   | "plan_started"
   | "pack_purchased"
   | "refund_processed"
-  | "inherit_code_minted";
+  | "inherit_code_minted"
+  | "account_deleted";
 
 async function logEmail(opts: {
   recipient: string;
@@ -638,12 +639,26 @@ export async function sendPlanStartedEmail(opts: {
   to: string;
   userId?: string | null;
   tier: "basic" | "pro";
+  /** Where they subscribed. Drives the manage-your-plan line: a web
+   *  Stripe subscriber has no store subscription to find in their
+   *  phone settings — that sentence would send them hunting for a
+   *  thing that doesn't exist. Defaults to "store" (the original
+   *  copy) so the RevenueCat webhook call sites don't change. */
+  channel?: "store" | "web";
 }) {
   const pro = opts.tier === "pro";
   const planName = pro ? "Pro" : "Basic";
   const circle = pro ? 5 : 3;
   const messages = pro ? 300 : 100;
   const photos = pro ? 30 : 10;
+  const manageText =
+    opts.channel === "web"
+      ? "You can change or cancel your plan whenever you like from your account page at chapter3five.app."
+      : "You can change or cancel your plan whenever you like from your phone's subscription settings.";
+  const manageHtml =
+    opts.channel === "web"
+      ? "You can change or cancel your plan whenever you like from your account page at chapter3five.app."
+      : "You can change or cancel your plan whenever you like from your phone&rsquo;s subscription settings.";
   const subject = `You're on chapter3five ${planName}.`;
   const text = `Thank you for enrolling.
 
@@ -652,7 +667,7 @@ Here's what's yours:
 • Your photo companion is ready immediately: upload a photo and they come alive
 • ${messages} messages and ${photos} photos every month
 
-If a month runs long, add-on packs top you up any time. You can change or cancel your plan whenever you like from your phone's subscription settings.
+If a month runs long, add-on packs top you up any time. ${manageText}
 
 — chapter3five
 https://chapter3five.app/dashboard`;
@@ -662,7 +677,7 @@ https://chapter3five.app/dashboard`;
     paragraphs: [
       "Thank you for enrolling. Here&rsquo;s what&rsquo;s yours:",
       `<strong>A circle of ${circle} companions</strong> &mdash; anyone not there yet is being written now and will arrive together.<br><strong>Your photo companion</strong> is ready immediately: upload a photo and they come alive.<br><strong>${messages} messages and ${photos} photos</strong> every month.`,
-      "If a month runs long, add-on packs top you up any time. You can change or cancel your plan whenever you like from your phone&rsquo;s subscription settings.",
+      `If a month runs long, add-on packs top you up any time. ${manageHtml}`,
     ],
     cta: {
       label: "Open your dashboard",
@@ -726,13 +741,26 @@ export async function sendRefundProcessedEmail(opts: {
   userId?: string | null;
   what: string;
   detail: string;
+  /** Who is returning the money. "store" (default) names Apple or
+   *  Google; "web" names the card processor — a Stripe refund never
+   *  touches either store, and telling someone to watch for money
+   *  from Apple that Stripe is sending breeds a support ticket. */
+  channel?: "store" | "web";
 }) {
+  const returnText =
+    opts.channel === "web"
+      ? "The money goes back to your original payment method — most banks show it within 5–10 business days."
+      : "The money is returned by Apple or Google, so it lands on your original payment method on their schedule — usually a few business days.";
+  const returnHtml =
+    opts.channel === "web"
+      ? "The money goes back to your original payment method &mdash; most banks show it within 5&ndash;10 business days."
+      : "The money is returned by Apple or Google, so it lands on your original payment method on their schedule &mdash; usually a few business days.";
   const subject = "Your refund is on its way.";
   const text = `${opts.what} was refunded.
 
 ${opts.detail}
 
-The money is returned by Apple or Google, so it lands on your original payment method on their schedule — usually a few business days.
+${returnText}
 
 If this wasn't you, or something doesn't look right, just reply to this email.
 
@@ -743,7 +771,7 @@ If this wasn't you, or something doesn't look right, just reply to this email.
     paragraphs: [
       `<strong>${opts.what}</strong> was refunded.`,
       opts.detail,
-      "The money is returned by Apple or Google, so it lands on your original payment method on their schedule &mdash; usually a few business days.",
+      returnHtml,
       "If this wasn&rsquo;t you, or something doesn&rsquo;t look right, just reply to this email.",
     ],
   });
@@ -817,6 +845,50 @@ https://chapter3five.app`;
     text,
     html,
     kind: "inherit_code_minted",
+    user_id: opts.userId,
+  });
+}
+
+/**
+ * Farewell receipt — fires the moment an account is soft-deleted, from
+ * BOTH delete paths (web action and the mobile endpoint; the mobile
+ * path sent nothing at all until 2026-08-19). Kept warm but honest:
+ * the confirmation screen already sold the finality, this is the
+ * receipt with the one fact that matters — the 30-day door back in.
+ */
+export async function sendAccountDeletedEmail(opts: {
+  to: string;
+  userId?: string | null;
+}) {
+  const subject = "Your chapter3five account is closed";
+  const text = `Your account is closed.
+
+Everything you made — every identity, every conversation, every photo — will be permanently erased in 30 days. There's no refund for time already paid.
+
+Change your mind inside that window? Just sign back in at chapter3five.app and tap Reactivate — nothing will be lost. After the 30 days, it's gone for good.
+
+Questions? Write to us at support@chapter3five.app.
+
+Otherwise — thanks for the time you spent here. We meant it.
+
+— chapter3five · Bethlehem, PA`;
+
+  const html = brandEmailHtml({
+    title: "Your account is closed.",
+    paragraphs: [
+      "Everything you made &mdash; every identity, every conversation, every photo &mdash; will be permanently erased in <strong>30 days</strong>. There&rsquo;s no refund for time already paid.",
+      `Change your mind inside that window? Just sign back in at <a href="https://chapter3five.app" style="color:#d97359;font-weight:600;text-decoration:none;">chapter3five.app</a> and tap <strong>Reactivate</strong> &mdash; nothing will be lost. After the 30 days, it&rsquo;s gone for good.`,
+      `Questions? Write to us at <a href="mailto:support@chapter3five.app" style="color:#d97359;font-weight:600;text-decoration:none;">support@chapter3five.app</a>.`,
+      "Otherwise &mdash; thanks for the time you spent here. We meant it.",
+    ],
+  });
+
+  return send({
+    to: opts.to,
+    subject,
+    text,
+    html,
+    kind: "account_deleted",
     user_id: opts.userId,
   });
 }
