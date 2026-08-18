@@ -1301,9 +1301,10 @@ export default function ChatSurface({
           ) : proLocked ? (
             <div className="flex flex-col items-center gap-3 px-4 py-4 text-center">
               <p className="text-[15px] leading-snug text-warm-200">
-                {name} is behind Pro now. Your free month has ended —
-                they&apos;re still here, holding your whole conversation,
-                waiting for you.
+                {name} is waiting behind a plan now. Your free month has
+                ended — they&apos;re still here, holding your whole
+                conversation. Any plan, Basic or Pro, picks it right back
+                up.
               </p>
               <Link
                 href={`/upgrade?next=${encodeURIComponent(`/chat/${oracleId}`)}`}

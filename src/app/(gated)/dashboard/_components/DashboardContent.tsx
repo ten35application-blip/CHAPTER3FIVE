@@ -693,7 +693,7 @@ function ConversationList({
                     {p.is_photo_placeholder
                       ? "Tap the avatar to upload a photo"
                       : isLocked(p.id)
-                        ? "Waiting behind Pro"
+                        ? "Unlocks with Basic or Pro"
                         : renderPreview(p)}
                   </span>
                   {p.inherit_code ? (
@@ -842,9 +842,13 @@ function AutoPopulateBanner() {
 /* ------------------------------------------------------------------ */
 
 function ProChip() {
+  // "Upgrade", not "Pro" (Wilson 2026-08-19): the $5 Basic plan
+  // unlocks these rows just as well as Pro — the gate is "any plan"
+  // (isPro reads pro_until, which Basic sets too). Naming the higher
+  // tier made a $5 problem look like a $10 problem.
   return (
     <span className="bg-gradient-cta flex-shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] leading-tight text-white">
-      Pro
+      Upgrade
     </span>
   );
 }
