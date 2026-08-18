@@ -256,6 +256,12 @@ export function LegacyFlow({
               setReviewing(true);
               window.scrollTo({ top: 0 });
             }}
+            onExit={() => {
+              // Flush the debounced draft BEFORE navigating so "everything
+              // is saved" is true even for a keystroke made 0.9s ago.
+              flushSave(step);
+              window.location.assign("/dashboard");
+            }}
           />
         )}
       </div>
@@ -601,6 +607,7 @@ function QuestionScreen({
   paid,
   isOtherMode,
   onOpenReview,
+  onExit,
 }: {
   questions: LegacyQuestion[];
   categoryLabels: Record<LegacyCategory, string>;
@@ -617,6 +624,7 @@ function QuestionScreen({
   paid: boolean;
   isOtherMode: boolean;
   onOpenReview: () => void;
+  onExit: () => void;
 }) {
   const question = questions[step - 1];
   const isLast = step === questions.length;
@@ -784,6 +792,20 @@ function QuestionScreen({
           and add more anytime before finishing.
         </p>
       ) : null}
+
+      {/* The door out — parity with mobile. Nobody should feel locked
+          into a 45-question sitting when autosave means nothing is at
+          risk. */}
+      <button
+        type="button"
+        onClick={onExit}
+        className="mt-5 flex flex-col items-center gap-0.5 text-sm font-medium text-warm-400 transition-colors hover:text-warm-200"
+      >
+        Finish another time — back to my dashboard
+        <span className="text-xs font-normal text-warm-500">
+          Everything is saved. Pick up right here whenever you return.
+        </span>
+      </button>
     </div>
   );
 }
