@@ -367,9 +367,14 @@ export async function POST(request: NextRequest) {
     // wrong — handleChargeRefunded reverses the grant. So a pack
     // refunded through Apple or Google left the buyer holding every
     // message they'd been given, money returned, repeatable at will.
-    // The claim row is the idempotency guard: it exists only while the
-    // grant stands, so deleting it first makes a replayed refund a
-    // no-op instead of a double clawback.
+    // The claim row is the idempotency guard in BOTH directions. The
+    // refund RENAMES it (pack:… → pack-refunded:…) rather than deleting:
+    // a replayed refund matches nothing and no-ops, while a replayed
+    // PURCHASE event still collides with the kept row's unique
+    // original_transaction_id and skips. Deleting used to erase the
+    // transaction's memory entirely, so a stale duplicate purchase
+    // delivery arriving AFTER the refund re-granted the credits to a
+    // buyer who had their money back (Android drill 2026-08-19, step 6).
     if (isRefund(event)) {
       const adminRefund = createAdminClient();
       const refundTxn =
@@ -378,7 +383,7 @@ export async function POST(request: NextRequest) {
         `${appUserId}:${event.product_id}`;
       const { data: claim } = await adminRefund
         .from("iap_entitlements")
-        .delete()
+        .update({ entitlement_id: `pack-refunded:${refundTxn}`, updated_at: now })
         .eq("user_id", appUserId)
         .eq("entitlement_id", `pack:${refundTxn}`)
         .select("entitlement_id");
