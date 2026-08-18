@@ -135,6 +135,12 @@ export function LegacyFlow({
     window.scrollTo({ top: 0 });
   }
 
+  /** Reviewing every answer before finishing — parity with mobile
+   *  (Wilson 2026-08-18: "press a question and it'll take them back").
+   *  The "Question X of 45" header and the link under the buttons both
+   *  open it; tapping a question jumps straight there. */
+  const [reviewing, setReviewing] = useState(false);
+
   const [stuckError, setStuckError] = useState<string | null>(null);
 
   async function finish() {
@@ -214,6 +220,18 @@ export function LegacyFlow({
             }}
             onNext={() => goTo(1)}
           />
+        ) : reviewing ? (
+          <ReviewScreen
+            questions={questions}
+            answers={answers}
+            isOtherMode={isOtherMode}
+            answeredCount={answeredCount}
+            onJump={(index) => {
+              setReviewing(false);
+              goTo(index + 1);
+            }}
+            onClose={() => setReviewing(false)}
+          />
         ) : (
           <QuestionScreen
             questions={questions}
@@ -234,6 +252,10 @@ export function LegacyFlow({
             onRetrySave={() => flushSave()}
             paid={paid}
             isOtherMode={isOtherMode}
+            onOpenReview={() => {
+              setReviewing(true);
+              window.scrollTo({ top: 0 });
+            }}
           />
         )}
       </div>
@@ -578,6 +600,7 @@ function QuestionScreen({
   onRetrySave,
   paid,
   isOtherMode,
+  onOpenReview,
 }: {
   questions: LegacyQuestion[];
   categoryLabels: Record<LegacyCategory, string>;
@@ -593,6 +616,7 @@ function QuestionScreen({
   onRetrySave: () => void;
   paid: boolean;
   isOtherMode: boolean;
+  onOpenReview: () => void;
 }) {
   const question = questions[step - 1];
   const isLast = step === questions.length;
@@ -626,12 +650,19 @@ function QuestionScreen({
 
   return (
     <div className="flex flex-1 flex-col">
-      {/* Progress: label + coral→teal bar */}
-      <div className="flex items-baseline justify-between">
-        <p className="text-sm font-medium text-warm-300">
+      {/* Progress: label + coral→teal bar. The header is the door to
+          the question index — click it from any question to see all
+          45 and jump (parity with mobile's tappable header). */}
+      <div className="flex items-center justify-between">
+        <button
+          type="button"
+          onClick={onOpenReview}
+          className="flex items-center gap-1.5 text-sm font-medium text-warm-300 transition-colors hover:text-warm-100"
+        >
           Question {step} of {questions.length} ·{" "}
           {categoryLabels[question.category]}
-        </p>
+          <ChevronDownIcon />
+        </button>
         {saveError ? (
           <button
             type="button"
@@ -734,12 +765,113 @@ function QuestionScreen({
         </button>
       ) : null}
 
+      {/* Jump to any answer instead of clicking Back thirty times —
+          second entrance to the index, offered once there's something
+          worth reviewing (parity with mobile). */}
+      {answeredCount > 0 ? (
+        <button
+          type="button"
+          onClick={onOpenReview}
+          className="mt-4 flex h-11 items-center justify-center rounded-full text-sm font-semibold text-teal-strong transition-opacity hover:opacity-70"
+        >
+          Review all {questions.length} questions
+        </button>
+      ) : null}
+
       {isLast ? (
         <p className="mt-4 text-center text-sm text-warm-400">
           {answeredCount} of {questions.length} answered. You can go back
           and add more anytime before finishing.
         </p>
       ) : null}
+    </div>
+  );
+}
+
+function ChevronDownIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="13"
+      height="13"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
+
+// ─── Review index: every question, tap to jump ─────────────────────────────
+
+function ReviewScreen({
+  questions,
+  answers,
+  isOtherMode,
+  answeredCount,
+  onJump,
+  onClose,
+}: {
+  questions: LegacyQuestion[];
+  answers: Record<string, string>;
+  isOtherMode: boolean;
+  answeredCount: number;
+  onJump: (index: number) => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="flex flex-1 flex-col">
+      <p className="text-sm font-semibold uppercase tracking-wider">
+        <span className="text-gradient-cta">Your answers</span>
+      </p>
+      <h1 className="mt-3 text-2xl font-bold tracking-tight text-warm-50">
+        {answeredCount} of {questions.length} answered.
+      </h1>
+      <p className="mt-2.5 text-[15px] leading-relaxed text-warm-300">
+        Tap any question to go back and change what you wrote. Nothing is
+        final until you finish.
+      </p>
+
+      <div className="mt-6 flex flex-col gap-2.5">
+        {questions.map((q, i) => {
+          const a = (answers[q.id] ?? "").trim();
+          const prompt = !isOtherMode ? q.promptSelf ?? q.prompt : q.prompt;
+          return (
+            <button
+              key={q.id}
+              type="button"
+              onClick={() => onJump(i)}
+              className="rounded-2xl bg-ink-soft px-4 py-3.5 text-left ring-1 ring-warm-700/60 transition-colors hover:ring-warm-500"
+            >
+              <p
+                className={`text-[11px] font-bold uppercase tracking-wider ${a ? "text-teal-strong" : "text-warm-500"}`}
+              >
+                {i + 1} · {a ? "Answered" : "Not answered yet"}
+              </p>
+              <p className="mt-1 text-sm font-semibold leading-snug text-warm-100">
+                {prompt}
+              </p>
+              {a ? (
+                <p className="mt-1 line-clamp-2 text-[13px] leading-snug text-warm-400">
+                  {a}
+                </p>
+              ) : null}
+            </button>
+          );
+        })}
+      </div>
+
+      <button
+        type="button"
+        onClick={onClose}
+        className="mt-6 flex h-13 items-center justify-center rounded-full text-base font-medium text-warm-300 ring-1 ring-warm-700 transition-colors hover:text-warm-100 hover:ring-warm-500"
+      >
+        Back to where I was
+      </button>
     </div>
   );
 }
