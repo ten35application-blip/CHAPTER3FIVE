@@ -106,6 +106,7 @@ export default async function IdentityCreatePage({
     { count: filledPhotoCountRaw },
     { data: placeholderRow },
     { data: legacyRows },
+    { data: walkDraft },
   ] = await Promise.all([
     admin
       .from("profiles")
@@ -163,7 +164,28 @@ export default async function IdentityCreatePage({
       .eq("is_legacy", true)
       .is("inherited_at", null)
       .is("deleted_at", null),
+    // Walk in progress — flips "Start the walk" to "Finish the walk"
+    // on the matching card (Wilson 2026-08-19: "you started it
+    // already"). One draft per account.
+    admin
+      .from("legacy_drafts")
+      .select("subject, answers")
+      .eq("user_id", user.id)
+      .maybeSingle<{
+        subject: { mode?: string; name?: string } | null;
+        answers: Record<string, string> | null;
+      }>(),
   ]);
+
+  const draftHasContent =
+    !!walkDraft &&
+    (!!walkDraft.subject?.name ||
+      Object.values(walkDraft.answers ?? {}).some((a) => a?.trim()));
+  const draftMode: "self" | "other" | null = draftHasContent
+    ? walkDraft?.subject?.mode === "self"
+      ? "self"
+      : "other"
+    : null;
 
   const randomCount = randomCountRaw ?? 0;
   const hasFilledPhoto = (filledPhotoCountRaw ?? 0) > 0;
@@ -391,7 +413,7 @@ export default async function IdentityCreatePage({
           ) : (
             <SolidPillLink
               href="/identity/legacy/new?mode=self"
-              label="Start the walk"
+              label={draftMode === "self" ? "Finish the walk" : "Start the walk"}
               tone="teal"
             />
           )}
@@ -408,7 +430,7 @@ export default async function IdentityCreatePage({
         >
           <SolidPillLink
             href="/identity/legacy/new?mode=other"
-            label="Start the walk"
+            label={draftMode === "other" ? "Finish the walk" : "Start the walk"}
             tone="coral"
           />
         </PathCardShell>
