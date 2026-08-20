@@ -310,15 +310,55 @@ export async function POST(request: NextRequest) {
             .map((r) => r.expires_at as string)
             .sort()
             .pop() ?? FAR_FUTURE_ISO; // null expiry = lifetime row
-        await adminT
+        // Same cross-channel guards as the main entitlement path
+        // (ultrareview 2026-08-19 finding #3): a TRANSFER wrote the
+        // profile unconditionally, so a Stripe Pro subscriber whose
+        // phone once held an IAP Basic on another account could tap
+        // Restore Purchases and be silently demoted to Basic caps —
+        // while Stripe kept billing Pro and plan_source pointed the
+        // cancel UI at the wrong store. A transfer may extend time or
+        // raise rank on the destination; it must never lower either
+        // while Stripe or a comp holds the account.
+        const { data: destCurrent } = await adminT
           .from("profiles")
-          .update({
-            pro_until: until,
-            subscription_tier: movedTier,
-            plan_source: "iap",
-          })
-          .eq("id", toId);
-        scheduleAutoPopulate(toId, movedTier);
+          .select(
+            "pro_until, subscription_tier, stripe_subscription_id, subscription_status, plan_source",
+          )
+          .eq("id", toId)
+          .maybeSingle<{
+            pro_until: string | null;
+            subscription_tier: string | null;
+            stripe_subscription_id: string | null;
+            subscription_status: string | null;
+            plan_source: string | null;
+          }>();
+        const destStripeHolds =
+          !!destCurrent?.stripe_subscription_id &&
+          destCurrent.subscription_status !== "canceled";
+        const destComped = destCurrent?.plan_source === "admin_grant";
+        const destWouldShorten =
+          !!destCurrent?.pro_until &&
+          new Date(until).getTime() < new Date(destCurrent.pro_until).getTime();
+        const destWouldLowerTier =
+          destCurrent?.subscription_tier === "pro" && movedTier === "basic";
+        if (
+          (destWouldShorten || destWouldLowerTier) &&
+          (destStripeHolds || destComped)
+        ) {
+          console.log(
+            `[revenuecat-webhook] TRANSFER to ${toId} would ${destWouldLowerTier ? "lower tier" : "shorten pro_until"} but ${destComped ? "the account is comped" : `Stripe subscription ${destCurrent?.stripe_subscription_id} is active`} — entitlement rows moved, profile left alone`,
+          );
+        } else {
+          await adminT
+            .from("profiles")
+            .update({
+              pro_until: until,
+              subscription_tier: movedTier,
+              plan_source: "iap",
+            })
+            .eq("id", toId);
+          scheduleAutoPopulate(toId, movedTier);
+        }
       }
       console.log(
         `[revenuecat-webhook] TRANSFER moved ${oldRows.length} entitlement(s) ${fromIds.join(",")} → ${toId} (tier ${movedTier ?? "none"})`,

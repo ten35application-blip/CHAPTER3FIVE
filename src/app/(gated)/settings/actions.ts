@@ -504,6 +504,38 @@ export async function retryMintInheritCode(
     };
   }
 
+  // Same inbox copy the finish flow sends — the retry mint was the
+  // one path that still left the code screen-only (ultrareview
+  // 2026-08-19). Best-effort.
+  if (user.email) {
+    try {
+      const { sendInheritCodeEmail } = await import("@/lib/notifications");
+      const { data: o } = await createAdminClient()
+        .from("oracles")
+        .select("name, one_line_hook, legacy_answers")
+        .eq("id", oracleId)
+        .maybeSingle<{
+          name: string | null;
+          one_line_hook: string | null;
+          legacy_answers: { subject?: { mode?: string } } | null;
+        }>();
+      if (o?.name) {
+        sendInheritCodeEmail({
+          to: user.email,
+          userId: user.id,
+          name: o.name,
+          hook: o.one_line_hook ?? null,
+          code,
+          isSelf: o.legacy_answers?.subject?.mode === "self",
+        }).catch((err) =>
+          console.error("[retry-mint] inherit-code email failed:", err),
+        );
+      }
+    } catch (err) {
+      console.error("[retry-mint] inherit-code email setup failed:", err);
+    }
+  }
+
   revalidatePath("/settings");
   return { ok: true, code };
 }

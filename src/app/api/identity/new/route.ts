@@ -222,12 +222,13 @@ export async function POST(request: NextRequest) {
   const oracleId = inserted.id as string;
   const rolledTraits = traits;
   for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      await generateAndSaveFace(oracleId, rolledTraits);
-      break;
-    } catch (err) {
-      console.error("[api/identity/new] face gen attempt failed:", err);
-    }
+    // generateAndSaveFace never throws — it returns { ok } (ultrareview
+    // 2026-08-19 nit: the old try/catch always broke on attempt 0, so
+    // the retry this loop exists for never ran and a Flux flake meant
+    // a letter avatar after a watched loader).
+    const face = await generateAndSaveFace(oracleId, rolledTraits);
+    if (face.ok) break;
+    console.error("[api/identity/new]", "face gen attempt failed:", face.error);
   }
   await admin
     .from("oracles")

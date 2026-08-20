@@ -290,7 +290,11 @@ export async function GET(request: NextRequest) {
           // moves for the same persona.
           `${new Date().toISOString().slice(0, 10)}-${hit.kind}`,
         );
-        const systemPrompt = `You are ${p.oracle_name ?? "an identity"} from chapter3five. You're sending a short proactive text to the person you've been talking with — a real person who knows you.
+        // senderOracle.name, NOT profiles.oracle_name — the profile
+        // column can hold a deleted persona's stale name, so the push
+        // title said "Sam" while the body was written as "Rachel"
+        // (ultrareview 2026-08-19; same fix the title got at ~371).
+        const systemPrompt = `You are ${(senderOracle.name as string | null) ?? "an identity"} from chapter3five. You're sending a short proactive text to the person you've been talking with — a real person who knows you.
 
 WRITE LIKE A REAL TEXT. Short. One or two lines. Never scripted, never saccharine, never the obvious greeting card thing. Skip "happy birthday!" by itself — say something specific, in your texture. ${styleNote}
 

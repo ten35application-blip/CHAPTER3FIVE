@@ -31,6 +31,7 @@ import {
   recordPendingPaymentOrThrow,
 } from "@/lib/billing/pendingPayment";
 import { createClient } from "@/lib/supabase/server";
+import { sendInheritCodeEmail } from "@/lib/notifications";
 import { randomUUID } from "node:crypto";
 
 // MIN_ANSWERS / sanitizers moved to @/lib/legacy/sanitize.ts
@@ -509,6 +510,24 @@ export async function completeLegacyIdentity(payload: {
     inserted.id,
     user.id,
   );
+
+  // The code in their inbox — the mobile twin has sent this since
+  // 2026-08-16; the web action (including the paid $5 flow) only
+  // showed it in Settings (ultrareview 2026-08-19). Best-effort:
+  // a mail failure must never fail a finished forty-five-question
+  // sitting.
+  if (mintedCode && user.email) {
+    sendInheritCodeEmail({
+      to: user.email,
+      userId: user.id,
+      name: persona.name,
+      hook: persona.one_line_hook ?? null,
+      code: mintedCode,
+      isSelf: currentMode === "self",
+    }).catch((err) =>
+      console.error("[legacy complete] inherit-code email failed:", err),
+    );
+  }
 
   // The draft has served its purpose — but ONLY this walk's draft
   // (0138): finishing one slot must never wipe the other slot's

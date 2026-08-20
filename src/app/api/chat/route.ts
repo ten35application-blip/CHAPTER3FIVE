@@ -842,6 +842,12 @@ export async function POST(request: NextRequest) {
             oracle_id: conversationOracleId,
             role: "user",
             content: userMessage,
+            // Attached photo travels with the sleep-persist too —
+            // omitting these orphaned the upload and vanished the
+            // image on resync (ultrareview 2026-08-19; mirrors the
+            // tone-judge persist below).
+            image_url: payload.image_url ?? null,
+            image_storage_path: payload.image_storage_path ?? null,
             read_by_oracle_at: new Date().toISOString(),
             created_at: new Date(sleepBase).toISOString(),
           },
