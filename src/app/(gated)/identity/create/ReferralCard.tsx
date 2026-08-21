@@ -109,22 +109,16 @@ export function ReferralCard() {
   return (
     <section className="mt-4 rounded-[22px] bg-ink-soft p-5 ring-1 ring-warm-700/70">
       <div className="flex items-start gap-3">
-        {/* The brand mark: two people, connected. Same shape as the
-            logo, which is what this feature literally is. */}
+        {/* Paper plane — sending. The one shape nobody has to
+            interpret, and it carries both brand colors without
+            borrowing the wordmark (Wilson picked it 2026-08-21). */}
         <span
           aria-hidden
           className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-[14px] bg-teal/12"
         >
           <svg viewBox="0 0 32 32" width="24" height="24" fill="none">
-            <path
-              d="M11 16h10"
-              stroke="currentColor"
-              className="text-warm-400"
-              strokeWidth="2"
-              strokeLinecap="round"
-            />
-            <circle cx="9" cy="16" r="5" className="fill-coral" />
-            <circle cx="23" cy="16" r="5" className="fill-teal" />
+            <path d="M27 5 4 14.5l8.5 3.2L27 5Z" className="fill-coral" />
+            <path d="M27 5 12.5 17.7l1.6 8.6L27 5Z" className="fill-teal" />
           </svg>
         </span>
         <div className="flex-1">
