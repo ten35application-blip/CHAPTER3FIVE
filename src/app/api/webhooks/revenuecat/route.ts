@@ -58,6 +58,77 @@ const CREDIT_PRODUCTS: Record<
   },
 };
 
+/**
+ * What each store product costs the customer, in cents. GROSS — the
+ * store's commission comes off after, and the net figures live in
+ * RevenueCat and the stores' own financial reports. Used only to give
+ * the admin revenue page a mobile number (2026-08-21); nothing about
+ * entitlements or grants reads this.
+ */
+const STORE_PRICE_CENTS: Record<string, { cents: number; kind: "subscription" | "one_time" }> = {
+  "chapter3five.basic.monthly": { cents: 499, kind: "subscription" },
+  "chapter3five.pro.monthly": { cents: 999, kind: "subscription" },
+  "chapter3five.pack.small": { cents: 499, kind: "one_time" },
+  "chapter3five.pack.medium": { cents: 999, kind: "one_time" },
+  "chapter3five.pack.large": { cents: 1999, kind: "one_time" },
+  "chapter3five.unlock.inherit": { cents: 499, kind: "one_time" },
+  "chapter3five.slot.extra": { cents: 499, kind: "one_time" },
+  "chapter3five.archive.other": { cents: 499, kind: "one_time" },
+};
+
+/**
+ * Record one store purchase (or stamp a refund) in the mobile revenue
+ * ledger. Best-effort and last in every handler: a bookkeeping failure
+ * must never fail the grant a customer already paid for. Idempotent on
+ * RevenueCat's event id, so a retried delivery can't double-count.
+ *
+ * Play appends its base plan to subscription ids
+ * ("chapter3five.pro.monthly:monthly"), so the lookup strips it.
+ */
+async function recordStorePurchase(event: RevenueCatEvent, appUserId: string) {
+  try {
+    const rawId = event.product_id ?? "";
+    const productId = rawId.split(":")[0];
+    const price = STORE_PRICE_CENTS[productId];
+    if (!price) return;
+    const admin = createAdminClient();
+
+    if (isRefund(event)) {
+      await admin
+        .from("store_purchases")
+        .update({ refunded_at: new Date().toISOString() })
+        .eq("user_id", appUserId)
+        .eq("product_id", productId)
+        .is("refunded_at", null);
+      return;
+    }
+    const EARNING_EVENTS = new Set([
+      "INITIAL_PURCHASE",
+      "RENEWAL",
+      "PRODUCT_CHANGE",
+      "NON_RENEWING_PURCHASE",
+    ]);
+    if (!EARNING_EVENTS.has(event.type ?? "")) return;
+
+    await admin.from("store_purchases").insert({
+      user_id: appUserId,
+      platform: platformFromStore(event.store),
+      product_id: productId,
+      amount_cents: price.cents,
+      kind: price.kind,
+      original_transaction_id: event.original_transaction_id ?? null,
+      revenuecat_event_id: event.id ?? null,
+      event_type: event.type ?? null,
+    });
+  } catch (err) {
+    // 23505 = replayed delivery, which is the guard working.
+    const code = (err as { code?: string })?.code;
+    if (code !== "23505") {
+      console.error("[revenuecat-webhook] store_purchases record failed:", err);
+    }
+  }
+}
+
 const PACK_CREDITS: Record<string, { messages: number; images: number }> = {
   "chapter3five.pack.small": {
     messages: PRICING.packSmallMessages,
@@ -396,6 +467,12 @@ export async function POST(request: NextRequest) {
 
   const now = new Date().toISOString();
   const appUserId = event.app_user_id ?? "";
+
+  // Mobile revenue bookkeeping (2026-08-21). Fire-and-forget, ahead of
+  // every branch below so a purchase is counted regardless of which
+  // handler claims it — and awaited nowhere, so it can never delay or
+  // fail a grant.
+  if (appUserId) void recordStorePurchase(event, appUserId);
   if (!UUID_RE.test(appUserId)) {
     // $RCAnonymousID:… — a purchase made before Purchases.configure ran
     // with a Supabase session. RevenueCat does NOT replay past events
