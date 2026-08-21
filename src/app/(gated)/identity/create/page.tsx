@@ -7,6 +7,7 @@ import { PRICING } from "@/lib/pricing";
 import { getPlanTier, isPro } from "@/lib/subscription";
 import { isAdmin } from "@/lib/admin/allowlist";
 import { BuyExtraCompanionCTA } from "./BuyExtraCompanionCTA";
+import { ReferralCard } from "./ReferralCard";
 
 export const metadata = {
   title: "Add a companion · chapter3five",
@@ -127,6 +128,9 @@ export default async function IdentityCreatePage({
       .eq("is_concierge", false)
       .eq("is_self_archive", false)
       .eq("is_legacy", false)
+      // Earned companions (0143) sit outside plan quota, same as Me
+      // and the legacy archives.
+      .eq("is_referral_reward", false)
       .eq("is_photo_placeholder", false)
       .not("creation_source", "eq", "photo")
       .is("inherited_at", null)
@@ -290,7 +294,7 @@ export default async function IdentityCreatePage({
           Add a companion
         </h1>
         <p className="mt-1.5 text-center text-base text-warm-300">
-          Four ways to make one.
+          Four ways to make one, one way to earn one.
         </p>
       </div>
 
@@ -464,6 +468,9 @@ export default async function IdentityCreatePage({
             tone="coral"
           />
         </PathCardShell>
+
+        {/* Earn one — the fifth way in (0143). */}
+        <ReferralCard />
       </div>
     </main>
   );

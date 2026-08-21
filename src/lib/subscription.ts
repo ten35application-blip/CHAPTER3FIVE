@@ -187,6 +187,20 @@ export async function canChatWithOracle(
     } = await client.auth.getUser();
     if (!user) return false;
 
+    // The earned companion (0143) — five people who verified, accepted
+    // terms, and actually talked. Free may chat with it, inside the
+    // same 20-message allowance; it was earned, not bought, and
+    // walling it off would make the reward a lie.
+    const { data: earned } = await client
+      .from("oracles")
+      .select("id")
+      .eq("id", oracleId)
+      .eq("user_id", user.id)
+      .eq("is_referral_reward", true)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (earned) return true;
+
     // Inherited copies (0111) are owned rows stamped with inherited_at
     // at redemption. Redemption was paid ($5 flat per code), so the
     // copy stays chattable on every tier -- including Free accounts
@@ -325,7 +339,11 @@ export async function canCreateOracle(
           // (create/page.tsx + create.tsx), which already excludes
           // is_legacy — killing a "picker says 1 remaining, server
           // 409s" surprise for users with a legacy-other + randoms.
-          .eq("is_legacy", false),
+          .eq("is_legacy", false)
+          // Earned companions (0143) stand outside plan quota the same
+          // way Me and the legacy archives do — earning one must never
+          // consume a slot the user paid for.
+          .eq("is_referral_reward", false),
       ]);
 
     if (!profile) return { ok: false, reason: "unknown" };

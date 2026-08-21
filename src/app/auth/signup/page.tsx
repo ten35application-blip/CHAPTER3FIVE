@@ -151,6 +151,17 @@ async function signUp(formData: FormData) {
     } catch (err) {
       console.error("[signup] date_of_birth admin client threw:", err);
     }
+
+    // Referral (0143): the share link carries ?ref=CODE, the form
+    // carries it through as a hidden field. Recorded here, at the one
+    // moment the new account's id is known. Silent on every failure —
+    // an unknown code, a self-referral, or an account that was already
+    // referred must never turn somebody's signup into an error.
+    const refCode = String(formData.get("ref") ?? "").trim();
+    if (refCode) {
+      const { claimReferral } = await import("@/lib/referral");
+      await claimReferral(refCode, newUserId);
+    }
   }
 
   // Mobile-parity 2026-08-03: inline the "check your email" success
@@ -162,9 +173,9 @@ async function signUp(formData: FormData) {
 export default async function SignupPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; sent?: string }>;
+  searchParams: Promise<{ error?: string; sent?: string; ref?: string }>;
 }) {
-  const { error, sent } = await searchParams;
+  const { error, sent, ref } = await searchParams;
 
   // Inline success view — mirrors mobile app/auth/signup.tsx's
   // sentTo branch. Same copy down to the period.
@@ -254,6 +265,10 @@ export default async function SignupPage({
         ) : null}
 
         <form action={signUp} className="mt-8 flex w-full flex-col gap-3">
+          {/* Carries the share code from the URL through the POST —
+              the referral is recorded server-side the moment the
+              account exists. */}
+          {ref ? <input type="hidden" name="ref" value={ref} /> : null}
           <label className="flex flex-col gap-1.5">
             <span className="text-sm font-medium text-warm-200">Email</span>
             <input
