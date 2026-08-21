@@ -208,18 +208,17 @@ function SigninInner() {
             {busy ? "Signing in…" : "Sign in"}
           </button>
 
-          {/* Inline forgot-password (mobile parity): coral link that
-              fires resetPasswordForEmail in place, no separate route
-              hop. The /auth/forgot-password route can stay for now so
-              deep-link email flows still land somewhere sensible. */}
-          <button
-            type="button"
-            onClick={forgotPassword}
-            disabled={resetting}
-            className="mt-3 self-center text-sm font-semibold text-coral-strong transition-colors hover:text-coral disabled:opacity-50"
+          {/* Its own screen now (Wilson 2026-08-21, twice). Firing the
+              reset in place meant a tap before typing got scolded for
+              skipping a step nobody showed, and the tap read as
+              broken. Carries whatever they typed so the next screen
+              starts filled in. */}
+          <Link
+            href={`/auth/forgot-password${email.trim() ? `?email=${encodeURIComponent(email.trim())}` : ""}`}
+            className="mt-3 self-center text-sm font-semibold text-coral-strong transition-colors hover:text-coral"
           >
-            {resetting ? "Sending…" : "Forgot password?"}
-          </button>
+            Forgot password?
+          </Link>
         </form>
 
         <p className="mt-6 text-sm text-warm-300">
