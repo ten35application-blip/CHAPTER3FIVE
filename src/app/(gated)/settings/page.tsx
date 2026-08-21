@@ -405,7 +405,7 @@ export default async function SettingsPage({
           <AgreementRow href="/terms" label="Terms of Service" />
           <AgreementRow href="/privacy" label="Privacy Policy" />
           <AgreementRow
-            href="/privacy"
+            href="/privacy#anthropic"
             label="AI processing — Anthropic + OpenAI"
           />
           <AgreementRow href="/privacy#cookies" label="Cookie Policy" />
