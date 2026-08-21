@@ -37,19 +37,44 @@ export type CrisisResult =
 // the old lib/crisis.ts used by the mobile chat path — so a Spanish
 // speaker in crisis was detected on the phone and NOT on the web.
 const KEYWORD_PATTERNS: readonly { pattern: RegExp; label: string }[] = [
-  { pattern: /\bkill\s+myself\b/i, label: "kill myself" },
-  { pattern: /\bkilling\s+myself\b/i, label: "killing myself" },
-  { pattern: /\bwant\s+to\s+die\b/i, label: "want to die" },
-  { pattern: /\bend\s+(it|my\s+life|things)\b/i, label: "end it" },
-  { pattern: /\bno\s+reason\s+to\s+(live|be here|stay)\b/i, label: "no reason to live" },
-  { pattern: /\bhurt\s+myself\b/i, label: "hurt myself" },
-  { pattern: /\btake\s+my\s+(own\s+)?life\b/i, label: "take my life" },
-  { pattern: /\bcan['']?t\s+(do|take)\s+this\s+anymore\b/i, label: "can't do this anymore" },
+  // WIDENED 2026-08-21 after a live-fire test of the whole chain. The
+  // message "i don't want to be here anymore. i've been thinking about
+  // ending my life" tripped NOTHING — `end` didn't match `ending`, and
+  // the soft phrasings weren't here at all. The persona still answered
+  // correctly (its 988 instruction is independent of this screen), but
+  // no flag was logged and no admin was alerted: the incident happened
+  // and left no record.
+  //
+  // The screen is a GATE and the Haiku classifier below is the FILTER —
+  // a tight screen isn't caution, it's a wall real cases never reach,
+  // because a message that trips nothing is never classified at all.
+  // Figurative use ("this workout is killing me") is the classifier's
+  // job and it is good at it. So: err wide here, precise there. The
+  // people who need this most are the ones who can't say the clinical
+  // words yet.
+  { pattern: /\bkill(ing)?\s+myself\b/i, label: "kill myself" },
+  { pattern: /\bwant(ed|ing)?\s+to\s+die\b/i, label: "want to die" },
+  { pattern: /\b(end|ending|ended)\s+(it\s+all|it|my\s+life|things|my\s+own\s+life)\b/i, label: "end my life" },
+  { pattern: /\bno\s+reason\s+to\s+(live|be here|stay|go on)\b/i, label: "no reason to live" },
+  { pattern: /\b(hurt|hurting|harm|harming|cut|cutting)\s+myself\b/i, label: "hurt myself" },
+  { pattern: /\btak(e|ing)\s+my\s+(own\s+)?life\b/i, label: "take my life" },
+  { pattern: /\bcan['']?t\s+(do|take|handle)\s+(this|it)\s+anymore\b/i, label: "can't do this anymore" },
+  { pattern: /\bcan['']?t\s+(go\s+on|keep\s+going|keep\s+living)\b/i, label: "can't go on" },
   { pattern: /\bnot\s+worth\s+living\b/i, label: "not worth living" },
   { pattern: /\bsuicide\b/i, label: "suicide" },
   { pattern: /\bsuicidal\b/i, label: "suicidal" },
   { pattern: /\boverdose\b/i, label: "overdose" },
   { pattern: /\bshoot\s+myself\b/i, label: "shoot myself" },
+  // Soft ideation — how most people say it first.
+  { pattern: /\bdon['']?t\s+want\s+to\s+(be\s+here|live|wake\s+up|exist|go\s+on|keep\s+going)\b/i, label: "don't want to be here" },
+  { pattern: /\bdon['']?t\s+wanna\s+(be\s+here|live|wake\s+up|exist)\b/i, label: "don't wanna be here" },
+  { pattern: /\bbetter\s+off\s+without\s+me\b/i, label: "better off without me" },
+  { pattern: /\b(wish|wished)\s+i\s+(was|were|wasn['']?t)\s+(dead|alive|here)\b/i, label: "wish i was dead" },
+  { pattern: /\brather\s+be\s+dead\b/i, label: "rather be dead" },
+  { pattern: /\bwant\s+to\s+(disappear|stop\s+existing|sleep\s+forever)\b/i, label: "want to disappear" },
+  { pattern: /\bno\s+point\s+(in\s+)?(living|going\s+on|being\s+here)\b/i, label: "no point living" },
+  { pattern: /\bgiv(e|ing)\s+up\s+on\s+(life|everything)\b/i, label: "giving up on life" },
+  { pattern: /\bready\s+to\s+die\b/i, label: "ready to die" },
 
   // ── Spanish ──────────────────────────────────────────────────────
   { pattern: /(?<![\p{L}\p{N}])me\s+quiero\s+matar(?![\p{L}\p{N}])/iu, label: "me quiero matar" },
@@ -68,6 +93,14 @@ const KEYWORD_PATTERNS: readonly { pattern: RegExp; label: string }[] = [
   { pattern: /(?<![\p{L}\p{N}])mejor\s+sin\s+m(í|i)(?![\p{L}\p{N}])/iu, label: "mejor sin mí" },
   { pattern: /(?<![\p{L}\p{N}])mejor\s+muert[oa](?![\p{L}\p{N}])/iu, label: "mejor muerto" },
   { pattern: /(?<![\p{L}\p{N}])nadie\s+me\s+extra(ñ|n)ar(í|i)a(?![\p{L}\p{N}])/iu, label: "nadie me extrañaría" },
+  // Soft ideation in Spanish — the same widening as the English block
+  // above, so a Spanish speaker reaching for the gentler words is
+  // screened as carefully as one who says "suicidio".
+  { pattern: /(?<![\p{L}\p{N}])no\s+quiero\s+(estar\s+aqu(í|i)|vivir|seguir|despertar)(?![\p{L}\p{N}])/iu, label: "no quiero estar aquí" },
+  { pattern: /(?<![\p{L}\p{N}])ya\s+no\s+(puedo\s+m(á|a)s|aguanto)(?![\p{L}\p{N}])/iu, label: "ya no puedo más" },
+  { pattern: /(?<![\p{L}\p{N}])quiero\s+desaparecer(?![\p{L}\p{N}])/iu, label: "quiero desaparecer" },
+  { pattern: /(?<![\p{L}\p{N}])terminar\s+con\s+mi\s+vida(?![\p{L}\p{N}])/iu, label: "terminar con mi vida" },
+  { pattern: /(?<![\p{L}\p{N}])no\s+vale\s+la\s+pena\s+vivir(?![\p{L}\p{N}])/iu, label: "no vale la pena vivir" },
 ];
 
 /** Public entry point. Call BEFORE the Anthropic reply so the persona's
