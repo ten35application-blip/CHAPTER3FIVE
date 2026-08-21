@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import type { EmailOtpType } from "@supabase/supabase-js";
-import { createClient } from "@/lib/supabase/server";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
 export const runtime = "nodejs";
 
@@ -45,11 +45,28 @@ export async function GET(request: NextRequest) {
     ? (typeRaw as EmailOtpType)
     : null;
 
+  // COOKIE JAR, not the next/headers store (2026-08-21). verifyOtp
+  // below establishes the session by SETTING auth cookies — and the
+  // shared server client writes them into Next's cookie store, which
+  // a freshly-constructed NextResponse.redirect() does not carry. So
+  // the token burned, the session existed server-side, and the browser
+  // arrived at /auth/update-password with nothing: "This link isn't
+  // active", within a minute of the email being sent, every time
+  // (Wilson, resetting his own password). Collect what the client
+  // wants to set, then paste it onto the exact response we return.
+  const jar: { name: string; value: string; options: CookieOptions }[] = [];
+  const withCookies = (res: NextResponse) => {
+    for (const c of jar) res.cookies.set(c.name, c.value, c.options);
+    return res;
+  };
+
   const fail = (reason: string) =>
-    NextResponse.redirect(
-      new URL(
-        `/auth/signin?error=${encodeURIComponent(reason)}`,
-        request.url,
+    withCookies(
+      NextResponse.redirect(
+        new URL(
+          `/auth/signin?error=${encodeURIComponent(reason)}`,
+          request.url,
+        ),
       ),
     );
 
@@ -57,7 +74,20 @@ export async function GET(request: NextRequest) {
     return fail("That link is incomplete. Request a new one below.");
   }
 
-  const supabase = await createClient();
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          jar.push(...cookiesToSet);
+        },
+      },
+    },
+  );
   const { data, error } = await supabase.auth.verifyOtp({
     token_hash: tokenHash,
     type,
@@ -72,7 +102,9 @@ export async function GET(request: NextRequest) {
   }
 
   if (type === "recovery") {
-    return NextResponse.redirect(new URL("/auth/update-password", request.url));
+    return withCookies(
+      NextResponse.redirect(new URL("/auth/update-password", request.url)),
+    );
   }
 
   // Carry the address forward so the sign-in form arrives already
@@ -84,5 +116,5 @@ export async function GET(request: NextRequest) {
   const next = verifiedEmail
     ? `/auth/signin?confirmed=1&email=${encodeURIComponent(verifiedEmail)}`
     : "/auth/signin?confirmed=1";
-  return NextResponse.redirect(new URL(next, request.url));
+  return withCookies(NextResponse.redirect(new URL(next, request.url)));
 }

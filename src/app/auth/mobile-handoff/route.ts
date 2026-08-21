@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
 export const runtime = "nodejs";
 
@@ -40,7 +40,26 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL("/auth/signin", request.url));
   }
 
-  const supabase = await createClient();
+  // Cookie jar, same fix as /auth/confirm (2026-08-21). The doc comment
+  // above claimed setSession "writes the Supabase SSR cookies to the
+  // response" — it wrote them into Next's cookie store, which the
+  // freshly-built NextResponse.redirect() below never carried. So the
+  // handoff appeared to work and landed the user signed OUT.
+  const jar: { name: string; value: string; options: CookieOptions }[] = [];
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          jar.push(...cookiesToSet);
+        },
+      },
+    },
+  );
   const { error } = await supabase.auth.setSession({
     access_token: accessToken,
     refresh_token: refreshToken,
@@ -49,5 +68,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL("/auth/signin", request.url));
   }
 
-  return NextResponse.redirect(new URL(next, request.url));
+  const res = NextResponse.redirect(new URL(next, request.url));
+  for (const c of jar) res.cookies.set(c.name, c.value, c.options);
+  return res;
 }
