@@ -1,4 +1,5 @@
 import { ADMIN_EMAILS } from "@/lib/admin/allowlist";
+import { sendCrisisAlert } from "@/lib/notifications";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resend } from "@/lib/resend";
 import type { CrisisResult } from "./crisis-detector";
@@ -53,18 +54,13 @@ export async function handleCrisis({
   //    filter safety mail into its own thread.
   await Promise.allSettled(
     ADMIN_EMAILS.map((to) =>
-      resend.emails.send({
-        from: "chapter3five safety <safety@chapter3five.app>",
+      sendCrisisAlert({
         to,
-        subject: `[chapter3five safety] Possible crisis — ${userEmail}`,
-        text: buildEmailBody({
-          userId,
-          userEmail,
-          oracleName,
-          oracleId,
-          messageId,
-          crisis,
-        }),
+        userId,
+        userEmail,
+        excerpt: crisis.snippet,
+        keywords: crisis.triggeredKeywords,
+        oracleName,
       }).catch((err) => {
         console.error(`[safety/crisis] email to ${to} failed:`, err);
       }),

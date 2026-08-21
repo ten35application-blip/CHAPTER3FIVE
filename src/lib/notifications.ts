@@ -103,40 +103,46 @@ async function send(opts: {
 }
 
 /**
- * DEPRECATED — no callers as of 2026-08-04.
+ * Crisis alert to one admin, THROUGH the logged sender.
  *
- * Superseded by handleCrisis() in lib/safety/crisis-notify.ts, which
- * writes the crisis_flags row AND emails in one place. Kept only
- * because it is the sole remaining reference to CARE_INBOX; delete both
- * together once care@ is either configured as a real alias or retired.
+ * Rewired 2026-08-21 (pre-launch legal audit). Two things were wrong:
+ * it mailed CARE_INBOX, an alias that never existed, so every alert
+ * bounced — and when handleCrisis() replaced it, that path called
+ * Resend DIRECTLY, bypassing email_log. So a crisis alert left no
+ * record anywhere that it had been sent.
  *
- * It mailed CARE_INBOX (care@chapter3five.app), which was never set up
- * as a forwarding alias — so every crisis alert this sent bounced. That
- * is the reason the phone app's crisis path was migrated off it.
+ * That record is the point. If a user is ever in trouble, the
+ * defensible position is "the system detected it, the persona gave
+ * hotlines in the same breath, an operator was paged at this exact
+ * timestamp, and here is the row proving it." A log line in a server
+ * console is not that.
  */
 export async function sendCrisisAlert(opts: {
+  to: string;
   userId: string;
   userEmail: string | null;
   excerpt: string;
   keywords: string[];
   oracleName: string | null;
 }) {
-  const subject = `chapter3five: crisis flag — ${opts.userId.slice(0, 8)}`;
+  const subject = `[chapter3five safety] Possible crisis — ${opts.userEmail ?? opts.userId.slice(0, 8)}`;
   const text = `A chapter3five user's message tripped the safety check.
 
 User ID: ${opts.userId}
 User email: ${opts.userEmail ?? "(unknown)"}
 Talking to: ${opts.oracleName ?? "(unnamed)"}
+Timestamp: ${new Date().toISOString()}
 
 Triggered keywords: ${opts.keywords.join(", ")}
 
 Excerpt:
 ${opts.excerpt}
 
-This is auto-generated. The chat reply included crisis resources. Reach out to the user with care.`;
+The chat reply included crisis resources (988 / Samaritans / SAPTEL)
+in the same turn. This is auto-generated — reach out with care.`;
 
   return send({
-    to: CARE_INBOX,
+    to: opts.to,
     subject,
     text,
     kind: "crisis_alert",
