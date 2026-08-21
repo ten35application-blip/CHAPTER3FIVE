@@ -1,4 +1,5 @@
 import { ADMIN_EMAILS } from "@/lib/admin/allowlist";
+import { getConciergeId } from "@/lib/identity/concierge";
 import { sendCrisisAlert } from "@/lib/notifications";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resend } from "@/lib/resend";
@@ -66,7 +67,67 @@ export async function handleCrisis({
       }),
     ),
   );
+
+  // 3) Adrian follows up, in his own thread, with the resources the
+  //    companion couldn't reasonably carry mid-conversation (Wilson
+  //    2026-08-21). The persona's job in the moment is one number and
+  //    a human voice — anything longer read as a pamphlet handed to
+  //    someone crying. This is the fuller list, waiting where they can
+  //    come back to it, from the app's own voice rather than from the
+  //    dead parent they were talking to.
+  //
+  //    Rate-limited to once per 24h per user: a hard conversation
+  //    trips the screen repeatedly, and ten identical resource cards
+  //    stacking up is its own small cruelty.
+  try {
+    const conciergeId = await getConciergeId();
+    if (!conciergeId) return;
+
+    const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { data: recent } = await admin
+      .from("messages")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("oracle_id", conciergeId)
+      .eq("role", "assistant")
+      .gte("created_at", dayAgo)
+      .like("content", "%988%")
+      .limit(1);
+    if (recent && recent.length > 0) return;
+
+    await admin.from("messages").insert({
+      user_id: userId,
+      oracle_id: conciergeId,
+      role: "assistant",
+      content: CRISIS_RESOURCE_MESSAGE,
+      created_at: new Date().toISOString(),
+    });
+  } catch (err) {
+    // Never let the follow-up break the escalation above it.
+    console.error("[safety/crisis] concierge follow-up failed:", err);
+  }
 }
+
+/**
+ * What Adrian sends. Plain, short lines, no preamble about how much we
+ * care — someone reading this is not in a state for paragraphs. Every
+ * entry is a real, free, staffed line. No promises about what they'll
+ * feel, no instruction to feel better.
+ */
+const CRISIS_RESOURCE_MESSAGE = `Hey — I saw something in your messages and I didn't want to just let it pass.
+
+I'm not a person, and this isn't the kind of thing I can help with. But these are, and they're free, and someone real answers:
+
+988 — call or text, US, any hour
+741741 — text HOME, US, if talking is easier than speaking
+116 123 — Samaritans, UK
++52 55 5259-8121 — SAPTEL, Mexico
+findahelpline.com — anywhere else
+911 or your local emergency number, if you're in danger right now
+
+You don't have to be in a crisis to use them. "I'm not okay" is enough to start with.
+
+Your companions are still here whenever you want them. So is this list — it'll stay in our thread.`;
 
 function buildEmailBody({
   userId,
