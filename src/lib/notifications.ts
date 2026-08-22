@@ -23,7 +23,8 @@ type EmailKind =
   | "refund_processed"
   | "inherit_code_minted"
   | "account_deleted"
-  | "inherit_redeemed";
+  | "inherit_redeemed"
+  | "archive_updated";
 
 async function logEmail(opts: {
   recipient: string;
@@ -908,6 +909,73 @@ https://chapter3five.app/dashboard`;
     text,
     html,
     kind: "inherit_redeemed",
+    user_id: opts.userId,
+  });
+}
+
+/**
+ * Someone updated an archive you hold a copy of.
+ *
+ * Deliberately quiet and always specific about WHAT changed. A
+ * companion that silently starts knowing new things is unsettling —
+ * and if the person is gone, a change arriving unannounced is worse
+ * than unsettling. So the email names the change and dates it, and
+ * the copy itself shows the same. Nothing is ever swapped behind
+ * someone's back.
+ */
+export async function sendArchiveUpdatedEmail(opts: {
+  to: string;
+  userId?: string | null;
+  name: string;
+  photoChanged: boolean;
+  answersAdded: number;
+  answersCorrected: number;
+}) {
+  const bits: string[] = [];
+  if (opts.photoChanged) bits.push("a new photo");
+  if (opts.answersAdded > 0) {
+    bits.push(
+      `${opts.answersAdded} new ${opts.answersAdded === 1 ? "answer" : "answers"}`,
+    );
+  }
+  if (opts.answersCorrected > 0) {
+    bits.push(
+      `${opts.answersCorrected} ${opts.answersCorrected === 1 ? "correction" : "corrections"}`,
+    );
+  }
+  const what =
+    bits.length === 0
+      ? "something new"
+      : bits.length === 1
+        ? bits[0]
+        : `${bits.slice(0, -1).join(", ")} and ${bits[bits.length - 1]}`;
+
+  const subject = `${opts.name} added to their archive.`;
+  const text = `${opts.name} added to their archive — ${what}.
+
+Your copy has it already. Nothing you had was taken away; this only adds to what you have.
+
+— chapter3five
+https://chapter3five.app/dashboard`;
+
+  const html = brandEmailHtml({
+    title: `${escapeHtml(opts.name)} added to their archive.`,
+    paragraphs: [
+      `<strong>${escapeHtml(opts.name)}</strong> added to their archive &mdash; ${escapeHtml(what)}.`,
+      "Your copy has it already. Nothing you had was taken away; this only adds to what you have.",
+    ],
+    cta: {
+      label: "Open your contacts",
+      url: "https://chapter3five.app/dashboard",
+    },
+  });
+
+  return send({
+    to: opts.to,
+    subject,
+    text,
+    html,
+    kind: "archive_updated",
     user_id: opts.userId,
   });
 }
