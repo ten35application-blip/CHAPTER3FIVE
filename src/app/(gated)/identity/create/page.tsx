@@ -59,8 +59,12 @@ export const metadata = {
  *           !placeholder && !filled  → "Included in your plan · start
  *                                       from a photo"
  *                                       + /identity/from-photo
- *           hasFilledPhoto           → "$5"
+ *           filled, no credit left    → "$5"
  *                                       + BuyExtraCompanionCTA (Stripe)
+ *           filled, credit in hand    → "Included in your plan"
+ *                                       + /identity/from-photo (the
+ *                                       credit is fungible — it opens
+ *                                       BOTH cards, server decides)
  *   Card 3: hasMe → "Already created" (no CTA)
  *           !hasMe → "Free" + Start the walk (self-mode)
  *   Card 4: always "$5 when you finish" + Start the walk (other-mode)
@@ -73,6 +77,14 @@ export const metadata = {
  * The server (canCreateOracle) is still the source of truth; this UI
  * is only what the user reads.
  */
+/**
+ * The photo slot included with every plan. This is the number that
+ * makes the two-card split add up to the server's single pool:
+ * formulaIdentitiesPerPlan (4) + 1 === totalIdentitiesPerPlan (5),
+ * and basicFormulaIdentitiesPerPlan (2) + 1 === basic total (3).
+ */
+const PHOTO_SLOTS_PER_PLAN = 1;
+
 export default async function IdentityCreatePage({
   searchParams,
 }: {
@@ -195,7 +207,8 @@ export default async function IdentityCreatePage({
   );
 
   const randomCount = randomCountRaw ?? 0;
-  const hasFilledPhoto = (filledPhotoCountRaw ?? 0) > 0;
+  const filledPhotoCount = filledPhotoCountRaw ?? 0;
+  const hasFilledPhoto = filledPhotoCount > 0;
   const hasUnfilledPlaceholder = Boolean(placeholderRow?.id);
   const placeholderId = placeholderRow?.id ?? null;
 
@@ -215,6 +228,42 @@ export default async function IdentityCreatePage({
       : PRICING.formulaIdentitiesPerPlan;
   const extraCredits = profile?.extra_oracle_credits ?? 0;
 
+  // A purchased slot is ONE fungible credit, spendable on either card
+  // — that's what the server already believes (canCreateOracle runs a
+  // single pool: formula + photo counted together against
+  // {basic,}TotalIdentitiesPerPlan + extra_oracle_credits). This page
+  // splits that pool in two for display, and the two halves sum to the
+  // server total exactly (Pro 4+1=5, Basic 2+1=3), so the split is
+  // honest right up until a credit is bought — credits used to land on
+  // the formula half only, which meant a buyer who wanted a SECOND
+  // photo companion paid $5, watched the photo card keep saying "$5",
+  // and could only spend it on a rolled companion. Pay, receive
+  // nothing. Fixed 2026-08-21.
+  //
+  // Instead: work out how much of the pool is already consumed beyond
+  // the two base allowances, and let whatever's left open BOTH cards.
+  // The user spends it on one; the server (still the only authority)
+  // closes the other on the next render.
+  //
+  // The photo side can hold MORE than its one included slot — an
+  // unfilled placeholder is auto-provisioned on subscribe, and a
+  // re-subscribe can leave one sitting next to an already-filled
+  // photo companion. The server counts placeholders against the pool;
+  // this page used to count them nowhere, so a user holding both was
+  // told "1 formula remaining", clicked Roll, and got a 409. That
+  // overflow has to eat into the formula ceiling the same way it eats
+  // into the server's.
+  const photoSideOccupied = filledPhotoCount + (hasUnfilledPlaceholder ? 1 : 0);
+  const photoOverflow = Math.max(0, photoSideOccupied - PHOTO_SLOTS_PER_PLAN);
+
+  const creditsSpent =
+    Math.max(0, randomCount - baseRandomQuota) + photoOverflow;
+  const creditsAvailable = Math.max(0, extraCredits - creditsSpent);
+  const formulaCeiling = Math.max(
+    0,
+    baseRandomQuota + extraCredits - photoOverflow,
+  );
+
   // randomOverQuota:
   //   - Admins: never over.
   //   - Free: over iff free_identity_id is set (one-identity-ever gate).
@@ -231,27 +280,26 @@ export default async function IdentityCreatePage({
     ? false
     : !isProUser
       ? true
-      : randomCount >= baseRandomQuota + extraCredits;
+      : randomCount >= formulaCeiling;
 
   const randomRemaining = adminBypass
     ? null
     : !isProUser
       ? null
-      : Math.max(0, baseRandomQuota + extraCredits - randomCount);
+      : Math.max(0, formulaCeiling - randomCount);
 
   // photoOverQuota:
   //   - Admins: never over.
-  //   - Any tier with a filled photo already: over (photo slot spent).
-  //     A bought credit does NOT flip the label back — the render
-  //     always prefers "$5" once the slot is filled per Wilson's
-  //     literal spec ("photo slot is used → $5"). If the user wants
-  //     another photo they buy a credit (may double-buy if they
-  //     already hold one from a random overflow — accepted rounding).
+  //   - Any tier whose photo slot is spent AND holds no unspent
+  //     credit: over ("$5"). Buying flips this back to a usable
+  //     "Choose a photo" so the credit lands where it was bought for
+  //     — before 2026-08-21 it never did, and the buyer was stuck.
   //   - Free tier + free_identity_id set + no placeholder to fill:
   //     over (one-identity-ever gate closed on the photo card too).
   const photoOverQuota = adminBypass
     ? false
-    : hasFilledPhoto || (!isProUser && !hasUnfilledPlaceholder);
+    : (hasFilledPhoto && creditsAvailable === 0) ||
+      (!isProUser && !hasUnfilledPlaceholder);
 
   // The $5 extra-companion SKU depends on the Stripe env — when it's
   // absent the checkout POST returns 503. Feature-flag the paid CTAs
