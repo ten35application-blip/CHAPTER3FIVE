@@ -5,6 +5,7 @@ import { PRICING } from "@/lib/pricing";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireTermsAccepted } from "@/lib/legal/gate";
+import { isPro } from "@/lib/subscription";
 import { recordPendingPayment } from "@/lib/billing/pendingPayment";
 
 /**
@@ -405,6 +406,30 @@ export async function POST(request: NextRequest) {
   // Basic user at 3-of-3 can create one more random OR photo identity
   // per credit — the credit is quota-agnostic.
   if (purpose === "oracle") {
+    // Refuse the SALE to anyone without a plan. The credit this SKU
+    // grants is worthless on its own: canCreateOracle returns
+    // upgrade_required for every non-subscriber BEFORE it looks at
+    // extra_oracle_credits (free creates nothing — Wilson 2026-08-19),
+    // so a Free or lapsed account that paid $5 would hold a credit it
+    // can never spend. Taking money for that is taking money for
+    // nothing.
+    //
+    // The picker already renders "Basic or Pro" instead of the buy
+    // button for these users, but the UI is not the enforcement: this
+    // endpoint accepts any authenticated POST, and a tab left open
+    // across a lapse still shows a live $5 button. Sandbox
+    // subscriptions lapse fast, so that window is real, not theoretical.
+    //
+    // Deliberately scoped to 'oracle' only. The inherit-unlock and
+    // other-archive SKUs are genuine Free-tier purchases (redeeming a
+    // family member's code, finishing an archive) and stay open.
+    if (!(await isPro(supabase))) {
+      return NextResponse.json(
+        { error: "upgrade_required", code: "upgrade_required" },
+        { status: 402 },
+      );
+    }
+
     const priceId = process.env.STRIPE_PRICE_ID_EXTRA_ORACLE;
     if (!priceId) {
       return NextResponse.json(

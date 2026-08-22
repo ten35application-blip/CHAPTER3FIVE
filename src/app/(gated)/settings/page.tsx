@@ -217,19 +217,25 @@ export default async function SettingsPage({
   // without this ordering they'd see "Trial (free)" plus a Convert
   // pitch for a plan they can never fall off of.
   const admin = isAdmin(email);
+  // Tier decides the label; the payment processor decides nothing.
+  // This used to branch on stripeCustomerId FIRST, and the RevenueCat
+  // webhook never writes that column — so every Apple/Google Basic
+  // subscriber skipped the isBasicTier arm entirely and was shown
+  // "Pro plan". We were telling paying customers they were on a tier
+  // they hadn't bought, on the two platforms where most subscribers
+  // are. stripeCustomerId now only does the one job it can actually
+  // do: separating a real trial from a lapsed card (2026-08-21).
   const planName = admin
     ? "Pro (admin)"
-    : pro
-      ? stripeCustomerId
-        ? isBasicTier
-          ? "Basic plan"
-          : "Pro plan"
+    : !pro
+      ? "Free plan"
+      : isBasicTier
+        ? "Basic plan"
         : planSource === "admin_grant"
           ? "Pro (comped)"
-          : trialActive
+          : trialActive && !stripeCustomerId
             ? "Trial (free)"
-            : "Pro plan"
-      : "Free plan";
+            : "Pro plan";
   const dateLabel = (iso: string) =>
     new Date(iso).toLocaleDateString(undefined, {
       month: "short",
