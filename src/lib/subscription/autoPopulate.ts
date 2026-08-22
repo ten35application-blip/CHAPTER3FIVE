@@ -45,6 +45,7 @@ import {
   SynthesisError,
 } from "@/lib/identity/synthesize";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isAdmin } from "@/lib/admin/allowlist";
 import { PRICING } from "@/lib/pricing";
 import { sendCompanionsReadyEmail } from "@/lib/notifications";
 
@@ -69,6 +70,31 @@ export async function autoPopulateForSubscribe(
   tier: "basic" | "pro",
 ): Promise<void> {
   const admin = createAdminClient();
+
+  // 0. NEVER auto-populate an admin account.
+  //
+  // getPlanTier() resolves every allowlisted admin to tier "pro", and
+  // /api/account/usage calls scheduleAutoPopulate for any basic/pro
+  // user as a self-heal. So simply SIGNING IN on an admin account
+  // started minting a subscriber's welcome circle — real synthesis and
+  // real portrait spend, unasked (Wilson, 2026-08-22: "now its making
+  // companions, and I did not ask it to").
+  //
+  // An admin's tier is a bypass flag, not a purchase. Nothing was ever
+  // bought here, so there is nothing to deliver.
+  try {
+    const { data: authRes } = await admin.auth.admin.getUserById(userId);
+    if (isAdmin(authRes?.user?.email ?? null)) {
+      console.log(
+        `[autoPopulate] ${userId} — admin account, skipping (tier is a bypass, not a purchase)`,
+      );
+      return;
+    }
+  } catch (err) {
+    // A failed lookup must not become a free pass to mint.
+    console.error(`[autoPopulate] ${userId} — admin check failed:`, err);
+    return;
+  }
 
   // 1. Acquire the per-user lock (5 min stale reclaim).
   const acquired = await tryAcquireLock(admin, userId);
