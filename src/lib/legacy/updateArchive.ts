@@ -210,7 +210,20 @@ async function copyTargets(oracleId: string): Promise<CopyTarget[]> {
     .select("id, user_id, legacy_answers")
     .in("inherited_from_code_id", codeIds)
     .is("deleted_at", null);
-  return (rows ?? []) as CopyTarget[];
+  const copies = (rows ?? []) as CopyTarget[];
+  if (copies.length === 0) return [];
+
+  // Skip holders who closed their account. Their copy row survives the
+  // soft delete, so without this we quietly update it and — worse —
+  // email someone who left. Caught in the 2026-08-22 fan-out drill,
+  // which mailed a deleted test account.
+  const { data: living } = await admin
+    .from("profiles")
+    .select("id")
+    .in("id", Array.from(new Set(copies.map((c) => c.user_id))))
+    .is("deleted_at", null);
+  const alive = new Set((living ?? []).map((p) => p.id as string));
+  return copies.filter((c) => alive.has(c.user_id));
 }
 
 async function fanOut(args: {
