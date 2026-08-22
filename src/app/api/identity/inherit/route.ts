@@ -15,6 +15,7 @@ import {
 import { PRICING } from "@/lib/pricing";
 import { getStripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendInheritRedeemedEmail } from "@/lib/notifications";
 import {
   findReusableCheckout,
   recordPendingPaymentOrThrow,
@@ -348,6 +349,20 @@ export async function POST(request: NextRequest) {
   // Consume credit AFTER the copy actually persisted.
   if (usingCredit) {
     await consumeInheritedSlotCredit(user.id);
+  }
+
+  // The quiet arrival note — and the only record of the $5 unlock
+  // (2026-08-21: plans, packs, and refunds all emailed; this purchase
+  // was silent). Best-effort: they are already in the conversation.
+  if (user.email) {
+    sendInheritRedeemedEmail({
+      to: user.email,
+      userId: user.id,
+      name: (source.name as string | null) ?? "Someone",
+      hook: (source.one_line_hook as string | null) ?? null,
+    }).catch((err) =>
+      console.error("[identity/inherit] arrival email failed:", err),
+    );
   }
 
   return NextResponse.json({ oracle_id: inserted.id });

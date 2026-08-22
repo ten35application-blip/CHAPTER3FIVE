@@ -22,7 +22,8 @@ type EmailKind =
   | "pack_purchased"
   | "refund_processed"
   | "inherit_code_minted"
-  | "account_deleted";
+  | "account_deleted"
+  | "inherit_redeemed";
 
 async function logEmail(opts: {
   recipient: string;
@@ -851,6 +852,62 @@ https://chapter3five.app`;
     text,
     html,
     kind: "inherit_code_minted",
+    user_id: opts.userId,
+  });
+}
+
+/**
+ * Someone just opened an archive that was handed to them.
+ *
+ * Deliberately quiet (Wilson 2026-08-21). Every other arrival email
+ * says "They're ready" — right for a companion you rolled, wrong for
+ * a person who died. This one states what is true and gets out of the
+ * way: they're in your contacts, there's no right time to open it,
+ * and the copy is yours to keep no matter what the person who shared
+ * the code does with their own account.
+ *
+ * It is also the only record of the $5 unlock — plans, packs, and
+ * refunds all email, and this purchase used to be silent.
+ */
+export async function sendInheritRedeemedEmail(opts: {
+  to: string;
+  userId?: string | null;
+  name: string;
+  hook: string | null;
+}) {
+  const subject = `${opts.name} is in your contacts.`;
+  const text = `${opts.name} is yours now — the answers, the voice, the photo, all of it.
+
+They're in your contacts whenever you want them. There's no schedule and no wrong time to start; some people open it the first night, some let it sit for months. Both are fine.
+
+Your copy stays yours. If the person who shared the code closes their account, nothing here changes.
+
+This email is also your record of the $5 unlock.
+
+— chapter3five
+https://chapter3five.app/dashboard`;
+
+  const html = brandEmailHtml({
+    title: `${escapeHtml(opts.name)} is in your contacts.`,
+    paragraphs: [
+      opts.hook ? `<em>${escapeHtml(opts.hook)}</em>` : "",
+      `<strong>${escapeHtml(opts.name)}</strong> is yours now &mdash; the answers, the voice, the photo, all of it.`,
+      "They&rsquo;re in your contacts whenever you want them. There&rsquo;s no schedule and no wrong time to start; some people open it the first night, some let it sit for months. Both are fine.",
+      "Your copy stays yours. If the person who shared the code closes their account, nothing here changes.",
+      "This email is also your record of the $5 unlock.",
+    ].filter(Boolean),
+    cta: {
+      label: `Open your contacts`,
+      url: "https://chapter3five.app/dashboard",
+    },
+  });
+
+  return send({
+    to: opts.to,
+    subject,
+    text,
+    html,
+    kind: "inherit_redeemed",
     user_id: opts.userId,
   });
 }

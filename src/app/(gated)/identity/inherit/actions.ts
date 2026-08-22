@@ -12,6 +12,7 @@ import {
 import { PRICING } from "@/lib/pricing";
 import { getStripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendInheritRedeemedEmail } from "@/lib/notifications";
 import {
   recordRedeemAttempt,
   REDEEM_RATE_LIMIT_MESSAGE,
@@ -445,6 +446,20 @@ export async function redeemInheritCode(rawCode: string): Promise<void> {
   // message/image pack credits). Best-effort, never throws.
   if (usingCredit) {
     await consumeInheritedSlotCredit(user.id);
+  }
+
+  // The quiet arrival note — and the only record of the $5 unlock
+  // (2026-08-21). Fired before the redirect below, which throws by
+  // design; best-effort so mail trouble can't derail the handoff.
+  if (user.email) {
+    void sendInheritRedeemedEmail({
+      to: user.email,
+      userId: user.id,
+      name: (source.name as string | null) ?? "Someone",
+      hook: (source.one_line_hook as string | null) ?? null,
+    }).catch((err) =>
+      console.error("[identity/inherit] arrival email failed:", err),
+    );
   }
 
   // Redirect BACK to the dashboard, not straight into the chat. The
