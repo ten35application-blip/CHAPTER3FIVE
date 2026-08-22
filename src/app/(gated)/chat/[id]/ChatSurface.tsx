@@ -246,6 +246,21 @@ export default function ChatSurface({
   initialAiAcked: boolean;
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
+  // ── Scrolling back through the whole conversation ──────────────
+  // The page server-renders the newest 100 and used to stop there;
+  // everything older sat in the database unreachable. Mobile gained
+  // this first and is the source of truth for the behaviour.
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [reachedStart, setReachedStart] = useState(
+    initialMessages.length < 100,
+  );
+  const [olderFailed, setOlderFailed] = useState(false);
+  const scrollRef = useRef<HTMLElement | null>(null);
+  /** Guards a second page firing while one is in flight. */
+  const loadingOlderRef = useRef(false);
+  /** Set for the one render where older messages are prepended, so the
+   *  stick-to-bottom effect below stands down for that render only. */
+  const prependingRef = useRef(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamText, setStreamText] = useState("");
   const [rateLimited, setRateLimited] = useState(false);
@@ -288,6 +303,73 @@ export default function ChatSurface({
   // Full-screen zoom target — the avatar and attached photos share the
   // same modal.
   const [zoomUrl, setZoomUrl] = useState<string | null>(null);
+  /**
+   * Load the page of messages before the oldest one on screen.
+   *
+   * SCROLL ANCHORING IS MANUAL HERE. The browser has no equivalent of
+   * React Native's maintainVisibleContentPosition, so we measure
+   * scrollHeight before the prepend and add the difference back to
+   * scrollTop afterwards. Without it, arriving history shoves the reader
+   * upward by exactly its own height — mid-read, in someone's last
+   * messages, that is a horrible thing to do to a person.
+   */
+  const loadOlder = useCallback(async () => {
+    if (loadingOlderRef.current || reachedStart) return;
+    const el = scrollRef.current;
+    const oldest = messages[0];
+    if (!el || !oldest?.createdAt) return;
+
+    loadingOlderRef.current = true;
+    setLoadingOlder(true);
+    setOlderFailed(false);
+    const prevHeight = el.scrollHeight;
+    const prevTop = el.scrollTop;
+
+    try {
+      const res = await fetch(
+        `/api/chat/${oracleId}/messages/older?before=${encodeURIComponent(oldest.createdAt)}`,
+      );
+      // A failed request is NOT the beginning of the conversation.
+      // Leave reachedStart alone so trying again is still possible.
+      if (!res.ok) {
+        setOlderFailed(true);
+        return;
+      }
+      const body = (await res.json()) as {
+        messages?: ChatMessage[];
+        reachedStart?: boolean;
+      };
+      const older = body.messages ?? [];
+      if (body.reachedStart) setReachedStart(true);
+      if (older.length === 0) return;
+
+      prependingRef.current = true;
+      setMessages((prev) => {
+        // Dedupe by id — a realtime insert or a resync can land the same
+        // row from the other direction, and React keys must stay unique.
+        const have = new Set(prev.map((m) => m.id));
+        const fresh = older.filter((m) => !have.has(m.id));
+        if (fresh.length === 0) {
+          prependingRef.current = false;
+          return prev;
+        }
+        return [...fresh, ...prev];
+      });
+
+      // Restore the reader's position once the new rows have painted.
+      requestAnimationFrame(() => {
+        const node = scrollRef.current;
+        if (!node) return;
+        node.scrollTop = prevTop + (node.scrollHeight - prevHeight);
+      });
+    } catch {
+      setOlderFailed(true);
+    } finally {
+      loadingOlderRef.current = false;
+      setLoadingOlder(false);
+    }
+  }, [messages, oracleId, reachedStart]);
+
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
   // Multi-message burst cascade timers — tracked in a ref so we can
@@ -344,6 +426,18 @@ export default function ChatSurface({
   }, [markRead]);
 
   useEffect(() => {
+    // STAND DOWN WHEN HISTORY WAS PREPENDED. This effect keeps the view
+    // pinned to the newest message, and it fires on any change to
+    // `messages` — including older ones arriving at the TOP. Left alone
+    // it snapped the reader straight back to the bottom the instant they
+    // scrolled up far enough to load more, which defeats the feature
+    // entirely and feels like the app fighting them. One render only;
+    // the flag clears itself immediately so a genuine new message still
+    // scrolls.
+    if (prependingRef.current) {
+      prependingRef.current = false;
+      return;
+    }
     bottomRef.current?.scrollIntoView({ block: "end" });
   }, [messages, streamText, isStreaming]);
 
@@ -1125,7 +1219,49 @@ export default function ChatSurface({
       </header>
 
       {/* Messages */}
-      <main className="flex-1 overflow-y-auto px-3 py-4">
+      <main
+        ref={scrollRef}
+        onScroll={(e) => {
+          // Near the top means the reader is asking for what came
+          // before. 240px of lead-in so the page is already arriving by
+          // the time they get there.
+          if (e.currentTarget.scrollTop < 240) void loadOlder();
+        }}
+        className="flex-1 overflow-y-auto px-3 py-4"
+      >
+        {/* Walking back through the conversation. Hidden on an empty
+            thread — there is nothing behind a blank page. */}
+        {messages.length > 0 && (
+          <div className="mb-2 flex justify-center">
+            {loadingOlder ? (
+              <span className="text-xs text-warm-400">
+                Loading earlier messages&hellip;
+              </span>
+            ) : olderFailed ? (
+              <button
+                type="button"
+                onClick={() => void loadOlder()}
+                className="text-xs font-semibold text-coral-strong hover:underline"
+              >
+                Couldn&rsquo;t load those. Try again
+              </button>
+            ) : reachedStart ? (
+              <span className="text-xs text-warm-400">
+                The beginning of your conversation.
+              </span>
+            ) : (
+              // Not decoration: a short thread may not scroll at all, and
+              // then a click is the only way back.
+              <button
+                type="button"
+                onClick={() => void loadOlder()}
+                className="text-xs font-semibold text-coral-strong hover:underline"
+              >
+                See earlier messages
+              </button>
+            )}
+          </div>
+        )}
         {messages.length === 0 && !isStreaming ? (
           // Empty state — avatar already lives in the top bar, so the
           // middle stays deliberately empty to avoid the duplicate face.
