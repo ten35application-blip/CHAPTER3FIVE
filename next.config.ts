@@ -35,6 +35,19 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "10mb",
     },
   },
+  // Apple fetches /.well-known/apple-app-site-association and REJECTS it
+  // unless it is served as application/json. The file has no extension,
+  // so Next would hand it back as octet-stream and the association —
+  // and with it iCloud Keychain sharing between the site and the app —
+  // silently never activates.
+  async headers() {
+    return [
+      {
+        source: "/.well-known/apple-app-site-association",
+        headers: [{ key: "Content-Type", value: "application/json" }],
+      },
+    ];
+  },
   images: {
     // Supabase storage hosts our avatars + chat-photos + archive-photos.
     // Allow it via remotePatterns so bare <img> tags can be swapped for
