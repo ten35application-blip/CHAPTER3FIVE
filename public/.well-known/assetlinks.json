@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.get_login_creds"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.chapter3five",
+      "sha256_cert_fingerprints": [
+        "07:AE:D6:4D:A4:7D:73:FF:BE:61:02:FB:9F:B7:B4:A0:84:6A:BB:13:5B:9B:22:F3:2E:B5:4E:14:56:6C:DB:CA"
+      ]
+    }
+  }
+]
