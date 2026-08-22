@@ -210,7 +210,14 @@ export default function ChatInput({
       )}
 
       <div className="flex items-end gap-2">
-        <div className="flex flex-1 items-end rounded-3xl bg-ink-soft ring-1 ring-warm-700 focus-within:ring-teal">
+        {/* min-w-0 is load-bearing. A flex item defaults to
+            min-width:auto, so this box refused to shrink below its
+            content's intrinsic width: a long line made the textarea wide
+            rather than tall, the composer ran off to the left, and the
+            autogrow above never fired because the text never wrapped to a
+            second line. The phone was fine because React Native flex
+            children already default to min-width:0. */}
+        <div className="flex min-w-0 flex-1 items-end rounded-3xl bg-ink-soft ring-1 ring-warm-700 focus-within:ring-teal">
           <textarea
             ref={textareaRef}
             value={value}
