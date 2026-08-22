@@ -32,8 +32,19 @@ export default async function DeleteAccountPage() {
     .select("*", { count: "exact", head: true })
     .is("deleted_at", null);
 
+  // Codes this person minted that nobody has redeemed yet. Deleting the
+  // account revokes them (see actions.ts for why it must), so they have
+  // to be told BEFORE they confirm rather than discovering it when a
+  // relative types a code that no longer works.
+  const { count: liveCodeCount } = await supabase
+    .from("inherit_codes")
+    .select("*", { count: "exact", head: true })
+    .eq("created_by", user.id)
+    .is("revoked_at", null);
+
   const email = user.email ?? "";
   const count = activeIdentityCount ?? 0;
+  const openCodes = liveCodeCount ?? 0;
 
   return (
     <main className="min-h-dvh flex-1 pb-16">
@@ -101,6 +112,24 @@ export default async function DeleteAccountPage() {
               creator, you won&rsquo;t be able to update or revoke it after
               this.
             </li>
+            {openCodes > 0 && (
+              <li>
+                <strong>
+                  {openCodes === 1
+                    ? "You have 1 inherit code that nobody has used yet."
+                    : `You have ${openCodes} inherit codes that nobody has used yet.`}
+                </strong>{" "}
+                Deleting your account closes{" "}
+                {openCodes === 1 ? "it" : "them"}. If you handed{" "}
+                {openCodes === 1 ? "that card" : "those cards"} to someone
+                and they haven&rsquo;t opened{" "}
+                {openCodes === 1 ? "it" : "them"} yet,{" "}
+                {openCodes === 1 ? "it" : "they"} will stop working —
+                so it&rsquo;s worth a message to them first. Anyone who has
+                already used their code keeps everything they were given;
+                that copy is theirs and this doesn&rsquo;t touch it.
+              </li>
+            )}
           </ul>
         </section>
 

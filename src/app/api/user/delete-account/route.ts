@@ -120,6 +120,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  // Revoke this account's inherit codes — see the long note on the web
+  // twin in (gated)/settings/delete/actions.ts. Without it, api/cron/purge
+  // skips this account on every run, forever, and the 30-day deletion
+  // promise on both legal pages is one this service cannot keep. Codes
+  // that were already redeemed are untouched: the copy is independent and
+  // was paid for, so it stays theirs.
+  await admin
+    .from("inherit_codes")
+    .update({ revoked_at: now.toISOString() })
+    .eq("created_by", user.id)
+    .is("revoked_at", null);
+
   // Zero rows = already deleted. Still ok:true (the caller's intent is
   // satisfied), but don't write an audit row claiming a purge date that
   // was never stored — the real one was set by the first call.

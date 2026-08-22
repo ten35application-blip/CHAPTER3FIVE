@@ -508,9 +508,19 @@ export default function TermsPage() {
           next billing period, and if you don&rsquo;t agree, you may
           cancel before they take effect.
         </p>
+        {/* WHO BILLS YOU. This paragraph used to say billing was Stripe
+            for everyone, that everything was "handled at chapter3five.app",
+            and that "We don't bill through Apple or Google" — all false
+            once the apps began selling through StoreKit and Google Play
+            Billing, and, inside the shipped app, prohibited purchase
+            steering under App Store Guideline 3.1.1 and Google Play's
+            Payments policy. It also sent Apple buyers to us for refunds
+            they can only get from Apple. Kept in step with the mobile
+            copy in app/legal/terms.tsx. */}
         <p>
-          <strong>How to subscribe and manage billing.</strong>{" "}
-          Subscriptions, plan changes, and cancellations are all
+          <strong>Who bills you depends on where you signed up.</strong>{" "}
+          If you subscribed on this website, your subscription is billed
+          by us through Stripe, and plan changes and cancellations are
           handled at{" "}
           <a
             href="https://chapter3five.app"
@@ -518,14 +528,19 @@ export default function TermsPage() {
           >
             chapter3five.app
           </a>
-          . If you signed up through our iOS or Android app, tap
-          &ldquo;Manage subscription&rdquo; and you&rsquo;ll be sent to
-          your account on the web to complete the payment or the
-          cancellation. We don&rsquo;t bill through Apple or Google
-          &mdash; every dollar you pay reaches us directly (minus
-          Stripe processing), which is what lets us keep{" "}
-          {BASIC_TIER_LABEL} at {BASIC_MONTHLY_PRICE_LABEL}/month and
-          Pro at {MONTHLY_PRICE_LABEL}/month.
+          .
+        </p>
+        <p>
+          If you subscribed inside our iPhone or Android app, that
+          subscription is sold and billed by Apple or Google, not by us.
+          It renews through your Apple ID or Google account, you cancel
+          it in that account&rsquo;s own subscription settings, and any
+          refund is requested from Apple or Google &mdash; we cannot
+          issue one on their behalf. Whichever way you signed up, the
+          plan and the price are the same: {BASIC_TIER_LABEL} at{" "}
+          {BASIC_MONTHLY_PRICE_LABEL}/month and Pro at{" "}
+          {MONTHLY_PRICE_LABEL}/month, and you are never billed twice for
+          the same account.
         </p>
         <p>
           <strong>Payments are non-refundable</strong>, except where the law

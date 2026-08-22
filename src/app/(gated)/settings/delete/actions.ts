@@ -85,6 +85,30 @@ export async function deleteAccount(formData: FormData) {
     .eq("is_concierge", false)
     .is("deleted_at", null);
 
+  // REVOKE THE INHERIT CODES THIS ACCOUNT MINTED, or the account is
+  // never actually deleted.
+  //
+  // api/cron/purge refuses to purge any account that still holds an
+  // unrevoked code — it counts it into codeHoldingOwners and `continue`s
+  // — and nothing else ever revokes them. So a father who minted codes
+  // and later deleted his account sat in the database FOREVER: messages,
+  // archive, photos and email address all retained, while both legal
+  // pages promised him that after 30 days "everything is permanently and
+  // irreversibly purged." That promise could not be kept.
+  //
+  // Nobody who PAID loses anything. Redemption is where the $5 is
+  // charged, and it produces a fully independent copy — its own
+  // legacy_answers, its own persona_prompt, its own photo object, its
+  // own messages (verified in production: four separate avatar objects
+  // across one archive and its three copies, 0 shared URLs). Revoking
+  // only closes codes nobody has redeemed yet, which nobody has paid
+  // for. Wilson's rule stands: they paid for the code, it's theirs.
+  await supabase
+    .from("inherit_codes")
+    .update({ revoked_at: now })
+    .eq("created_by", user.id)
+    .is("revoked_at", null);
+
   // Farewell email — best-effort, non-blocking. Shared sender (also
   // used by the mobile endpoint) so it lands in email_log like every
   // other transactional send instead of bypassing the ledger.
