@@ -202,6 +202,10 @@ type RevenueCatEvent = {
   store?: string;
   original_transaction_id?: string | null;
   id?: string;
+  /** When the store took the money. Used as the LAST-RESORT component of
+   *  the idempotency key for repeat consumable purchases — see the
+   *  claim-key note below. */
+  purchased_at_ms?: number | null;
   environment?: string;
   // TRANSFER events only: the app user ids the store receipt moved
   // between. No product/entitlement fields accompany them.
@@ -512,7 +516,25 @@ export async function POST(request: NextRequest) {
   if (creditProduct) {
     const adminCredit = createAdminClient();
     const creditTxn =
-      event.original_transaction_id ?? event.id ?? `${appUserId}:${event.product_id}`;
+      event.original_transaction_id ??
+      event.id ??
+      // LAST RESORT, and it must stay unique PER PURCHASE. These are
+      // consumables people are meant to buy over and over — as many
+      // formula companions and as many photo companions as they want —
+      // and the claim row is a UNIQUE key. The old fallback was
+      // `${appUserId}:${product_id}`, identical on every purchase of the
+      // same product by the same person, so if a delivery ever arrived
+      // without both a transaction id and an event id, the SECOND
+      // purchase would collide, return "credit-already-granted", and
+      // leave someone charged with nothing to show for it.
+      //
+      // purchased_at_ms keeps the guard honest in both directions: the
+      // same event redelivered carries the same timestamp and still
+      // dedupes, while a genuine second purchase carries a different one
+      // and grants. (RevenueCat always sends `id` in practice, so this
+      // branch is a belt — but the failure it guards is the worst kind,
+      // and repeat buying is the whole point of these SKUs.)
+      `${appUserId}:${event.product_id}:${event.purchased_at_ms ?? "no-timestamp"}`;
     if (isRefund(event)) {
       const { data: claim } = await adminCredit
         .from("iap_entitlements")
@@ -662,7 +684,25 @@ export async function POST(request: NextRequest) {
     // additive, so a replay would double-credit. The transaction id is
     // the stable per-purchase key.
     const txnId =
-      event.original_transaction_id ?? event.id ?? `${appUserId}:${event.product_id}`;
+      event.original_transaction_id ??
+      event.id ??
+      // LAST RESORT, and it must stay unique PER PURCHASE. These are
+      // consumables people are meant to buy over and over — as many
+      // formula companions and as many photo companions as they want —
+      // and the claim row is a UNIQUE key. The old fallback was
+      // `${appUserId}:${product_id}`, identical on every purchase of the
+      // same product by the same person, so if a delivery ever arrived
+      // without both a transaction id and an event id, the SECOND
+      // purchase would collide, return "credit-already-granted", and
+      // leave someone charged with nothing to show for it.
+      //
+      // purchased_at_ms keeps the guard honest in both directions: the
+      // same event redelivered carries the same timestamp and still
+      // dedupes, while a genuine second purchase carries a different one
+      // and grants. (RevenueCat always sends `id` in practice, so this
+      // branch is a belt — but the failure it guards is the worst kind,
+      // and repeat buying is the whole point of these SKUs.)
+      `${appUserId}:${event.product_id}:${event.purchased_at_ms ?? "no-timestamp"}`;
     const { error: claimErr } = await adminPack
       .from("iap_entitlements")
       .insert({

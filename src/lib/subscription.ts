@@ -769,31 +769,61 @@ export async function canSendMessageForTierCap(
     return { ok: true, current: 0, limit, usingCredit: false };
   }
 
-  const monthStart = new Date();
-  monthStart.setUTCHours(0, 0, 0, 0);
-  monthStart.setUTCDate(1);
+  // USAGE COMES FROM THE LEDGER, NOT FROM COUNTING MESSAGES.
+  //
+  // This used to be a live count(*) over the messages table, which made
+  // the message ROWS the meter — and "Delete conversation → Delete
+  // forever" hard-DELETEs those rows, so anyone could hand their own
+  // allowance back to zero as often as they liked. Wilson 2026-08-22:
+  // "each plan has usage and if they delete a message usage does not
+  // delete." monthly_usage is append-only (no INSERT/UPDATE/DELETE
+  // policy, SELECT-only grant, writes only via a SECURITY DEFINER
+  // function), so deleting a conversation cannot touch it.
+  //
+  // The period is per-account, not the 1st of the calendar month — it
+  // restarts on the day they started Pro or Basic. current_usage()
+  // resolves that server-side so this file, the meter on the upgrade
+  // screen and the phone can never disagree about where the period
+  // begins.
+  const { data: ledger, error: ledgerError } = await client
+    .rpc("current_usage", { target_user_id: user.id })
+    .maybeSingle<{ period_start: string; messages: number; images: number }>();
 
-  // Journaling into the Me archive and asking the help identity a
-  // question are not messages to a companion — they must not spend
-  // the tier's monthly allowance.
-  const exempt = await capExemptOracleIds(client, user.id);
-  let messageCountQuery = client
-    .from("messages")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", user.id)
-    .eq("role", "user")
-    .gte("created_at", monthStart.toISOString());
-  if (exempt.length > 0) {
-    messageCountQuery = messageCountQuery.not(
-      "oracle_id",
-      "in",
-      notInList(exempt),
-    );
-  }
-  const { count, error } = await messageCountQuery;
+  let count: number | null = ledger?.messages ?? null;
 
-  if (error || count === null) {
-    return { ok: false, current: 0, limit };
+  if (ledgerError || count === null) {
+    // FALL BACK to the old row count rather than failing open or shut.
+    // Failing open would hand out unlimited usage on a transient error;
+    // failing shut would lock a paying customer out of a conversation
+    // because of one bad query. The old behaviour is the safe floor: it
+    // is what shipped for months and it can only ever under-count by the
+    // rows someone deliberately destroyed.
+    const periodStart = new Date();
+    periodStart.setUTCHours(0, 0, 0, 0);
+    periodStart.setUTCDate(1);
+
+    // Journaling into the Me archive and asking the help identity a
+    // question are not messages to a companion — they must not spend
+    // the tier's allowance.
+    const exempt = await capExemptOracleIds(client, user.id);
+    let messageCountQuery = client
+      .from("messages")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("role", "user")
+      .gte("created_at", periodStart.toISOString());
+    if (exempt.length > 0) {
+      messageCountQuery = messageCountQuery.not(
+        "oracle_id",
+        "in",
+        notInList(exempt),
+      );
+    }
+    const { count: fallbackCount, error } = await messageCountQuery;
+    if (error || fallbackCount === null) {
+      return { ok: false, current: 0, limit };
+    }
+    count = fallbackCount;
   }
 
   if (count >= limit) {
@@ -841,31 +871,47 @@ export async function canSendImageForMonthCap(
     return { ok: true, current: 0, limit, usingCredit: false };
   }
 
-  const monthStart = new Date();
-  monthStart.setUTCHours(0, 0, 0, 0);
-  monthStart.setUTCDate(1);
+  // From the ledger, same as the message cap — photos had the identical
+  // defect: the count came from rows the user could permanently delete.
+  const { data: imgLedger, error: imgLedgerError } = await client
+    .rpc("current_usage", { target_user_id: user.id })
+    .maybeSingle<{ period_start: string; messages: number; images: number }>();
 
-  // Note: the zero-cap short-circuit from the pre-pack version is
-  // gone on purpose — a zero-cap tier with purchased image credits
-  // must still fall through to the balance check below.
-  // Same exemption as the message cap — a photo attached to a Me-archive
-  // entry isn't a photo sent to a companion.
-  const exemptForImages = await capExemptOracleIds(client, user.id);
-  let imageCountQuery = client
-    .from("messages")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", user.id)
-    .eq("role", "user")
-    .not("image_storage_path", "is", null)
-    .gte("created_at", monthStart.toISOString());
-  if (exemptForImages.length > 0) {
-    imageCountQuery = imageCountQuery.not(
-      "oracle_id",
-      "in",
-      notInList(exemptForImages),
-    );
+  let count: number | null = imgLedger?.images ?? null;
+  let error: unknown = null;
+
+  if (imgLedgerError || count === null) {
+    // Same safe floor as the message cap: fall back to the old row
+    // count rather than failing open (free photos) or shut (a paying
+    // customer refused a photo over a transient error).
+    const periodStart = new Date();
+    periodStart.setUTCHours(0, 0, 0, 0);
+    periodStart.setUTCDate(1);
+
+    // Note: the zero-cap short-circuit from the pre-pack version is
+    // gone on purpose — a zero-cap tier with purchased image credits
+    // must still fall through to the balance check below.
+    // Same exemption as the message cap — a photo attached to a
+    // Me-archive entry isn't a photo sent to a companion.
+    const exemptForImages = await capExemptOracleIds(client, user.id);
+    let imageCountQuery = client
+      .from("messages")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("role", "user")
+      .not("image_storage_path", "is", null)
+      .gte("created_at", periodStart.toISOString());
+    if (exemptForImages.length > 0) {
+      imageCountQuery = imageCountQuery.not(
+        "oracle_id",
+        "in",
+        notInList(exemptForImages),
+      );
+    }
+    const fallback = await imageCountQuery;
+    count = fallback.count;
+    error = fallback.error;
   }
-  const { count, error } = await imageCountQuery;
 
   if (error || count === null) {
     return { ok: false, current: 0, limit };
