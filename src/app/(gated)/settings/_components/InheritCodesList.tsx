@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { useState, useTransition } from "react";
 
 import { retryMintInheritCode, revokeInheritCode } from "../actions";
@@ -275,16 +277,33 @@ function FilledSlot({ item }: { item: CodeItem }) {
           </div>
         </div>
       ) : (
-        <button
-          type="button"
-          onClick={() => {
-            setError(null);
-            setConfirming(true);
-          }}
-          className="mt-1.5 text-[11px] font-medium text-warm-400 underline underline-offset-2 transition-colors hover:text-warm-200"
-        >
-          Revoke this code
-        </button>
+        // Two quiet links in one row. Revoke already had exactly this
+        // weight, so Update joins it rather than adding a third style —
+        // constructive first because it's the one people actually use
+        // (Wilson 2026-08-22, and he asked for it to look clean).
+        <div className="mt-1.5 flex items-center gap-4">
+          {/* Self-mode ONLY — an archive written about someone else is
+              not yours to revise. The server refuses regardless; this
+              simply doesn't offer it. */}
+          {item.mode === "self" ? (
+            <Link
+              href={`/identity/legacy/update/${item.oracleId}`}
+              className="text-[11px] font-medium text-warm-400 underline underline-offset-2 transition-colors hover:text-warm-200"
+            >
+              Update your archive
+            </Link>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => {
+              setError(null);
+              setConfirming(true);
+            }}
+            className="text-[11px] font-medium text-warm-400 underline underline-offset-2 transition-colors hover:text-warm-200"
+          >
+            Revoke this code
+          </button>
+        </div>
       )}
 
       {error ? (
