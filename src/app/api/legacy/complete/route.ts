@@ -27,6 +27,7 @@ import {
   hasOtherIdentityCreateCredit,
 } from "@/lib/subscription";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { verifiedAvatarUrl } from "@/lib/storage/avatarObject";
 
 // Same synthesis budget as the web page (legacy/new/page.tsx):
 // weaving up to 40 answers through Anthropic can run long.
@@ -232,6 +233,19 @@ export async function POST(request: NextRequest) {
   // is_self_archive (0125) is stamped true when subject.mode === 'self'
   // so canCreateOracle can exclude the Me row from the plan quota tally
   // (Wilson's Phase-2 lock: "Me is a separate free slot on all tiers").
+  // Never mint an archive pointing at a photo that isn't there. The
+  // upload step checks its own error, but it can't see an older client
+  // that composed the URL itself or an object swept after the fact —
+  // and the failure is silent and permanent: the row keeps a dead link,
+  // the bucket answers 404, and the person's face renders as a black
+  // square. Storing null instead falls back to the initial-letter
+  // avatar, which reads as "no photo yet" and stays honest for the
+  // inherit copy that will read this row later.
+  const verifiedPhotoUrl = await verifiedAvatarUrl(
+    subject.photoUrl ?? null,
+    `legacy/complete user=${user.id}`,
+  );
+
   const { data: inserted, error: insertError } = await createAdminClient()
     .from("oracles")
     .insert({
@@ -245,7 +259,7 @@ export async function POST(request: NextRequest) {
       name: persona.name,
       one_line_hook: persona.one_line_hook,
       persona_prompt: persona.persona_prompt,
-      avatar_url: subject.photoUrl,
+      avatar_url: verifiedPhotoUrl,
     })
     .select("id")
     .single();

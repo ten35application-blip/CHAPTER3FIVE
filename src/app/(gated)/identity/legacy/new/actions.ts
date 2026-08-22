@@ -26,6 +26,7 @@ import {
   type LegacySubject,
 } from "@/lib/legacy/synthesize";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { verifiedAvatarUrl } from "@/lib/storage/avatarObject";
 import {
   findReusableCheckout,
   recordPendingPaymentOrThrow,
@@ -436,6 +437,15 @@ export async function completeLegacyIdentity(payload: {
   // is_self_archive (0125) is stamped true when subject.mode === 'self'
   // so canCreateOracle can exclude Me from the plan quota tally
   // (Wilson's Phase-2 lock: "Me is a separate free slot on all tiers").
+  // Never mint an archive pointing at a photo that isn't there — the
+  // upload checks its own error, but cannot see a client that composed
+  // the URL itself or an object swept afterwards. A dead link renders
+  // as a black square where a person's face belongs (2026-08-22).
+  const verifiedPhotoUrl = await verifiedAvatarUrl(
+    subject.photoUrl ?? null,
+    `legacy/complete(web) user=${user.id}`,
+  );
+
   const { data: inserted, error: insertError } = await createAdminClient()
     .from("oracles")
     .insert({
@@ -452,7 +462,7 @@ export async function completeLegacyIdentity(payload: {
       // The photo the creator uploaded at Step 0 becomes the identity's
       // face on redeem. Public URL from `avatars/legacy/...` — matches
       // the shape sanitizeSubject already validated.
-      avatar_url: subject.photoUrl,
+      avatar_url: verifiedPhotoUrl,
     })
     .select("id")
     .single();

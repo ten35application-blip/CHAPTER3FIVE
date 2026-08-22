@@ -15,6 +15,7 @@ import {
 import { PRICING } from "@/lib/pricing";
 import { getStripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { avatarsObjectPath } from "@/lib/storage/avatarObject";
 import { sendInheritRedeemedEmail } from "@/lib/notifications";
 import {
   findReusableCheckout,
@@ -56,15 +57,6 @@ function copyFingerprint(
     .digest("hex");
 }
 
-function avatarsObjectPath(avatarUrl: string | null): string | null {
-  if (!avatarUrl) return null;
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-  const prefix = `${supabaseUrl}/storage/v1/object/public/avatars/`;
-  if (!supabaseUrl || !avatarUrl.startsWith(prefix)) return null;
-  const rest = avatarUrl.slice(prefix.length);
-  const path = rest.split("?")[0];
-  return path.length > 0 ? path : null;
-}
 
 export async function POST(request: NextRequest) {
   const { user } = await getRequestAuth(request);
@@ -286,7 +278,14 @@ export async function POST(request: NextRequest) {
     const { error: copyError } = await admin.storage
       .from("avatars")
       .copy(sourcePath, destPath);
-    if (!copyError) {
+    if (copyError) {
+      // The photo IS the archive for most families. A silent drop here
+      // hands someone a faceless copy of their dead relative and tells
+      // nobody, so at minimum it must be loud in the logs.
+      console.error(
+        `[inherit] avatar copy failed for oracle=${codeRow.oracle_id} → user=${user.id}: ${copyError.message} (source=${sourcePath})`,
+      );
+    } else {
       const { data: pub } = admin.storage
         .from("avatars")
         .getPublicUrl(destPath);

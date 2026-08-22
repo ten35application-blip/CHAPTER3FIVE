@@ -374,6 +374,8 @@ export async function redeemInheritCode(rawCode: string): Promise<void> {
         .getPublicUrl(destPath);
       newAvatarUrl = `${pub.publicUrl}?v=${Date.now()}`;
     } else {
+      // This action already logged; the API twin did not, and that is
+      // where the silence lived.
       console.error(
         "[redeemInheritCode] avatar copy failed (continuing without photo):",
         copyError,
