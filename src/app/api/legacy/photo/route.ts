@@ -5,6 +5,9 @@ import { requireTermsAccepted } from "@/lib/legal/gate";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { randomUUID } from "node:crypto";
 
+// sharp is native — this route must never be considered for Edge.
+export const runtime = "nodejs";
+
 const ACCEPTED_LEGACY_PHOTO_MIMES: readonly string[] = [
   "image/jpeg",
   "image/png",
