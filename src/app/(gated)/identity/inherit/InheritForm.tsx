@@ -158,8 +158,18 @@ export function InheritForm({
         disabled={!code.trim() || pending}
         className="bg-gradient-cta flex h-14 w-full items-center justify-center rounded-full text-lg font-semibold text-white shadow-[0_14px_36px_-10px_rgba(217,115,89,0.5),_0_4px_12px_rgba(126,196,196,0.18)] transition-all hover:-translate-y-px active:translate-y-0 active:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
       >
-        {pending ? "Opening the door…" : "Save to my contacts"}
+        {pending ? "Bringing them in…" : "Save to my contacts"}
       </button>
+      {/* Say what's happening, in the same words mobile uses (Wilson
+          2026-08-21). "Opening the door" was pretty and told nobody
+          anything; a person who just paid to open a dead relative's
+          archive should not have to guess. */}
+      {pending ? (
+        <p className="mt-3 text-center text-[13px] leading-relaxed text-warm-400">
+          Copying their archive into your account. This takes a few
+          seconds &mdash; stay on this page.
+        </p>
+      ) : null}
     </form>
   );
 }
