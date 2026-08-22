@@ -251,6 +251,10 @@ ${variety}`;
         title: oracleName,
         body: reply.length > 140 ? reply.slice(0, 140) + "…" : reply,
         data: { oracle_id: row.oracle_id, kind: "companion_message" },
+        // Badge like a messaging app does. This push had none, so a
+        // check-in arrived with no count on the icon while the other
+        // two push paths set one (Wilson 2026-08-22).
+        badge: 1,
         categoryId: "companion_message",
         threadIdentifier: row.oracle_id,
         channelId: "companion",
