@@ -43,6 +43,7 @@ import {
   DISTRESS_TONE_BLOCK,
 } from "@/lib/safety/distress";
 import {
+  canChatWithOracle,
   canSendImageForMonthCap,
   canSendMessageForTierCap,
   consumePackCredit,
@@ -408,6 +409,37 @@ export async function POST(request: NextRequest) {
   // functions. Each cap fn otherwise re-runs getPlanTier internally --
   // stream route's pattern, applied here to match. Micro-perf, real.
   const requesterPlan = await getPlanTier(supabase);
+
+  // FREE-TIER PER-IDENTITY LOCK. Free may talk to Adrian, to a companion
+  // they EARNED (is_referral_reward), and to an archive they PAID to
+  // inherit (inherited_at). Everything else is locked until they
+  // subscribe — including companions they made themselves while they
+  // were paying and kept after downgrading.
+  //
+  // This route is the PHONE's send path (and the notification
+  // quick-reply and the drained reply queue). Until 2026-08-22 the gate
+  // existed only on the web stream route, so the identical account was
+  // blocked on the website and allowed on iOS and Android. The tell was
+  // sitting in the mobile code the whole time: the app already maps
+  // "trial_ended_or_locked" to warm copy in humanizeChatError, for an
+  // error this endpoint could never return.
+  //
+  // Runs BEFORE the cap checks so a locked send never costs the user
+  // any of their monthly allowance — same ordering as the stream route.
+  //
+  // requesterIsPaid, not tier === "pro": isPro means ANY active paid
+  // window (Basic OR Pro OR trial OR admin). Passing the Basic/Pro split
+  // here previously 403'd Basic subscribers on the web.
+  const requesterIsPaid = requesterPlan.tier !== "free";
+  if (
+    conversationOracleId &&
+    !(await canChatWithOracle(conversationOracleId, supabase, requesterIsPaid))
+  ) {
+    return NextResponse.json(
+      { error: "trial_ended_or_locked" },
+      { status: 403 },
+    );
+  }
 
   const tierCap = await canSendMessageForTierCap(supabase, requesterPlan);
   if (!tierCap.ok) {
