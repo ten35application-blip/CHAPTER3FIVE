@@ -11,6 +11,21 @@ const nextConfig: NextConfig = {
   // 2026-08-22, after the first real archive came out with no face).
   // Externalizing keeps it a plain Node require at runtime.
   serverExternalPackages: ["sharp"],
+  // Externalizing sharp stops Next from bundling it — but it also stops
+  // the file tracer from pulling its native packages into the function,
+  // so the require resolves to nothing:
+  //   ERR_DLOPEN_FAILED: libvips-cpp.so.8.18.3: cannot open shared
+  //   object file
+  // The lockfile HAS @img/sharp-linux-x64 + @img/sharp-libvips-linux-x64
+  // correctly gated to linux; they simply weren't landing in the
+  // deployed function. Every surface that touches sharp names itself
+  // here: the mobile archive-photo endpoint, the web archive walk, and
+  // the profile-photo upload in settings.
+  outputFileTracingIncludes: {
+    "/api/legacy/photo": ["./node_modules/@img/**/*"],
+    "/identity/legacy/new": ["./node_modules/@img/**/*"],
+    "/settings": ["./node_modules/@img/**/*"],
+  },
   experimental: {
     serverActions: {
       // Photo-to-identity uploads (identity/from-photo, 5 MB) and
