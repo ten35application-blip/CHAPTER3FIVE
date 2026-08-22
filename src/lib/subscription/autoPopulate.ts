@@ -421,8 +421,24 @@ async function countExistingRandom(
     .eq("is_concierge", false)
     .eq("is_self_archive", false)
     .eq("is_photo_placeholder", false)
-    .is("inherited_at", null)
-    .is("deleted_at", null);
+    .is("inherited_at", null);
+  // LIFETIME COUNT — no deleted_at filter, exactly like
+  // canCreateOracle ("you get what you get", Wilson 2026-08-15). A
+  // creation spends its slot permanently whether or not the companion
+  // is still around.
+  //
+  // This used to exclude deleted rows, which reopened on the
+  // auto-populate path the very farming loop canCreateOracle closes on
+  // the manual one: delete your companions, change tier (PRODUCT_CHANGE
+  // / a Stripe subscription update both re-trigger this), and a fresh
+  // set gets minted free. The IAP side was already safe — the
+  // iap_mint_ledger caps mints per original_transaction_id — but a
+  // Stripe subscription has no store transaction, so that clamp is
+  // skipped entirely and web had no backstop at all.
+  //
+  // It also stops a legitimate delete-then-upgrade from pushing the
+  // lifetime tally PAST the tier ceiling, which would leave the user
+  // over quota and unable to create anything ever again.
   return count ?? 0;
 }
 
@@ -466,8 +482,11 @@ async function countExistingPhotoCompanion(
     .select("id", { count: "exact", head: true })
     .eq("user_id", userId)
     .eq("creation_source", "photo")
-    .is("inherited_at", null)
-    .is("deleted_at", null);
+    .is("inherited_at", null);
+  // LIFETIME, same rule as countExistingRandom above: deleting the
+  // photo companion must not earn a fresh placeholder on the next tier
+  // change. Counts placeholders AND filled photos, so re-subscribing
+  // never leaves a second placeholder sitting beside a finished one.
   return count ?? 0;
 }
 

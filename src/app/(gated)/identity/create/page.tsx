@@ -41,12 +41,16 @@ export const metadata = {
  *     PRICING.formulaIdentitiesPerPlan). Filter is
  *     is_concierge=false, is_self_archive=false, is_legacy=false,
  *     is_photo_placeholder=false, creation_source != 'photo',
- *     inherited_at IS NULL, deleted_at IS NULL.
+ *     inherited_at IS NULL. NO deleted_at filter — the count is
+ *     LIFETIME, matching canCreateOracle ("you get what you get"):
+ *     deleting a companion does not hand the slot back.
  *
- *   PHOTO SLOT — always 1 per plan; a placeholder is auto-created
- *     on subscribe and DOES NOT count as spent. The slot is "used"
- *     only when a filled photo companion exists
- *     (creation_source='photo' AND is_photo_placeholder=false).
+ *   PHOTO SLOT — always 1 per plan. The slot reads as "used" when a
+ *     filled photo companion exists (creation_source='photo' AND
+ *     is_photo_placeholder=false). An auto-provisioned placeholder
+ *     does not close the card — it routes to "bring it to life" —
+ *     but it DOES occupy a slot in the shared pool, because the
+ *     server counts it, so photoSideOccupied includes it.
  *
  * Per-card state:
  *   Card 1: randomCount < randomQuota → "Included in your plan"
@@ -117,6 +121,7 @@ export default async function IdentityCreatePage({
     { data: profile },
     { count: randomCountRaw },
     { count: filledPhotoCountRaw },
+    { count: placeholderEverCountRaw },
     { data: placeholderRow },
     { data: legacyRows },
     { data: walkDraft },
@@ -130,9 +135,16 @@ export default async function IdentityCreatePage({
         extra_oracle_credits: number | null;
       }>(),
     // RANDOM count — spec filter: not concierge, not Me, not any
-    // legacy, not inherited, not deleted, not placeholder, and
-    // creation_source != 'photo' (belt: even a filled photo persona
-    // never counts against random).
+    // legacy, not inherited, not placeholder, and creation_source
+    // != 'photo' (belt: even a filled photo persona never counts
+    // against random).
+    //
+    // LIFETIME — no deleted_at filter, matching canCreateOracle's
+    // deliberate rule ("you get what you get", 2026-08-15: a creation
+    // spends its slot permanently). This page used to skip deleted
+    // rows, so a Pro user who deleted two companions read
+    // "Included in your plan · 2 remaining", clicked Roll, and got a
+    // 409 from a server that still counted all four.
     admin
       .from("oracles")
       .select("id", { count: "exact", head: true })
@@ -145,18 +157,29 @@ export default async function IdentityCreatePage({
       .eq("is_referral_reward", false)
       .eq("is_photo_placeholder", false)
       .not("creation_source", "eq", "photo")
-      .is("inherited_at", null)
-      .is("deleted_at", null),
+      .is("inherited_at", null),
     // FILLED photo count — a filled photo companion exists when
     // creation_source='photo' AND is_photo_placeholder=false.
+    // LIFETIME, same reason as the random count above.
     admin
       .from("oracles")
       .select("id", { count: "exact", head: true })
       .eq("user_id", user.id)
       .eq("creation_source", "photo")
       .eq("is_photo_placeholder", false)
-      .is("inherited_at", null)
-      .is("deleted_at", null),
+      .is("inherited_at", null),
+    // Placeholders ever reserved, LIFETIME. Separate from the live
+    // row below: the live one decides whether "Bring your photo
+    // companion to life" can be offered (a deleted placeholder can't
+    // be filled), this one is pool accounting, because the server
+    // counts a placeholder against the ceiling whether or not it
+    // still exists.
+    admin
+      .from("oracles")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("is_photo_placeholder", true)
+      .is("inherited_at", null),
     // UNFILLED placeholder — the auto-populate helper's post-subscribe
     // reservation. Card 2 routes here (/chat/{id}) so the user's next
     // click lands on PhotoPlaceholderScreen and the existing upload
@@ -253,7 +276,10 @@ export default async function IdentityCreatePage({
   // told "1 formula remaining", clicked Roll, and got a 409. That
   // overflow has to eat into the formula ceiling the same way it eats
   // into the server's.
-  const photoSideOccupied = filledPhotoCount + (hasUnfilledPlaceholder ? 1 : 0);
+  // Placeholders EVER reserved, not just the live one — a deleted
+  // placeholder still spent its slot on the server, so pool accounting
+  // has to see it even though the "bring it to life" CTA cannot.
+  const photoSideOccupied = filledPhotoCount + (placeholderEverCountRaw ?? 0);
   const photoOverflow = Math.max(0, photoSideOccupied - PHOTO_SLOTS_PER_PLAN);
 
   const creditsSpent =
