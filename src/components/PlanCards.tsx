@@ -140,6 +140,14 @@ export function PlanCards({
                 Redeem inherit codes for {INHERITED_SLOT_PRICE_LABEL}{" "}
                 each &mdash; same one-time fee on every plan
               </FeatureLine>
+              {/* Basic can buy extra slots too — canCreateOracle folds
+                  extra_oracle_credits onto whichever base applies, and
+                  the checkout gate is isPro(), which Basic satisfies.
+                  Only the Pro card said so, which undersold Basic. */}
+              <FeatureLine>
+                Extra companion slots {EXTRA_IDENTITY_PRICE_LABEL} each,
+                one time &mdash; buy as many as you like
+              </FeatureLine>
               <FeatureLine>
                 Adrian, our guide, always included
               </FeatureLine>
@@ -259,8 +267,12 @@ export function PlanCards({
                 Redeem inherit codes for {INHERITED_SLOT_PRICE_LABEL}{" "}
                 each &mdash; same one-time fee on every plan
               </FeatureLine>
+              {/* "/mo" advertised a ONE-TIME charge as recurring: the
+                  slot SKU is Stripe mode:"payment" and RevenueCat
+                  kind:"one_time". Fixed 2026-08-21 on both platforms. */}
               <FeatureLine>
-                Extras {EXTRA_IDENTITY_PRICE_LABEL}/mo per slot
+                Extra companion slots {EXTRA_IDENTITY_PRICE_LABEL} each,
+                one time &mdash; buy as many as you like
               </FeatureLine>
             </ul>
             <div className="mt-6">
