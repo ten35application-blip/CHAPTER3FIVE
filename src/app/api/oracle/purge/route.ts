@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getRequestAuth } from "@/lib/api/mobileAuth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { deleteAvatarObjectIfUnreferenced } from "@/lib/storage/avatarObject";
 
 export const runtime = "nodejs";
 
@@ -66,6 +67,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Read the photo before the row goes; afterwards nothing tells us
+    // which storage object belonged to it.
+    const { data: doomed } = await supabase
+      .from("oracles")
+      .select("avatar_url")
+      .eq("id", oracleId)
+      .maybeSingle<{ avatar_url: string | null }>();
+
     const { error } = await supabase
       .from("oracles")
       .delete()
@@ -78,6 +87,13 @@ export async function POST(request: NextRequest) {
         { status: 500 },
       );
     }
+
+    // Public bucket — see the web twin in dashboard/actions.ts. Skipped
+    // when any other row (notably an inherited copy) shares the object.
+    await deleteAvatarObjectIfUnreferenced(
+      doomed?.avatar_url ?? null,
+      oracleId,
+    );
     return new NextResponse(null, { status: 204 });
   }
 

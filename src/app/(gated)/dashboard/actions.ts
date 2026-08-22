@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { deleteAvatarObjectIfUnreferenced } from "@/lib/storage/avatarObject";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isAdmin } from "@/lib/admin/allowlist";
 
@@ -272,6 +273,14 @@ export async function permanentDeleteIdentity(oracleId: string) {
     };
   }
 
+  // Read the photo BEFORE the row goes — afterwards there is nothing
+  // left to tell us which object to clean up.
+  const { data: doomed } = await supabase
+    .from("oracles")
+    .select("avatar_url")
+    .eq("id", oracleId)
+    .maybeSingle<{ avatar_url: string | null }>();
+
   const { error } = await supabase
     .from("oracles")
     .delete()
@@ -282,6 +291,13 @@ export async function permanentDeleteIdentity(oracleId: string) {
   if (error) {
     return diagnose(error, "permanently deleting", isAdmin(user.email));
   }
+
+  // `avatars` is a public bucket, so leaving the file behind means the
+  // person's face stays fetchable by anyone with the URL after they
+  // asked for it to be gone. Only removes it when no other row — no
+  // inherited copy, no soft-deleted row still sitting in someone's
+  // trash — points at the same object. Never blocks the delete.
+  await deleteAvatarObjectIfUnreferenced(doomed?.avatar_url ?? null, oracleId);
 
   revalidatePath("/dashboard");
   return { ok: true as const };

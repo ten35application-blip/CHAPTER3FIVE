@@ -43,12 +43,21 @@ export default function PhotoPlaceholderScreen({
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Rights attestation. /api/identity/from-photo refuses any upload
+  // without photo_rights === "on" (route.ts:161), and this screen never
+  // sent it — so filling a placeholder from a browser was rejected every
+  // single time, with the error telling people to confirm something the
+  // page gave them no way to confirm. Deliberately a REAL checkbox
+  // rather than hardcoding the flag: the whole point of the gate is that
+  // a person affirmed it, and quietly asserting consent on their behalf
+  // would be worse than the bug. Matches the main upload form.
+  const [attested, setAttested] = useState(false);
 
   const pick = useCallback(() => {
-    if (busy) return;
+    if (busy || !attested) return;
     setError(null);
     fileRef.current?.click();
-  }, [busy]);
+  }, [busy, attested]);
 
   const onFile = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -66,6 +75,9 @@ export default function PhotoPlaceholderScreen({
         const form = new FormData();
         form.append("photo", file);
         form.append("placeholder_id", oracleId);
+        // Only reachable once `attested` is true — the picker refuses to
+        // open otherwise — so this mirrors a box the user actually ticked.
+        form.append("photo_rights", "on");
         const res = await fetch("/api/identity/from-photo", {
           method: "POST",
           body: form,
@@ -181,10 +193,26 @@ export default function PhotoPlaceholderScreen({
         </p>
       ) : null}
 
+      <label className="mt-6 flex cursor-pointer items-start gap-3 rounded-2xl bg-ink-soft px-4 py-4 text-left ring-1 ring-warm-700 transition-all hover:ring-coral/40">
+        <input
+          type="checkbox"
+          checked={attested}
+          onChange={(e) => setAttested(e.target.checked)}
+          disabled={busy}
+          className="mt-1 h-5 w-5 shrink-0 accent-coral"
+        />
+        <span className="text-sm leading-relaxed text-warm-200">
+          This photo is of <strong className="text-warm-50">me</strong>, or of
+          someone who{" "}
+          <strong className="text-warm-50">gave me permission</strong> to use
+          it — not a public figure, and not someone who hasn&rsquo;t consented.
+        </span>
+      </label>
+
       <button
         type="button"
         onClick={pick}
-        disabled={busy}
+        disabled={busy || !attested}
         className="bg-gradient-cta mt-8 flex h-12 w-full items-center justify-center rounded-full text-sm font-bold tracking-tight text-white transition-transform hover:-translate-y-0.5 disabled:opacity-60 disabled:hover:translate-y-0"
       >
         {busy ? "Creating…" : "Upload a photo"}

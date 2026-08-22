@@ -83,3 +83,55 @@ export async function verifiedAvatarUrl(
   );
   return null;
 }
+
+/**
+ * Remove the stored photo behind a deleted identity — but ONLY if no
+ * other row still points at it.
+ *
+ * `avatars` is a PUBLIC bucket. Until 2026-08-22 "Delete forever" removed
+ * the oracle row and left the image sitting at its URL, fetchable by
+ * anyone with the link, forever — after the person had explicitly asked
+ * for it to be gone. For a photo of a real person, uploaded under an
+ * attestation that they consented, that is the wrong default.
+ *
+ * The shared-reference check is load-bearing and is NOT paranoia. A
+ * redeemed inherit code produces a copy carrying the SAME avatar_url as
+ * the archive it came from, so deleting the object on the strength of one
+ * row would blank the photo in every other family member's copy — the
+ * exact "her archive has no face" failure this file was written for.
+ * Verified against production: three copies of one archive currently
+ * share a single avatar_url.
+ *
+ * Best-effort by design. A storage error must never block or reverse the
+ * row deletion the user asked for — losing the photo is recoverable, but
+ * telling someone their delete failed when the row is already gone is not.
+ * Returns what happened, for logging.
+ */
+export async function deleteAvatarObjectIfUnreferenced(
+  avatarUrl: string | null,
+  deletedOracleId: string,
+): Promise<"deleted" | "still-referenced" | "not-ours" | "failed"> {
+  const path = avatarsObjectPath(avatarUrl);
+  if (!path) return "not-ours";
+  try {
+    const admin = createAdminClient();
+    // Any OTHER oracle — including soft-deleted ones, which can still be
+    // restored from the trash, and inherited copies owned by other people.
+    const { data: others, error: refErr } = await admin
+      .from("oracles")
+      .select("id")
+      .eq("avatar_url", avatarUrl)
+      .neq("id", deletedOracleId)
+      .limit(1);
+    // Fail CLOSED: if we cannot prove the photo is unreferenced, keep it.
+    // An orphaned file is a tidiness problem; a blanked face in someone's
+    // inherited archive is the thing we refuse to risk.
+    if (refErr) return "failed";
+    if (others && others.length > 0) return "still-referenced";
+
+    const { error } = await admin.storage.from("avatars").remove([path]);
+    return error ? "failed" : "deleted";
+  } catch {
+    return "failed";
+  }
+}

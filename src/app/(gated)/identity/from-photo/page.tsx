@@ -9,6 +9,13 @@ export const metadata = {
 };
 
 /**
+ * Same reason as /identity/new: Server Actions take their timeout from
+ * the page. This one is the longer of the two — createIdentityFromPhoto
+ * awaits the vision read, then synthesis, then the face.
+ */
+export const maxDuration = 300;
+
+/**
  * Photo-to-identity upload form (formula v4). The $5-tier blank slot:
  * upload a photo, Claude Vision reads it, the traits get seeded to match
  * the person, and the uploaded photo becomes the avatar. The reveal

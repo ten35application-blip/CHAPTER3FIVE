@@ -9,6 +9,19 @@ export const metadata = {
   title: "Someone new · chapter3five",
 };
 
+/**
+ * Server Actions inherit their timeout from the PAGE, not from any API
+ * route — so the twin at /api/identity/new declaring maxDuration = 300
+ * did nothing for this page's createIdentity(). Synthesis runs ~30-50s
+ * and the face another 3-9s on top; on a 60s platform default that is
+ * uncomfortably close, and the failure mode is bad: AutoGenerate fires
+ * on mount with no catch and no abort timer, so a killed function leaves
+ * the user on a spinner forever, and a kill landing between the insert
+ * and provisioning:false burns a lifetime slot on a companion the
+ * dashboard then hides.
+ */
+export const maxDuration = 300;
+
 type Identity = {
   id: string;
   name: string;

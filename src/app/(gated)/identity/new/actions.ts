@@ -1,6 +1,6 @@
 "use server";
 
-import { redirect } from "next/navigation";
+import { redirect, RedirectType } from "next/navigation";
 import { redirectWithError } from "@/lib/action-errors";
 import { generateAndSaveFace } from "@/lib/faces/generate";
 import { fingerprintTraits } from "@/lib/identity/fingerprint";
@@ -234,5 +234,12 @@ export async function createIdentity(): Promise<void> {
     .update({ provisioning: false })
     .eq("id", oracleId);
 
-  redirect(`/identity/new?id=${inserted.id}`);
+  // REPLACE, not push. The reveal lives at the same route that
+  // auto-generates when it has no ?id=, so a plain redirect left
+  // "/identity/new" (no id) in history directly behind the card. Pressing
+  // Back — the most ordinary thing anyone does in a browser — remounted
+  // AutoGenerate and silently rolled a SECOND companion against their
+  // lifetime slots, with no confirmation and no way to undo. Replacing
+  // the entry means Back leaves the flow instead of re-entering it.
+  redirect(`/identity/new?id=${inserted.id}`, RedirectType.replace);
 }
