@@ -194,7 +194,16 @@ export async function updateOwnArchive(
   return { ok: true, photoChanged, added, corrected, copies: copies.length };
 }
 
-type CopyTarget = { id: string; user_id: string; legacy_answers: unknown };
+type CopyTarget = {
+  id: string;
+  user_id: string;
+  legacy_answers: unknown;
+  /** False when the holder's account is soft-deleted. Their COPY is still
+   *  brought up to date — they can reactivate inside the 30-day window and
+   *  must not come back to a permanently stale archive — but they are not
+   *  emailed while they are gone. */
+  notify: boolean;
+};
 
 async function copyTargets(oracleId: string): Promise<CopyTarget[]> {
   const admin = createAdminClient();
@@ -213,17 +222,26 @@ async function copyTargets(oracleId: string): Promise<CopyTarget[]> {
   const copies = (rows ?? []) as CopyTarget[];
   if (copies.length === 0) return [];
 
-  // Skip holders who closed their account. Their copy row survives the
-  // soft delete, so without this we quietly update it and — worse —
-  // email someone who left. Caught in the 2026-08-22 fan-out drill,
-  // which mailed a deleted test account.
+  // Holders who closed their account get the UPDATE but not the EMAIL.
+  //
+  // This used to filter them out entirely, which fixed one bug and
+  // created another: account deletion is a 30-day soft delete with a
+  // reactivate path, so anyone who left and came back had permanently
+  // missed every update made while they were gone — nothing backfills.
+  // For an archive of someone who died, that is the family member who
+  // returns to find their copy is the only one frozen in the past.
+  //
+  // Writing to the row is harmless while they are away; mailing them is
+  // not (the 2026-08-22 drill mailed a deleted test account, which is
+  // what prompted the original filter). So keep the row current and hold
+  // the notification.
   const { data: living } = await admin
     .from("profiles")
     .select("id")
     .in("id", Array.from(new Set(copies.map((c) => c.user_id))))
     .is("deleted_at", null);
   const alive = new Set((living ?? []).map((p) => p.id as string));
-  return copies.filter((c) => alive.has(c.user_id));
+  return copies.map((c) => ({ ...c, notify: alive.has(c.user_id) }));
 }
 
 async function fanOut(args: {
@@ -271,6 +289,11 @@ async function fanOut(args: {
       }
 
       await admin.from("oracles").update(patch).eq("id", copy.id);
+
+      // Row is current either way; the mail is what waits. A holder whose
+      // account is closed can reactivate inside the 30-day window and will
+      // find their copy up to date rather than frozen at the day they left.
+      if (!copy.notify) continue;
 
       const { data: authRes } = await admin.auth.admin.getUserById(
         copy.user_id,
