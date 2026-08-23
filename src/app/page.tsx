@@ -511,7 +511,8 @@ export default function Home() {
                 <ul className="mt-8 flex flex-col gap-3 text-left text-base text-warm-200">
                   <FeatureLine>
                     <strong className="text-warm-50">
-                      {PRICING.basicTotalIdentitiesPerPlan} companions
+                      {PRICING.basicTotalIdentitiesPerPlan} companions in
+                      total
                     </strong>{" "}
                     &mdash; {PRICING.basicFormulaIdentitiesPerPlan} rolled
                     fresh from our formula,{" "}
@@ -568,7 +569,7 @@ export default function Home() {
                 <ul className="mt-8 flex flex-col gap-3 text-left text-base text-warm-200">
                   <FeatureLine>
                     <strong className="text-warm-50">
-                      {PRICING.totalIdentitiesPerPlan} companions
+                      {PRICING.totalIdentitiesPerPlan} companions in total
                     </strong>{" "}
                     &mdash; {PRICING.formulaIdentitiesPerPlan} rolled fresh
                     from our formula and {PRICING.photoIdentitiesPerPlan}{" "}

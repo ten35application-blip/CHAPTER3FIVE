@@ -323,8 +323,8 @@ export default async function TutorialPage() {
               <strong>
                 {BASIC_TIER_LABEL} ({BASIC_MONTHLY_PRICE_LABEL}/month):
               </strong>{" "}
-              {PRICING.basicTotalIdentitiesPerPlan} identities of your
-              own ({PRICING.basicFormulaIdentitiesPerPlan} formula-made
+              up to {PRICING.basicTotalIdentitiesPerPlan} identities of
+              your own ({PRICING.basicFormulaIdentitiesPerPlan} formula-made
               plus one from a photo) and {BASIC_MESSAGES_PER_MONTH}{" "}
               messages a month.
             </li>

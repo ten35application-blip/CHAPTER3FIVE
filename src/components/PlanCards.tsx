@@ -118,7 +118,7 @@ export function PlanCards({
             >
               <FeatureLine>
                 <strong className="text-warm-50">
-                  {PRICING.basicTotalIdentitiesPerPlan} companions
+                  {PRICING.basicTotalIdentitiesPerPlan} companions in total
                 </strong>{" "}
                 &mdash; {PRICING.basicFormulaIdentitiesPerPlan} from our
                 formula + {PRICING.basicPhotoIdentitiesPerPlan} from a
@@ -245,7 +245,7 @@ export function PlanCards({
             >
               <FeatureLine>
                 <strong className="text-warm-50">
-                  {PRICING.totalIdentitiesPerPlan} companions
+                  {PRICING.totalIdentitiesPerPlan} companions in total
                 </strong>{" "}
                 &mdash; {PRICING.formulaIdentitiesPerPlan} from our
                 formula + {PRICING.photoIdentitiesPerPlan} from a photo
