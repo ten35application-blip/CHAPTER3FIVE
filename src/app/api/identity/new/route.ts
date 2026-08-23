@@ -92,7 +92,14 @@ export async function POST(request: NextRequest) {
   for (let attempt = 0; attempt < MAX_FINGERPRINT_REROLLS; attempt++) {
     const candidate = rollTraits({ avoidDistinctive });
     const candidateFingerprint = fingerprintTraits(candidate);
-    const { data: existing } = await supabase
+    // Admin client on purpose — same as the roster-dedupe query above.
+    // Under the caller's own token RLS scopes this SELECT to their own
+    // oracles, so a fingerprint already taken by ANOTHER user reads
+    // back as free, the roll "passes" this check, and the collision
+    // only surfaces on the insert — after ~35s of synthesis — against
+    // oracles_fingerprint_key, which is unique across the whole table,
+    // not per user.
+    const { data: existing } = await createAdminClient()
       .from("oracles")
       .select("id")
       .eq("fingerprint", candidateFingerprint)

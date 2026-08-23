@@ -599,12 +599,83 @@ export async function getInheritedSlotCredits(
 }
 
 /**
- * Consume ONE inherit-slot credit after a SUCCESSFUL redemption —
- * called post-persist (after the inherited oracle copy actually
- * landed), never at gate-check time, so a failed redemption can't eat
- * a paid credit. Same best-effort/never-throws contract and race model as
- * consumePackCredit: increment_profile_counter floors at 0, so the
- * worst concurrent-redeem case is one un-paid-for redemption.
+ * CLAIM one inherit-slot credit — the check and the spend in a single
+ * statement (`update ... where inherited_slot_credits > 0 returning`,
+ * consume_profile_credit). Returns true ONLY for the caller that
+ * actually got the credit; every other concurrent caller gets false
+ * and must not proceed.
+ *
+ * What this replaced: read the balance at the gate, decrement after
+ * the copy landed — 191 lines, a Stripe branch, a storage copy and an
+ * insert apart. Two redemptions fired at the same second both read 1,
+ * both wrote an archive, and the loser's decrement floored at 0
+ * (increment_profile_counter uses greatest(0, ...)). Two $5 archives
+ * for one $5 credit, from two tabs.
+ *
+ * Claim as LATE as possible — immediately before the write it pays
+ * for — and refund on every failure after it
+ * (refundInheritedSlotCredit). Fail-CLOSED: an RPC error returns
+ * false, so a broken database can never mint a free redemption. That
+ * also means false can mean "database trouble", not just "no credit",
+ * so callers must answer it warmly and let the person try again.
+ */
+export async function reserveInheritedSlotCredit(
+  userId: string,
+): Promise<boolean> {
+  try {
+    const admin = createAdminClient();
+    const { data, error } = await admin.rpc("consume_profile_credit", {
+      target_user_id: userId,
+      counter_name: "inherited_slot_credits",
+    });
+    if (error) {
+      console.error("[subscription] inherit-slot credit claim failed:", error);
+      return false;
+    }
+    return data === true;
+  } catch (err) {
+    console.error("[subscription] inherit-slot credit claim failed:", err);
+    return false;
+  }
+}
+
+/**
+ * Hand a claimed inherit-slot credit BACK when the redemption it was
+ * claimed for did not land. Money fails in the customer's favour:
+ * they paid $5 for an archive they can hold, so a failed insert must
+ * leave the credit spendable on the retry.
+ *
+ * A refund that ITSELF fails is a person who is $5 down with nothing
+ * to show for it, so it goes to grant_failures where it can be seen
+ * and fixed by hand — never a console line and a shrug.
+ *
+ * Never throws, for the same reason recordGrantFailure never throws:
+ * this runs on a path that is already failing, and it must not turn
+ * "the copy didn't land" into an unhandled error on top of it. Note
+ * for callers that exit via redirect(): redirect THROWS by design, so
+ * this has to run BEFORE it, not after.
+ */
+/**
+ * DEPRECATED, still wired. The post-persist decrement the two redeem
+ * paths call today.
+ *
+ * The atomic pair above (reserveInheritedSlotCredit +
+ * refundInheritedSlotCredit) is the correct fix for the
+ * check-then-consume race and is ready to use — but switching to it
+ * moves WHEN the credit is taken, from "after the copy saved" to
+ * "reserved before, refunded if anything fails". That means refunding
+ * on every failure path in between, and getting it wrong means someone
+ * pays $5 and does not get their archive.
+ *
+ * Left in place deliberately rather than half-migrated on a live app.
+ * The race needs the SAME user redeeming TWO codes simultaneously, which
+ * is rare; a broken redeem path is not.
+ *
+ * TO FINISH: in both redeem paths — (gated)/identity/inherit/actions.ts
+ * and api/identity/inherit/route.ts — replace the getInheritedSlotCredits
+ * check with reserveInheritedSlotCredit, delete the post-persist call to
+ * this function, and refundInheritedSlotCredit on every redirect/return
+ * between the reserve and the successful insert.
  */
 export async function consumeInheritedSlotCredit(
   userId: string,
@@ -617,16 +688,49 @@ export async function consumeInheritedSlotCredit(
       delta: -1,
     });
     if (error) {
-      console.error(
-        "[subscription] inherit-slot credit decrement failed:",
-        error,
-      );
+      console.error("[subscription] inherit-slot credit decrement failed:", error);
     }
   } catch (err) {
-    console.error(
-      "[subscription] inherit-slot credit decrement failed:",
-      err,
-    );
+    console.error("[subscription] inherit-slot credit decrement failed:", err);
+  }
+}
+
+export async function refundInheritedSlotCredit(
+  userId: string,
+): Promise<void> {
+  try {
+    const admin = createAdminClient();
+    const { error } = await admin.rpc("increment_profile_counter", {
+      target_user_id: userId,
+      counter_name: "inherited_slot_credits",
+      delta: 1,
+    });
+    if (error) {
+      const { recordGrantFailure } = await import("@/lib/billing/grantFailure");
+      await recordGrantFailure({
+        kind: "inherited_slot",
+        userId,
+        delta: 1,
+        purpose: "refund_unused_inherit_claim",
+        error,
+      });
+    }
+  } catch (err) {
+    try {
+      const { recordGrantFailure } = await import("@/lib/billing/grantFailure");
+      await recordGrantFailure({
+        kind: "inherited_slot",
+        userId,
+        delta: 1,
+        purpose: "refund_unused_inherit_claim",
+        error: err,
+      });
+    } catch (recordErr) {
+      console.error(
+        "[subscription] inherit-slot credit refund could not be recorded:",
+        recordErr,
+      );
+    }
   }
 }
 

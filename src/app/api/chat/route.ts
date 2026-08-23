@@ -335,7 +335,7 @@ export async function POST(request: NextRequest) {
           content: String(r.content ?? ""),
         }));
       // The Anthropic API requires messages[0].role === "user"
-      // (assistant-first is a 400). A 12-row window can open on an
+      // (assistant-first is a 400). The window can open on an
       // assistant turn (proactive push, welcome insert, burst
       // straddle). Drop leading assistant rows so the request
       // doesn't silently 400 and lose a whispered lock-screen reply.

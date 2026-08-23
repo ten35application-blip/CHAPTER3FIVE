@@ -22,6 +22,7 @@ import { requireTermsAccepted } from "@/lib/legal/gate";
 import { canCreateOracle, claimFreeIdentitySlot } from "@/lib/subscription";
 import { sendCompanionsReadyEmail } from "@/lib/notifications";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { verifiedAvatarUrl } from "@/lib/storage/avatarObject";
 import { randomUUID } from "node:crypto";
 
 const MAX_PHOTO_BYTES = 4 * 1024 * 1024; // 4 MB — Vercel body limit is 4.5, promising 5 broke before our code ran
@@ -266,7 +267,15 @@ export async function POST(request: NextRequest) {
     // what persists.
     candidate = reconcileTraitsToAge(candidate);
     const candidateFingerprint = fingerprintTraits(candidate);
-    const { data: existing } = await supabase
+    // Admin client on purpose — same as the roster-dedupe query above.
+    // Under the caller's own token RLS scopes this SELECT to their own
+    // oracles, so a fingerprint already taken by ANY other user reads
+    // back as free, all five re-rolls falsely "pass", and the collision
+    // only surfaces on the insert, against the oracles_fingerprint_key
+    // unique index — which spans the whole table, not one user. On this
+    // path that lands AFTER the vision read and the synthesis the person
+    // just waited through and paid for, as "Couldn't save them."
+    const { data: existing } = await createAdminClient()
       .from("oracles")
       .select("id")
       .eq("fingerprint", candidateFingerprint)
@@ -442,7 +451,26 @@ const storagePath = `user-uploaded/${oracleId}-${randomUUID()}.png`;
     return NextResponse.json({ id: oracleId, filled: placeholderId !== null });
   }
   const { data: pub } = admin.storage.from("avatars").getPublicUrl(storagePath);
-  const publicUrl = `${pub.publicUrl}?v=${Date.now()}`;
+  const rawPublicUrl = `${pub.publicUrl}?v=${Date.now()}`;
+
+  // Never stamp a URL whose object isn't really there — the same belt
+  // the archive path wears (legacy/complete, legacy/new, updateArchive).
+  // The upload above checks its own error, but it cannot see a sweep
+  // that lands between the upload and this write, and the failure is
+  // silent and permanent: the row keeps a dead link, the public bucket
+  // answers 404, and a real person's face renders as a black square —
+  // in this row and in every inherited copy that later reads it
+  // (avatarObject.ts, 2026-08-22). null falls back to the initial-letter
+  // avatar, which reads as "no photo yet" instead of as a hole where a
+  // face should be.
+  //
+  // Imported here rather than at the top of the file only to keep this
+  // a single contiguous edit; a static import beside the others at the
+  // top is equivalent and preferred if you are editing both places.
+  const publicUrl = await verifiedAvatarUrl(
+    rawPublicUrl,
+    `api/identity/from-photo oracle=${oracleId}`,
+  );
 
   // avatar_hash = SHA-256 of the uploaded bytes, '-collision' fallback
   // per the 0058 partial unique index — mirrors the web action.

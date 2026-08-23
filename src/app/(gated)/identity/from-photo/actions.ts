@@ -23,6 +23,7 @@ import {
 import { canCreateOracle, claimFreeIdentitySlot } from "@/lib/subscription";
 import { sendCompanionsReadyEmail } from "@/lib/notifications";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { verifiedAvatarUrl } from "@/lib/storage/avatarObject";
 import { createClient } from "@/lib/supabase/server";
 import { randomUUID } from "node:crypto";
 
@@ -218,7 +219,16 @@ export async function createIdentityFromPhoto(
     // the fingerprint hashes what actually persists.
     candidate = reconcileTraitsToAge(candidate);
     const candidateFingerprint = fingerprintTraits(candidate);
-    const { data: existing } = await supabase
+    // Admin client on purpose — same as the roster-dedupe query above.
+    // Under the caller's own token RLS scopes this SELECT to their own
+    // oracles, so a fingerprint already taken by ANY other user reads
+    // back as free, the first candidate falsely "passes", and the
+    // collision only surfaces on the insert, against the
+    // oracles_fingerprint_key unique index — which spans the whole
+    // table, not one user. On this path that lands AFTER the vision
+    // read and the synthesis the person just waited through and paid
+    // for, as "Couldn't save them."
+    const { data: existing } = await createAdminClient()
       .from("oracles")
       .select("id")
       .eq("fingerprint", candidateFingerprint)
@@ -368,7 +378,25 @@ const storagePath = `user-uploaded/${oracleId}-${randomUUID()}.png`;
     redirect(`/identity/new?id=${oracleId}`);
   }
   const { data: pub } = admin.storage.from("avatars").getPublicUrl(storagePath);
-  const publicUrl = `${pub.publicUrl}?v=${Date.now()}`;
+  const rawPublicUrl = `${pub.publicUrl}?v=${Date.now()}`;
+
+  // Never stamp a URL whose object isn't really there — the same belt
+  // the archive path wears (legacy/complete, legacy/new, updateArchive).
+  // The upload above checks its own error, but it cannot see a sweep
+  // that lands between the upload and this write, and the failure is
+  // silent and permanent: the row keeps a dead link, the public bucket
+  // answers 404, and a real person's face renders as a black square —
+  // in this row and in every inherited copy that later reads it
+  // (avatarObject.ts, 2026-08-22). null falls back to the initial-letter
+  // avatar, which reads as "no photo yet" instead of as a hole where a
+  // face should be.
+  // Imported here rather than at the top of the file so this stays a
+  // single contiguous change — the same await-import shape
+  // settings/actions.ts and dashboard/actions.ts already use.
+  const publicUrl = await verifiedAvatarUrl(
+    rawPublicUrl,
+    `from-photo oracle=${oracleId}`,
+  );
 
   // avatar_hash = SHA-256 of the uploaded bytes. The 0058 partial unique
   // index enforces "no two of the same"; if this exact file already

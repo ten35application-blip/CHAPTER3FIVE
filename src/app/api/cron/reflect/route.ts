@@ -70,10 +70,79 @@ export async function GET(request: NextRequest) {
     .not("active_oracle_id", "is", null)
     .limit(BATCH);
 
+  // One reflection per COMPANION, not one per user. This loop used to
+  // read profile.active_oracle_id, so whichever thread the person
+  // happened to open last was the only relationship that got thought
+  // about all week — every other companion they have went blank while
+  // that one kept deepening. Expand each candidate into one job per
+  // living companion. The concierge is excluded: Adrian is support, he
+  // doesn't reflect on you, and he's one shared row owned by an
+  // operator account (so user_id alone wouldn't filter him out of that
+  // operator's own run).
+  //
+  // Same "live thread" filter set persona-outreach already uses: not
+  // deleted, not mid-provisioning, conversation not archived, not
+  // blocked. Reflection is billed to the owner via chat_spend_events,
+  // and sumMonthlySpendCents counts every route against the free
+  // monthly cap — so a shelved or blocked thread must not quietly eat
+  // someone's chat allowance.
+  //
+  // Field names deliberately match the old profile shape so the body
+  // below is unchanged; `active_oracle_id` here means "the companion
+  // this job reflects on".
+  type ReflectJob = {
+    id: string;
+    oracle_name: string | null;
+    active_oracle_id: string;
+    preferred_language: string | null;
+  };
+  const perUser: ReflectJob[][] = [];
+  for (const profile of candidates ?? []) {
+    const { data: oracleRows } = await admin
+      .from("oracles")
+      .select("id, name")
+      .eq("user_id", profile.id)
+      .eq("is_concierge", false)
+      .eq("provisioning", false)
+      .is("deleted_at", null)
+      .is("conversation_archived_at", null)
+      .is("blocked_at", null)
+      .order("created_at", { ascending: true })
+      .limit(25);
+    const forUser: ReflectJob[] = [];
+    for (const o of oracleRows ?? []) {
+      forUser.push({
+        id: profile.id,
+        // This companion's own name, not the profile-level legacy
+        // field — the prompt speaks as this persona, so a multi-
+        // companion user was previously getting reflections written
+        // in the wrong one's voice.
+        oracle_name: o.name ?? profile.oracle_name ?? null,
+        active_oracle_id: o.id,
+        preferred_language: profile.preferred_language ?? null,
+      });
+    }
+    if (forUser.length > 0) perUser.push(forUser);
+  }
+
+  // Interleave round-robin instead of grouping user-by-user. This job
+  // stops at the 240s budget, and one Sonnet reflection per companion
+  // is seconds each — grouped, a truncated run gave the first few
+  // people every companion and everyone after them nothing, which is
+  // worse than the one-each they got before. Round-robin means nobody
+  // gets a second reflection until everybody has had a first.
+  const jobs: ReflectJob[] = [];
+  const deepest = perUser.reduce((n, u) => Math.max(n, u.length), 0);
+  for (let i = 0; i < deepest; i++) {
+    for (const u of perUser) {
+      if (i < u.length) jobs.push(u[i]);
+    }
+  }
+
   let reflected = 0;
   const errors: string[] = [];
 
-  for (const profile of candidates ?? []) {
+  for (const profile of jobs) {
     // Stop on our own terms rather than being killed mid-loop. See
     // lib/cron/budget.ts — a truncated run used to write no heartbeat
     // at all, so nobody could tell it had been cut short.

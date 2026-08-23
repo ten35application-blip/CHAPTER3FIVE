@@ -84,7 +84,13 @@ export async function createIdentity(): Promise<void> {
   for (let attempt = 0; attempt < MAX_FINGERPRINT_REROLLS; attempt++) {
     const candidate = rollTraits({ avoidDistinctive });
     const candidateFingerprint = fingerprintTraits(candidate);
-    const { data: existing } = await supabase
+    // Admin client on purpose — same as the roster-dedupe query above.
+    // Under the caller's own token RLS scopes this SELECT to their own
+    // oracles, so a fingerprint already taken by ANY other user reads
+    // back as free, all five re-rolls falsely "pass", and the collision
+    // only surfaces on the insert, against the oracles_fingerprint_key
+    // unique index — which spans the whole table, not one user.
+    const { data: existing } = await createAdminClient()
       .from("oracles")
       .select("id")
       .eq("fingerprint", candidateFingerprint)
