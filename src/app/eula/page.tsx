@@ -243,9 +243,18 @@ export default function EulaPage() {
             >
               hello@chapter3five.app
             </a>
-            . A physical mailing address for legal service will be
-            provided on request. (This EULA will be updated with a
-            street address once our business registration is complete.)
+            . Written correspondence and service of legal process may be
+            sent to:
+            <br />
+            <span className="mt-2 block not-italic">
+              CHAPTER3FIVE LLC
+              <br />
+              3331 East Blvd
+              <br />
+              Bethlehem, PA 18017
+              <br />
+              United States
+            </span>
           </li>
           <li>
             <strong>Third-Party Terms of Agreement.</strong> You must
