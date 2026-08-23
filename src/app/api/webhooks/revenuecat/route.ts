@@ -909,16 +909,76 @@ export async function POST(request: NextRequest) {
       );
     }
   }
-  const rows = entitlementIds.map((entitlementId) => ({
-    user_id: appUserId,
-    entitlement_id: entitlementId,
-    product_id: event.product_id ?? "unknown",
-    expires_at: expiresAt,
-    platform: platformFromStore(event.store),
-    revenuecat_user_id: appUserId,
-    original_transaction_id: event.original_transaction_id ?? null,
-    updated_at: now,
-  }));
+  // NEVER LET A GRANT EVENT MOVE ACCESS EARLIER.
+  //
+  // This upsert wrote expires_at unconditionally, so whichever event
+  // arrived LAST won — even when it carried an older expiry. Upgrading
+  // is exactly that case: Apple ends the old subscription and starts the
+  // new one, and RevenueCat sends both. Land "Basic ended" after "Pro
+  // started" and a dead expiry gets stamped over the live one.
+  //
+  // Seen in the wild 2026-08-23: a tester upgraded Basic → Pro and the
+  // row ended up product_id=basic, expires_at=16:27:06, WRITTEN at
+  // 16:27:09 — three seconds after it had already lapsed. He upgraded
+  // and instantly lost access. Sandbox only made it visible by
+  // compressing everything into seconds; the ordering is not
+  // sandbox-specific and this would bite a real upgrade the same way.
+  //
+  // So for the event types that GRANT access, expires_at only ever moves
+  // forward. Revocation still works: EXPIRATION, refunds and cancellations
+  // are handled on their own paths above and are not in this set, so they
+  // can still push access into the past when that is genuinely correct.
+  //
+  // null means lifetime (a pack) and always wins over any date.
+  const GRANT_TYPES = new Set([
+    "INITIAL_PURCHASE",
+    "RENEWAL",
+    "UNCANCELLATION",
+    "PRODUCT_CHANGE",
+    "NON_RENEWING_PURCHASE",
+  ]);
+  const isGrant = GRANT_TYPES.has(type);
+
+  const existingExpiry = new Map<string, string | null>();
+  if (isGrant && entitlementIds.length > 0) {
+    const { data: current } = await admin
+      .from("iap_entitlements")
+      .select("entitlement_id, expires_at")
+      .eq("user_id", appUserId)
+      .in("entitlement_id", entitlementIds);
+    for (const r of current ?? []) {
+      existingExpiry.set(
+        r.entitlement_id as string,
+        (r.expires_at as string | null) ?? null,
+      );
+    }
+  }
+
+  const rows = entitlementIds.map((entitlementId) => {
+    let nextExpiry = expiresAt;
+    if (isGrant && existingExpiry.has(entitlementId)) {
+      const held = existingExpiry.get(entitlementId) ?? null;
+      if (held === null) {
+        // Already lifetime — nothing a dated grant can add.
+        nextExpiry = null;
+      } else if (nextExpiry !== null) {
+        nextExpiry =
+          new Date(nextExpiry).getTime() >= new Date(held).getTime()
+            ? nextExpiry
+            : held;
+      }
+    }
+    return {
+      user_id: appUserId,
+      entitlement_id: entitlementId,
+      product_id: event.product_id ?? "unknown",
+      expires_at: nextExpiry,
+      platform: platformFromStore(event.store),
+      revenuecat_user_id: appUserId,
+      original_transaction_id: event.original_transaction_id ?? null,
+      updated_at: now,
+    };
+  });
 
   const { error } = await admin
     .from("iap_entitlements")
