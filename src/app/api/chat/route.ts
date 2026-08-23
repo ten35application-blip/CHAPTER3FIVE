@@ -21,6 +21,7 @@ import {
 import { checkForCrisis } from "@/lib/safety/crisis-detector";
 import { handleCrisis } from "@/lib/safety/crisis-notify";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendPushToUser } from "@/lib/push";
 import {
   judgePhotoSend,
   generatePersonaPhoto,
@@ -1572,6 +1573,47 @@ ${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${s
       // a decrement failure never blocks the reply already composed.
       if (!persistErr && tierCap.usingCredit) {
         await consumePackCredit(user.id, "message");
+      }
+
+      // TELL THEM SOMEONE ANSWERED.
+      //
+      // Until now a reply sent NOTHING. Pushes only ever came from the
+      // four crons — proactive, check-in, anniversaries, outreach — the
+      // times a companion starts the conversation. Answer someone and
+      // they heard nothing at all: text your companion, lock the phone,
+      // and the reply sat in the database until you happened to open the
+      // app again (Wilson 2026-08-23: "I wrote to someone and quickly
+      // closed it to see if I would get the notification and I didn't,
+      // but then I went to the app and saw they replied").
+      //
+      // For an app whose whole promise is that someone reached out to
+      // you, that is the wrong half to be missing.
+      //
+      // Sent unconditionally, and the CLIENT decides whether to show a
+      // banner. The server cannot know if they are still looking at the
+      // screen — the reply takes ~30s and they may have left in the
+      // meantime — so guessing here would either miss the people who
+      // walked away or buzz the people still reading. lib/push.ts's
+      // notification handler suppresses the banner when the thread they
+      // are already in is the one that just replied, which is what
+      // iMessage does, while the badge and the list still update.
+      //
+      // Best-effort and awaited-but-swallowed: a push failure must never
+      // turn a delivered reply into an error response.
+      if (!persistErr && replies.length > 0) {
+        const preview = replies[replies.length - 1] ?? reply;
+        void sendPushToUser({
+          userId: user.id,
+          title: profile.oracle_name ?? "chapter3five",
+          body: preview.length > 180 ? `${preview.slice(0, 179)}…` : preview,
+          badge: 1,
+          categoryId: "companion_message",
+          threadIdentifier: profile.active_oracle_id ?? undefined,
+          channelId: "companion-messages",
+          data: { oracle_id: profile.active_oracle_id, kind: "reply" },
+        }).catch(() => {
+          /* a missed banner must never fail a delivered message */
+        });
       }
       if (!persistErr && imageUsesCredit) {
         await consumePackCredit(user.id, "image");
