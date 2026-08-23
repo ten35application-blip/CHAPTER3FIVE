@@ -1290,6 +1290,34 @@ ${PERSONA_RULES}
 
 ${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${sportsPart}${castPart}${statePart}${distressPart}${wokenPart}${memorialPart}${inheritedPart}${legacyArchivePart}${aboutThemPart}${todayPart}${timeOfDayPart}${gapPart}${memoriesBlock}`;
 
+  // THE PART THAT NEVER CHANGES, SPLIT OUT SO ANTHROPIC CAN CACHE IT.
+  //
+  // Every message re-sends this person's whole personality plus the
+  // rules — identical every single time, and charged at full price on
+  // every turn. Anthropic will cache a repeated prefix and charge about
+  // a tenth for it after the first call, which makes replies cheaper AND
+  // faster (there is less to re-read before it starts writing, and slow
+  // replies are why notifications feel late).
+  //
+  // ONLY the persona branch is split. The order is byte-identical to
+  // what shipped — the same text, cut into two blocks — so the model
+  // sees exactly what it saw before. Nothing is reordered, because
+  // moving a prompt around changes behaviour and this runs on every
+  // message of a live app.
+  //
+  // The ARCHIVE branch is deliberately left alone: its stable half (the
+  // recorded answers) sits AFTER the dynamic blocks, so caching it would
+  // mean reordering a legacy person's prompt. Not worth the risk for a
+  // cost saving; revisit deliberately.
+  //
+  // PERSONA_RULES alone is ~481 tokens, under Anthropic's 1024 minimum.
+  // It qualifies only because the persona (~1,250 tokens) sits in front
+  // of it — which is why the cut goes here and not around the rules.
+  const cacheablePrefix =
+    archive.length > 0 ? null : `${personaPromptOverride}\n\n${PERSONA_RULES}\n`;
+  const remainder =
+    cacheablePrefix === null ? null : systemPrompt.slice(cacheablePrefix.length);
+
   // MODERATE THE PHOTO BEFORE ANY PATH CAN PERSIST IT.
   //
   // This scan used to live further down, after the tone-judge block
@@ -1479,10 +1507,27 @@ ${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${s
       // static prompt literal above, because it differs per identity —
       // that is the entire point. Last wins, so this overrides the
       // generic one-in-four line for anyone the formula gave a style.
+      // Two blocks when the prefix is cacheable, one string otherwise.
+      // Concatenated the blocks are byte-identical to what shipped.
       system:
-        systemPrompt +
-        ladderPart +
-        `\n\nYOUR TEXTING RHYTHM (this overrides the general splitting guidance above).\n${burstRuleFor(ownOracle?.text_burst_style)}`,
+        cacheablePrefix !== null && remainder !== null
+          ? [
+              {
+                type: "text" as const,
+                text: cacheablePrefix,
+                cache_control: { type: "ephemeral" as const },
+              },
+              {
+                type: "text" as const,
+                text:
+                  remainder +
+                  ladderPart +
+                  `\n\nYOUR TEXTING RHYTHM (this overrides the general splitting guidance above).\n${burstRuleFor(ownOracle?.text_burst_style)}`,
+              },
+            ]
+          : systemPrompt +
+            ladderPart +
+            `\n\nYOUR TEXTING RHYTHM (this overrides the general splitting guidance above).\n${burstRuleFor(ownOracle?.text_burst_style)}`,
       messages,
     });
 
