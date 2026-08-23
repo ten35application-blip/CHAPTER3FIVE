@@ -1,4 +1,4 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, after, type NextRequest } from "next/server";
 import { createClient as createPlainClient } from "@supabase/supabase-js";
 import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { normalizeLanguage, type SupportedLanguage } from "@/lib/i18n/language";
@@ -1642,7 +1642,21 @@ ${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${s
       // turn a delivered reply into an error response.
       if (!persistErr && replies.length > 0) {
         const preview = replies[replies.length - 1] ?? reply;
-        void sendPushToUser({
+        // INSIDE after(), so killing the app cannot kill the
+        // notification. Swiping the app away severs the connection this
+        // reply was generated on; anything still awaiting that response
+        // dies with it, which is why backgrounding the app got a
+        // notification and force-quitting it did not (Wilson 2026-08-23:
+        // "if I swipe all the way up and close the app, notification
+        // doesn't come"). Next's own docs are explicit that after() runs
+        // "even if the response didn't complete successfully" — which is
+        // exactly the case a force-quit creates.
+        //
+        // Force-quitting is not a rare thing for someone to do here:
+        // you text your companion and put the phone away. That is the
+        // moment the notification matters most.
+        after(() => {
+          void sendPushToUser({
           userId: user.id,
           title: profile.oracle_name ?? "chapter3five",
           body: preview.length > 180 ? `${preview.slice(0, 179)}…` : preview,
@@ -1651,8 +1665,9 @@ ${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${s
           threadIdentifier: profile.active_oracle_id ?? undefined,
           channelId: "companion-messages",
           data: { oracle_id: profile.active_oracle_id, kind: "reply" },
-        }).catch(() => {
-          /* a missed banner must never fail a delivered message */
+          }).catch(() => {
+            /* a missed banner must never fail a delivered message */
+          });
         });
       }
       if (!persistErr && imageUsesCredit) {
