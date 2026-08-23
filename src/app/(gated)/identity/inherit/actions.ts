@@ -24,8 +24,8 @@ import {
 } from "@/lib/billing/pendingPayment";
 import { createClient } from "@/lib/supabase/server";
 import {
-  consumeInheritedSlotCredit,
-  getInheritedSlotCredits,
+  reserveInheritedSlotCredit,
+  refundInheritedSlotCredit,
 } from "@/lib/subscription";
 
 /**
@@ -255,8 +255,25 @@ export async function redeemInheritCode(rawCode: string): Promise<void> {
   // from consent state) → this branch's balance check passes → the
   // full redemption completes. Same shape as the other-identity mint
   // gate (legacy/new/actions.ts).
+  // RESERVE THE CREDIT ATOMICALLY, don't check-then-spend.
+  //
+  // This read the balance here and decremented ~200 lines later, after
+  // the copy persisted. Two redemptions running at once both saw the
+  // same "1 credit", both passed, and both got an archive — one of them
+  // free, because increment_profile_counter floors at zero.
+  //
+  // consume_profile_credit does the check and the decrement in ONE
+  // statement (UPDATE ... WHERE credits > 0 RETURNING), so exactly one
+  // caller can win. It fails CLOSED: a database error returns false and
+  // sends them to the payment screen rather than handing out a free
+  // archive, which is the safe direction to be wrong in.
+  //
+  // Everything between here and the insert is the avatar copy, which is
+  // explicitly best-effort and never blocks — so the ONLY way to hold a
+  // spent credit with nothing to show for it is a failed insert, and
+  // that path refunds below.
   const usingCredit = !isAdmin(user.email);
-  if (usingCredit && (await getInheritedSlotCredits(user.id)) < 1) {
+  if (usingCredit && !(await reserveInheritedSlotCredit(user.id))) {
     const priceId = process.env.STRIPE_PRICE_ID_INHERITED_SLOT;
     if (!priceId) {
       redirectWithError(
@@ -433,9 +450,17 @@ export async function redeemInheritCode(rawCode: string): Promise<void> {
             .update({ deleted_at: null })
             .eq("id", racedCopy.id);
         }
+        // They already have this person — the credit reserved a moment
+        // ago bought nothing, so give it back before handing them over.
+        if (usingCredit) await refundInheritedSlotCredit(user.id);
         redirect(`/dashboard?welcomed=${racedCopy.id}`);
       }
     }
+    // The insert failed and there is no copy to show for it. Put the
+    // credit back so "try again in a moment" is actually possible —
+    // without this they paid $5, got nothing, and had nothing left to
+    // retry with.
+    if (usingCredit) await refundInheritedSlotCredit(user.id);
     redirectWithError(
       "/identity/inherit",
       "Couldn't bring them in. Try again in a moment.",
@@ -443,12 +468,10 @@ export async function redeemInheritCode(rawCode: string): Promise<void> {
     );
   }
 
-  // Consume the credit AFTER the copy persisted — a failed insert
-  // must never eat a paid credit (same post-persist contract as the
-  // message/image pack credits). Best-effort, never throws.
-  if (usingCredit) {
-    await consumeInheritedSlotCredit(user.id);
-  }
+  // The credit was spent up front by reserveInheritedSlotCredit and
+  // refunded on every failure path above, so there is nothing to
+  // consume here. Spending it twice was the other way to get this
+  // wrong.
 
   // The quiet arrival note — and the only record of the $5 unlock
   // (2026-08-21). Fired before the redirect below, which throws by

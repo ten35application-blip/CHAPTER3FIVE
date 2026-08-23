@@ -22,8 +22,8 @@ import {
   recordPendingPaymentOrThrow,
 } from "@/lib/billing/pendingPayment";
 import {
-  consumeInheritedSlotCredit,
-  getInheritedSlotCredits,
+  reserveInheritedSlotCredit,
+  refundInheritedSlotCredit,
 } from "@/lib/subscription";
 
 export const runtime = "nodejs";
@@ -174,8 +174,13 @@ export async function POST(request: NextRequest) {
   }
 
   // Credit gate — admins skip, everyone else needs a purchased slot.
+  // Atomic reserve, not check-then-spend — see the long note on the web
+  // twin in (gated)/identity/inherit/actions.ts. Two redemptions at once
+  // both saw the same single credit and both got an archive, one free.
+  // consume_profile_credit does the check and decrement in one statement
+  // so exactly one caller wins, and fails CLOSED to the payment screen.
   const usingCredit = !isAdmin(user.email);
-  if (usingCredit && (await getInheritedSlotCredits(user.id)) < 1) {
+  if (usingCredit && !(await reserveInheritedSlotCredit(user.id))) {
     const priceId = process.env.STRIPE_PRICE_ID_INHERITED_SLOT;
     if (!priceId) {
       return NextResponse.json(
@@ -336,19 +341,24 @@ export async function POST(request: NextRequest) {
             .update({ deleted_at: null })
             .eq("id", racedCopy.id);
         }
+        // Already had this person — the credit just reserved bought
+        // nothing, so give it back.
+        if (usingCredit) await refundInheritedSlotCredit(user.id);
         return NextResponse.json({ already: true, oracle_id: racedCopy.id });
       }
     }
+    // Insert failed with nothing to show for it. Return the credit so
+    // "try again in a moment" is actually possible — otherwise they paid
+    // $5, got nothing, and had nothing left to retry with.
+    if (usingCredit) await refundInheritedSlotCredit(user.id);
     return NextResponse.json(
       { error: "Couldn't bring them in. Try again in a moment." },
       { status: 500 },
     );
   }
 
-  // Consume credit AFTER the copy actually persisted.
-  if (usingCredit) {
-    await consumeInheritedSlotCredit(user.id);
-  }
+  // Spent up front by the reserve above and refunded on every failure
+  // path, so there is nothing to consume here.
 
   // The quiet arrival note — and the only record of the $5 unlock
   // (2026-08-21: plans, packs, and refunds all emailed; this purchase
