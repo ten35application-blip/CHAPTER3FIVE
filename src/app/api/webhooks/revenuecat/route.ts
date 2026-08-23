@@ -512,7 +512,26 @@ export async function POST(request: NextRequest) {
   // purchases grant once, refunds claw back once and keep the row's
   // memory (renamed) so stale duplicate purchase deliveries can never
   // re-grant after a refund.
-  const creditProduct = CREDIT_PRODUCTS[event.product_id ?? ""];
+  // BASE PRODUCT ID, with any Play base-plan suffix removed.
+  //
+  // Google appends the base plan to subscription ids
+  // ("chapter3five.pro.monthly:monthly"); Apple never does. Confirmed
+  // against the live RevenueCat ledger: Play subscriptions carry the
+  // suffix, Play one-time products do not — which is the only reason the
+  // grant lookups below have worked, since they matched on the raw id.
+  //
+  // That is luck, not design, and it is the wrong thing to be lucky
+  // about: the day Google appends anything to a consumable, the lookup
+  // misses, the branch is skipped, and the customer is charged with no
+  // credits granted and nothing in the logs saying so. Only
+  // recordStorePurchase was stripping it, and that is bookkeeping — it
+  // grants nothing.
+  //
+  // Stripping is a no-op on Apple ids (no colon), so this changes
+  // nothing that works today.
+  const baseProductId = (event.product_id ?? "").split(":")[0];
+
+  const creditProduct = CREDIT_PRODUCTS[baseProductId];
   if (creditProduct) {
     const adminCredit = createAdminClient();
     const creditTxn =
@@ -616,7 +635,7 @@ export async function POST(request: NextRequest) {
   //
   // Handled here, ahead of the entitlement checks, because a pack is
   // not an entitlement and should never have been routed through them.
-  const packCredits = PACK_CREDITS[event.product_id ?? ""];
+  const packCredits = PACK_CREDITS[baseProductId];
   if (packCredits) {
     // REFUNDED PACK → take the credits back. The comment that used to
     // live here claimed Stripe doesn't claw back either; that was
