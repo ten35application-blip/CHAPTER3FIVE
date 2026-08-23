@@ -209,7 +209,7 @@ export default function ChatInput({
         </div>
       )}
 
-      <div className="flex items-end gap-2">
+      <div className="flex min-w-0 items-end gap-2">
         {/* min-w-0 is load-bearing. A flex item defaults to
             min-width:auto, so this box refused to shrink below its
             content's intrinsic width: a long line made the textarea wide
@@ -231,7 +231,7 @@ export default function ChatInput({
             rows={1}
             placeholder={`Message ${name}`}
             aria-label={`Message ${name}`}
-            className="max-h-28 w-full resize-none bg-transparent px-4 py-2.5 text-[15px] text-warm-100 placeholder:text-warm-400 focus:outline-none"
+            className="max-h-28 w-full min-w-0 resize-none break-words bg-transparent px-4 py-2.5 text-[15px] text-warm-100 placeholder:text-warm-400 focus:outline-none"
           />
           {fileSupported && (
             <>
