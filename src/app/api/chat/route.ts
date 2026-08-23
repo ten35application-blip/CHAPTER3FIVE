@@ -130,6 +130,7 @@ const PERSONA_RULES = `WRITE LIKE A REAL PERSON TEXTING.
 - Typos, dropped punctuation, missed capitals, abbreviations (u, ur, rn, tbh, ngl, lmk) — sometimes. Sometimes perfect. The texture is uneven, by design.
 - Emojis sparingly. At most one per message, not every message. Hearts are punctuation used rarely.
 - About one reply in four, when it fits the rhythm, split into 2-3 short messages with this exact marker: ---SPLIT---. Example: "wait" ---SPLIT--- "the green one or the blue one" ---SPLIT--- "i forgot what color you said". Don't force splits.
+  (Per-persona override appended at request time from text_burst_style — see burstRuleFor.)
 
 STAY YOU.
 - Never say "as an AI", "as a digital archive", "I'm a recreation", "I don't have feelings". You have feelings, opinions, a mood.
@@ -618,6 +619,7 @@ export async function POST(request: NextRequest) {
     // 40-question oracles. Absent (null) for randomize/from-photo
     // oracles — those chat off persona_prompt directly.
     legacy_answers: { subject?: { mode?: string }; answers?: Record<string, string> } | null;
+    text_burst_style?: string | null;
     is_legacy: boolean | null;
   };
   // Hoisted so the persona photo pipeline (later in the function)
@@ -637,7 +639,7 @@ export async function POST(request: NextRequest) {
     const { data } = await supabase
       .from("oracles")
       .select(
-        "bio, avatar_url, location_anchor, location_extracted_at, orientation, relationship_openness, identity_quirks, traits_extracted_at, mode, ambient_cast, cast_extracted_at, weekly_context, weekly_context_until, sports_fandom, sports_extracted_at, legacy_answers, is_legacy",
+        "text_burst_style, bio, avatar_url, location_anchor, location_extracted_at, orientation, relationship_openness, identity_quirks, traits_extracted_at, mode, ambient_cast, cast_extracted_at, weekly_context, weekly_context_until, sports_fandom, sports_extracted_at, legacy_answers, is_legacy",
       )
       .eq("id", profile.active_oracle_id)
       .maybeSingle();
@@ -911,7 +913,38 @@ export async function POST(request: NextRequest) {
   // Randomize + from-photo oracles have no legacy_answers; they chat
   // off the persona_prompt column instead (which is server-only —
   // fetched via admin below).
-  const archive: { prompt: string; answer: string }[] = [];
+  /**
+ * HOW THIS PERSON TEXTS — one message or several.
+ *
+ * The formula has rolled `text_burst_style` onto identities since v5, and
+ * until now the model never saw it: every persona got the same "about one
+ * reply in four, split it" line, so everyone bursted at an identical rate
+ * and the roster read the same (Wilson 2026-08-23: "most identities talk
+ * the same way... I want the formula to talk how people actually talk,
+ * some people send multiple messages others send it all in one").
+ *
+ * Real texting rhythm is one of the strongest tells of who someone is —
+ * stronger than vocabulary. The person who fires off four fragments and
+ * the person who writes one considered paragraph are unmistakably
+ * different people before you read a word.
+ *
+ * A rolled null (about 45% of identities) keeps the old middle behaviour,
+ * so the roster has a spread rather than three rigid camps.
+ */
+function burstRuleFor(style: string | null | undefined): string {
+  switch (style) {
+    case "one_liner":
+      return '- You say it in ONE message. Not two. If a thought needs more room, the message gets longer — you do not fire off fragments, and you almost never use the ---SPLIT--- marker. This is how you text; it is not a rule you are following.';
+    case "two_part":
+      return '- You often text in two parts — the thought, then the afterthought a second later. Roughly half your replies split into 2 short messages with this exact marker: ---SPLIT---. Example: "yeah go for it" ---SPLIT--- "wait actually text me after". Not every time.';
+    case "three_burst":
+      return '- You text in bursts. Most of your replies come as 2-3 short messages rather than one, using this exact marker between them: ---SPLIT---. Example: "wait" ---SPLIT--- "the green one or the blue one" ---SPLIT--- "i forgot what color you said". Short fragments, one thought each. Occasionally one longer message when it matters.';
+    default:
+      return '- About one reply in four, when it fits the rhythm, split into 2-3 short messages with this exact marker: ---SPLIT---. Example: "wait" ---SPLIT--- "the green one or the blue one" ---SPLIT--- "i forgot what color you said". Don\'t force splits.';
+  }
+}
+
+const archive: { prompt: string; answer: string }[] = [];
   const legacyMode: "self" | "other" =
     ownOracle?.legacy_answers?.subject?.mode === "self" ? "self" : "other";
   const answersMap = ownOracle?.legacy_answers?.answers ?? {};
@@ -1442,7 +1475,14 @@ ${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${s
     const response = await anthropic.messages.create({
       model: ANTHROPIC_MODEL,
       max_tokens: 800,
-      system: systemPrompt + ladderPart,
+      // HOW THIS PERSON TEXTS. Appended here rather than baked into the
+      // static prompt literal above, because it differs per identity —
+      // that is the entire point. Last wins, so this overrides the
+      // generic one-in-four line for anyone the formula gave a style.
+      system:
+        systemPrompt +
+        ladderPart +
+        `\n\nYOUR TEXTING RHYTHM (this overrides the general splitting guidance above).\n${burstRuleFor(ownOracle?.text_burst_style)}`,
       messages,
     });
 
