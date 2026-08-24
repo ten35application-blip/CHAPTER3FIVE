@@ -1,6 +1,6 @@
 import { after } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { sendArchiveUpdatedEmail } from "@/lib/notifications";
+import { recordAudit, sendArchiveUpdatedEmail } from "@/lib/notifications";
 import { verifiedAvatarUrl, avatarsObjectPath } from "@/lib/storage/avatarObject";
 import { randomUUID } from "node:crypto";
 
@@ -317,8 +317,21 @@ async function fanOut(args: {
         });
       }
     } catch (err) {
-      // One bad copy must never stop the rest.
+      // One bad copy must never stop the rest — but a console line
+      // dies with the lambda, and a holder whose copy silently missed
+      // an update is unrecoverable without a durable record. The audit
+      // row is that record: /admin can list archive_update_failed
+      // events and re-run the update for exactly those holders.
       console.error(`[legacy/update] fan-out error on copy=${copy.id}:`, err);
+      void recordAudit({
+        actorUserId: null,
+        action: "archive_update_failed",
+        targetUserId: copy.user_id,
+        targetId: copy.id,
+        details: {
+          error: err instanceof Error ? err.message : String(err),
+        },
+      });
     }
   }
 }

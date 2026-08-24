@@ -76,7 +76,9 @@ export async function createIdentity(): Promise<void> {
 
   // Roster dedupe: steer the roll around distinctive values already on
   // this user's companions (two "Chickens out back" reads as the
-  // machine). Admin client — the traits column is server-side.
+  // machine). Admin client for consistency with the fingerprint check
+  // below — note traits itself is in the client SELECT grant (0070),
+  // so this is convenience, not a security boundary.
   const { data: sibRows } = await createAdminClient()
     .from("oracles")
     .select("traits")

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -36,6 +36,44 @@ import { useRouter } from "next/navigation";
 const MAX_PHOTO_BYTES = 4 * 1024 * 1024;
 const ACCEPT = "image/jpeg,image/png,image/gif,image/webp";
 
+
+/** localStorage twin of mobile's lib/photoAttempt.ts. The upload work
+ *  runs server-side, so a closed tab doesn't stop it — but it used to
+ *  also erase all sight of it: reopen the page and nothing explained
+ *  whether the photo took. One marker, written when the request
+ *  starts, cleared on every exit path, self-expiring so a killed tab
+ *  can't leave a stale banner forever. */
+const ATTEMPT_KEY = "c3f.photo.attempt";
+const ATTEMPT_STALE_MS = 5 * 60 * 1000;
+
+function markAttemptStarted(): void {
+  try {
+    window.localStorage.setItem(ATTEMPT_KEY, String(Date.now()));
+  } catch {
+    /* a missing marker only costs the notice */
+  }
+}
+function clearAttempt(): void {
+  try {
+    window.localStorage.removeItem(ATTEMPT_KEY);
+  } catch {}
+}
+// Pure read — used as a useSyncExternalStore snapshot, so it must not
+// mutate. Stale markers are simply reported false; they get overwritten
+// by the next markAttemptStarted or removed by a clear path.
+function readInterruptedAttempt(): boolean {
+  try {
+    const raw = window.localStorage.getItem(ATTEMPT_KEY);
+    if (!raw) return false;
+    const at = Number(raw);
+    return Number.isFinite(at) && Date.now() - at <= ATTEMPT_STALE_MS;
+  } catch {
+    return false;
+  }
+}
+
+const noSubscription = () => () => {};
+
 export default function PhotoPlaceholderScreen({
   oracleId,
   name,
@@ -56,6 +94,17 @@ export default function PhotoPlaceholderScreen({
   // a person affirmed it, and quietly asserting consent on their behalf
   // would be worse than the bug. Matches the main upload form.
   const [attested, setAttested] = useState(false);
+  // A previous attempt this tab (or a killed one) started and never
+  // resolved — "your last try may still have landed; check the
+  // dashboard before paying the wait again." useSyncExternalStore
+  // rather than an effect: the server snapshot is false (no
+  // localStorage there), the client snapshot reads the marker, and no
+  // setState-in-effect is needed for the compiler to object to.
+  const interrupted = useSyncExternalStore(
+    noSubscription,
+    readInterruptedAttempt,
+    () => false,
+  );
 
   const pick = useCallback(() => {
     if (busy || !attested) return;
@@ -75,6 +124,7 @@ export default function PhotoPlaceholderScreen({
       }
       setBusy(true);
       setError(null);
+      markAttemptStarted();
       try {
         const form = new FormData();
         form.append("photo", file);
@@ -97,9 +147,11 @@ export default function PhotoPlaceholderScreen({
           // persona now (probably a double-tap raced past the pre-check
           // or the user opened two tabs). Refresh to render it.
           if (data.code === "already_filled") {
+            clearAttempt();
             router.refresh();
             return;
           }
+          clearAttempt();
           setError(
             data.error ??
               "Something went wrong reading the photo. Try again in a moment.",
@@ -110,8 +162,12 @@ export default function PhotoPlaceholderScreen({
         // Same-id refresh: the RSC page re-renders as the live persona
         // (is_photo_placeholder is now false, so the placeholder branch
         // above falls through to the normal ChatSurface).
+        clearAttempt();
         router.refresh();
       } catch {
+        // Deliberately NOT cleared here: a network drop mid-upload is
+        // exactly the case where the server may still finish without
+        // us — the marker is what explains that on the next visit.
         setError(
           "Something went wrong reading the photo. Try again in a moment.",
         );
@@ -144,6 +200,18 @@ export default function PhotoPlaceholderScreen({
           />
         </svg>
       </Link>
+
+      {interrupted && !busy ? (
+        <p className="mb-6 w-full rounded-2xl border border-warm-700 bg-ink-soft px-5 py-4 text-sm leading-relaxed text-warm-200">
+          It looks like a photo was being uploaded here and the page
+          closed before it finished. It may have completed anyway —
+          check your{" "}
+          <Link href="/dashboard" className="font-semibold text-coral-strong underline underline-offset-4">
+            dashboard
+          </Link>{" "}
+          before trying again.
+        </p>
+      ) : null}
 
       <button
         type="button"

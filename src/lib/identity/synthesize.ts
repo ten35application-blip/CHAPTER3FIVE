@@ -746,6 +746,13 @@ function isSynthesizedPersona(v: unknown): v is SynthesizedPersona {
     // prompt that cut off before the safety rails and was stored, leaving
     // a chat with no guardrails). A persona missing a section fails
     // validation and rerolls.
+    // "**Who I am**" opens the monologue and carries the knowledge
+    // fence (what this person knows and doesn't). It was the one
+    // structural section the validator never checked, so a response
+    // that skipped straight to location shipped WITHOUT the fence
+    // instead of rerolling — and a fenceless persona is the one that
+    // answers organic chemistry questions as a 1940s farmhand.
+    o.persona_prompt.includes("**Who I am**") &&
     o.persona_prompt.includes("**Where I am**") &&
     o.persona_prompt.includes("**What I remember about you**") &&
     o.persona_prompt.includes("**What I will not do**") &&
