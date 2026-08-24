@@ -33,6 +33,14 @@
     {
       "path": "/api/cron/promised-pings",
       "schedule": "0 15 * * *"
+    },
+    {
+      "path": "/api/cron/archive-backup",
+      "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/ops-digest",
+      "schedule": "0 12 * * *"
     }
   ]
 }
