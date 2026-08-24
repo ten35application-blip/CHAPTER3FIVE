@@ -53,6 +53,7 @@ import { formatGap, localDateLabel, timeOfDayLabel } from "@/lib/sleep";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { moderateImage } from "@/lib/moderation";
+import { detectAndSchedulepromise } from "@/lib/promises/extract";
 import {
   APOLOGY_ACCEPTED_BLOCK,
   looksLikeApology,
@@ -1456,6 +1457,27 @@ export async function POST(
         after(async () => {
           await extractAndSaveResidue(oracleId, user.id, historyForBlockCheck);
         });
+
+        // "Text me in the morning?" — notice a scheduled-contact
+        // promise in this exchange and file it for the promised-pings
+        // cron. Regex-prescreened (most turns never reach Haiku).
+        // The detector resolves the user's stored timezone itself
+        // (profiles.timezone), so this route doesn't need to carry it.
+        if (userMessage && reply) {
+          const promiseUser = userMessage;
+          const promiseReply = reply;
+          const promiseMsgId = messageId;
+          after(async () => {
+            await detectAndSchedulepromise({
+              userId: user.id,
+              oracleId,
+              userText: promiseUser,
+              replyText: promiseReply,
+              replyMessageId: promiseMsgId,
+              timezone: null,
+            });
+          });
+        }
 
         // Lazy voice-examples backfill for pre-0078 identities. Fires
         // after the current turn ships so the user's wait time never

@@ -99,6 +99,10 @@ export type SpendRoute =
   | "cron_check_in"
   | "cron_proactive"
   | "cron_reflect"
+  // Promise detection (Haiku, post-reply) and the promised-pings cron
+  // that keeps the "text me in the morning" promises (2026-08-25).
+  | "promise-detect"
+  | "promised-ping"
   | "whisper";
 
 /** Compute estimated cost in whole cents (rounded up). Never returns

@@ -81,6 +81,7 @@ import {
   INHERITED_ARCHIVE_RULES,
   LEGACY_ARCHIVE_RULES,
 } from "@/lib/personaRules";
+import { detectAndSchedulepromise } from "@/lib/promises/extract";
 import {
   generateConversationState,
   generateWeeklyContext,
@@ -1696,6 +1697,22 @@ ${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${s
       // turn a delivered reply into an error response.
       if (!persistErr && replies.length > 0) {
         const preview = replies[replies.length - 1] ?? reply;
+        // Did this exchange contain a "text me in the morning"-style
+        // promise? Prescreened by regex, decided by Haiku, delivered by
+        // the promised-pings cron — in after(), so noticing a promise
+        // never delays keeping the conversation.
+        const promiseUserText = userMessage ?? "";
+        const promiseReplyText = replies.join("\n");
+        after(async () => {
+          await detectAndSchedulepromise({
+            userId: user.id,
+            oracleId: conversationOracleId ?? profile.active_oracle_id ?? "",
+            userText: promiseUserText,
+            replyText: promiseReplyText,
+            replyMessageId: null,
+            timezone: profile.timezone ?? null,
+          });
+        });
         // INSIDE after(), so killing the app cannot kill the
         // notification. Swiping the app away severs the connection this
         // reply was generated on; anything still awaiting that response

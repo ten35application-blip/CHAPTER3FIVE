@@ -39,8 +39,11 @@ export const maxDuration = 300;
  *   - Skip user if any user-sent message in the last 48h (they're
  *     already conversing; a nudge would be spammy).
  *   - Skip user if ANY persona reached out for them in the last 24h.
- *   - Per-persona: silence >= (28 - textFirstFrequency*2.5) days AND
- *     THIS persona hasn't reached out in the last (threshold) days.
+ *   - Per-persona: silence >= cadenceDays(textFirstFrequency) — the
+ *     living-pulse tiers (1 day for the rare daily texters through 21
+ *     for the quiet ones) — AND this persona hasn't reached out inside
+ *     its own cadence, with 3x/7x back-off after 2/4 unanswered
+ *     reach-outs so nobody texts daily into a void.
  *
  * Local-time gate: 8am–10pm in the user's tz (falls back to a 10am–8pm
  * UTC window when the profile has no timezone).
@@ -260,16 +263,20 @@ export async function GET(request: NextRequest) {
       // compute silence per thread.
       const { data: lastMsgs } = await admin
         .from("messages")
-        .select("oracle_id, created_at")
+        .select("oracle_id, created_at, role")
         .eq("user_id", profile.id)
         .in("oracle_id", oracleIds)
         .is("deleted_at", null)
         .order("created_at", { ascending: false });
       const latestByOracle = new Map<string, string>();
+      const latestUserMsgByOracle = new Map<string, string>();
       for (const row of lastMsgs ?? []) {
         const oid = row.oracle_id as string;
         if (!latestByOracle.has(oid)) {
           latestByOracle.set(oid, row.created_at as string);
+        }
+        if (row.role === "user" && !latestUserMsgByOracle.has(oid)) {
+          latestUserMsgByOracle.set(oid, row.created_at as string);
         }
       }
 
@@ -296,12 +303,47 @@ export async function GET(request: NextRequest) {
         oracle: (typeof reachable)[number];
       };
       const eligible: Candidate[] = [];
+      // Count unanswered outreach per oracle (events newer than the
+      // user's last message in that thread). A daily texter whose last
+      // two "hey"s went unanswered quiets down instead of turning into
+      // the clingy bot Pedro and Danisel are worried about.
+      const { data: outreachRows } = await admin
+        .from("persona_outreach_events")
+        .select("oracle_id, sent_at")
+        .eq("user_id", profile.id)
+        .in("oracle_id", oracleIds);
+      const unansweredByOracle = new Map<string, number>();
+      for (const row of outreachRows ?? []) {
+        const oid = row.oracle_id as string;
+        const lastUser = latestUserMsgByOracle.get(oid);
+        if (!lastUser || row.sent_at > lastUser) {
+          unansweredByOracle.set(oid, (unansweredByOracle.get(oid) ?? 0) + 1);
+        }
+      }
+
       for (const oracle of reachable) {
         const oid = oracle.id as string;
         const freq = coerceTextFirstFrequency(
           readTextFirstFrequency(oracle.traits),
         );
-        const thresholdDays = 28 - freq * 2.5;
+        let thresholdDays = cadenceDays(freq);
+
+        // Back-off: 2+ unanswered reach-outs triples the wait; 4+
+        // multiplies by seven (they'll still check in eventually — a
+        // real friend does — just not daily into a void). One reply
+        // from the user resets the count naturally.
+        const unanswered = unansweredByOracle.get(oid) ?? 0;
+        if (unanswered >= 4) thresholdDays *= 7;
+        else if (unanswered >= 2) thresholdDays *= 3;
+
+        // Chronotype band: a morning person texts in the morning, a
+        // night owl in the evening. Only meaningful when we know the
+        // user's timezone; steady types (and unknown-tz users) use the
+        // whole 8am-10pm window. The cron runs hourly, so a persona
+        // outside its band right now simply qualifies later today.
+        if (!withinChronotypeBand(now, profile.timezone as string | null, readChronotype(oracle.traits))) {
+          continue;
+        }
 
         const latestMsg = latestByOracle.get(oid);
         if (!latestMsg) {
@@ -557,6 +599,62 @@ function withinLocalWindow(now: Date, tz: string | null): boolean {
   }
   const utcHour = now.getUTCHours();
   return utcHour >= FALLBACK_MIN_HOUR_UTC && utcHour < FALLBACK_MAX_HOUR_UTC;
+}
+
+/** Per-frequency days-of-silence before this persona texts first.
+ *  Replaces the old dormancy-rescue curve (28 - freq*2.5, fastest 3
+ *  days) with Wilson's living-pulse tiers (2026-08-25): 9-10 rolls
+ *  (8.3% of identities) text near-daily, 7-8 every couple of days,
+ *  5-6 every 4-5 days, and the low rolls stay the quiet types you
+ *  hear from when you least expect it. */
+const CADENCE_DAYS: Record<number, number> = {
+  10: 1,
+  9: 1.5,
+  8: 2,
+  7: 3,
+  6: 4,
+  5: 5,
+  4: 7,
+  3: 10,
+  2: 14,
+  1: 21,
+};
+
+function cadenceDays(freq: number): number {
+  return CADENCE_DAYS[Math.round(freq)] ?? 5;
+}
+
+function readChronotype(traits: unknown): string | null {
+  if (typeof traits !== "object" || traits === null) return null;
+  const v = (traits as Record<string, unknown>).chronotype;
+  return typeof v === "string" ? v : null;
+}
+
+/** Morning people text 8-12, night owls 17-22, steady/unknown any
+ *  time inside the base window. Requires a known timezone — without
+ *  one the base window's UTC fallback already applies upstream. */
+function withinChronotypeBand(
+  now: Date,
+  tz: string | null,
+  chronotype: string | null,
+): boolean {
+  if (!tz || !chronotype || chronotype === "steady") return true;
+  try {
+    const hour = parseInt(
+      new Intl.DateTimeFormat("en-US", {
+        hour: "numeric",
+        hour12: false,
+        timeZone: tz,
+      }).format(now),
+      10,
+    );
+    if (!Number.isFinite(hour)) return true;
+    if (chronotype === "morning_person") return hour >= 8 && hour < 12;
+    if (chronotype === "night_owl") return hour >= 17 && hour < 22;
+    return true;
+  } catch {
+    return true;
+  }
 }
 
 function readTextFirstFrequency(traits: unknown): unknown {
