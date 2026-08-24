@@ -121,7 +121,15 @@ export async function handleCrisis({
       badge: 1,
       categoryId: "companion_message",
       threadIdentifier: conciergeId,
-      channelId: "companion-messages",
+      // "companion" — the ONLY companion channel Android devices actually
+          // have (lib/push.ts creates it; nothing ever created a
+          // "companion-messages" channel). Android 8+ silently drops a
+          // notification aimed at a channel that doesn't exist, and the
+          // Expo receipt still reads "ok" because it measures handoff to
+          // the phone, not display. So replies pushed fine to iOS and
+          // vanished on Android with the app closed, while cron pushes
+          // (already on "companion") kept arriving.
+          channelId: "companion",
       data: { oracle_id: conciergeId, kind: "reply" },
     });
   } catch (err) {
