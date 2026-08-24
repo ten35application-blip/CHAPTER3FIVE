@@ -82,10 +82,16 @@ export async function GET(request: NextRequest) {
       note:
         "TRUNCATED — blobs omitted, manifest only. The snapshot outgrew " +
         "email. Move to storage-side backups NOW.",
-      archives: (archives ?? []).map(({ legacy_answers: _la, ...rest }) => rest),
-      holder_copies: (copies ?? []).map(
-        ({ legacy_answers: _la, ...rest }) => rest,
-      ),
+      archives: (archives ?? []).map((a) => {
+        const { legacy_answers, ...rest } = a;
+        void legacy_answers;
+        return rest;
+      }),
+      holder_copies: (copies ?? []).map((c) => {
+        const { legacy_answers, ...rest } = c;
+        void legacy_answers;
+        return rest;
+      }),
     });
   }
 
