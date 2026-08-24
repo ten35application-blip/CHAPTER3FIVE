@@ -41,13 +41,25 @@ const PRIVATE_IDENTITY_KEYS = [
   "partner_name",
 ] as const;
 
-/** Render order, and the exclusion list for the per-oracle block. */
+/** Every identity key, in render order. */
 const ABOUT_THEM_KEYS: readonly string[] = [
   ...SHARED_IDENTITY_KEYS,
   ...PRIVATE_IDENTITY_KEYS,
 ];
 
 const ABOUT_THEM_KEY_SET = new Set<string>(ABOUT_THEM_KEYS);
+
+// The user-wide "About them" block carries ONLY the shared tier. The
+// private tier (orientation, relationship_status, spouse/partner name)
+// used to ride along here, which quietly undid the whole two-tier
+// design: the per-oracle fetch excludes identity keys to avoid showing
+// them twice, so the user-wide block was the private keys' only route
+// into a prompt -- and it has no oracle filter. Net effect: the name
+// of someone's partner, told to one companion, surfaced in every
+// companion, every archive, and the concierge. Private keys now render
+// only in the per-oracle block, for the one companion they were
+// actually said to.
+const SHARED_KEY_SET = new Set<string>(SHARED_IDENTITY_KEYS);
 
 /** Every identity key, exported so writers can refuse them. */
 export const IDENTITY_MEMORY_KEYS: ReadonlySet<string> = ABOUT_THEM_KEY_SET;
@@ -192,10 +204,12 @@ export async function fetchMemoriesForContext(
       // blocks; they don't belong in the "What I know about you"
       // human-facts list.
       .not("key", "like", "\\_%")
-      // Identity keys render in the "About them" block instead
-      // (fetchAboutThemBlock, user-wide) — keep them out of the
-      // per-oracle list so they never show twice.
-      .not("key", "in", `(${ABOUT_THEM_KEYS.join(",")})`)
+      // SHARED identity keys render in the "About them" block instead
+      // (fetchAboutThemBlock, user-wide) — keep those out of the
+      // per-oracle list so they never show twice. PRIVATE identity
+      // keys stay IN this list: this scoped fetch is their only route
+      // into a prompt, and that is the point.
+      .not("key", "in", `(${SHARED_IDENTITY_KEYS.join(",")})`)
       .eq("oracle_id", oracleId)
       .eq("user_id", userId)
       .order("importance", { ascending: false })
@@ -226,11 +240,13 @@ export async function fetchMemoriesForContext(
 }
 
 /**
- * "About them" block — who the user is, learned through conversation:
- * the name they go by, pronouns, gender, orientation, relationship
- * status, partner/spouse name. Scoped by user_id ONLY (no oracle
- * filter) — these facts are the same person in every conversation, so
- * every identity remembers them once any identity learns them. Deduped
+ * "About them" block — the SHARED identity tier only: the name they
+ * go by, pronouns, gender. Scoped by user_id ONLY (no oracle filter) —
+ * these facts are the same person in every conversation, so every
+ * identity remembers them once any identity learns them. The private
+ * tier (orientation, relationship, partner) deliberately does NOT
+ * appear here; it renders in the per-oracle block for the one
+ * companion it was shared with. Deduped
  * by key, most recently updated row wins. Returns "" when nothing is
  * known (or on any failure — never throws; the reply must ship).
  */
@@ -240,7 +256,7 @@ export async function fetchAboutThemBlock(userId: string): Promise<string> {
     const { data, error } = await admin
       .from("persona_memories")
       .select("key, value, updated_at")
-      .in("key", [...ABOUT_THEM_KEYS])
+      .in("key", [...SHARED_IDENTITY_KEYS])
       .eq("user_id", userId)
       .order("updated_at", { ascending: false })
       .limit(40);
@@ -254,13 +270,13 @@ export async function fetchAboutThemBlock(userId: string): Promise<string> {
     // First occurrence per key wins (rows are newest-first).
     const byKey = new Map<string, string>();
     for (const row of data) {
-      if (!ABOUT_THEM_KEY_SET.has(row.key)) continue;
+      if (!SHARED_KEY_SET.has(row.key)) continue;
       if (!byKey.has(row.key)) byKey.set(row.key, row.value);
     }
     if (byKey.size === 0) return "";
 
     const lines: string[] = [];
-    for (const key of ABOUT_THEM_KEYS) {
+    for (const key of SHARED_IDENTITY_KEYS) {
       const value = byKey.get(key);
       if (!value) continue;
       lines.push(renderAboutThem(key, value));
