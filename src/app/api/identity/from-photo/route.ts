@@ -366,6 +366,18 @@ export async function POST(request: NextRequest) {
       );
     }
     oracleId = updated.id as string;
+    // Same evidence trail the create branch writes — the fill branch
+    // is the PRIMARY mobile path for uploading a real person's photo,
+    // and it was the one place the attestation vanished after the
+    // check (self-audit 2026-08-25).
+    await recordAudit({
+      actorUserId: user.id,
+      actorEmail: user.email ?? null,
+      action: "photo_rights_attested",
+      targetUserId: user.id,
+      targetId: oracleId,
+      details: { source: "api/identity/from-photo placeholder-fill" },
+    });
   } else {
     // TOCTOU re-check — see the web twin: the early gate ran before
     // vision + synthesis (~40s); a duplicate request that passed the

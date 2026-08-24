@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { cancelStripeOnDeletion } from "@/lib/billing/cancelOnDeletion";
 import { getRequestAuth } from "@/lib/api/mobileAuth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { recordAudit, sendAccountDeletedEmail } from "@/lib/notifications";
@@ -106,6 +107,9 @@ export async function POST(request: NextRequest) {
   // the next purge. A second call is now a no-op, which is the honest
   // answer to "delete an already-deleted account".
   const admin = createAdminClient();
+
+  // Stop the money first — see the web twin.
+  await cancelStripeOnDeletion(user.id);
   const { data: stamped, error } = await admin
     .from("profiles")
     .update({
@@ -126,11 +130,23 @@ export async function POST(request: NextRequest) {
   // promise on both legal pages is one this service cannot keep. Codes
   // that were already redeemed are untouched: the copy is independent and
   // was paid for, so it stays theirs.
-  await admin
+  const { error: revokeSweepErr } = await admin
     .from("inherit_codes")
     .update({ revoked_at: now.toISOString() })
     .eq("created_by", user.id)
     .is("revoked_at", null);
+  if (revokeSweepErr) {
+    // Fail CLOSED: an unrevoked-code account is one the purge cron
+    // refuses to purge FOREVER, silently breaking the 30-day
+    // deletion promise (self-audit 2026-08-25). Better to fail the
+    // deletion loudly and let the user retry.
+    console.error("[delete-account] code revoke failed:", revokeSweepErr);
+    return NextResponse.json(
+      { error: "Couldn't complete deletion just now. Nothing was deleted — try again." },
+      { status: 503 },
+    );
+  }
+
 
   // Zero rows = already deleted. Still ok:true (the caller's intent is
   // satisfied), but don't write an audit row claiming a purge date that

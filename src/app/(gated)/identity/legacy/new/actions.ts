@@ -9,8 +9,9 @@ import { getStripe } from "@/lib/stripe";
 import { PRICING } from "@/lib/pricing";
 import {
   claimFreeIdentitySlot,
-  consumeOtherIdentityCreateCredit,
   hasOtherIdentityCreateCredit,
+  reserveOtherIdentityCredit,
+  refundOtherIdentityCredit,
 } from "@/lib/subscription";
 import { SynthesisError } from "@/lib/identity/synthesize";
 import { fingerprintLegacyAnswers } from "@/lib/legacy/fingerprint";
@@ -446,6 +447,16 @@ export async function completeLegacyIdentity(payload: {
     `legacy/complete(web) user=${user.id}`,
   );
 
+  // Atomic till, right before the insert — see the API twin. The read
+  // gate above keeps free synthesis away from no-credit accounts; this
+  // makes exactly one parallel Finish the winner.
+  if (usingCreateCredit && !(await reserveOtherIdentityCredit(user.id))) {
+    redirectWithError(
+      "/identity/legacy/new",
+      "That credit was just used. Check your identities — the archive may already exist.",
+    );
+  }
+
   const { data: inserted, error: insertError } = await createAdminClient()
     .from("oracles")
     .insert({
@@ -468,6 +479,9 @@ export async function completeLegacyIdentity(payload: {
     .single();
 
   if (insertError || !inserted) {
+    // The reserve above already spent the credit; every no-product
+    // exit refunds it before redirecting (redirectWithError throws).
+    if (usingCreateCredit) await refundOtherIdentityCredit(user.id);
     if (insertError?.code === "23505") {
       // fingerprint unique index — this exact set of answers already exists
       redirectWithError(
@@ -481,16 +495,6 @@ export async function completeLegacyIdentity(payload: {
       "Couldn't save them. Your answers are still here — try again.",
       insertError,
     );
-  }
-
-  // Consume the paid mint credit AFTER synthesis + insert succeeded —
-  // the credit was paid for a COMPLETED identity, so a failed weave or
-  // a lost insert race (23505 above) leaves it intact for the retry.
-  // Best-effort, never throws; a double-submit can't consume twice
-  // because the fingerprint index collapses the second insert before
-  // this line is reached.
-  if (usingCreateCredit) {
-    await consumeOtherIdentityCreateCredit(user.id);
   }
 
   // First identity created claims the post-trial Free-tier slot

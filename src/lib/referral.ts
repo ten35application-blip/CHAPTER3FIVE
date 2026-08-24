@@ -195,6 +195,19 @@ export async function getReferralStatus(
  * already referred (the UNIQUE constraint is the real enforcement;
  * this is the polite check in front of it).
  */
+
+/** "w.ilson+x@gmail.com" → "wilson@gmail.com"; non-Google providers
+ *  keep dots (meaningful there) but still lose the +suffix. */
+function normalizeMailboxRoot(email: string): string {
+  const [local, domain] = email.toLowerCase().split("@");
+  if (!domain) return email.toLowerCase();
+  let root = local.split("+")[0];
+  if (domain === "gmail.com" || domain === "googlemail.com") {
+    root = root.replace(/\./g, "");
+  }
+  return `${root}@${domain}`;
+}
+
 export async function claimReferral(
   code: string,
   referredId: string,
@@ -209,6 +222,34 @@ export async function claimReferral(
       .eq("referral_code", clean)
       .maybeSingle<{ id: string }>();
     if (!referrer || referrer.id === referredId) return;
+    // ONE HUMAN PER INBOX (self-audit 2026-08-25). Gmail ignores dots
+    // and everything after '+', so wilson+1@ through wilson+5@ verify
+    // as five distinct addresses from one inbox — a five-alias farm
+    // costing real synthesis per cycle. Normalize the mailbox root and
+    // refuse a claim when this referrer already has a referral from
+    // the same root. Different providers, different humans — this only
+    // collapses the alias trick, never real people.
+    const { data: referredUser } = await admin.auth.admin.getUserById(referredId);
+    const referredEmail = referredUser?.user?.email ?? null;
+    if (referredEmail) {
+      const root = normalizeMailboxRoot(referredEmail);
+      const { data: siblings } = await admin
+        .from("referrals")
+        .select("referred_id")
+        .eq("referrer_id", referrer.id);
+      for (const sib of siblings ?? []) {
+        const { data: sibUser } = await admin.auth.admin.getUserById(
+          sib.referred_id as string,
+        );
+        const sibEmail = sibUser?.user?.email ?? null;
+        if (sibEmail && normalizeMailboxRoot(sibEmail) === root) {
+          console.log(
+            `[referral] claim refused — alias of an existing referral (${root})`,
+          );
+          return;
+        }
+      }
+    }
     await admin
       .from("referrals")
       .insert({ referrer_id: referrer.id, referred_id: referredId });

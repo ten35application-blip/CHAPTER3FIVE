@@ -229,6 +229,20 @@ export async function POST(
         if (cascadeErr) {
           return dbError("undelete user oracles", cascadeErr, adminEmail, userId);
         }
+        // The deletion auto-revoked this user's inherit codes with the
+        // same stamp — restore them too, or the family's printed cards
+        // stay dead after an admin restore (self-audit 2026-08-25).
+        const { data: restoredOracles } = await service
+          .from("oracles")
+          .select("id")
+          .eq("user_id", userId);
+        if (restoredOracles && restoredOracles.length > 0) {
+          await service
+            .from("inherit_codes")
+            .update({ revoked_at: null })
+            .in("oracle_id", restoredOracles.map((o) => o.id))
+            .eq("revoked_at", deletedProfile.deleted_at);
+        }
       }
 
       const { error } = await service

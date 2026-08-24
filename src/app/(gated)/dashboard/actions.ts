@@ -269,11 +269,22 @@ export async function permanentDeleteIdentity(oracleId: string) {
   // fix belongs here: refuse the delete while a code is outstanding and
   // tell the OWNER what they're about to break, since they're the one
   // person who can actually make that decision.
-  const { data: liveCodes } = await supabase
+  const { data: liveCodes, error: liveCodesErr } = await supabase
     .from("inherit_codes")
     .select("code")
     .eq("oracle_id", oracleId)
     .is("revoked_at", null);
+  // Fail CLOSED. A transient read error yields data=null, which used
+  // to read as "no codes" and let the hard delete cascade every
+  // outstanding family card away — through the guard built to prevent
+  // exactly that (self-audit 2026-08-25). The purge cron already
+  // fails closed here; the button does now too.
+  if (liveCodesErr) {
+    return {
+      ok: false as const,
+      error: "Couldn't verify this identity's inherit codes just now. Nothing was deleted — try again in a moment.",
+    };
+  }
 
   if (liveCodes && liveCodes.length > 0) {
     return {

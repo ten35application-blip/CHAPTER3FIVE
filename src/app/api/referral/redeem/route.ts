@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { recordAudit } from "@/lib/notifications";
 import { after } from "next/server";
 import { getRequestAuth } from "@/lib/api/mobileAuth";
 import { generateAndSaveFace } from "@/lib/faces/generate";
@@ -45,6 +46,45 @@ export async function POST(request: NextRequest) {
   if (!legal.ok) return legal.response;
 
   const admin = createAdminClient();
+
+  // SELF-HEAL FIRST (self-audit 2026-08-25): a crash between the
+  // five-claim and the finished insert used to spend five real humans
+  // on nothing — the reward row (if it existed) sat provisioning=true
+  // forever, excluded from every other heal path (adoptOrphan and the
+  // subscriber heal both skip is_referral_reward by design). If a
+  // stranded reward exists, FINISH it and hand it over: their claim
+  // already paid for it.
+  const { data: strandedReward } = await admin
+    .from("oracles")
+    .select("id, traits, avatar_url, created_at")
+    .eq("user_id", user.id)
+    .eq("is_referral_reward", true)
+    .eq("provisioning", true)
+    .is("deleted_at", null)
+    .lt("created_at", new Date(Date.now() - 10 * 60 * 1000).toISOString())
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle<{ id: string; traits: unknown; avatar_url: string | null }>();
+  if (strandedReward) {
+    if (!strandedReward.avatar_url && strandedReward.traits) {
+      const face = await generateAndSaveFace(
+        strandedReward.id,
+        strandedReward.traits as never,
+      );
+      if (!face.ok) {
+        console.error(
+          `[referral/redeem] heal face failed for ${strandedReward.id}:`,
+          face.error,
+        );
+      }
+    }
+    await admin
+      .from("oracles")
+      .update({ provisioning: false })
+      .eq("id", strandedReward.id);
+    return NextResponse.json({ id: strandedReward.id, healed: true });
+  }
+
   await refreshQualifications(user.id);
 
   const { data: ready } = await admin
@@ -76,6 +116,18 @@ export async function POST(request: NextRequest) {
     .in("id", ids)
     .is("redeemed_at", null)
     .select("id");
+  // Durable trail the moment five humans are spent — if the process
+  // dies before the reward row exists, THIS is how support finds and
+  // repays the loss (self-audit 2026-08-25). The completion audit
+  // below closes the loop; an open 'spent' with no 'completed' is a
+  // claim to reconcile.
+  await recordAudit({
+    actorUserId: user.id,
+    action: "referral_claim_spent",
+    targetUserId: user.id,
+    details: { referralIds: claimed?.map((c) => c.id) ?? [], stamp },
+  });
+
   if (!claimed || claimed.length < REFERRAL_GOAL) {
     // Someone else's request took them a millisecond ago. Put back
     // whatever partial set this request managed to grab.
@@ -213,7 +265,14 @@ export async function POST(request: NextRequest) {
     );
   });
 
-  return NextResponse.json({
+  await recordAudit({
+      actorUserId: user.id,
+      action: "referral_claim_completed",
+      targetUserId: user.id,
+      targetId: oracleId,
+      details: { stamp },
+    });
+    return NextResponse.json({
     oracle_id: oracleId,
     name: persona.name,
     hook: persona.one_line_hook ?? null,

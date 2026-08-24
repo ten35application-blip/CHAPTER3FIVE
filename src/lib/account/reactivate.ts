@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { uncancelStripeOnReactivation } from "@/lib/billing/cancelOnDeletion";
 import { recordAudit, sendAccountRestoredEmail } from "@/lib/notifications";
 
 /**
@@ -62,10 +63,34 @@ export async function reactivateAccount(
     .update({ deleted_at: null, scheduled_purge_at: null })
     .eq("user_id", userId)
     .eq("deleted_at", stamp);
+  // Un-revoke the codes the deletion auto-revoked (same stamp). The
+  // account came back inside its window — the cards the family holds
+  // must come back with it, or every printed code dies silently and
+  // retry-mint hands out a DIFFERENT one (self-audit 2026-08-25).
+  // Service role bypasses the one-way trigger; stamp-matching keeps
+  // deliberately-revoked codes revoked.
+  const { data: ownOracles } = await admin
+    .from("oracles")
+    .select("id")
+    .eq("user_id", userId);
+  if (ownOracles && ownOracles.length > 0) {
+    const { error: unrevokeErr } = await admin
+      .from("inherit_codes")
+      .update({ revoked_at: null })
+      .in("oracle_id", ownOracles.map((o) => o.id))
+      .eq("revoked_at", stamp);
+    if (unrevokeErr) {
+      console.error("[reactivate] code un-revoke failed:", unrevokeErr);
+    }
+  }
   if (oracleErr) {
     console.error("[reactivate] oracle un-delete failed:", oracleErr);
     return { ok: false, error: "oracle_restore_failed" };
   }
+
+  // A deletion set the Stripe subscription to cancel at period end —
+  // coming back un-cancels it (best-effort).
+  await uncancelStripeOnReactivation(userId);
 
   const { error: profileErr } = await admin
     .from("profiles")

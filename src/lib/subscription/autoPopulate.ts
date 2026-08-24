@@ -199,18 +199,29 @@ export async function autoPopulateForSubscribe(
     const revealIds: string[] = [];
     const { data: orphans } = await admin
       .from("oracles")
-      .select("id, traits, avatar_url")
+      .select("id, traits, avatar_url, created_at")
       .eq("user_id", userId)
       .eq("provisioning", true)
+      .eq("is_referral_reward", false)
       .is("deleted_at", null);
     for (const o of orphans ?? []) {
+      // Only rows old enough to be genuinely orphaned. A provisioning
+      // row younger than 10 minutes may belong to a request STILL
+      // RUNNING (same floor adoptOrphan uses) — healing it would run a
+      // second concurrent portrait for the same row (self-audit
+      // 2026-08-25).
+      const ageMs = Date.now() - Date.parse((o as { created_at?: string }).created_at ?? "");
+      if (Number.isFinite(ageMs) && ageMs < 10 * 60 * 1000) continue;
       if (!o.avatar_url) {
-        try {
-          await generateAndSaveFace(o.id as string, o.traits as never);
-        } catch (err) {
+        // generateAndSaveFace NEVER throws — it returns { ok }. The
+        // old try/catch made the stays-hidden branch unreachable, so
+        // faceless rows were revealed into the batch (self-audit
+        // 2026-08-25).
+        const face = await generateAndSaveFace(o.id as string, o.traits as never);
+        if (!face.ok) {
           console.error(
             `[autoPopulate] ${userId} — heal face failed for ${o.id}:`,
-            err,
+            face.error,
           );
           continue; // stays hidden; next run retries
         }
@@ -447,6 +458,13 @@ async function countExistingRandom(
     .eq("is_concierge", false)
     .eq("is_self_archive", false)
     .eq("is_photo_placeholder", false)
+    // Mirror canCreateOracle EXACTLY: legacy archives and earned
+    // referral companions are paid/earned outside plan quota, and
+    // counting them here shorted the welcome batch — a $4.99 archive
+    // owner subscribing to Basic got ONE companion instead of two
+    // (self-audit 2026-08-25).
+    .eq("is_legacy", false)
+    .eq("is_referral_reward", false)
     .is("inherited_at", null);
   // LIFETIME COUNT — no deleted_at filter, exactly like
   // canCreateOracle ("you get what you get", Wilson 2026-08-15). A
@@ -482,6 +500,8 @@ async function countVisibleRandom(
     .eq("is_concierge", false)
     .eq("is_self_archive", false)
     .eq("is_photo_placeholder", false)
+    .eq("is_legacy", false)
+    .eq("is_referral_reward", false)
     .eq("provisioning", false)
     .is("inherited_at", null)
     .is("deleted_at", null);

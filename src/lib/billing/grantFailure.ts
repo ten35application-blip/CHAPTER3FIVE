@@ -52,7 +52,11 @@ export type GrantFailureKind =
   // invoice.paid arrived but extending pro_until failed. The subscriber
   // paid for the month and lapses to Free mid-cycle; self-heals only at
   // NEXT month's invoice, so a person should re-sync it before then.
-  | "subscription_renewal_sync";
+  | "subscription_renewal_sync"
+  // RevenueCat event mirrored into iap_entitlements fine, but the
+  // profiles tier sync — the row every gate actually reads — failed.
+  // Grant events also 500 so RC redelivers; this row is the trail.
+  | "iap_profile_sync";
 
 export async function recordGrantFailure(input: {
   kind: GrantFailureKind;

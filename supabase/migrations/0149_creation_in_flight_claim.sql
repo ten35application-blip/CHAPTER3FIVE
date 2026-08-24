@@ -1,0 +1,11 @@
+-- One identity creation in flight per user, claimed atomically.
+--
+-- Every creation door was check-then-act: two parallel requests both
+-- read count = quota-1 (or credits = 1), both pass, both synthesize
+-- (~35s of paid compute each), both insert. The fingerprint index only
+-- stops identical rolls; distinct rolls/answers sail through. No count
+-- constraint can express "rows <= tier quota + credits", so the fix is
+-- a claim: a conditional UPDATE on profiles that exactly one
+-- concurrent request can win. Stale claims (crashed requests) expire
+-- after 3 minutes, so nobody is ever locked out for real.
+alter table profiles add column if not exists creating_until timestamptz;

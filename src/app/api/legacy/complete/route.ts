@@ -23,8 +23,9 @@ import { PRICING } from "@/lib/pricing";
 import { getStripe } from "@/lib/stripe";
 import {
   claimFreeIdentitySlot,
-  consumeOtherIdentityCreateCredit,
   hasOtherIdentityCreateCredit,
+  reserveOtherIdentityCredit,
+  refundOtherIdentityCredit,
 } from "@/lib/subscription";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifiedAvatarUrl } from "@/lib/storage/avatarObject";
@@ -246,6 +247,19 @@ export async function POST(request: NextRequest) {
     `legacy/complete user=${user.id}`,
   );
 
+  // Reserve the $4.99 credit ATOMICALLY, immediately before the
+  // insert. The gate above is a cheap read for UX (don't synthesize
+  // for someone with no credit); this is the till. Two parallel
+  // Finishes with different answers both passed the read and both
+  // minted for one credit (self-audit 2026-08-25) — the RPC's
+  // single-statement UPDATE...WHERE>0 makes exactly one winner.
+  if (usingCreateCredit && !(await reserveOtherIdentityCredit(user.id))) {
+    return fail(
+      "That credit was just used. If this is a surprise, check your identities — the archive may already exist.",
+      409,
+    );
+  }
+
   const { data: inserted, error: insertError } = await createAdminClient()
     .from("oracles")
     .insert({
@@ -266,22 +280,18 @@ export async function POST(request: NextRequest) {
 
   if (insertError || !inserted) {
     if (insertError?.code === "23505") {
+      if (usingCreateCredit) await refundOtherIdentityCredit(user.id);
       return fail(
         "This exact story has already been woven. Check your identities on the dashboard.",
         409,
       );
     }
     console.error("[api/legacy/complete] insert failed:", insertError);
+    if (usingCreateCredit) await refundOtherIdentityCredit(user.id);
     return fail(
       "Couldn't save them. Your answers are still here — try again.",
       500,
     );
-  }
-
-  // Consume the paid mint credit AFTER synthesis + insert succeeded —
-  // a failed weave leaves the credit intact for the retry.
-  if (usingCreateCredit) {
-    await consumeOtherIdentityCreateCredit(user.id);
   }
 
   await claimFreeIdentitySlot(user.id, inserted.id);

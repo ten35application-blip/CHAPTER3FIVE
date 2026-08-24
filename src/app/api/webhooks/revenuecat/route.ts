@@ -435,6 +435,16 @@ export async function POST(request: NextRequest) {
           scheduleAutoPopulate(toId, movedTier);
         }
       }
+      // The store receipt now lives on the destination — the SOURCE
+      // accounts must stop being entitled by it, or one payment holds
+      // two accounts for the rest of the cycle (self-audit 2026-08-25).
+      // Only IAP-sourced profiles are cleared: a source account with
+      // its own Stripe subscription keeps what Stripe is billing for.
+      await adminT
+        .from("profiles")
+        .update({ pro_until: null, subscription_tier: null })
+        .in("id", fromIds)
+        .eq("plan_source", "iap");
       console.log(
         `[revenuecat-webhook] TRANSFER moved ${oldRows.length} entitlement(s) ${fromIds.join(",")} → ${toId} (tier ${movedTier ?? "none"})`,
       );
@@ -476,7 +486,12 @@ export async function POST(request: NextRequest) {
   // every branch below so a purchase is counted regardless of which
   // handler claims it — and awaited nowhere, so it can never delay or
   // fail a grant.
-  if (appUserId) void recordStorePurchase(event, appUserId);
+  // Sandbox events grant entitlement (testers must be able to test)
+  // but never book revenue — /admin/revenue was counting Apple sandbox
+  // "purchases" as store income (self-audit 2026-08-25).
+  if (appUserId && event.environment !== "SANDBOX") {
+    void recordStorePurchase(event, appUserId);
+  }
   if (!UUID_RE.test(appUserId)) {
     // $RCAnonymousID:… — a purchase made before Purchases.configure ran
     // with a Supabase session. RevenueCat does NOT replay past events
@@ -1116,6 +1131,9 @@ export async function POST(request: NextRequest) {
     // partway through their own review (found 2026-08-16 while a
     // reviewer was live in the app).
     const compedAccount = current?.plan_source === "admin_grant";
+    const stillActive =
+      !!current?.pro_until &&
+      new Date(current.pro_until).getTime() > Date.now();
     const wouldShorten =
       !!current?.pro_until &&
       new Date(profileUntil).getTime() < new Date(current.pro_until).getTime();
@@ -1124,17 +1142,38 @@ export async function POST(request: NextRequest) {
     // RENEWAL (whose expiry lands later mid-cycle) overwrite
     // subscription_tier to "basic" — paying $10 and living under $5
     // caps. A cross-channel write may extend time, never lower rank.
+    // Only an ACTIVE pro outranks an incoming basic. Once pro_until is
+    // past, a basic grant is a legitimate downgrade landing, not a
+    // stomp — without this, a Pro→Basic downgrade at period end would
+    // be skipped and the paying Basic subscriber left on a dead tier.
     const wouldLowerTier =
-      current?.subscription_tier === "pro" && tier === "basic";
+      stillActive && current?.subscription_tier === "pro" && tier === "basic";
 
-    if ((wouldShorten || wouldLowerTier) && (stripeHoldsAccount || compedAccount)) {
+    // GRANTS NEVER SHORTEN, for ANYONE. The forward-only clamp above
+    // protects iap_entitlements, but every gate reads PROFILES — and a
+    // pure-IAP account had no guard here at all, so the 2026-08-23
+    // upgrade bug (old sub's dying event arrives after the new sub's
+    // grant, pro_until stomped into the past, paying customer locked
+    // out for up to a month) was still live on this layer (self-audit
+    // 2026-08-25). Expirations and cancellations still shorten — that
+    // is their job.
+    const grantNeverShortens = GRANT_TYPES.has(type);
+
+    if (
+      (wouldShorten || wouldLowerTier) &&
+      (stripeHoldsAccount || compedAccount || grantNeverShortens)
+    ) {
       console.log(
         `[revenuecat-webhook] ${type} for ${appUserId} would ${wouldLowerTier ? "lower tier" : "shorten pro_until"} but Stripe subscription ${current?.stripe_subscription_id} is active — leaving entitlement alone`,
       );
       // iap_entitlements above still records the store-side truth.
       return NextResponse.json({
         received: true,
-        skipped: compedAccount ? "comped-account" : "stripe-holds-account",
+        skipped: stripeHoldsAccount
+          ? "stripe-holds-account"
+          : compedAccount
+            ? "comped-account"
+            : "grant-never-shortens",
       });
     }
 
@@ -1153,8 +1192,23 @@ export async function POST(request: NextRequest) {
       console.error(
         `[revenuecat-webhook] profile tier sync failed for ${appUserId} (${type}): ${profileErr.message}`,
       );
-      // Don't 500 the whole request — the entitlement mirror succeeded,
-      // the auto-populate will still try. Ops surface via the log.
+      // Every gate reads PROFILES, not iap_entitlements — a lost sync
+      // here is a paying customer living as Free with no retry and no
+      // trail (self-audit 2026-08-25). Ledger it, and 500 grant events
+      // so RevenueCat redelivers: the sync is idempotent and the
+      // entitlement clamp makes replays safe.
+      await recordGrantFailure({
+        kind: "iap_profile_sync",
+        userId: appUserId,
+        purpose: `${type}:${tier}:${profileUntil}`,
+        error: profileErr,
+      });
+      if (GRANT_TYPES.has(type)) {
+        return NextResponse.json(
+          { error: "profile sync failed — retry" },
+          { status: 500 },
+        );
+      }
     }
   }
 

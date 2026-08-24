@@ -51,11 +51,19 @@ export async function POST(request: NextRequest) {
     // didn't open anything." The web button refused; this mobile twin
     // didn't, so clearing trash from the phone was the one remaining
     // way to break a family's card without warning.
-    const { data: liveCodes } = await supabase
+    const { data: liveCodes, error: liveCodesErr } = await supabase
       .from("inherit_codes")
       .select("code")
       .eq("oracle_id", oracleId)
       .is("revoked_at", null);
+    // Fail CLOSED — see the web twin: a read error must refuse, not
+    // cascade the family's cards away.
+    if (liveCodesErr) {
+      return NextResponse.json(
+        { error: "Couldn't verify inherit codes just now. Nothing was deleted — try again." },
+        { status: 503 },
+      );
+    }
     if (liveCodes && liveCodes.length > 0) {
       return NextResponse.json(
         {

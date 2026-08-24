@@ -446,10 +446,21 @@ export async function redeemInheritCode(rawCode: string): Promise<void> {
         .maybeSingle<{ id: string; deleted_at: string | null }>();
       if (racedCopy) {
         if (racedCopy.deleted_at) {
-          await admin
+          const { error: racedRestoreErr } = await admin
             .from("oracles")
             .update({ deleted_at: null })
             .eq("id", racedCopy.id);
+          if (racedRestoreErr) {
+            // Don't claim "welcomed" over a copy still in the trash on
+            // a purge countdown — refund and ask for one more try
+            // (self-audit 2026-08-25).
+            if (usingCredit) await refundInheritedSlotCredit(user.id);
+            redirectWithError(
+              "/identity/inherit",
+              "Almost — try that code once more.",
+              racedRestoreErr,
+            );
+          }
         }
         // They already have this person — the credit reserved a moment
         // ago bought nothing, so give it back before handing them over.

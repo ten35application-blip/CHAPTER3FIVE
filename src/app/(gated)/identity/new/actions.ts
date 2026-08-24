@@ -1,4 +1,5 @@
 "use server";
+import { claimCreationSlot, releaseCreationSlot } from "@/lib/identity/creationClaim";
 
 import { redirect, RedirectType } from "next/navigation";
 import { redirectWithError } from "@/lib/action-errors";
@@ -48,6 +49,14 @@ export async function createIdentity(): Promise<void> {
   // slot the gate returns quota_reached and a rescue placed after it
   // can never run (the exact case it exists for). Adoption consumes
   // nothing: it finishes a row this user already owns and paid for.
+  // Serialize: one creation in flight per user (self-audit 2026-08-25).
+  if (!(await claimCreationSlot(user.id))) {
+    redirectWithError(
+      "/identity/new",
+      "You already have a companion being made — give it a minute.",
+    );
+  }
+
   const orphan = await adoptOrphanedCreation(user.id);
   if (orphan) {
     redirect(`/identity/new?id=${orphan.id}`, RedirectType.replace);
@@ -252,6 +261,7 @@ export async function createIdentity(): Promise<void> {
     .from("oracles")
     .update({ provisioning: false })
     .eq("id", oracleId);
+  await releaseCreationSlot(user.id);
 
   // REPLACE, not push. The reveal lives at the same route that
   // auto-generates when it has no ?id=, so a plain redirect left

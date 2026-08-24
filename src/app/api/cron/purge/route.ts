@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { cancelStripeOnDeletion } from "@/lib/billing/cancelOnDeletion";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -204,6 +205,13 @@ export async function GET(request: NextRequest) {
       //      whose FKs are `on delete set null` rather than cascade
       //      (audit_log, email_log, stripe_events, etc.) — those
       //      keep their rows on account delete by design.
+      // Last chance to stop the money: after this point the profile is
+      // gone and Stripe would bill a card attached to nothing, with
+      // every later invoice.paid silently acked (self-audit
+      // 2026-08-25). The soft-delete already tried; this catches
+      // subscriptions that survived it (older deletions, failures).
+      await cancelStripeOnDeletion(p.id);
+
       let authErr: { message: string } | null = null;
       for (let attempt = 0; attempt < 3; attempt++) {
         const res = await admin.auth.admin.deleteUser(p.id);

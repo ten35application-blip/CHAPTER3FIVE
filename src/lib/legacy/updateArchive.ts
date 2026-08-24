@@ -126,6 +126,23 @@ export async function updateOwnArchive(
   let newPhotoUrl: string | null = null;
   let photoChanged = false;
   if (update.photoUrl !== undefined && update.photoUrl !== null) {
+    // OWNERSHIP before existence. The create/draft flows have required
+    // the owner's own namespace since 2026-08-04 (sanitize.ts) — this
+    // update surface skipped that check, so a crafted photo_url could
+    // name ANOTHER user's object (existence passes — it exists) or an
+    // external URL (existence passes — "not our bucket, not ours to
+    // judge"), and the fan-out would then copy a stranger's photo into
+    // every holder's namespace (self-audit 2026-08-25). Same rule,
+    // same prefix, fail-closed.
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+    const ownPrefix = `${supabaseUrl}/storage/v1/object/public/avatars/legacy/${userId}/`;
+    if (!supabaseUrl || !update.photoUrl.startsWith(ownPrefix)) {
+      return {
+        ok: false,
+        error: "That photo didn't save. Try picking it again.",
+        status: 400,
+      };
+    }
     newPhotoUrl = await verifiedAvatarUrl(
       update.photoUrl,
       `legacy/update user=${userId} oracle=${oracleId}`,

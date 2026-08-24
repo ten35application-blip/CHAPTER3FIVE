@@ -336,10 +336,17 @@ export async function POST(request: NextRequest) {
         .maybeSingle<{ id: string; deleted_at: string | null }>();
       if (racedCopy) {
         if (racedCopy.deleted_at) {
-          await admin
+          const { error: racedRestoreErr } = await admin
             .from("oracles")
             .update({ deleted_at: null })
             .eq("id", racedCopy.id);
+          if (racedRestoreErr) {
+            if (usingCredit) await refundInheritedSlotCredit(user.id);
+            return NextResponse.json(
+              { error: "Almost — try that code once more." },
+              { status: 500 },
+            );
+          }
         }
         // Already had this person — the credit just reserved bought
         // nothing, so give it back.

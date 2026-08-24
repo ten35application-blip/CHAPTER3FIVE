@@ -1,4 +1,5 @@
 "use server";
+import { cancelStripeOnDeletion } from "@/lib/billing/cancelOnDeletion";
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -46,6 +47,11 @@ export async function deleteAccount(formData: FormData) {
   // up and a paid restore would miss every identity — leaving them on
   // a purge countdown the user just paid to cancel. The mobile and
   // admin delete paths carry the same filter for the same reason.
+  // Stop the money first: a deleted account must stop billing (the
+  // 30-day purge would otherwise leave Stripe charging a card attached
+  // to nothing, forever). Best-effort; failures are audited.
+  await cancelStripeOnDeletion(user.id);
+
   const { error: profileErr } = await supabase
     .from("profiles")
     .update({ deleted_at: now })
@@ -103,11 +109,23 @@ export async function deleteAccount(formData: FormData) {
   // across one archive and its three copies, 0 shared URLs). Revoking
   // only closes codes nobody has redeemed yet, which nobody has paid
   // for. Wilson's rule stands: they paid for the code, it's theirs.
-  await supabase
+  const { error: revokeSweepErr } = await supabase
     .from("inherit_codes")
     .update({ revoked_at: now })
     .eq("created_by", user.id)
     .is("revoked_at", null);
+  if (revokeSweepErr) {
+    // Fail CLOSED: an unrevoked-code account is one the purge cron
+    // refuses to purge FOREVER, silently breaking the 30-day
+    // deletion promise (self-audit 2026-08-25). Better to fail the
+    // deletion loudly and let the user retry.
+    console.error("[deleteAccount] code revoke failed:", revokeSweepErr);
+    redirectWithError(
+      "/settings/delete",
+      "Couldn't complete deletion just now. Nothing was deleted — try again.",
+    );
+  }
+
 
   // Farewell email — best-effort, non-blocking. Shared sender (also
   // used by the mobile endpoint) so it lands in email_log like every

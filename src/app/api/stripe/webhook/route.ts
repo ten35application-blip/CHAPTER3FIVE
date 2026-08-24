@@ -628,7 +628,7 @@ async function handleSubscriptionCheckout(
   // never written — so each one no-ops. The card is charged monthly
   // forever while the account stays Free, and no later event self-heals
   // it. That must reach a person, not a log.
-  const { error: bindErr } = await admin
+  const { data: bindRows, error: bindErr } = await admin
     .from("profiles")
     .update({
       stripe_customer_id: customerId,
@@ -640,8 +640,13 @@ async function handleSubscriptionCheckout(
       pro_until: periodEnd,
       subscription_tier: resolvedTier,
     })
-    .eq("id", userId);
-  if (bindErr) {
+    .eq("id", userId)
+    .select("id");
+  // Zero matched rows is as lost as an error: the profile vanished
+  // between checkout and webhook, the "grant" updated nothing, and
+  // without this the file's a-person-must-see-this invariant was
+  // silently skipped for exactly this case (self-audit 2026-08-25).
+  if (bindErr || (bindRows?.length ?? 0) === 0) {
     await recordGrantFailure({
       kind: "subscription_bind",
       userId,

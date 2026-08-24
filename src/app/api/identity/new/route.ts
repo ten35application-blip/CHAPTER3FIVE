@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { claimCreationSlot, releaseCreationSlot } from "@/lib/identity/creationClaim";
 import { after } from "next/server";
 import { getRequestAuth } from "@/lib/api/mobileAuth";
 import { generateAndSaveFace } from "@/lib/faces/generate";
@@ -57,6 +58,15 @@ export async function POST(request: NextRequest) {
   // BEFORE the quota gate: the stranded row is already in the lifetime
   // count, so a rescue placed after the gate can never fire when the
   // orphan holds the user's last slot.
+  // Serialize: one creation in flight per user (self-audit
+  // 2026-08-25 — parallel POSTs could pass the quota gate together).
+  if (!(await claimCreationSlot(user.id))) {
+    return NextResponse.json(
+      { error: "You already have a companion being made — give it a minute." },
+      { status: 429 },
+    );
+  }
+
   const orphan = await adoptOrphanedCreation(user.id);
   if (orphan) {
     return NextResponse.json({ id: orphan.id });
@@ -251,6 +261,7 @@ export async function POST(request: NextRequest) {
     .from("oracles")
     .update({ provisioning: false })
     .eq("id", oracleId);
+  await releaseCreationSlot(user.id);
 
   return NextResponse.json({ id: oracleId });
 }

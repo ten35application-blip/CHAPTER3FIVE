@@ -599,6 +599,47 @@ export async function getInheritedSlotCredits(
 }
 
 /**
+ * Atomic reserve/refund for the other-mode legacy mint credit —
+ * exactly the inherited-slot pattern, same RPC, different counter.
+ * The old shape (bare balance read at the gate, decrement after
+ * insert, floored at 0) let two parallel Finishes with different
+ * answers each pass the check and each mint a paid archive + live
+ * code for one $4.99 (self-audit 2026-08-25).
+ */
+export async function reserveOtherIdentityCredit(
+  userId: string,
+): Promise<boolean> {
+  try {
+    const admin = createAdminClient();
+    const { data, error } = await admin.rpc("consume_profile_credit", {
+      target_user_id: userId,
+      counter_name: "other_identity_credits",
+    });
+    if (error) {
+      console.error("[subscription] other-credit reserve failed:", error);
+      return false;
+    }
+    return data === true;
+  } catch (err) {
+    console.error("[subscription] other-credit reserve threw:", err);
+    return false;
+  }
+}
+
+export async function refundOtherIdentityCredit(userId: string): Promise<void> {
+  try {
+    const admin = createAdminClient();
+    await admin.rpc("increment_profile_counter", {
+      target_user_id: userId,
+      counter_name: "other_identity_credits",
+      delta: 1,
+    });
+  } catch (err) {
+    console.error("[subscription] other-credit refund failed:", err);
+  }
+}
+
+/**
  * CLAIM one inherit-slot credit — the check and the spend in a single
  * statement (`update ... where inherited_slot_credits > 0 returning`,
  * consume_profile_credit). Returns true ONLY for the caller that
