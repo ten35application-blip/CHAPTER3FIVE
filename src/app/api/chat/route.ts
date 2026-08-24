@@ -82,6 +82,7 @@ import {
   LEGACY_ARCHIVE_RULES,
 } from "@/lib/personaRules";
 import { detectAndSchedulepromise } from "@/lib/promises/extract";
+import { birthdayTodayBlock, typoRuleFor } from "@/lib/identity/liveness";
 import {
   generateConversationState,
   generateWeeklyContext,
@@ -609,6 +610,8 @@ export async function POST(request: NextRequest) {
   let sportsFandom: SportsFandom | null = null;
   let sportsExtractedAt: string | null = null;
   type OracleRow = {
+    id: string;
+    traits: unknown;
     bio: string | null;
     avatar_url: string | null;
     location_anchor: LocationAnchor | null;
@@ -649,7 +652,7 @@ export async function POST(request: NextRequest) {
     const { data } = await supabase
       .from("oracles")
       .select(
-        "text_burst_style, bio, avatar_url, location_anchor, location_extracted_at, orientation, relationship_openness, identity_quirks, traits_extracted_at, mode, ambient_cast, cast_extracted_at, weekly_context, weekly_context_until, sports_fandom, sports_extracted_at, legacy_answers, is_legacy",
+        "id, traits, text_burst_style, bio, avatar_url, location_anchor, location_extracted_at, orientation, relationship_openness, identity_quirks, traits_extracted_at, mode, ambient_cast, cast_extracted_at, weekly_context, weekly_context_until, sports_fandom, sports_extracted_at, legacy_answers, is_legacy",
       )
       .eq("id", profile.active_oracle_id)
       .maybeSingle();
@@ -1197,6 +1200,9 @@ const archive: { prompt: string; answer: string }[] = [];
         language,
         location: locationAnchor,
         cast: ambientCast,
+        // Last week's threads, even though they're stale — that's the
+        // point: this week continues them.
+        previous: weeklyContext,
       });
       if (fresh) {
         weeklyForPrompt = fresh;
@@ -1476,6 +1482,17 @@ ${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${s
       ? `\n\n${APOLOGY_ACCEPTED_BLOCK}`
       : "";
 
+  // Liveness cues (2026-08-25): birthday awareness + imperfect
+  // thumbs. Formula companions only — an archive of a real person
+  // gets neither a fake birthday celebration nor fake typos.
+  const birthdayCue = ownOracle && !ownOracle.is_legacy
+    ? birthdayTodayBlock(ownOracle.traits)
+    : null;
+  const livenessCues =
+    ownOracle && !ownOracle.is_legacy
+      ? `${birthdayCue ? `\n\n${birthdayCue}` : ""}${typoRuleFor(ownOracle.traits, ownOracle.id ?? "")}`
+      : "";
+
   // If the user attached an image, send it to Anthropic as a vision
   // input. URL-based images are supported by the API. The image lives
   // in the chat-photos bucket as a long-lived signed URL.
@@ -1532,12 +1549,14 @@ ${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${s
                 text:
                   remainder +
                   ladderPart +
-                  `\n\nYOUR TEXTING RHYTHM (this overrides the general splitting guidance above).\n${burstRuleFor(ownOracle?.text_burst_style)}`,
+                  `\n\nYOUR TEXTING RHYTHM (this overrides the general splitting guidance above).\n${burstRuleFor(ownOracle?.text_burst_style)}` +
+                  livenessCues,
               },
             ]
           : systemPrompt +
             ladderPart +
-            `\n\nYOUR TEXTING RHYTHM (this overrides the general splitting guidance above).\n${burstRuleFor(ownOracle?.text_burst_style)}`,
+            `\n\nYOUR TEXTING RHYTHM (this overrides the general splitting guidance above).\n${burstRuleFor(ownOracle?.text_burst_style)}` +
+            livenessCues,
       messages,
     });
 

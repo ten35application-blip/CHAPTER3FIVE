@@ -2947,6 +2947,10 @@ export type Traits = {
   memoryStyle?: MemoryStyle | null;
   textBurstStyle?: TextBurstStyle | null;
   chronotype?: Chronotype | null;
+  /** Imperfect thumbs (2026-08-25): how typo-prone this texter is.
+   *  null = clean texter (most). Pre-trait identities derive a stable
+   *  tier from their id in lib/identity/liveness.ts. */
+  typoProneness?: "rare" | "regular" | null;
 
   /**
    * Formula expansion v5 (Fable + Claude joint proposal, Wilson
@@ -3397,8 +3401,11 @@ export function rollHumanization(): {
   memoryStyle: MemoryStyle | null;
   textBurstStyle: TextBurstStyle | null;
   chronotype: Chronotype | null;
+  typoProneness: "rare" | "regular" | null;
 } {
+  const typoRoll = Math.random();
   return {
+    typoProneness: typoRoll < 0.1 ? "regular" : typoRoll < 0.35 ? "rare" : null,
     disclosurePace: maybeRoll(HUMANIZATION_ROLL_PROB.disclosurePace, rollDisclosurePace),
     silenceStyle: maybeRoll(HUMANIZATION_ROLL_PROB.silenceStyle, rollSilenceStyle),
     punctuationHabit: maybeRoll(

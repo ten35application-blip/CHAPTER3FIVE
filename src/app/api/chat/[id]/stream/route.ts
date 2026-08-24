@@ -1,3 +1,4 @@
+import { birthdayTodayBlock, typoRuleFor } from "@/lib/identity/liveness";
 import { NextResponse, type NextRequest } from "next/server";
 import { after } from "next/server";
 import type Anthropic from "@anthropic-ai/sdk";
@@ -940,6 +941,15 @@ export async function POST(
   }
   if (userNameCue) {
     system.push({ type: "text", text: userNameCue });
+  }
+  // Liveness cues (2026-08-25) — birthday awareness + imperfect
+  // thumbs, formula companions only (archives get neither a fake
+  // birthday nor fake typos in a dead person's voice).
+  if (promptRow?.is_legacy !== true && !isConciergeOracle) {
+    const birthdayCue = birthdayTodayBlock(oracle.traits);
+    if (birthdayCue) system.push({ type: "text", text: birthdayCue });
+    const typoRule = typoRuleFor(oracle.traits, oracleId);
+    if (typoRule) system.push({ type: "text", text: typoRule.trim() });
   }
   if (aboutThemBlock) {
     system.push({ type: "text", text: aboutThemBlock });

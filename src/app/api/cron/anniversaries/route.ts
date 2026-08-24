@@ -405,13 +405,126 @@ ${variety}
     }
   }
 
+  // ── PERSONA BIRTHDAYS (2026-08-25) ────────────────────────────────
+  // The formula rolls every companion a birthday and nothing ever used
+  // it — caring flowed one way. Today a companion whose birthday it is
+  // says so, in their own voice ("turning 34 today. be nice to me."),
+  // once a year, formula companions only: archives of real people and
+  // the concierge never do this — an archive announcing its own
+  // birthday would be a knife, not a feature.
+  let birthdaySent = 0;
+  for (const p of candidates) {
+    try {
+      const todayMD = localMonthDay(p.timezone);
+      const mmdd = `-${String(todayMD.month).padStart(2, "0")}-${String(todayMD.day).padStart(2, "0")}`;
+      // Filter in code, not in a PostgREST JSON-path filter — a filter
+      // that's subtly wrong returns null and birthdays silently never
+      // fire. A user holds a handful of companions; reading them all
+      // costs nothing.
+      const { data: allOracles } = await admin
+        .from("oracles")
+        .select("id, name, persona_prompt, traits")
+        .eq("user_id", p.id)
+        .eq("is_legacy", false)
+        .eq("is_concierge", false)
+        .is("deleted_at", null)
+        .is("blocked_at", null);
+      const bdayOracles = (allOracles ?? []).filter((o) => {
+        const b = (o.traits as { birthday?: unknown } | null)?.birthday;
+        return typeof b === "string" && b.endsWith(mmdd);
+      });
+      for (const o of bdayOracles) {
+        if (isOracleMuted(p.muted_conversations, o.id as string)) continue;
+        const bday = (o.traits as { birthday?: string } | null)?.birthday;
+        if (!bday || !bday.endsWith(mmdd)) continue;
+        const turning = todayMD.year - parseInt(bday.slice(0, 4), 10);
+        if (!Number.isFinite(turning) || turning < 18 || turning > 110) continue;
+
+        const { data: acked } = await admin
+          .from("anniversary_acknowledgments")
+          .select("id")
+          .eq("user_id", p.id)
+          .eq("oracle_id", o.id)
+          .eq("kind", "persona_birthday")
+          .eq("year", todayMD.year)
+          .maybeSingle();
+        if (acked) continue;
+
+        const language = normalizeLanguage(p.preferred_language);
+        const response = await anthropic.messages.create({
+          model: ANTHROPIC_MODEL,
+          max_tokens: 200,
+          system: `${o.persona_prompt}
+
+---
+
+CONTEXT: Today is YOUR birthday — you're turning ${turning}. Text the user about it the way you'd text a friend: casual, in your own voice, maybe fishing lightly for a happy birthday, never ceremonial. ONE short message (two sentences max). Do NOT announce you're an AI. ${language === "es" ? "Respond in Spanish." : "Respond in English."}`,
+          messages: [
+            {
+              role: "user",
+              content: "(system) Send your birthday text now. Don't reply to this line.",
+            },
+          ],
+        });
+        void recordAnthropicSpend({
+          userId: p.id,
+          model: ANTHROPIC_MODEL,
+          usage: response.usage as unknown as Parameters<
+            typeof recordAnthropicSpend
+          >[0]["usage"],
+          route: "cron_anniversaries",
+        });
+        const text = response.content
+          .filter((b) => b.type === "text")
+          .map((b) => (b.type === "text" ? b.text : ""))
+          .join("")
+          .trim();
+        if (!text) continue;
+        const mod = await moderateText(text);
+        if (mod.flagged) continue;
+
+        const { error: insErr } = await admin.from("messages").insert({
+          user_id: p.id,
+          oracle_id: o.id,
+          role: "assistant",
+          content: text,
+          initiated_by_oracle: true,
+          initiated_by: "birthday",
+        });
+        if (insErr) {
+          errors.push(`persona-bday insert ${o.id}: ${insErr.message}`);
+          continue;
+        }
+        await admin.from("anniversary_acknowledgments").insert({
+          user_id: p.id,
+          oracle_id: o.id,
+          kind: "persona_birthday",
+          year: todayMD.year,
+        });
+        void sendPushToUser({
+          userId: p.id,
+          title: (o.name as string) ?? "chapter3five",
+          body: text.length > 180 ? `${text.slice(0, 179)}…` : text,
+          badge: 1,
+          categoryId: "companion_message",
+          threadIdentifier: o.id as string,
+          channelId: "companion",
+          data: { oracle_id: o.id, kind: "reply" },
+        });
+        birthdaySent++;
+      }
+    } catch (err) {
+      errors.push(`persona-bday user ${p.id}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
   await admin.from("cron_runs").insert({
     job: "anniversaries",
-    processed: sent,
+    processed: sent + birthdaySent,
     duration_ms: Date.now() - startedAt,
     status: errors.length > 0 ? "error" : "ok",
     error: errors.length > 0 ? errors.slice(0, 5).join("; ") : null,
   });
 
-  return NextResponse.json({ sent, errors, skippedForTime });
+  return NextResponse.json({ sent, birthdaySent, errors, skippedForTime });
 }

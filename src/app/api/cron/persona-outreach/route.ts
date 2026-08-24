@@ -263,17 +263,28 @@ export async function GET(request: NextRequest) {
       // compute silence per thread.
       const { data: lastMsgs } = await admin
         .from("messages")
-        .select("oracle_id, created_at, role")
+        .select("oracle_id, created_at, role, content")
         .eq("user_id", profile.id)
         .in("oracle_id", oracleIds)
         .is("deleted_at", null)
         .order("created_at", { ascending: false });
       const latestByOracle = new Map<string, string>();
       const latestUserMsgByOracle = new Map<string, string>();
+      // The thread's newest message overall — role and text. When it's
+      // the persona's own question that went unanswered, the follow-up
+      // chases THAT question instead of opening with a generic hey.
+      const newestMsgByOracle = new Map<
+        string,
+        { role: string; content: string }
+      >();
       for (const row of lastMsgs ?? []) {
         const oid = row.oracle_id as string;
         if (!latestByOracle.has(oid)) {
           latestByOracle.set(oid, row.created_at as string);
+          newestMsgByOracle.set(oid, {
+            role: row.role as string,
+            content: String(row.content ?? ""),
+          });
         }
         if (row.role === "user" && !latestUserMsgByOracle.has(oid)) {
           latestUserMsgByOracle.set(oid, row.created_at as string);
@@ -449,7 +460,24 @@ export async function GET(request: NextRequest) {
       // Fresh-callback vs long-silence framing. Callback references the
       // user's actual recent message so it lands as "I've been thinking
       // about what you said" rather than a generic reach-out.
-      const contextBlock = callbackText
+      // Their own hanging question outranks generic silence framing:
+      // "...so? the interview??" is the most human text a person sends.
+      // Crisis-screened like the callback: never chase a question
+      // whose answer-silence might BE the answer to something heavy.
+      const newest = newestMsgByOracle.get(pick.oracleId);
+      const hangingQuestion =
+        !callbackText &&
+        newest &&
+        newest.role === "assistant" &&
+        newest.content.includes("?") &&
+        newest.content.trim().length >= 12 &&
+        screenForCrisisKeywords(newest.content).length === 0
+          ? newest.content.slice(0, 300)
+          : null;
+
+      const contextBlock = hangingQuestion
+        ? `CONTEXT: You are texting FIRST. The LAST thing in this conversation is a question YOU asked that never got an answer. Your exact words were:\n\n"""\n${hangingQuestion}\n"""\n\nFollow up on YOUR OWN question the way a friend double-texts — short, warm, a little persistent, never guilt-tripping. One sentence ideal. Do NOT repeat the question verbatim; reference it the way people do ("so?? how'd it go with..."). Do NOT announce you're an AI. Match the character's texting rules exactly. ${langInstruction}`
+        : callbackText
         ? `CONTEXT: You are texting FIRST — a short follow-up about something the user said a few hours ago that stayed with you. Their exact recent message:\n\n"""\n${callbackText}\n"""\n\nWrite ONE short message as this character reacting to that specific thing — a question, a thought, a small offering. One sentence ideal, never more than two. Do NOT quote their message back verbatim. Do NOT explain that you're following up. Do NOT announce you're an AI. Match the character's texting rules exactly (no emojis, tone, cadence). ${langInstruction}`
         : `CONTEXT: You are texting FIRST. The user hasn't messaged you in a while and something small made you think of them — a memory, a moment, a passing thought. Write ONE short opener as this character (one sentence is ideal, never more than two). Hook a specific detail from what you already know about them when possible; if there's nothing specific to grab, a warm "hey stranger — how you holding up?" is fine. Do NOT explain that you're reaching out proactively. Do NOT announce that you're an AI. Do NOT ask how their day is in a generic way. Match the character's texting rules exactly (no emojis, tone, cadence). ${langInstruction}`;
 

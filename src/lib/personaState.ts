@@ -163,6 +163,10 @@ export async function generateWeeklyContext(args: {
   language: SupportedLanguage;
   location: LocationAnchor | null;
   cast: AmbientCast | null;
+  /** Last week's threads. When present, this week ADVANCES that life
+   *  instead of dealing a fresh hand — the difference between a person
+   *  and a slot machine of anecdotes (2026-08-25). */
+  previous?: WeeklyContext | null;
 }): Promise<WeeklyContext | null> {
   const castBlock = args.cast && args.cast.length > 0
     ? args.cast.map((c) => `- ${c.name} (${c.relationship})`).join("\n")
@@ -171,12 +175,16 @@ export async function generateWeeklyContext(args: {
     ? `Location: ${[args.location.neighborhood, args.location.city, args.location.state].filter(Boolean).join(", ")}.`
     : "";
   const bioLine = args.bio ? `Bio: ${args.bio}` : "";
+  const previousBlock =
+    args.previous && args.previous.threads?.length
+      ? `\nLAST WEEK'S THREADS (the life you are continuing):\n${args.previous.threads.map((t) => `- ${t}`).join("\n")}\n`
+      : "";
 
   const systemPrompt = `You are seeding a "this week" context for a chat persona named ${args.oracleName}. The persona will reference these threads only when conversation drifts there — never list them, never announce them.
 
 ${bioLine}
 ${locationLine}
-
+${previousBlock}
 People in their life:
 ${castBlock}
 
@@ -191,6 +199,7 @@ Rules:
 - Mix textures: domestic ("got the brakes fixed, $800 ouch"), social (a friend visit, an argument, a missed call), media (a book/show/album they've been into), embodied (a cold they're getting over, a workout streak, sleep being bad).
 - Anchor on the bio + location + people when possible. Don't introduce major new people not in the cast.
 - AVOID melodrama. These are mundane, real, the texture of an actual week.
+- IF LAST WEEK'S THREADS ARE LISTED ABOVE, this week is that life MOVING, not a reset: RESOLVE at most one ("the vet appointment happened — she's fine, $210"), ADVANCE one or two ("still slogging through Pachinko, finally past the slow part"), let the rest fall away naturally, and add at most ONE genuinely new thread. A thread that was dreaded last week and never mentioned again is a plot hole; a thread that pays off is a person.
 
 Output the JSON only, no prose.`;
 
