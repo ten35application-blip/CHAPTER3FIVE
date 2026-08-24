@@ -4,7 +4,7 @@
  * because every avatar render pulled the 1024px original). The
  * optimizer resizes and caches on Vercel; Supabase serves each source
  * roughly once ever. Non-storage URLs pass through untouched. Widths
- * must be on Next's size ladder (…128, 256, 384, 640…).
+ * must be on Next's size ladder (…128, 256, 384, 640…), and quality must be 75 — the only value on this Next version's allow-list (q=70 400'd in production, caught by live probe).
  */
 export function cdnImage(
   url: string | null | undefined,
@@ -12,5 +12,5 @@ export function cdnImage(
 ): string | undefined {
   if (!url) return undefined;
   if (!url.includes("/storage/v1/object/public/")) return url;
-  return `/_next/image?url=${encodeURIComponent(url)}&w=${width}&q=70`;
+  return `/_next/image?url=${encodeURIComponent(url)}&w=${width}&q=75`;
 }
