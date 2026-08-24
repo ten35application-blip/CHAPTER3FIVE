@@ -67,7 +67,7 @@ const STEPS = [
    renders as a quiet "coming soon" until PLAY_STORE_LIVE flips —
    a one-line change on approval day. The dark border token keeps
    the black pills legible on the dark theme's near-black ground. */
-const PLAY_STORE_LIVE = false;
+const PLAY_STORE_LIVE = true;
 const APP_STORE_URL = "https://apps.apple.com/us/app/chapter3five/id6801654142";
 const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=app.chapter3five";
 
