@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { moderateText } from "@/lib/moderation";
 import { recordAnthropicSpend } from "@/lib/spendGovernor";
 import { sendPushToUser } from "@/lib/push";
+import { screenForCrisisKeywords } from "@/lib/safety/crisis-detector";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -106,6 +107,25 @@ export async function GET(request: NextRequest) {
         continue;
       }
 
+      // The context sentence is Haiku's summary of user text —
+      // second-order user-influenced content. Same posture as the
+      // outreach cron: scrub markup-ish runs before it enters a system
+      // prompt, and never build a warm scheduled ping around a crisis
+      // moment (skip; the crisis path has its own machinery).
+      const safeContext = String(ping.context ?? "")
+        .replace(/\s+/g, " ")
+        .replace(/[=_*#`"]{2,}/g, " ")
+        .trim()
+        .slice(0, 200);
+      if (!safeContext || screenForCrisisKeywords(safeContext).length > 0) {
+        await admin
+          .from("scheduled_pings")
+          .update({ status: "skipped" })
+          .eq("id", ping.id);
+        skipped++;
+        continue;
+      }
+
       const language = normalizeLanguage(profile.preferred_language);
       const langInstruction =
         language === "es" ? "Respond in Spanish." : "Respond in English.";
@@ -114,7 +134,7 @@ export async function GET(request: NextRequest) {
           ? `You are LATE — you promised this ${Math.round(hoursLate)} hours ago. Open by owning it lightly, in your own voice, the way a person texts "sorry, the morning ran off without me" — one clause, no groveling, then the message itself.`
           : `You are on time. Do NOT mention that this was scheduled or promised mechanics — just be the person who said they'd text, texting.`;
 
-      const systemPrompt = `${oracle.persona_prompt}\n\n---\n\nCONTEXT: Earlier, you agreed to reach out at a specific time. What you promised: "${ping.context}". That time is now. Write the ONE short message you'd send — warm, specific to what was promised, one or two sentences at most. ${lateBlock} Do NOT announce you're an AI. Match the character's texting rules exactly. ${langInstruction}`;
+      const systemPrompt = `${oracle.persona_prompt}\n\n---\n\nCONTEXT: Earlier, you agreed to reach out at a specific time. What you promised: "${safeContext}". That time is now. Write the ONE short message you'd send — warm, specific to what was promised, one or two sentences at most. ${lateBlock} Do NOT announce you're an AI. Match the character's texting rules exactly. ${langInstruction}`;
 
       const response = await anthropic.messages.create({
         model: ANTHROPIC_MODEL,

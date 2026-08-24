@@ -25,8 +25,24 @@ import { recordAnthropicSpend } from "@/lib/spendGovernor";
  * Never throws. A missed promise is a shame; a broken send is a sin.
  */
 
-const PRESCREEN =
-  /\b(text|message|check\s*(in|on)|write|talk to|hit\s*me|ping|remind|wake\s*me|call\s*me)\b[\s\S]{0,80}\b(tomorrow|tonight|morning|evening|afternoon|later|in the (am|pm)|next week|weekend|monday|tuesday|wednesday|thursday|friday|saturday|sunday|\d{1,2}\s*(am|pm|:\d{2}))\b|\b(tomorrow|tonight|morning|evening|afternoon)\b[\s\S]{0,80}\b(text|message|check\s*in|write|ping)\b/i;
+// Three alternatives, all with bounded gaps (no backtracking risk):
+//   1. contact-verb ... time-word   ("text me in the morning")
+//   2. time-word ... contact-verb   ("tomorrow, text me")
+//   3. agreement ... time-word      ("okay, tomorrow" / "sure — tonight")
+// The verb list deliberately includes bare talk/call: "can we talk
+// tomorrow?" → "okay, tomorrow" is a promise the old pattern silently
+// dropped (self-audit 2026-08-25). False positives just buy one cheap
+// Haiku look; false negatives break a promise.
+const TIME_WORDS =
+  "tomorrow|tonight|morning|evening|afternoon|later|in the (am|pm)|next week|weekend|monday|tuesday|wednesday|thursday|friday|saturday|sunday|\\d{1,2}\\s*(am|pm|:\\d{2})";
+const CONTACT_VERBS =
+  "text|message|check\\s*(in|on)|write|talk|hit\\s*me|ping|remind|wake\\s*me|call";
+const PRESCREEN = new RegExp(
+  `\\b(${CONTACT_VERBS})\\b[\\s\\S]{0,80}\\b(${TIME_WORDS})\\b` +
+    `|\\b(${TIME_WORDS})\\b[\\s\\S]{0,80}\\b(${CONTACT_VERBS})\\b` +
+    `|\\b(okay|ok|sure|will do|i will|i'll|deal|promise)\\b[\\s\\S]{0,40}\\b(${TIME_WORDS})\\b`,
+  "i",
+);
 
 export function mightContainContactPromise(
   userText: string,
@@ -44,6 +60,10 @@ export async function detectAndSchedulepromise(opts: {
   timezone: string | null;
 }): Promise<void> {
   try {
+    // A conversation with no real oracle can reach this hook (the
+    // mobile route tolerates a null conversation id) — a "" id would
+    // ride to a 22P02 on the insert and silently eat the promise.
+    if (!opts.oracleId) return;
     if (!mightContainContactPromise(opts.userText, opts.replyText)) return;
 
     // Callers that don't carry the profile row pass null; the lookup
@@ -113,9 +133,14 @@ export async function detectAndSchedulepromise(opts: {
       .map((b) => (b.type === "text" ? b.text : ""))
       .join("")
       .trim();
+    // First { to LAST } — Haiku intermittently wraps its answer in a
+    // ```json fence, and parsing from { to end-of-string throws on the
+    // trailing fence, silently losing the promise (self-audit
+    // 2026-08-25). Slicing to the last brace is fence-proof.
     const jsonStart = raw.indexOf("{");
-    if (jsonStart === -1) return;
-    const parsed = JSON.parse(raw.slice(jsonStart)) as {
+    const jsonEnd = raw.lastIndexOf("}");
+    if (jsonStart === -1 || jsonEnd <= jsonStart) return;
+    const parsed = JSON.parse(raw.slice(jsonStart, jsonEnd + 1)) as {
       promise?: boolean;
       due_local?: string;
       context?: string;

@@ -946,7 +946,15 @@ export async function POST(
   // thumbs, formula companions only (archives get neither a fake
   // birthday nor fake typos in a dead person's voice).
   if (promptRow?.is_legacy !== true && !isConciergeOracle) {
-    const birthdayCue = birthdayTodayBlock(oracle.traits);
+    // One indexed read for the timezone — the cue must agree with the
+    // cron's local-date reckoning or the companion forgets its own
+    // birthday by dinner (self-audit 2026-08-25).
+    const { data: tzRow } = await admin
+      .from("profiles")
+      .select("timezone")
+      .eq("id", user.id)
+      .maybeSingle<{ timezone: string | null }>();
+    const birthdayCue = birthdayTodayBlock(oracle.traits, tzRow?.timezone ?? null);
     if (birthdayCue) system.push({ type: "text", text: birthdayCue });
     const typoRule = typoRuleFor(oracle.traits, oracleId);
     if (typoRule) system.push({ type: "text", text: typoRule.trim() });

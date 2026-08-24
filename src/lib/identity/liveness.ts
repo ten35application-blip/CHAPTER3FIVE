@@ -19,6 +19,7 @@ export type TypoProneness = "rare" | "regular" | null;
  */
 export function birthdayTodayBlock(
   traits: unknown,
+  timezone?: string | null,
   now: Date = new Date(),
 ): string | null {
   if (typeof traits !== "object" || traits === null) return null;
@@ -26,10 +27,34 @@ export function birthdayTodayBlock(
   if (typeof bday !== "string") return null;
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(bday);
   if (!m) return null;
-  const mm = now.getUTCMonth() + 1;
-  const dd = now.getUTCDate();
+  // The user's LOCAL date, matching the cron that sends the morning
+  // text (localMonthDay) — on UTC dates the companion announced its
+  // birthday at 10am and forgot it by dinner for any US user
+  // (self-audit 2026-08-25). UTC only as a last resort.
+  let mm = now.getUTCMonth() + 1;
+  let dd = now.getUTCDate();
+  let yy = now.getUTCFullYear();
+  if (timezone) {
+    try {
+      const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone: timezone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).formatToParts(now);
+      const get = (t: string) =>
+        +(parts.find((p) => p.type === t)?.value ?? "0");
+      if (get("month") && get("day") && get("year")) {
+        mm = get("month");
+        dd = get("day");
+        yy = get("year");
+      }
+    } catch {
+      /* invalid tz string: UTC fallback stands */
+    }
+  }
   if (+m[2] !== mm || +m[3] !== dd) return null;
-  const turning = now.getUTCFullYear() - +m[1];
+  const turning = yy - +m[1];
   if (turning < 18 || turning > 110) return null;
   return (
     `TODAY IS YOUR BIRTHDAY. You're turning ${turning}. Carry it the ` +
@@ -58,7 +83,12 @@ export function typoRuleFor(traits: unknown, oracleId: string): string {
       : undefined;
   if (fromTrait === "rare" || fromTrait === "regular") {
     tier = fromTrait;
-  } else if (fromTrait === undefined || fromTrait === null) {
+  } else if (fromTrait === null) {
+    // Explicitly rolled clean (65% of new identities). jsonb keeps the
+    // null, and overriding it with the hash re-dealt a decision the
+    // formula already made (self-audit 2026-08-25).
+    tier = null;
+  } else if (fromTrait === undefined) {
     // Deterministic derivation for pre-trait identities: cheap string
     // hash → [0,1). Same id, same tier, forever.
     let h = 0;

@@ -414,6 +414,14 @@ ${variety}
   // birthday would be a knife, not a feature.
   let birthdaySent = 0;
   for (const p of candidates) {
+    // Same contract as the main loop: stop on our own terms and let
+    // the heartbeat record the truncation — a run the platform kills
+    // at 300s writes NO heartbeat and silently loses every birthday
+    // past the kill point for a full year (self-audit 2026-08-25).
+    if (budget.exhausted()) {
+      skippedForTime++;
+      break;
+    }
     try {
       const todayMD = localMonthDay(p.timezone);
       const mmdd = `-${String(todayMD.month).padStart(2, "0")}-${String(todayMD.day).padStart(2, "0")}`;
@@ -428,7 +436,10 @@ ${variety}
         .eq("is_legacy", false)
         .eq("is_concierge", false)
         .is("deleted_at", null)
-        .is("blocked_at", null);
+        .is("blocked_at", null)
+        // An archived conversation is the user saying "not right now" —
+        // the main loop honors it four hundred lines up; so does this.
+        .is("conversation_archived_at", null);
       const bdayOracles = (allOracles ?? []).filter((o) => {
         const b = (o.traits as { birthday?: unknown } | null)?.birthday;
         return typeof b === "string" && b.endsWith(mmdd);
@@ -483,6 +494,23 @@ CONTEXT: Today is YOUR birthday — you're turning ${turning}. Text the user abo
         const mod = await moderateText(text);
         if (mod.flagged) continue;
 
+        // Claim the year FIRST, checked — then send. The old order
+        // (message, push, then an unchecked ack) let a mid-run kill or
+        // a transient ack failure double-send the same birthday within
+        // the day. If the message insert then fails, roll the claim
+        // back so a retry can still deliver.
+        const { error: ackErr } = await admin
+          .from("anniversary_acknowledgments")
+          .insert({
+            user_id: p.id,
+            oracle_id: o.id,
+            kind: "persona_birthday",
+            year: todayMD.year,
+          });
+        if (ackErr) {
+          errors.push(`persona-bday ack ${o.id}: ${ackErr.message}`);
+          continue;
+        }
         const { error: insErr } = await admin.from("messages").insert({
           user_id: p.id,
           oracle_id: o.id,
@@ -493,14 +521,15 @@ CONTEXT: Today is YOUR birthday — you're turning ${turning}. Text the user abo
         });
         if (insErr) {
           errors.push(`persona-bday insert ${o.id}: ${insErr.message}`);
+          await admin
+            .from("anniversary_acknowledgments")
+            .delete()
+            .eq("user_id", p.id)
+            .eq("oracle_id", o.id)
+            .eq("kind", "persona_birthday")
+            .eq("year", todayMD.year);
           continue;
         }
-        await admin.from("anniversary_acknowledgments").insert({
-          user_id: p.id,
-          oracle_id: o.id,
-          kind: "persona_birthday",
-          year: todayMD.year,
-        });
         void sendPushToUser({
           userId: p.id,
           title: (o.name as string) ?? "chapter3five",

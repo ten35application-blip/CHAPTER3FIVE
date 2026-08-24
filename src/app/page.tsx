@@ -55,9 +55,94 @@ const STEPS = [
   },
   {
     title: "Talk, anytime.",
-    body: "Text like you’d text anyone. They remember. They stay themselves. They’re there when you need them — including at 2 a.m.",
+    body: "Text like you’d text anyone. They remember. They text first sometimes. And when they say “I’ll check on you in the morning” — they do.",
   },
 ];
+
+/* ── Store badges ──────────────────────────────────────────────
+   Self-hosted SVG pills (the CSP blocks external assets, and the
+   official artwork is a straight redraw: black pill, brand mark,
+   two-line label). The Apple listing is LIVE (verified 200,
+   2026-08-25); the Play listing is still in review, so its badge
+   renders as a quiet "coming soon" until PLAY_STORE_LIVE flips —
+   a one-line change on approval day. The dark border token keeps
+   the black pills legible on the dark theme's near-black ground. */
+const PLAY_STORE_LIVE = false;
+const APP_STORE_URL = "https://apps.apple.com/us/app/chapter3five/id6801654142";
+const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=app.chapter3five";
+
+function AppleBadge() {
+  return (
+    <span className="flex h-[52px] items-center gap-2.5 rounded-xl border border-warm-700 bg-black px-4 transition-transform group-hover:-translate-y-px">
+      <svg viewBox="0 0 384 512" width="22" height="26" aria-hidden="true">
+        <path
+          fill="#ffffff"
+          d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"
+        />
+      </svg>
+      <span className="flex flex-col items-start leading-none">
+        <span className="text-[11px] font-medium text-[#b9b9b7]">
+          Download on the
+        </span>
+        <span className="mt-0.5 text-[17px] font-semibold tracking-tight text-white">
+          App Store
+        </span>
+      </span>
+    </span>
+  );
+}
+
+function PlayBadge() {
+  return (
+    <span className="flex h-[52px] items-center gap-2.5 rounded-xl border border-warm-700 bg-black px-4 transition-transform group-hover:-translate-y-px">
+      <svg viewBox="0 0 512 512" width="22" height="24" aria-hidden="true">
+        <path fill="#2196f3" d="M99.6 21.9 356 168 99.6 490.1c-12.3-6.5-20.2-19.4-20.2-33.8V55.7c0-14.4 7.9-27.3 20.2-33.8z" />
+        <path fill="#4caf50" d="M99.6 21.9c3.5-1.9 7.4-3 11.5-3 6.6 0 13 2.6 18.2 5.6L390 164.5 356 198.5 99.6 21.9z" />
+        <path fill="#ffc107" d="M390 164.5l64.8 37.3c26.1 15 26.1 45.3 0 60.4L390 299.5 322.2 232 390 164.5z" />
+        <path fill="#f44336" d="M99.6 490.1 356 313.5l34 34-260.7 150.1c-9.4 5.5-20.4 5.9-29.7-.5z" />
+      </svg>
+      <span className="flex flex-col items-start leading-none">
+        <span className="text-[11px] font-medium text-[#b9b9b7]">
+          {PLAY_STORE_LIVE ? "Get it on" : "Coming soon to"}
+        </span>
+        <span className="mt-0.5 text-[17px] font-semibold tracking-tight text-white">
+          Google Play
+        </span>
+      </span>
+    </span>
+  );
+}
+
+function StoreBadges({ className = "" }: { className?: string }) {
+  return (
+    <div className={`flex flex-wrap items-center justify-center gap-3 ${className}`}>
+      <a
+        href={APP_STORE_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Download chapter3five on the App Store"
+        className="group"
+      >
+        <AppleBadge />
+      </a>
+      {PLAY_STORE_LIVE ? (
+        <a
+          href={PLAY_STORE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Get chapter3five on Google Play"
+          className="group"
+        >
+          <PlayBadge />
+        </a>
+      ) : (
+        <span aria-label="chapter3five is coming soon to Google Play" className="opacity-80">
+          <PlayBadge />
+        </span>
+      )}
+    </div>
+  );
+}
 
 /* Small gradient hairline used as a section divider accent. */
 function Rule({ className = "" }: { className?: string }) {
@@ -169,6 +254,7 @@ export default function Home() {
             Sign in
           </Link>
 
+          <StoreBadges className="mt-10" />
         </div>
       </section>
 

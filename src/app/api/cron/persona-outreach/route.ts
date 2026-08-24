@@ -263,7 +263,7 @@ export async function GET(request: NextRequest) {
       // compute silence per thread.
       const { data: lastMsgs } = await admin
         .from("messages")
-        .select("oracle_id, created_at, role, content")
+        .select("oracle_id, created_at, role, content, initiated_by")
         .eq("user_id", profile.id)
         .in("oracle_id", oracleIds)
         .is("deleted_at", null)
@@ -275,7 +275,7 @@ export async function GET(request: NextRequest) {
       // chases THAT question instead of opening with a generic hey.
       const newestMsgByOracle = new Map<
         string,
-        { role: string; content: string }
+        { role: string; content: string; initiatedBy: string | null }
       >();
       for (const row of lastMsgs ?? []) {
         const oid = row.oracle_id as string;
@@ -284,6 +284,7 @@ export async function GET(request: NextRequest) {
           newestMsgByOracle.set(oid, {
             role: row.role as string,
             content: String(row.content ?? ""),
+            initiatedBy: (row.initiated_by as string | null) ?? null,
           });
         }
         if (row.role === "user" && !latestUserMsgByOracle.has(oid)) {
@@ -408,7 +409,17 @@ export async function GET(request: NextRequest) {
         const callbackOracle = reachable.find(
           (o) => o.id === freshCallback.oracleId,
         );
-        if (callbackOracle && !withinOracle24h) {
+        // The callback path skips the cadence loop, so it must apply
+        // the chronotype band itself — otherwise a night owl sends a
+        // morning callback, the exact band the hourly retune enforces.
+        const callbackInBand =
+          !callbackOracle ||
+          withinChronotypeBand(
+            now,
+            profile.timezone as string | null,
+            readChronotype(callbackOracle.traits),
+          );
+        if (callbackOracle && callbackInBand && !withinOracle24h) {
           callbackText = freshCallback.text;
           if (!existing) {
             eligible.push({
@@ -469,6 +480,12 @@ export async function GET(request: NextRequest) {
         !callbackText &&
         newest &&
         newest.role === "assistant" &&
+        // Organic questions only. Outreach openers end in "?" too, and
+        // the persona usually speaks last — without this, outreach 2
+        // chases outreach 1 into a silent user, each round framed "a
+        // little persistent": an escalation ladder pointed at someone
+        // who stopped answering (self-audit 2026-08-25).
+        newest.initiatedBy === null &&
         newest.content.includes("?") &&
         newest.content.trim().length >= 12 &&
         screenForCrisisKeywords(newest.content).length === 0

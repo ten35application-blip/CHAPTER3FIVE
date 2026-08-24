@@ -612,6 +612,7 @@ export async function POST(request: NextRequest) {
   type OracleRow = {
     id: string;
     traits: unknown;
+    is_concierge: boolean | null;
     bio: string | null;
     avatar_url: string | null;
     location_anchor: LocationAnchor | null;
@@ -652,7 +653,7 @@ export async function POST(request: NextRequest) {
     const { data } = await supabase
       .from("oracles")
       .select(
-        "id, traits, text_burst_style, bio, avatar_url, location_anchor, location_extracted_at, orientation, relationship_openness, identity_quirks, traits_extracted_at, mode, ambient_cast, cast_extracted_at, weekly_context, weekly_context_until, sports_fandom, sports_extracted_at, legacy_answers, is_legacy",
+        "id, traits, is_concierge, text_burst_style, bio, avatar_url, location_anchor, location_extracted_at, orientation, relationship_openness, identity_quirks, traits_extracted_at, mode, ambient_cast, cast_extracted_at, weekly_context, weekly_context_until, sports_fandom, sports_extracted_at, legacy_answers, is_legacy",
       )
       .eq("id", profile.active_oracle_id)
       .maybeSingle();
@@ -1200,9 +1201,16 @@ const archive: { prompt: string; answer: string }[] = [];
         language,
         location: locationAnchor,
         cast: ambientCast,
-        // Last week's threads, even though they're stale — that's the
-        // point: this week continues them.
-        previous: weeklyContext,
+        // Last week's threads — but only if "last week" is honest.
+        // Expired more than ~2 weeks ago means the user was away; a
+        // four-month-old thread continued as "still dreading Friday's
+        // vet appointment" manufactures the exact time-standing-still
+        // artifact this feature kills (self-audit 2026-08-25).
+        previous:
+          weeklyContextUntil &&
+          Date.now() - Date.parse(weeklyContextUntil) < 14 * 24 * 3600 * 1000
+            ? weeklyContext
+            : null,
       });
       if (fresh) {
         weeklyForPrompt = fresh;
@@ -1485,13 +1493,21 @@ ${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${s
   // Liveness cues (2026-08-25): birthday awareness + imperfect
   // thumbs. Formula companions only — an archive of a real person
   // gets neither a fake birthday celebration nor fake typos.
-  const birthdayCue = ownOracle && !ownOracle.is_legacy
-    ? birthdayTodayBlock(ownOracle.traits)
+  // Formula companions only: not archives, and NOT Adrian — the
+  // shared concierge row is readable by everyone (that's how his card
+  // renders), so without this gate the id-hash could deal typos to
+  // every free-tier user's Adrian on mobile while web excludes him
+  // (self-audit 2026-08-25).
+  const livenessOracle =
+    ownOracle && !ownOracle.is_legacy && !ownOracle.is_concierge
+      ? ownOracle
+      : null;
+  const birthdayCue = livenessOracle
+    ? birthdayTodayBlock(livenessOracle.traits, profile.timezone ?? null)
     : null;
-  const livenessCues =
-    ownOracle && !ownOracle.is_legacy
-      ? `${birthdayCue ? `\n\n${birthdayCue}` : ""}${typoRuleFor(ownOracle.traits, ownOracle.id ?? "")}`
-      : "";
+  const livenessCues = livenessOracle
+    ? `${birthdayCue ? `\n\n${birthdayCue}` : ""}${typoRuleFor(livenessOracle.traits, livenessOracle.id ?? "")}`
+    : "";
 
   // If the user attached an image, send it to Anthropic as a vision
   // input. URL-based images are supported by the API. The image lives
