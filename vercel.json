@@ -28,11 +28,11 @@
     },
     {
       "path": "/api/cron/persona-outreach",
-      "schedule": "0 * * * *"
+      "schedule": "0 19 * * *"
     },
     {
       "path": "/api/cron/promised-pings",
-      "schedule": "*/15 * * * *"
+      "schedule": "0 15 * * *"
     }
   ]
 }
