@@ -460,8 +460,8 @@ export default function TermsPage() {
             <ul>
               <li>
                 <strong>
-                  Extra identity slot — {EXTRA_IDENTITY_PRICE_LABEL}/month
-                  per slot.
+                  Extra identity slot — {EXTRA_IDENTITY_PRICE_LABEL},
+                  one-time, per slot.
                 </strong>{" "}
                 Adds one additional self-created identity (formula or
                 photo) beyond the{" "}

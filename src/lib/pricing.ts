@@ -64,7 +64,7 @@ export const PRICING = {
    *  random+photo ceiling by 1 and stays until consumed by creation.
    *  Was $5/month recurring before the 2026-08-03 rework; the price
    *  stayed the same but the cadence flipped to one-time. */
-  extraIdentityCents: 500,
+  extraIdentityCents: 499, // $4.99 — Apple charges 4.99 for chapter3five.slot.extra (receipt 2026-08-24)
   /** NO inherited slot is bundled with any plan since the July 2026
    *  second rework — every inherit-code redemption is the one-time
    *  inheritedSlotPurchaseCents purchase, no exceptions. Kept as an
@@ -74,7 +74,7 @@ export const PRICING = {
   /** $5 ONE-TIME per inherit-code redemption (replaces the retired
    *  $5/month extraInheritedIdentityCents recurring slot). Flat —
    *  every tier, every code, no waivers. */
-  inheritedSlotPurchaseCents: 500,
+  inheritedSlotPurchaseCents: 499, // $4.99 — matches chapter3five.unlock.inherit
   /** Monthly message cap for Pro. NEW in the pack rework — Pro was
    *  unlimited before. Counted per calendar month against the user's
    *  outgoing messages (role='user') across all conversations. */
@@ -117,7 +117,7 @@ export const PRICING = {
    *  charge amount, since it was previously client-writable).
    *  Changing this value here + the 0074 column default + the 0117
    *  trigger's `500` check keeps everything aligned. */
-  restoreIdentityCents: 500,
+  restoreIdentityCents: 499, // $4.99 — web-only SKU, kept on the .99 convention with everything else
 
   /** $5 ONE-TIME to complete an OTHER-mode legacy identity ("For
    *  someone I love"). Charged at Finish time, BEFORE synthesis runs
@@ -125,16 +125,16 @@ export const PRICING = {
    *  profiles.other_identity_credits). Self-mode stays free; the
    *  recipient-redeem gate (inheritedSlotPurchaseCents) is separate
    *  and unchanged. */
-  otherIdentityCreateCents: 500,
+  otherIdentityCreateCents: 499, // $4.99 — matches chapter3five.archive.other
 
   /* ── Add-on packs (one-time; each pack credits BOTH counters) ── */
-  packSmallCents: 500, // $5.00
+  packSmallCents: 499, // $4.99 — matches chapter3five.pack.small
   packSmallMessages: 100,
   packSmallImages: 12,
-  packMediumCents: 1000, // $10.00
+  packMediumCents: 999, // $9.99 — matches chapter3five.pack.medium
   packMediumMessages: 250,
   packMediumImages: 30,
-  packLargeCents: 2000, // $20.00
+  packLargeCents: 1999, // $19.99 — matches chapter3five.pack.large
   packLargeMessages: 600,
   packLargeImages: 75,
 

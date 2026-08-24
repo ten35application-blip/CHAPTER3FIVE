@@ -50,6 +50,68 @@ import { recordPendingPayment } from "@/lib/billing/pendingPayment";
  * branches for them survived and would have landed buyers on 404
  * success pages, so they're rejected here.
  */
+
+type CheckoutLineItem = NonNullable<
+  NonNullable<
+    Parameters<ReturnType<typeof getStripe>["checkout"]["sessions"]["create"]>[0]
+  >["line_items"]
+>[number];
+
+/**
+ * The line item that charges what src/lib/pricing.ts says — always.
+ *
+ * Every branch here used to trust its STRIPE_PRICE_ID_* env blindly:
+ * the constants said one number, the dashboard Price object charged
+ * whatever it was created with, and nothing compared them. When the
+ * constants moved to store parity (499/999 — Wilson, 2026-08-24) the
+ * labels, Terms, and ledger all changed while the actual charge did
+ * not, because the checkout charges the Price object. Sensitive envs
+ * can't be read outside Vercel, so this can't even be caught locally.
+ *
+ * So: retrieve the env Price and use it only if its unit_amount equals
+ * the constant (keeps the dashboard's clean per-SKU revenue grouping).
+ * On any disagreement — or a missing/unreadable Price — fall back to
+ * inline price_data at the constant, so the customer is charged the
+ * number every label and legal page shows. tax_behavior is explicit
+ * because automatic_tax rejects unspecified prices, and "exclusive"
+ * matches the account's USD default the dashboard Prices use.
+ */
+async function accurateLineItem(opts: {
+  stripe: ReturnType<typeof getStripe>;
+  priceId: string;
+  cents: number;
+  productName: string;
+  recurring?: boolean;
+}): Promise<CheckoutLineItem> {
+  try {
+    const price = await opts.stripe.prices.retrieve(opts.priceId);
+    if (price.active && price.unit_amount === opts.cents) {
+      return { price: opts.priceId, quantity: 1 };
+    }
+    console.warn(
+      `[stripe/checkout] env price ${opts.priceId} charges ` +
+        `${price.unit_amount}, constants say ${opts.cents} — ` +
+        `charging the constant via price_data. Update the Price in ` +
+        `the Stripe dashboard to restore per-SKU revenue grouping.`,
+    );
+  } catch (err) {
+    console.warn(
+      `[stripe/checkout] could not verify price ${opts.priceId}:`,
+      err,
+    );
+  }
+  return {
+    price_data: {
+      currency: "usd",
+      unit_amount: opts.cents,
+      tax_behavior: "exclusive",
+      product_data: { name: opts.productName },
+      ...(opts.recurring ? { recurring: { interval: "month" } } : {}),
+    },
+    quantity: 1,
+  };
+}
+
 export async function POST(request: NextRequest) {
   type Purpose =
     | "pro_monthly"
@@ -168,6 +230,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const subscriptionCents =
+      purpose === "basic_monthly"
+        ? PRICING.basicMonthlyCents
+        : PRICING.monthlyCents;
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       payment_method_types: ["card"],
@@ -181,7 +247,18 @@ export async function POST(request: NextRequest) {
             customer_update: { address: "auto" as const },
           }
         : { customer_email: user.email ?? undefined }),
-      line_items: [{ price: priceId, quantity: 1 }],
+      line_items: [
+        await accurateLineItem({
+          stripe,
+          priceId,
+          cents: subscriptionCents,
+          productName:
+            purpose === "basic_monthly"
+              ? "chapter3five Basic"
+              : "chapter3five Pro",
+          recurring: true,
+        }),
+      ],
       // App Store 3.1.2 + auto-renew disclosure: this text is repeated
       // on the /terms page and the upgrade CTA copy.
       subscription_data: {
@@ -262,7 +339,14 @@ export async function POST(request: NextRequest) {
       // tax-exclusive by the account's USD default.
       automatic_tax: { enabled: true },
       customer_email: user.email ?? undefined,
-      line_items: [{ price: priceId, quantity: 1 }],
+      line_items: [
+        await accurateLineItem({
+          stripe,
+          priceId,
+          cents: amountCents,
+          productName: "chapter3five add-on pack",
+        }),
+      ],
       metadata: {
         user_id: user.id,
         purpose,
@@ -313,7 +397,14 @@ export async function POST(request: NextRequest) {
       // tax-exclusive by the account's USD default.
       automatic_tax: { enabled: true },
       customer_email: user.email ?? undefined,
-      line_items: [{ price: priceId, quantity: 1 }],
+      line_items: [
+        await accurateLineItem({
+          stripe,
+          priceId,
+          cents: PRICING.inheritedSlotPurchaseCents,
+          productName: "chapter3five inherited archive slot",
+        }),
+      ],
       metadata: {
         user_id: user.id,
         purpose,
@@ -365,7 +456,14 @@ export async function POST(request: NextRequest) {
       // tax-exclusive by the account's USD default.
       automatic_tax: { enabled: true },
       customer_email: user.email ?? undefined,
-      line_items: [{ price: priceId, quantity: 1 }],
+      line_items: [
+        await accurateLineItem({
+          stripe,
+          priceId,
+          cents: PRICING.otherIdentityCreateCents,
+          productName: "chapter3five archive of another",
+        }),
+      ],
       metadata: {
         user_id: user.id,
         purpose,
@@ -446,7 +544,14 @@ export async function POST(request: NextRequest) {
       // tax-exclusive by the account's USD default.
       automatic_tax: { enabled: true },
       customer_email: user.email ?? undefined,
-      line_items: [{ price: priceId, quantity: 1 }],
+      line_items: [
+        await accurateLineItem({
+          stripe,
+          priceId,
+          cents: PRICING.extraIdentityCents,
+          productName: "chapter3five extra companion slot",
+        }),
+      ],
       metadata: {
         user_id: user.id,
         purpose,

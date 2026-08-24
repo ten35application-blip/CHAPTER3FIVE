@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient as createPlainClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
@@ -31,6 +32,18 @@ export const runtime = "nodejs";
  * same version twice is a no-op on the profile column and dedupes
  * on the ledger.
  */
+
+/** RFC-4122 v5-style uuid from a name — same input, same uuid, which
+ *  is the whole point: it turns the messages primary key into the
+ *  unique constraint this insert otherwise doesn't have. */
+function deterministicUuid(name: string): string {
+  const h = createHash("sha1").update(name).digest();
+  h[6] = (h[6] & 0x0f) | 0x50;
+  h[8] = (h[8] & 0x3f) | 0x80;
+  const x = h.subarray(0, 16).toString("hex");
+  return `${x.slice(0, 8)}-${x.slice(8, 12)}-${x.slice(12, 16)}-${x.slice(16, 20)}-${x.slice(20, 32)}`;
+}
+
 export async function POST(request: NextRequest) {
   // Cookie-first, then Bearer.
   const supabase = await createClient();
@@ -217,8 +230,15 @@ export async function POST(request: NextRequest) {
   // not be improvised differently for each person. Adrian's own persona
   // handles every message after this one.
   //
-  // Idempotent: only inserts when the thread is genuinely empty, so a
-  // re-accept or a double-tap can never produce two hellos.
+  // Idempotent TWICE over. The empty-thread check handles the normal
+  // case; the deterministic id handles the race it can't. Two accepts
+  // in flight at once (a double-tap, or web and phone finishing
+  // onboarding together) both count 0 before either insert commits —
+  // count-then-insert has no lock, and messages has no natural unique
+  // key to lean on. So the greeting's id is derived from
+  // (user, concierge): both racers compute the SAME uuid, the second
+  // insert hits the primary key, and 23505 is swallowed as "already
+  // greeted", which is exactly what it means.
   try {
     const { count: existing } = await admin
       .from("messages")
@@ -226,7 +246,11 @@ export async function POST(request: NextRequest) {
       .eq("user_id", user.id)
       .eq("oracle_id", concierge.id);
     if ((existing ?? 0) === 0) {
-      await admin.from("messages").insert({
+      const greetingId = deterministicUuid(
+        `c3f:concierge-greeting:${user.id}:${concierge.id}`,
+      );
+      const { error: greetErr } = await admin.from("messages").insert({
+        id: greetingId,
         user_id: user.id,
         oracle_id: concierge.id,
         role: "assistant",
@@ -239,6 +263,9 @@ export async function POST(request: NextRequest) {
           "That said — I'm here, and I'm not in a hurry. How are you " +
           "doing today?",
       });
+      if (greetErr && greetErr.code !== "23505") {
+        console.error("[accept-terms] concierge welcome insert failed:", greetErr);
+      }
     }
   } catch (err) {
     // Never block a consent flow over a greeting.

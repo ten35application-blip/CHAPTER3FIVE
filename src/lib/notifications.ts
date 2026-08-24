@@ -883,7 +883,7 @@ They're in your contacts whenever you want them. There's no schedule and no wron
 
 Your copy stays yours. If the person who shared the code closes their account, nothing here changes.
 
-This email is also your record of the $5 unlock.
+This email is also your record of the $4.99 unlock.
 
 — chapter3five
 https://chapter3five.app/dashboard`;

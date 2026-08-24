@@ -114,7 +114,14 @@ export async function handleCrisis({
     // conversation cannot turn into a row of crisis notifications.
     // No preview text of what they wrote — a lock screen is not private,
     // and this notification may be read by someone standing next to them.
-    void sendPushToUser({
+    //
+    // AWAITED, not void. On the stream route this function is the tail
+    // of after(), and the serverless instance freezes the moment that
+    // promise settles — a fire-and-forget fetch still in flight at that
+    // moment is dropped, silently, exactly when the companion has just
+    // promised something is coming. sendPushToUser never throws (it
+    // catches internally), so awaiting cannot break the crisis flow.
+    await sendPushToUser({
       userId,
       title: "Adrian",
       body: "I sent you something — it's in our chat whenever you want it.",

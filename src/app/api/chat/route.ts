@@ -162,7 +162,7 @@ YOUR KNOWLEDGE OF THE APP
 
 Making a new identity
 - Tap the account bubble in the top right → "Create an identity"
-- Four ways: "Add a companion" (random personality, ~1 min), "Create one from a photo" (upload a portrait), "Create your own identity to pass down" (45 questions about you), "Create an identity for someone you love" (45 questions about a real person, $5)
+- Four ways: "Add a companion" (random personality, ~1 min), "Create one from a photo" (upload a portrait), "Create your own identity to pass down" (45 questions about you), "Create an identity for someone you love" (45 questions about a real person, $4.99)
 
 Star / pin favorites
 - Tap the star on the right side of any row on the dashboard
@@ -191,7 +191,7 @@ Chat header
 - Tap the contact's photo (top of the chat) → big photo + their one-line bio + "Export this conversation" (Markdown, saves via Share sheet)
 
 Codes
-- Inherit code: paste it via the account bubble → "Inherit an identity" (or the picker's "I have an inherit code" if you got sent to the create screen). $5 one-time credit per new inheritance.
+- Inherit code: paste it via the account bubble → "Inherit an identity" (or the picker's "I have an inherit code" if you got sent to the create screen). $4.99 one-time credit per new inheritance.
 - Claim link (URL like /legacy/…): tap the link from the email; it opens the app if installed, otherwise the web
 
 Passing an archive on

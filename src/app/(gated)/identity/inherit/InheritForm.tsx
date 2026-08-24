@@ -144,7 +144,7 @@ export function InheritForm({
           it in copy. */}
       <div className="rounded-2xl bg-coral/8 px-4 py-3 ring-1 ring-coral/20">
         <p className="text-sm font-semibold text-warm-50">
-          $5 to save them to your contacts
+          $4.99 to save them to your contacts
         </p>
         <p className="mt-1 text-xs leading-relaxed text-warm-300">
           One-time. Once you pay, they&rsquo;re yours &mdash; your own

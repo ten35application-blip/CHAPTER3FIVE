@@ -308,12 +308,21 @@ export default function PrivacyPage() {
             text.
           </li>
           <li>
-            <strong>Dictation stays on your device.</strong> The microphone
+            <strong>Dictation never reaches us.</strong> The microphone
             button uses your browser&rsquo;s own speech recognition to turn
             speech into text in the message box, which you can edit before
-            sending. We never record, receive, or store audio, and no audio
-            is sent to us or to anyone else &mdash; only the text you choose
-            to send.
+            sending. We never record, receive, or store audio &mdash; the
+            only thing chapter3five ever gets is the text you choose to
+            send. Depending on your browser, the browser itself may use
+            its maker&rsquo;s speech service to do the transcription (for
+            example, Chrome uses Google&rsquo;s); that processing happens
+            under your browser&rsquo;s privacy policy, not ours, and none
+            of it involves chapter3five.
+            <br />
+            <br />
+            The chapter3five iPhone and Android apps have no microphone
+            feature at all &mdash; dictation there is your keyboard&rsquo;s
+            own, which works the same way in every app on your phone.
           </li>
         </ul>
         <p>
