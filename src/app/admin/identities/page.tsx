@@ -8,6 +8,9 @@ import {
 type OracleRow = {
   id: string;
   name: string;
+  inherited_at: string | null;
+  is_self_archive: boolean | null;
+  creation_source: string | null;
   user_id: string;
   is_legacy: boolean | null;
   one_line_hook: string | null;
@@ -41,7 +44,7 @@ export default async function AdminIdentitiesPage({
     safeSelect<OracleRow>(
       supabase,
       "oracles",
-      "id, name, user_id, is_legacy, one_line_hook, created_at",
+      "id, name, user_id, is_legacy, one_line_hook, created_at, inherited_at, is_self_archive, creation_source",
       (q) => {
         let query = q.is("deleted_at", null);
         // is_legacy is null on pre-0055 rows — treat null as randomized.
@@ -93,14 +96,29 @@ export default async function AdminIdentitiesPage({
               className="grid grid-cols-[1fr_6.5rem] items-center gap-3 border-b border-warm-700/60 px-4 py-3 text-sm transition-colors last:border-b-0 odd:bg-ink hover:bg-coral/5 sm:grid-cols-[minmax(8rem,14rem)_6.5rem_1fr_6.5rem]"
             >
               <span className="truncate font-medium text-warm-50">{o.name}</span>
+              {/* An inherited COPY carries the same name as its source
+                  archive — unlabeled, one redeemed code reads as "it
+                  came in twice" in this list (Wilson 2026-08-26, over
+                  Pedro's archive + its redeemed copy). Say what each
+                  row IS. */}
               <span
                 className={
-                  o.is_legacy
-                    ? "justify-self-start rounded-full bg-teal/15 px-2.5 py-0.5 text-xs font-semibold text-teal-strong"
-                    : "justify-self-start rounded-full bg-coral/10 px-2.5 py-0.5 text-xs font-semibold text-coral-strong"
+                  o.inherited_at
+                    ? "justify-self-start rounded-full bg-warm-700/60 px-2.5 py-0.5 text-xs font-semibold text-warm-200"
+                    : o.is_legacy
+                      ? "justify-self-start rounded-full bg-teal/15 px-2.5 py-0.5 text-xs font-semibold text-teal-strong"
+                      : "justify-self-start rounded-full bg-coral/10 px-2.5 py-0.5 text-xs font-semibold text-coral-strong"
                 }
               >
-                {o.is_legacy ? "Legacy" : "Random"}
+                {o.inherited_at
+                  ? "Inherited copy"
+                  : o.is_self_archive
+                    ? "Archive (self)"
+                    : o.is_legacy
+                      ? "Archive (other)"
+                      : o.creation_source === "photo"
+                        ? "Photo"
+                        : "Random"}
               </span>
               <span className="hidden truncate text-warm-300 sm:block">
                 {emails.get(o.user_id) ?? o.user_id}
