@@ -197,6 +197,54 @@ export async function POST(request: NextRequest) {
     console.error("[accept-terms] terms_acceptances ledger threw:", err);
   }
 
+  // ADRIAN SAYS HELLO FIRST, so nobody opens a silent app.
+  //
+  // The welcome only ever fired when someone OPENED Adrian's thread
+  // (ChatSurface and the mobile conversation screen both post to
+  // /api/chat/welcome on an empty thread). Anyone who signed up, looked
+  // at the dashboard and didn't tap in was never spoken to at all —
+  // five of the last ten signups had zero messages, including a paying
+  // subscriber. For an app whose whole promise is that someone reaches
+  // out to you, an empty first screen is the worst possible opening.
+  //
+  // Accepting the terms is the last step of onboarding on BOTH
+  // platforms and already resolves the concierge above, so this is the
+  // moment the thread should stop being empty.
+  //
+  // Written directly rather than generated: it must be instant (a model
+  // call would make "I agree" hang), identical for everyone, and it
+  // carries the disclosure — which is exactly the sentence that should
+  // not be improvised differently for each person. Adrian's own persona
+  // handles every message after this one.
+  //
+  // Idempotent: only inserts when the thread is genuinely empty, so a
+  // re-accept or a double-tap can never produce two hellos.
+  try {
+    const { count: existing } = await admin
+      .from("messages")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("oracle_id", concierge.id);
+    if ((existing ?? 0) === 0) {
+      await admin.from("messages").insert({
+        user_id: user.id,
+        oracle_id: concierge.id,
+        role: "assistant",
+        content:
+          "Hey — I'm Adrian. Good to meet you.\n\n" +
+          "Before anything else, the honest bit: I'm an AI, and so is " +
+          "everyone you'll meet here. What we say is generated, not " +
+          "remembered from a life we lived. You'll find that written " +
+          "plainly in the Terms too.\n\n" +
+          "That said — I'm here, and I'm not in a hurry. How are you " +
+          "doing today?",
+      });
+    }
+  } catch (err) {
+    // Never block a consent flow over a greeting.
+    console.error("[accept-terms] concierge welcome insert failed:", err);
+  }
+
   // Per-doc ledger write — moved here from mobile's client-side upsert
   // so IP is captured server-side and the whitelist is enforced.
   await writePerDocAgreements(admin, user.id, docs);
