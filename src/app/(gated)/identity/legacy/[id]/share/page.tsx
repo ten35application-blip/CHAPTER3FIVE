@@ -9,6 +9,7 @@ import {
   inheritShareTitle,
 } from "@/lib/legacy/shareMessage";
 import { mintCodeForOracle } from "./actions";
+import { sanitizeErrorParam } from "@/lib/action-errors";
 
 export const metadata = {
   title: "Share their code · chapter3five",
@@ -41,7 +42,8 @@ export default async function SharePage({
   searchParams: Promise<{ error?: string }>;
 }) {
   const { id } = await params;
-  const { error } = await searchParams;
+  const { error: rawError } = await searchParams;
+  const error = sanitizeErrorParam(rawError);
 
   const supabase = await createClient();
   const {

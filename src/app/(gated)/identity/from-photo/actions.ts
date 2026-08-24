@@ -326,7 +326,9 @@ export async function createIdentityFromPhoto(
 
   // Same evidence trail as the API route: the uploader's rights
   // attestation outlives the request, tied to this identity.
-  void recordAudit({
+  // AWAITED — redirect() throws immediately after this call, and a
+  // void'd insert can be dropped at instance freeze.
+  await recordAudit({
     actorUserId: user.id,
     actorEmail: user.email ?? null,
     action: "photo_rights_attested",

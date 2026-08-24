@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { INHERITED_SLOT_PRICE_LABEL } from "@/lib/pricing";
 import { getInheritedSlotCredits } from "@/lib/subscription";
 import { InheritForm } from "./InheritForm";
+import { sanitizeErrorParam } from "@/lib/action-errors";
 
 export const metadata = {
   title: "Inherit an identity · chapter3five",
@@ -24,7 +25,8 @@ export default async function InheritPage({
     code?: string;
   }>;
 }) {
-  const { error, purchased, code: prefillCode } = await searchParams;
+  const { error: rawError, purchased, code: prefillCode } = await searchParams;
+  const error = sanitizeErrorParam(rawError);
 
   const supabase = await createClient();
   const {

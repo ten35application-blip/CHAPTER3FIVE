@@ -35,22 +35,38 @@ export async function adoptOrphanedCreation(
   try {
     const admin = createAdminClient();
     const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
-    const { data: orphan } = await admin
+    // Fetch up to two: the COUNT is part of the decision. One stranded
+    // row is a dead solo creation — adopt it. Two or more is the
+    // signature of a truncated subscribe-time batch (autoPopulate
+    // inserts several 'random' provisioning rows and reveals them
+    // together); adopting one would reveal a batch member alone AND
+    // swallow the fresh roll the user actually asked for. Batches have
+    // their own heal pass — leave them to it. Referral-reward rows are
+    // quota-exempt and revealed by their own flow; never adopt those.
+    const { data: orphans } = await admin
       .from("oracles")
       .select("id, traits, avatar_url, created_at")
       .eq("user_id", userId)
       .eq("provisioning", true)
       .eq("creation_source", "random")
+      .eq("is_referral_reward", false)
       .is("deleted_at", null)
       .lt("created_at", tenMinutesAgo)
       .order("created_at", { ascending: true })
-      .limit(1)
-      .maybeSingle<{
-        id: string;
-        traits: Traits | null;
-        avatar_url: string | null;
-      }>();
-    if (!orphan) return null;
+      .limit(2);
+    if (!orphans || orphans.length !== 1) {
+      if ((orphans?.length ?? 0) > 1) {
+        console.log(
+          `[adoptOrphan] ${orphans!.length}+ stranded rows for ${userId} — looks like a batch, leaving for the heal pass`,
+        );
+      }
+      return null;
+    }
+    const orphan = orphans[0] as {
+      id: string;
+      traits: Traits | null;
+      avatar_url: string | null;
+    };
 
     if (!orphan.avatar_url && orphan.traits) {
       // Same posture as the normal path: one attempt, and a letter

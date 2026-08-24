@@ -43,6 +43,16 @@ export async function createIdentity(): Promise<void> {
     redirect("/auth/signin");
   }
 
+  // Adoption BEFORE the quota gate — the stranded row is already
+  // inside the lifetime count, so when it occupies the user's LAST
+  // slot the gate returns quota_reached and a rescue placed after it
+  // can never run (the exact case it exists for). Adoption consumes
+  // nothing: it finishes a row this user already owns and paid for.
+  const orphan = await adoptOrphanedCreation(user.id);
+  if (orphan) {
+    redirect(`/identity/new?id=${orphan.id}`, RedirectType.replace);
+  }
+
   // Quota gate. Free tier: 1 identity via free_identity_id. Pro:
   // PRICING.totalIdentitiesPerPlan + extra_oracle_credits (bumped
   // by Stripe 'oracle' purchases). Fail-closed on unknown.
@@ -63,15 +73,6 @@ export async function createIdentity(): Promise<void> {
       "/identity/new",
       "Couldn't check your plan. Try again in a moment.",
     );
-  }
-
-  // A creation that died mid-flight left a hidden provisioning row
-  // still holding one of this user's lifetime slots — and this path
-  // used to roll a SECOND companion on retry. Finish the stranded one
-  // instead; the quota gate above already passed either way.
-  const orphan = await adoptOrphanedCreation(user.id);
-  if (orphan) {
-    redirect(`/identity/new?id=${orphan.id}`, RedirectType.replace);
   }
 
   // Roster dedupe: steer the roll around distinctive values already on

@@ -323,7 +323,13 @@ async function fanOut(args: {
       // row is that record: /admin can list archive_update_failed
       // events and re-run the update for exactly those holders.
       console.error(`[legacy/update] fan-out error on copy=${copy.id}:`, err);
-      void recordAudit({
+      // AWAITED — this catch runs inside after(), and the lambda
+      // freezes the moment the after() promise settles. A void'd
+      // insert still in flight at that moment is dropped, which is
+      // the same bug the crisis push had, and this row's entire
+      // purpose is surviving exactly that death. recordAudit never
+      // throws, so awaiting cannot break the loop.
+      await recordAudit({
         actorUserId: null,
         action: "archive_update_failed",
         targetUserId: copy.user_id,

@@ -201,11 +201,10 @@ export default function PhotoPlaceholderScreen({
         </svg>
       </Link>
 
-      {interrupted && !busy ? (
+      {interrupted && !busy && !error ? (
         <p className="mb-6 w-full rounded-2xl border border-warm-700 bg-ink-soft px-5 py-4 text-sm leading-relaxed text-warm-200">
-          It looks like a photo was being uploaded here and the page
-          closed before it finished. It may have completed anyway —
-          check your{" "}
+          It looks like an earlier photo upload here never finished. It
+          may have completed anyway &mdash; check your{" "}
           <Link href="/dashboard" className="font-semibold text-coral-strong underline underline-offset-4">
             dashboard
           </Link>{" "}

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { PhotoPickerForm } from "./PhotoPickerForm";
+import { sanitizeErrorParam } from "@/lib/action-errors";
 
 export const metadata = {
   title: "Someone from a photo · chapter3five",
@@ -26,7 +27,8 @@ export default async function IdentityFromPhotoPage({
 }: {
   searchParams: Promise<{ error?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error: rawError } = await searchParams;
+  const error = sanitizeErrorParam(rawError);
 
   const supabase = await createClient();
   const {

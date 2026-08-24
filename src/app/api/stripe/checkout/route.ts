@@ -76,6 +76,29 @@ type CheckoutLineItem = NonNullable<
  * because automatic_tax rejects unspecified prices, and "exclusive"
  * matches the account's USD default the dashboard Prices use.
  */
+
+/**
+ * Amount alone is not enough. Prices are now hand-created in the
+ * dashboard, where a 999-cent price can be pasted in as one-time,
+ * yearly, or non-USD: a one-time price under mode:"subscription" makes
+ * the session-create THROW (checkout outage — and the fallbacks are
+ * never reached, because the tier "succeeded"); a yearly 999 bills
+ * $9.99/YEAR against labels that say monthly. A wrong price must fail
+ * this check so the next tier — ultimately price_data at the constant
+ * — takes over.
+ */
+function priceMatches(
+  price: { unit_amount: number | null; currency: string; type: string; recurring: { interval: string } | null },
+  opts: { cents: number; recurring?: boolean },
+): boolean {
+  if (price.unit_amount !== opts.cents) return false;
+  if (price.currency !== "usd") return false;
+  if (opts.recurring) {
+    return price.type === "recurring" && price.recurring?.interval === "month";
+  }
+  return price.type === "one_time";
+}
+
 async function accurateLineItem(opts: {
   stripe: ReturnType<typeof getStripe>;
   priceId: string;
@@ -95,13 +118,16 @@ async function accurateLineItem(opts: {
       limit: 1,
     });
     const hit = byKey.data[0];
-    if (hit && hit.unit_amount === opts.cents) {
+    if (hit && priceMatches(hit, opts)) {
       return { price: hit.id, quantity: 1 };
     }
     if (hit) {
       console.warn(
         `[stripe/checkout] lookup_key ${opts.lookupKey} resolves to ` +
-          `${hit.unit_amount}, constants say ${opts.cents} — ignoring it.`,
+          `${hit.unit_amount} ${hit.currency} ${hit.type}` +
+          `${hit.recurring ? "/" + hit.recurring.interval : ""}, ` +
+          `wanted ${opts.cents} usd ` +
+          `${opts.recurring ? "recurring/month" : "one_time"} — ignoring it.`,
       );
     }
   } catch (err) {
@@ -112,7 +138,7 @@ async function accurateLineItem(opts: {
   }
   try {
     const price = await opts.stripe.prices.retrieve(opts.priceId);
-    if (price.active && price.unit_amount === opts.cents) {
+    if (price.active && priceMatches(price, opts)) {
       return { price: opts.priceId, quantity: 1 };
     }
     console.warn(

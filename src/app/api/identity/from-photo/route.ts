@@ -411,7 +411,10 @@ export async function POST(request: NextRequest) {
     // rights, at THIS time, for THIS identity, is the evidence that
     // the enforcement clause in the Terms leans on. Best-effort like
     // every audit write; the creation itself never fails over it.
-    void recordAudit({
+    // AWAITED — the handler returns right after, and a void'd insert
+    // can be dropped at instance freeze. This row is the evidence the
+    // likeness clause leans on; recordAudit never throws.
+    await recordAudit({
       actorUserId: user.id,
       actorEmail: user.email ?? null,
       action: "photo_rights_attested",

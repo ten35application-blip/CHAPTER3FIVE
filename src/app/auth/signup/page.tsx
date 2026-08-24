@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { redirectWithError } from "@/lib/action-errors";
+import { redirectWithError, sanitizeErrorParam } from "@/lib/action-errors";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { SubmitButton } from "./SubmitButton";
@@ -175,7 +175,8 @@ export default async function SignupPage({
 }: {
   searchParams: Promise<{ error?: string; sent?: string; ref?: string }>;
 }) {
-  const { error, sent, ref } = await searchParams;
+  const { error: rawError, sent, ref } = await searchParams;
+  const error = sanitizeErrorParam(rawError);
 
   // Inline success view — mirrors mobile app/auth/signup.tsx's
   // sentTo branch. Same copy down to the period.

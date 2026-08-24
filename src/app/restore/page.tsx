@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { reactivateMyAccount } from "./actions";
+import { sanitizeErrorParam } from "@/lib/action-errors";
 
 export const metadata = {
   title: "Welcome back · chapter3five",
@@ -28,7 +29,8 @@ export default async function RestorePage({
 }: {
   searchParams: Promise<{ error?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error: rawError } = await searchParams;
+  const error = sanitizeErrorParam(rawError);
   const supabase = await createClient();
   const {
     data: { user },

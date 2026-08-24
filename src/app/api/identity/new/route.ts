@@ -53,6 +53,15 @@ export async function POST(request: NextRequest) {
 
   // Quota gate. Free tier: 1 identity via free_identity_id. Pro:
   // PRICING.totalIdentitiesPerPlan + extra_oracle_credits. Fail-closed.
+  // Same stranded-row adoption as the web twin, and like there it runs
+  // BEFORE the quota gate: the stranded row is already in the lifetime
+  // count, so a rescue placed after the gate can never fire when the
+  // orphan holds the user's last slot.
+  const orphan = await adoptOrphanedCreation(user.id);
+  if (orphan) {
+    return NextResponse.json({ id: orphan.id });
+  }
+
   const gate = await canCreateOracle(user.id);
   if (!gate.ok) {
     if (gate.reason === "upgrade_required") {
@@ -74,14 +83,6 @@ export async function POST(request: NextRequest) {
       { error: "Couldn't check your plan. Try again in a moment." },
       { status: 500 },
     );
-  }
-
-  // Same stranded-row adoption as the web twin: finish a creation a
-  // dead request left hidden (and still holding a slot) before rolling
-  // a fresh one against a second slot.
-  const orphan = await adoptOrphanedCreation(user.id);
-  if (orphan) {
-    return NextResponse.json({ id: orphan.id });
   }
 
   // Roster dedupe — see the web twin. Admin client: traits is

@@ -5,6 +5,7 @@ import { hasAcceptedCurrentTerms } from "@/lib/legal/version";
 import { AcceptForm } from "./AcceptForm";
 import { signOut } from "./actions";
 import { ManageSubscriptionButton } from "@/app/(gated)/settings/_components/ManageSubscriptionButton";
+import { sanitizeErrorParam } from "@/lib/action-errors";
 
 export const metadata = {
   title: "Before we begin · chapter3five",
@@ -27,7 +28,8 @@ export default async function OnboardingPage({
 }: {
   searchParams: Promise<{ error?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error: rawError } = await searchParams;
+  const error = sanitizeErrorParam(rawError);
 
   const supabase = await createClient();
   const {
