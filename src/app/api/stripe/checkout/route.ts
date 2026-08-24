@@ -81,8 +81,35 @@ async function accurateLineItem(opts: {
   priceId: string;
   cents: number;
   productName: string;
+  lookupKey: string;
   recurring?: boolean;
 }): Promise<CheckoutLineItem> {
+  // First choice: a dashboard Price carrying our lookup key (Wilson
+  // pastes the key when he creates the .99 prices, 2026-08-24). This
+  // survives env-var staleness entirely — the env id can point at an
+  // archived price forever and the right one is still found by name.
+  try {
+    const byKey = await opts.stripe.prices.list({
+      lookup_keys: [opts.lookupKey],
+      active: true,
+      limit: 1,
+    });
+    const hit = byKey.data[0];
+    if (hit && hit.unit_amount === opts.cents) {
+      return { price: hit.id, quantity: 1 };
+    }
+    if (hit) {
+      console.warn(
+        `[stripe/checkout] lookup_key ${opts.lookupKey} resolves to ` +
+          `${hit.unit_amount}, constants say ${opts.cents} — ignoring it.`,
+      );
+    }
+  } catch (err) {
+    console.warn(
+      `[stripe/checkout] lookup_key ${opts.lookupKey} search failed:`,
+      err,
+    );
+  }
   try {
     const price = await opts.stripe.prices.retrieve(opts.priceId);
     if (price.active && price.unit_amount === opts.cents) {
@@ -256,6 +283,10 @@ export async function POST(request: NextRequest) {
             purpose === "basic_monthly"
               ? "chapter3five Basic"
               : "chapter3five Pro",
+          lookupKey:
+            purpose === "basic_monthly"
+              ? "c3f_basic_monthly"
+              : "c3f_pro_monthly",
           recurring: true,
         }),
       ],
@@ -345,6 +376,7 @@ export async function POST(request: NextRequest) {
           priceId,
           cents: amountCents,
           productName: "chapter3five add-on pack",
+          lookupKey: `c3f_pack_${packKind}`,
         }),
       ],
       metadata: {
@@ -403,6 +435,7 @@ export async function POST(request: NextRequest) {
           priceId,
           cents: PRICING.inheritedSlotPurchaseCents,
           productName: "chapter3five inherited archive slot",
+          lookupKey: "c3f_inherited_slot",
         }),
       ],
       metadata: {
@@ -462,6 +495,7 @@ export async function POST(request: NextRequest) {
           priceId,
           cents: PRICING.otherIdentityCreateCents,
           productName: "chapter3five archive of another",
+          lookupKey: "c3f_other_identity_create",
         }),
       ],
       metadata: {
@@ -550,6 +584,7 @@ export async function POST(request: NextRequest) {
           priceId,
           cents: PRICING.extraIdentityCents,
           productName: "chapter3five extra companion slot",
+          lookupKey: "c3f_extra_oracle",
         }),
       ],
       metadata: {
