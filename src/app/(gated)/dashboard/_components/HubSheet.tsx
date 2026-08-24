@@ -1,3 +1,4 @@
+import { cdnImage } from "@/lib/imageCdn";
 "use client";
 
 import Image from "next/image";
@@ -1065,7 +1066,7 @@ function Avatar({
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        src={url}
+        src={cdnImage(url, 256)}
         alt=""
         className={`h-10 w-10 flex-shrink-0 rounded-full object-cover shadow-[0_4px_10px_-2px_rgba(232,138,118,0.25)] ring-1 ring-coral/20 ${dimClass}`}
       />

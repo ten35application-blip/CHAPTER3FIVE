@@ -1,3 +1,4 @@
+import { cdnImage } from "@/lib/imageCdn";
 "use client";
 
 import Link from "next/link";
@@ -1034,7 +1035,7 @@ function Avatar({
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        src={url}
+        src={cdnImage(url, 256)}
         alt=""
         className="h-[52px] w-[52px] flex-shrink-0 rounded-full object-cover ring-2 ring-coral/25"
       />
@@ -1053,7 +1054,7 @@ function PinnedAvatar({ name, url }: { name: string; url: string | null }) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        src={url}
+        src={cdnImage(url, 256)}
         alt=""
         className="h-[52px] w-[52px] rounded-full object-cover ring-2 ring-coral/25"
       />

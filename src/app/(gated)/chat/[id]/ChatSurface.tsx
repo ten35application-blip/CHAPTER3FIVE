@@ -1,3 +1,4 @@
+import { cdnImage } from "@/lib/imageCdn";
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -124,7 +125,7 @@ function MessageImage({
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src={url}
+        src={cdnImage(url, 640)}
         alt="Attached photo"
         className="max-h-[320px] max-w-full object-cover"
       />
@@ -160,7 +161,7 @@ function PersonaBubble({
           (avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={avatarUrl}
+              src={cdnImage(avatarUrl, 128)}
               alt={name}
               className="h-7 w-7 rounded-lg object-cover"
             />
@@ -1126,7 +1127,7 @@ export default function ChatSurface({
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={avatarUrl}
+                  src={cdnImage(avatarUrl, 128)}
                   alt={name}
                   className="h-full w-full object-cover"
                 />
@@ -1626,7 +1627,7 @@ export default function ChatSurface({
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={zoomUrl}
+            src={cdnImage(zoomUrl, 640)}
             alt=""
             className="max-h-[70dvh] max-w-full rounded-2xl object-contain shadow-2xl"
           />
