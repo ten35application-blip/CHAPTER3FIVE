@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { deleteAvatarObjectIfUnreferenced } from "@/lib/storage/avatarObject";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { purgeMinedMemories } from "@/lib/memory/purge";
 import { isAdmin } from "@/lib/admin/allowlist";
 
 /**
@@ -221,6 +222,13 @@ export async function purgeConversation(oracleId: string) {
   const { user } = await requireUser();
   const admin = createAdminClient();
 
+  const { data: doomed } = await admin
+    .from("messages")
+    .select("id")
+    .eq("user_id", user.id)
+    .eq("oracle_id", oracleId)
+    .not("deleted_at", "is", null);
+
   const { error } = await admin
     .from("messages")
     .delete()
@@ -231,6 +239,15 @@ export async function purgeConversation(oracleId: string) {
   if (error) {
     return diagnose(error, "permanently deleting", isAdmin(user.email));
   }
+
+  // What was mined from those messages dies with them (and if the
+  // conversation is now empty, everything this companion remembered).
+  await purgeMinedMemories({
+    admin,
+    userId: user.id,
+    oracleId,
+    purgedMessageIds: (doomed ?? []).map((m) => m.id),
+  });
 
   revalidatePath("/dashboard");
   return { ok: true as const };

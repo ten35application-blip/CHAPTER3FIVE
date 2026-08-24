@@ -780,7 +780,7 @@ function DeletedConversationRow({ item }: { item: DeletedConversation }) {
   async function onPurge() {
     if (
       !window.confirm(
-        `Permanently delete ${item.count} message${item.count === 1 ? "" : "s"} with ${item.name}? This cannot be undone.`,
+        `Permanently delete ${item.count} message${item.count === 1 ? "" : "s"} with ${item.name}? Anything ${item.name} remembered from those messages is deleted with them. This cannot be undone.`,
       )
     ) {
       return;
