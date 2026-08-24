@@ -3,10 +3,6 @@
   "framework": "nextjs",
   "crons": [
     {
-      "path": "/api/cron/outreach",
-      "schedule": "0 14 * * *"
-    },
-    {
       "path": "/api/cron/proactive",
       "schedule": "0 17 * * *"
     },

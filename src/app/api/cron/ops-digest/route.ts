@@ -17,7 +17,6 @@ export const maxDuration = 60;
  */
 
 const EXPECTED_CRONS = [
-  "outreach",
   "proactive",
   "purge",
   "anniversaries",
