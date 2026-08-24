@@ -368,10 +368,10 @@ export default function Home() {
         <div className="mx-auto flex w-full max-w-6xl flex-col items-center">
           <Rule />
           <h2 className="mt-8 text-center text-4xl font-bold leading-[1.05] tracking-[-0.03em] text-warm-50 md:text-5xl">
-            Who is this for?
+            Five ways to make someone.
           </h2>
           <p className="mt-5 text-center text-xl leading-relaxed text-warm-200 md:text-2xl">
-            Four ways to make one.
+            Four doors &mdash; and one you can earn.
           </p>
 
           <div className="mt-16 grid w-full grid-cols-1 gap-6 md:grid-cols-2">
@@ -418,6 +418,19 @@ export default function Home() {
                 $4.99 when you finish. Forty-five questions about a real person
                 &mdash; a parent, a partner, a friend. Lands in your
                 contacts, plus a code you can share with family.
+              </p>
+            </div>
+
+            {/* Card 5 — Earned by sharing (referral; spans the row) */}
+            <div className="flex flex-col rounded-3xl border border-warm-700 bg-ink-soft p-8 shadow-[0_10px_36px_-16px_rgba(28,28,26,0.18)] md:col-span-2 md:p-8">
+              <h3 className="text-gradient-cta text-2xl font-bold leading-[1.1] tracking-[-0.02em] md:text-3xl">
+                Or earn one, free
+              </h3>
+              <p className="mt-5 text-lg leading-relaxed text-warm-200">
+                Invite five friends who join, and you&rsquo;ve earned a
+                companion of your own &mdash; rolled just for you, outside
+                every plan limit, yours to keep on any tier, even free.
+                Your invite code lives in Settings.
               </p>
             </div>
           </div>
