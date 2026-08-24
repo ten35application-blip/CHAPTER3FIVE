@@ -530,7 +530,7 @@ CONTEXT: Today is YOUR birthday — you're turning ${turning}. Text the user abo
             .eq("year", todayMD.year);
           continue;
         }
-        void sendPushToUser({
+        await sendPushToUser({
           userId: p.id,
           title: (o.name as string) ?? "chapter3five",
           body: text.length > 180 ? `${text.slice(0, 179)}…` : text,

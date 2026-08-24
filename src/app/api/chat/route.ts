@@ -1761,8 +1761,13 @@ ${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${s
         // Force-quitting is not a rare thing for someone to do here:
         // you text your companion and put the phone away. That is the
         // moment the notification matters most.
-        after(() => {
-          void sendPushToUser({
+        after(async () => {
+          // AWAITED — after()'s lambda freezes the instant its promise
+          // settles; a void'd fetch still in flight at that moment is
+          // dropped, which is a reply notification that never arrives
+          // for exactly the person who closed the app to wait for it
+          // (same fix as the crisis push, 2026-08-25).
+          await sendPushToUser({
           userId: user.id,
           title: profile.oracle_name ?? "chapter3five",
           body: preview.length > 180 ? `${preview.slice(0, 179)}…` : preview,

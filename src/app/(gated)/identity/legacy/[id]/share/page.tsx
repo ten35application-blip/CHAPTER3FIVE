@@ -148,6 +148,12 @@ export default async function SharePage({
                 <ShareButton message={shareMessage} title={shareSubject} />
               ) : null}
               <CopyButton code={code} />
+          <a
+            href={`/identity/legacy/${oracle.id}/keepsake`}
+            className="mt-4 block text-center text-sm font-semibold text-coral-strong underline underline-offset-4 hover:text-warm-50"
+          >
+            Print a keepsake card to hand to family
+          </a>
               {mailto ? (
                 <a
                   href={mailto}

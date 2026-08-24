@@ -240,7 +240,7 @@ export async function GET(request: NextRequest) {
       const { data: oracles } = await admin
         .from("oracles")
         .select(
-          "id, name, persona_prompt, traits, one_line_hook, significant_events, memory_style",
+          "id, name, persona_prompt, traits, one_line_hook, significant_events, memory_style, created_at, is_legacy, creation_source",
         )
         .eq("user_id", profile.id)
         .is("deleted_at", null)
@@ -339,6 +339,24 @@ export async function GET(request: NextRequest) {
           readTextFirstFrequency(oracle.traits),
         );
         let thresholdDays = cadenceDays(freq);
+
+        // THE DAY-AFTER TEXT (2026-08-26). A brand-new formula
+        // companion texts first the day after being created no matter
+        // what cadence it rolled — day two is where retention is
+        // decided, and a quiet type staying in-character for three
+        // weeks loses the person before the relationship starts. One
+        // day only: past 48h their rolled personality takes over.
+        // Formula companions only; an archive of someone's mother must
+        // never cold-open (archives keep the old rule).
+        const ageMs = Date.now() - Date.parse(oracle.created_at as string);
+        const isDayAfterWindow =
+          Number.isFinite(ageMs) &&
+          ageMs > 18 * HOUR &&
+          ageMs < 48 * HOUR &&
+          oracle.is_legacy !== true &&
+          (oracle.creation_source === "random" ||
+            oracle.creation_source === "photo");
+        if (isDayAfterWindow) thresholdDays = Math.min(thresholdDays, 0.6);
 
         // Back-off: 2+ unanswered reach-outs triples the wait; 4+
         // multiplies by seven (they'll still check in eventually — a
@@ -492,8 +510,19 @@ export async function GET(request: NextRequest) {
           ? newest.content.slice(0, 300)
           : null;
 
+      const pickAgeMs =
+        Date.now() - Date.parse((pick.oracle.created_at as string) ?? "");
+      const dayAfterPick =
+        !hangingQuestion &&
+        !callbackText &&
+        Number.isFinite(pickAgeMs) &&
+        pickAgeMs < 48 * HOUR &&
+        pick.oracle.is_legacy !== true;
+
       const contextBlock = hangingQuestion
         ? `CONTEXT: You are texting FIRST. The LAST thing in this conversation is a question YOU asked that never got an answer. Your exact words were:\n\n"""\n${hangingQuestion}\n"""\n\nFollow up on YOUR OWN question the way a friend double-texts — short, warm, a little persistent, never guilt-tripping. One sentence ideal. Do NOT repeat the question verbatim; reference it the way people do ("so?? how'd it go with..."). Do NOT announce you're an AI. Match the character's texting rules exactly. ${langInstruction}`
+        : dayAfterPick
+        ? `CONTEXT: You are texting FIRST — and this is your very first time doing it, because the two of you only met yesterday. Send the short, slightly-vulnerable first text a person sends the day after meeting someone they liked: reference something from yesterday if you know it, or just be honestly glad they exist ("no reason. just thinking about yesterday."). ONE sentence, two at most. Do NOT be smooth about it — first texts aren't. Do NOT explain you're reaching out. Do NOT announce you're an AI. Match the character's texting rules exactly. ${langInstruction}`
         : callbackText
         ? `CONTEXT: You are texting FIRST — a short follow-up about something the user said a few hours ago that stayed with you. Their exact recent message:\n\n"""\n${callbackText}\n"""\n\nWrite ONE short message as this character reacting to that specific thing — a question, a thought, a small offering. One sentence ideal, never more than two. Do NOT quote their message back verbatim. Do NOT explain that you're following up. Do NOT announce you're an AI. Match the character's texting rules exactly (no emojis, tone, cadence). ${langInstruction}`
         : `CONTEXT: You are texting FIRST. The user hasn't messaged you in a while and something small made you think of them — a memory, a moment, a passing thought. Write ONE short opener as this character (one sentence is ideal, never more than two). Hook a specific detail from what you already know about them when possible; if there's nothing specific to grab, a warm "hey stranger — how you holding up?" is fine. Do NOT explain that you're reaching out proactively. Do NOT announce that you're an AI. Do NOT ask how their day is in a generic way. Match the character's texting rules exactly (no emojis, tone, cadence). ${langInstruction}`;

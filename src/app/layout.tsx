@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  // Safari's native "open in the App Store" strip for iPhone visitors —
+  // free installs from traffic the site already gets (2026-08-26).
+  itunes: { appId: "6801654142" },
   metadataBase: new URL("https://chapter3five.app"),
   // Google Search Console ownership proof (2026-08-13) — required by
   // Play Console's organization website-verification step. Renders as
