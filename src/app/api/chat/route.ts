@@ -214,6 +214,14 @@ HOW YOU SOUND
 
 Respond in ${lang === "es" ? "Spanish" : "English"}.`;
 
+// Same window as the web stream route (HISTORY_LIMIT = 40 in
+// src/app/api/chat/[id]/stream/route.ts). This was 12 — the same
+// companion remembered three times more of the conversation on web
+// than on the phone, which read as the phone version "forgetting what
+// I just said". One constant, both uses: the rehydration query and the
+// cap on client-sent history.
+const HISTORY_LIMIT = 40;
+
 export async function POST(request: NextRequest) {
   let payload: {
     message?: string;
@@ -307,9 +315,10 @@ export async function POST(request: NextRequest) {
   // `isFirstMessage` branches below would falsely trigger on a user
   // with a long chat history.
   //
-  // Rehydrate up to the last 12 messages for this user+oracle. Web
-  // clients that legitimately send history keep whatever the client
-  // sent. Brand-new conversations correctly get an empty history.
+  // Rehydrate up to the last HISTORY_LIMIT messages for this
+  // user+oracle. Clients that legitimately send history keep whatever
+  // they sent (capped to the same limit below). Brand-new
+  // conversations correctly get an empty history.
   const conversationOracleId =
     (typeof payload.oracle_id === "string" ? payload.oracle_id : null) ??
     profile.active_oracle_id;
@@ -325,7 +334,7 @@ export async function POST(request: NextRequest) {
       .in("role", ["user", "assistant"])
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
-      .limit(12);
+      .limit(HISTORY_LIMIT);
     if (Array.isArray(recent) && recent.length > 0) {
       history = recent
         .slice()
@@ -1489,7 +1498,7 @@ ${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${s
   userTurnContent.push({ type: "text", text: userMessage });
 
   const messages = [
-    ...history.slice(-12).map((m) => ({
+    ...history.slice(-HISTORY_LIMIT).map((m) => ({
       role: m.role,
       content: m.content,
     })),
