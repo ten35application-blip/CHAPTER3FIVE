@@ -177,11 +177,7 @@ export default function PrivacyPage() {
                 Embeddings that power the semantic-memory search inside
                 your identities (numerical vectors of short memory notes).
               </li>
-              <li>
-                Whisper transcription of the audio you record while
-                answering identity questions, so we can save the text
-                alongside the audio.
-              </li>
+
             </ul>
             OpenAI processes these under its API terms, which by default
             allow up to 30 days of retention for abuse-monitoring purposes.
@@ -300,10 +296,12 @@ export default function PrivacyPage() {
             text.
           </li>
           <li>
-            <strong>Whisper transcription.</strong> When you record an audio
-            answer to an identity question, that audio clip is sent to
-            OpenAI&rsquo;s Whisper endpoint to produce the text
-            transcription that&rsquo;s saved alongside it.
+            <strong>Dictation stays on your device.</strong> The microphone
+            button uses your browser&rsquo;s own speech recognition to turn
+            speech into text in the message box, which you can edit before
+            sending. We never record, receive, or store audio, and no audio
+            is sent to us or to anyone else &mdash; only the text you choose
+            to send.
           </li>
         </ul>
         <p>

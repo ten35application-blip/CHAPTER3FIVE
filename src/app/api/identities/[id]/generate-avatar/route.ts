@@ -41,7 +41,8 @@ export async function POST(
   if (oracle.mode !== "randomize" && oracle.mode !== "memory") {
     return NextResponse.json(
       {
-        error: "AI avatars are only available for randomized or memory-mode identities.",
+        error:
+          "Generated portraits are only available for randomized or memory-mode identities.",
       },
       { status: 400 },
     );
