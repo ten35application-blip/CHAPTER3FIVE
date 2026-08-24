@@ -530,6 +530,15 @@ export default function TermsPage() {
           next billing period, and if you don&rsquo;t agree, you may
           cancel before they take effect.
         </p>
+        <p>
+          <strong>Moving down a tier</strong> (for example from Pro to
+          Basic) takes effect at the end of your current billing period
+          — you keep everything you paid for until the day you paid
+          through. A downgrade never deletes your identities: if you
+          have more than the lower plan includes, you can keep talking
+          to the ones you have, and creating new ones waits until you
+          are back under that plan&rsquo;s limits.
+        </p>
         {/* WHO BILLS YOU. This paragraph used to say billing was Stripe
             for everyone, that everything was "handled at chapter3five.app",
             and that "We don't bill through Apple or Google" — all false

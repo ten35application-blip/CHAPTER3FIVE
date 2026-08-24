@@ -16,6 +16,7 @@ import { requireTermsAccepted } from "@/lib/legal/gate";
 import { canCreateOracle, claimFreeIdentitySlot } from "@/lib/subscription";
 import { sendCompanionsReadyEmail } from "@/lib/notifications";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { adoptOrphanedCreation } from "@/lib/identity/adoptOrphan";
 
 const MAX_FINGERPRINT_REROLLS = 5;
 
@@ -63,7 +64,7 @@ export async function POST(request: NextRequest) {
     if (gate.reason === "quota_reached") {
       return NextResponse.json(
         {
-          error: `You're at ${gate.currentCount ?? "your"} of ${gate.quota ?? "the"} identities. Add an extra slot from Settings to make another.`,
+          error: `You're at ${gate.currentCount ?? "your"} of ${gate.quota ?? "the"} identities. Add an extra companion slot from the Add-a-companion screen to make another.`,
           code: "quota_reached",
         },
         { status: 409 },
@@ -73,6 +74,14 @@ export async function POST(request: NextRequest) {
       { error: "Couldn't check your plan. Try again in a moment." },
       { status: 500 },
     );
+  }
+
+  // Same stranded-row adoption as the web twin: finish a creation a
+  // dead request left hidden (and still holding a slot) before rolling
+  // a fresh one against a second slot.
+  const orphan = await adoptOrphanedCreation(user.id);
+  if (orphan) {
+    return NextResponse.json({ id: orphan.id });
   }
 
   // Roster dedupe — see the web twin. Admin client: traits is

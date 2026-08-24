@@ -135,3 +135,36 @@ export async function deleteAvatarObjectIfUnreferenced(
     return "failed";
   }
 }
+
+/**
+ * The archive blob a copy carries, with its photo pointer re-aimed at
+ * the copy's OWN avatar object.
+ *
+ * Redemption copies the avatar FILE into the recipient's namespace,
+ * but passed legacy_answers through verbatim — so the blob's
+ * subject.photoUrl kept naming the CREATOR's storage object. Anything
+ * that later renders or fans out from the blob (archive updates
+ * rebuild it wholesale) resurrects a pointer whose owner can delete it
+ * at any time, which is precisely what per-holder copies exist to
+ * prevent.
+ *
+ * copiedAvatarUrl null (copy failed / never had a photo) leaves the
+ * blob untouched: a stale pointer that may still render beats a hole.
+ */
+export function rehomeArchivePhoto(
+  legacyAnswers: unknown,
+  copiedAvatarUrl: string | null,
+): unknown {
+  if (!copiedAvatarUrl) return legacyAnswers;
+  if (typeof legacyAnswers !== "object" || legacyAnswers === null) {
+    return legacyAnswers;
+  }
+  const blob = legacyAnswers as { subject?: { photoUrl?: unknown } };
+  if (!blob.subject || blob.subject.photoUrl === undefined) {
+    return legacyAnswers;
+  }
+  return {
+    ...blob,
+    subject: { ...blob.subject, photoUrl: copiedAvatarUrl },
+  };
+}

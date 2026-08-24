@@ -17,6 +17,7 @@ import { canCreateOracle, claimFreeIdentitySlot } from "@/lib/subscription";
 import { sendCompanionsReadyEmail } from "@/lib/notifications";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { adoptOrphanedCreation } from "@/lib/identity/adoptOrphan";
 
 const MAX_FINGERPRINT_REROLLS = 5;
 
@@ -55,13 +56,22 @@ export async function createIdentity(): Promise<void> {
     if (gate.reason === "quota_reached") {
       redirectWithError(
         "/identity/new",
-        `You're at ${gate.currentCount ?? "your"} of ${gate.quota ?? "the"} identities. Add an extra slot from Settings to make another.`,
+        `You're at ${gate.currentCount ?? "your"} of ${gate.quota ?? "the"} identities. Add an extra companion slot from the Add-a-companion screen to make another.`,
       );
     }
     redirectWithError(
       "/identity/new",
       "Couldn't check your plan. Try again in a moment.",
     );
+  }
+
+  // A creation that died mid-flight left a hidden provisioning row
+  // still holding one of this user's lifetime slots — and this path
+  // used to roll a SECOND companion on retry. Finish the stranded one
+  // instead; the quota gate above already passed either way.
+  const orphan = await adoptOrphanedCreation(user.id);
+  if (orphan) {
+    redirect(`/identity/new?id=${orphan.id}`, RedirectType.replace);
   }
 
   // Roster dedupe: steer the roll around distinctive values already on

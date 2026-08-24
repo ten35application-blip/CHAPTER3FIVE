@@ -20,7 +20,7 @@ import {
 } from "@/lib/identity/vision";
 import { requireTermsAccepted } from "@/lib/legal/gate";
 import { canCreateOracle, claimFreeIdentitySlot } from "@/lib/subscription";
-import { sendCompanionsReadyEmail } from "@/lib/notifications";
+import { sendCompanionsReadyEmail, recordAudit } from "@/lib/notifications";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifiedAvatarUrl } from "@/lib/storage/avatarObject";
 import { randomUUID } from "node:crypto";
@@ -144,7 +144,7 @@ export async function POST(request: NextRequest) {
       if (gate.reason === "quota_reached") {
         return NextResponse.json(
           {
-            error: `You're at ${gate.currentCount ?? "your"} of ${gate.quota ?? "the"} identities. Add an extra slot from Settings to make another.`,
+            error: `You're at ${gate.currentCount ?? "your"} of ${gate.quota ?? "the"} identities. Add an extra companion slot from the Add-a-companion screen to make another.`,
             code: "quota_reached",
           },
           { status: 409 },
@@ -404,6 +404,21 @@ export async function POST(request: NextRequest) {
     // the auto-populate helper post-subscribe; the free-slot claim
     // doesn't apply to a paid-tier row.
     await claimFreeIdentitySlot(user.id, oracleId);
+
+    // The attestation was checked at the top and then thrown away —
+    // if a likeness dispute arrives ("that photo is my mother, I
+    // never agreed"), the record that THIS uploader affirmed they had
+    // rights, at THIS time, for THIS identity, is the evidence that
+    // the enforcement clause in the Terms leans on. Best-effort like
+    // every audit write; the creation itself never fails over it.
+    void recordAudit({
+      actorUserId: user.id,
+      actorEmail: user.email ?? null,
+      action: "photo_rights_attested",
+      targetUserId: user.id,
+      targetId: oracleId,
+      details: { source: "api/identity/from-photo" },
+    });
 
   // "Your companion is here." — the same arrival email bundle
   // deliveries send, for a single creation (Wilson 2026-08-19: an

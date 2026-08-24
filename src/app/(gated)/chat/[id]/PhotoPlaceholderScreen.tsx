@@ -29,7 +29,11 @@ import { useRouter } from "next/navigation";
  * This keeps the flow simple; if 300s ever gets brittle in production
  * a background-job pattern can drop in behind the same UI.
  */
-const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+// 4 MB — the server (from-photo route) rejects above 4, and Vercel's
+// 4.5 MB body limit kills anything bigger before our code even runs.
+// This was 5: a 4.2 MB photo passed here, then failed server-side with
+// an error that blamed the user.
+const MAX_PHOTO_BYTES = 4 * 1024 * 1024;
 const ACCEPT = "image/jpeg,image/png,image/gif,image/webp";
 
 export default function PhotoPlaceholderScreen({
@@ -66,7 +70,7 @@ export default function PhotoPlaceholderScreen({
       e.target.value = "";
       if (!file) return;
       if (file.size > MAX_PHOTO_BYTES) {
-        setError("That photo is over 5 MB. Try a smaller one.");
+        setError("That photo is over 4 MB. Try a smaller one.");
         return;
       }
       setBusy(true);

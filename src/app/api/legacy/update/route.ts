@@ -8,6 +8,12 @@ import {
 } from "@/lib/legacy/questions";
 
 export const runtime = "nodejs";
+// The holder fan-out runs in after() on this route's clock. Default
+// function duration can kill it mid-loop with some family members'
+// copies updated and the rest silently stale — 60s covers the fan-out
+// for any realistic holder count (each iteration is one storage copy +
+// one row update + one email).
+export const maxDuration = 60;
 
 /**
  * POST /api/legacy/update — revise your OWN self-archive and push the

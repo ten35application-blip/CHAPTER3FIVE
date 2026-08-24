@@ -29,12 +29,32 @@ type Identity = {
   avatar_url: string | null;
 };
 
+
+function sanitizeErrorParam(raw: string | undefined): string | undefined {
+  if (!raw) return undefined;
+  const text = raw.trim();
+  if (text.length === 0 || text.length > 160) {
+    return "That didn't work. Try again.";
+  }
+  if (/[<>]|https?:|www\.|[a-z0-9-]+\.(com|net|org|app|io|co)\b/i.test(text)) {
+    return "That didn't work. Try again.";
+  }
+  return text;
+}
+
 export default async function IdentityNewPage({
   searchParams,
 }: {
   searchParams: Promise<{ id?: string; error?: string }>;
 }) {
-  const { id, error } = await searchParams;
+  const { id, error: rawError } = await searchParams;
+  // ?error= is attacker-writable — anyone can send a link with any
+  // text and this page used to render it as first-party system copy
+  // ("Your account has a problem, contact <phone>"). The real actions
+  // only ever redirect short plain sentences here, so: cap the
+  // length, strip anything that parses as a link or markup, and fall
+  // back to a generic line when what's left looks doctored.
+  const error = sanitizeErrorParam(rawError);
 
   const supabase = await createClient();
   const {

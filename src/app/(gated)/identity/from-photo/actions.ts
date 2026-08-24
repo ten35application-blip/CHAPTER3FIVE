@@ -21,7 +21,7 @@ import {
   type SupportedImageMediaType,
 } from "@/lib/identity/vision";
 import { canCreateOracle, claimFreeIdentitySlot } from "@/lib/subscription";
-import { sendCompanionsReadyEmail } from "@/lib/notifications";
+import { recordAudit, sendCompanionsReadyEmail } from "@/lib/notifications";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifiedAvatarUrl } from "@/lib/storage/avatarObject";
 import { createClient } from "@/lib/supabase/server";
@@ -80,7 +80,7 @@ export async function createIdentityFromPhoto(
       if (gate.reason === "quota_reached") {
         redirectWithError(
           ERROR_PATH,
-          `You're at ${gate.currentCount ?? "your"} of ${gate.quota ?? "the"} identities. Add an extra slot from Settings to make another.`,
+          `You're at ${gate.currentCount ?? "your"} of ${gate.quota ?? "the"} identities. Add an extra companion slot from the Add-a-companion screen to make another.`,
         );
       }
       redirectWithError(
@@ -323,6 +323,17 @@ export async function createIdentityFromPhoto(
   // (profiles.free_identity_id, NULL-only, server-side write). Before
   // the avatar upload — its soft-failure path redirects early.
   await claimFreeIdentitySlot(user.id, oracleId);
+
+  // Same evidence trail as the API route: the uploader's rights
+  // attestation outlives the request, tied to this identity.
+  void recordAudit({
+    actorUserId: user.id,
+    actorEmail: user.email ?? null,
+    action: "photo_rights_attested",
+    targetUserId: user.id,
+    targetId: oracleId,
+    details: { source: "identity/from-photo action" },
+  });
 
   // "Your companion is here." — the same arrival email bundle
   // deliveries send, for a single creation (Wilson 2026-08-19: an

@@ -27,6 +27,7 @@ import {
   reserveInheritedSlotCredit,
   refundInheritedSlotCredit,
 } from "@/lib/subscription";
+import { rehomeArchivePhoto } from "@/lib/storage/avatarObject";
 
 /**
  * One friendly message for every invalid outcome — wrong shape, unknown
@@ -418,7 +419,7 @@ export async function redeemInheritCode(rawCode: string): Promise<void> {
       one_line_hook: source.one_line_hook,
       persona_prompt: source.persona_prompt,
       traits: source.traits,
-      legacy_answers: source.legacy_answers,
+      legacy_answers: rehomeArchivePhoto(source.legacy_answers, newAvatarUrl),
       preferred_language: source.preferred_language ?? "en",
       avatar_url: newAvatarUrl,
       fingerprint: expectedFingerprint,

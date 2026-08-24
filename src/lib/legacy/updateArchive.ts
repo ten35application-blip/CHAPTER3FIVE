@@ -260,13 +260,12 @@ async function fanOut(args: {
   for (const copy of args.copies) {
     try {
       const theirs = (copy.legacy_answers ?? {}) as LegacyAnswers;
-      const patch: Record<string, unknown> = {
-        legacy_answers: {
-          ...theirs,
-          answers: args.answers,
-          history: args.history,
-        },
+      const nextBlob: Record<string, unknown> = {
+        ...theirs,
+        answers: args.answers,
+        history: args.history,
       };
+      const patch: Record<string, unknown> = { legacy_answers: nextBlob };
 
       // Each holder gets the photo in their OWN namespace — the same
       // rule redemption follows, so one person deleting their account
@@ -284,7 +283,15 @@ async function fanOut(args: {
           const { data: pub } = admin.storage
             .from("avatars")
             .getPublicUrl(destPath);
-          patch.avatar_url = `${pub.publicUrl}?v=${Date.now()}`;
+          const theirUrl = `${pub.publicUrl}?v=${Date.now()}`;
+          patch.avatar_url = theirUrl;
+          // The blob's pointer moves WITH the avatar — leaving it on
+          // the creator's (or the holder's previous) object is how a
+          // copy ends up rendering a photo someone else controls.
+          nextBlob.subject = {
+            ...((theirs.subject ?? {}) as Record<string, unknown>),
+            photoUrl: theirUrl,
+          };
         }
       }
 

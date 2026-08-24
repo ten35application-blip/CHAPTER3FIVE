@@ -107,9 +107,10 @@ export default function PrivacyPage() {
           <li>Your precise location</li>
           <li>Your contacts or address book</li>
           <li>
-            Camera or microphone data, ever, without an explicit action you
-            take — uploading a photo or tapping the microphone to dictate a
-            message are such actions; nothing is captured in the background
+            Microphone audio, ever — dictation happens in your browser and
+            only the finished text reaches us (see Section 6). Photos reach
+            us only when you choose to upload or send one. Nothing is
+            captured in the background
           </li>
         </ul>
       </LegalSection>

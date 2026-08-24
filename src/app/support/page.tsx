@@ -73,10 +73,10 @@ export default function SupportPage() {
         <strong>A reply from my companion felt wrong.</strong>
       </p>
       <p>
-        Open the chat and tap the small <em>AI &middot; tap for info</em>{" "}
-        label under the name &mdash; there&rsquo;s a{" "}
-        <em>Report a reply</em> button that sends the details straight to
-        our care inbox. We review every report.
+        Press and hold the message itself &mdash; the same menu that
+        holds the reactions has a <em>Report</em> option that sends the
+        details straight to our care inbox. This works on the website
+        and in the app. We review every report.
       </p>
 
       <p>

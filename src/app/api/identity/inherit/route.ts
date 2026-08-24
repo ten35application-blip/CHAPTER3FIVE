@@ -15,7 +15,7 @@ import {
 import { PRICING } from "@/lib/pricing";
 import { getStripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { avatarsObjectPath } from "@/lib/storage/avatarObject";
+import { avatarsObjectPath, rehomeArchivePhoto } from "@/lib/storage/avatarObject";
 import { sendInheritRedeemedEmail } from "@/lib/notifications";
 import {
   findReusableCheckout,
@@ -312,7 +312,7 @@ export async function POST(request: NextRequest) {
       one_line_hook: source.one_line_hook,
       persona_prompt: source.persona_prompt,
       traits: source.traits,
-      legacy_answers: source.legacy_answers,
+      legacy_answers: rehomeArchivePhoto(source.legacy_answers, newAvatarUrl),
       preferred_language: source.preferred_language ?? "en",
       avatar_url: newAvatarUrl,
       fingerprint: expectedFingerprint,
