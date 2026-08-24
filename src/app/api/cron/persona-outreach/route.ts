@@ -335,6 +335,15 @@ export async function GET(request: NextRequest) {
 
       for (const oracle of reachable) {
         const oid = oracle.id as string;
+        // Nobody cold-opens a thread younger than 18 hours — the
+        // reveal just happened; a text one hour later isn't a pulse,
+        // it's a pop-up (self-audit 2026-08-26: the never-messaged
+        // branch had no age gate at all).
+        const oracleAgeMs =
+          Date.now() - Date.parse((oracle.created_at as string) ?? "");
+        if (Number.isFinite(oracleAgeMs) && oracleAgeMs < 18 * HOUR) {
+          continue;
+        }
         const freq = coerceTextFirstFrequency(
           readTextFirstFrequency(oracle.traits),
         );
@@ -348,14 +357,19 @@ export async function GET(request: NextRequest) {
         // day only: past 48h their rolled personality takes over.
         // Formula companions only; an archive of someone's mother must
         // never cold-open (archives keep the old rule).
-        const ageMs = Date.now() - Date.parse(oracle.created_at as string);
         const isDayAfterWindow =
-          Number.isFinite(ageMs) &&
-          ageMs > 18 * HOUR &&
-          ageMs < 48 * HOUR &&
+          Number.isFinite(oracleAgeMs) &&
+          oracleAgeMs > 18 * HOUR &&
+          oracleAgeMs < 48 * HOUR &&
           oracle.is_legacy !== true &&
           (oracle.creation_source === "random" ||
-            oracle.creation_source === "photo");
+            oracle.creation_source === "photo") &&
+          // FIRST text only. Lowering the threshold also lowered the
+          // re-outreach gate, so an unanswered day-after text repeated
+          // itself 24h later, still claiming "my very first time"
+          // (self-audit 2026-08-26). One prior outreach of any kind
+          // ends the window; the rolled cadence takes over.
+          !latestOutreachByOracle.get(oid);
         if (isDayAfterWindow) thresholdDays = Math.min(thresholdDays, 0.6);
 
         // Back-off: 2+ unanswered reach-outs triples the wait; 4+
@@ -516,8 +530,12 @@ export async function GET(request: NextRequest) {
         !hangingQuestion &&
         !callbackText &&
         Number.isFinite(pickAgeMs) &&
+        pickAgeMs > 18 * HOUR &&
         pickAgeMs < 48 * HOUR &&
-        pick.oracle.is_legacy !== true;
+        pick.oracle.is_legacy !== true &&
+        (pick.oracle.creation_source === "random" ||
+          pick.oracle.creation_source === "photo") &&
+        !latestOutreachByOracle.get(pick.oracleId);
 
       const contextBlock = hangingQuestion
         ? `CONTEXT: You are texting FIRST. The LAST thing in this conversation is a question YOU asked that never got an answer. Your exact words were:\n\n"""\n${hangingQuestion}\n"""\n\nFollow up on YOUR OWN question the way a friend double-texts — short, warm, a little persistent, never guilt-tripping. One sentence ideal. Do NOT repeat the question verbatim; reference it the way people do ("so?? how'd it go with..."). Do NOT announce you're an AI. Match the character's texting rules exactly. ${langInstruction}`
