@@ -32,7 +32,11 @@ const MAX_BLOCK_CHARS = 800;
  * rather than the per-oracle memories list, and they're what the
  * flirt-consent test keys off.
  */
-const SHARED_IDENTITY_KEYS = ["goes_by", "pronouns", "gender"] as const;
+/** Exported for the purge path: these rows are the user's own identity
+ *  (name, pronouns, gender), read user-wide by every companion — they
+ *  survive a conversation purge, because erasing one relationship must
+ *  not make every OTHER companion forget who they're talking to. */
+export const SHARED_IDENTITY_KEYS = ["goes_by", "pronouns", "gender"] as const;
 
 const PRIVATE_IDENTITY_KEYS = [
   "orientation",

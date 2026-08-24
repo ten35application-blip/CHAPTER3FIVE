@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { deleteAvatarObjectIfUnreferenced } from "@/lib/storage/avatarObject";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { purgeMinedMemories } from "@/lib/memory/purge";
+import { collectTrashedMessageIds, purgeMinedMemories } from "@/lib/memory/purge";
 import { isAdmin } from "@/lib/admin/allowlist";
 
 /**
@@ -222,12 +222,7 @@ export async function purgeConversation(oracleId: string) {
   const { user } = await requireUser();
   const admin = createAdminClient();
 
-  const { data: doomed } = await admin
-    .from("messages")
-    .select("id")
-    .eq("user_id", user.id)
-    .eq("oracle_id", oracleId)
-    .not("deleted_at", "is", null);
+  const doomedIds = await collectTrashedMessageIds(admin, user.id, oracleId);
 
   const { error } = await admin
     .from("messages")
@@ -246,7 +241,7 @@ export async function purgeConversation(oracleId: string) {
     admin,
     userId: user.id,
     oracleId,
-    purgedMessageIds: (doomed ?? []).map((m) => m.id),
+    purgedMessageIds: doomedIds,
   });
 
   revalidatePath("/dashboard");

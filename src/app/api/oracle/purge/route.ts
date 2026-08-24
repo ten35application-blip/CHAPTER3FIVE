@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getRequestAuth } from "@/lib/api/mobileAuth";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { purgeMinedMemories } from "@/lib/memory/purge";
+import { collectTrashedMessageIds, purgeMinedMemories } from "@/lib/memory/purge";
 import { deleteAvatarObjectIfUnreferenced } from "@/lib/storage/avatarObject";
 
 export const runtime = "nodejs";
@@ -114,12 +114,9 @@ export async function POST(request: NextRequest) {
   const admin = createAdminClient();
   // Collect the doomed ids first — the memories mined from them have
   // to die with them, and after the delete there is nothing to ask.
-  const { data: doomed } = await admin
-    .from("messages")
-    .select("id")
-    .eq("user_id", user.id)
-    .eq("oracle_id", oracleId)
-    .not("deleted_at", "is", null);
+  // Paginated: the client's default cap truncates at 1000 rows, and a
+  // truncated list means memories that should die quietly don't.
+  const doomedIds = await collectTrashedMessageIds(admin, user.id, oracleId);
   const { error } = await admin
     .from("messages")
     .delete()
@@ -136,7 +133,7 @@ export async function POST(request: NextRequest) {
     admin,
     userId: user.id,
     oracleId,
-    purgedMessageIds: (doomed ?? []).map((m) => m.id),
+    purgedMessageIds: doomedIds,
   });
   return new NextResponse(null, { status: 204 });
 }
