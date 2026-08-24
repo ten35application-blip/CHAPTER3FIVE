@@ -155,6 +155,28 @@ export default function TermsPage() {
           responsible for decisions you make based on anything a companion
           says.
         </p>
+        <p>
+          <strong>We are not an emergency service and we do not monitor
+          your conversations.</strong> Messages pass through automated
+          safety screening, and a companion may respond to signs of
+          distress by sharing crisis resources. That screening is
+          automated, imperfect, and not a person watching over your
+          conversation. It will miss things. It is not supervision, it
+          does not summon help, and no one is standing by to intervene.
+          chapter3five cannot contact emergency services, cannot dispatch
+          anyone to you, and cannot reach a person on your behalf. If you
+          need help, you have to reach out yourself, to one of the numbers
+          above.
+        </p>
+        <p>
+          Nothing in these Terms — and nothing any companion says or fails
+          to say — creates a duty of care, a special relationship, or an
+          obligation on our part to detect, report, prevent, or respond to
+          any harm. To the fullest extent the law allows, you agree that we
+          are not liable for any injury, self-harm, or death connected to
+          your use of the service, or to any failure of our safety
+          screening to detect or respond to distress.
+        </p>
       </LegalSection>
 
       <LegalSection id="legacy" number={4} title="The legacy path">

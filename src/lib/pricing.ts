@@ -48,7 +48,11 @@
  */
 export const PRICING = {
   /* ── Pro ($10/mo) ─────────────────────────────────────────────── */
-  monthlyCents: 1000, // $10.00 (was $12 with the bundled inherited slot)
+  // $9.99, matching what Apple and Google actually charge. Was $10.00,
+  // which made the web a penny more than the stores and every "$10" in
+  // the Terms only true on one of three surfaces. Store price tiers end
+  // in .99 and cannot be $10.00, so the web moved rather than them.
+  monthlyCents: 999,
   formulaIdentitiesPerPlan: 4,
   photoIdentitiesPerPlan: 1,
   /** Ceiling on user-created oracles (formula + photo). Inherited
@@ -78,7 +82,7 @@ export const PRICING = {
   imagesPerMonthPro: 30, // was 20 pre-pack-rework
 
   /* ── Basic ($5/mo) ────────────────────────────────────────────── */
-  basicMonthlyCents: 500, // $5.00
+  basicMonthlyCents: 499, // $4.99 — matches the stores, see monthlyCents
   /** Basic slot split: 2 formula + 1 photo = 3 personal identities.
    *  Wilson locked "3 identities" without a split; 2+1 keeps the
    *  photo path reachable on the starter tier while Pro stays the

@@ -286,6 +286,18 @@ export default function PrivacyPage() {
             for CSAM, graphic violence, self-harm, and hate. This is a
             required App Store surface and it&rsquo;s how we keep the
             product safe.
+            <br />
+            <br />
+            If that screening flags a message as a possible risk to your
+            life, two things happen, and we would rather you know about
+            them now than discover them later. A short excerpt of that
+            message is saved to a safety log and emailed to
+            chapter3five&rsquo;s staff, who can read it — the only case
+            where a person on our side sees part of a private
+            conversation without your asking. And Adrian sends you a list
+            of crisis lines. This is automated, it is imperfect, and it
+            is <strong>not</strong> anyone monitoring your conversations
+            or watching over you.
           </li>
           <li>
             <strong>Embeddings.</strong> Short memory notes we store about

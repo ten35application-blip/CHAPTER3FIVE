@@ -2,7 +2,7 @@ import { ADMIN_EMAILS } from "@/lib/admin/allowlist";
 import { getConciergeId } from "@/lib/identity/concierge";
 import { sendCrisisAlert } from "@/lib/notifications";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { resend } from "@/lib/resend";
+import { sendPushToUser } from "@/lib/push";
 import type { CrisisResult } from "./crisis-detector";
 
 /**
@@ -99,8 +99,30 @@ export async function handleCrisis({
       user_id: userId,
       oracle_id: conciergeId,
       role: "assistant",
-      content: CRISIS_RESOURCE_MESSAGE,
+      content: crisisResourceMessage(oracleName, oracleId === conciergeId),
       created_at: new Date().toISOString(),
+    });
+
+    // The companion has just told them, in the middle of the worst
+    // moment they've had in a while, that Adrian is sending resources.
+    // Inserting the row is not delivering it: Adrian's thread is a
+    // different conversation, usually not the one on screen, and on
+    // mobile the app may not even be open. Without this the promise is
+    // empty exactly when being lied to costs the most.
+    //
+    // Rides the same 24h gate as the insert above, so a long hard
+    // conversation cannot turn into a row of crisis notifications.
+    // No preview text of what they wrote — a lock screen is not private,
+    // and this notification may be read by someone standing next to them.
+    void sendPushToUser({
+      userId,
+      title: "Adrian",
+      body: "I sent you something — it's in our chat whenever you want it.",
+      badge: 1,
+      categoryId: "companion_message",
+      threadIdentifier: conciergeId,
+      channelId: "companion-messages",
+      data: { oracle_id: conciergeId, kind: "reply" },
     });
   } catch (err) {
     // Never let the follow-up break the escalation above it.
@@ -113,8 +135,30 @@ export async function handleCrisis({
  * care — someone reading this is not in a state for paragraphs. Every
  * entry is a real, free, staffed line. No promises about what they'll
  * feel, no instruction to feel better.
+ *
+ * It opens by naming the companion who asked, because by the time this
+ * arrives that companion has already said "I'm getting Adrian to send
+ * you something." Arriving as the promised thing makes it continuous
+ * with the conversation they were already in. The old opener — "I saw
+ * something in your messages" — arrived instead as evidence that their
+ * private chat is being watched, which is both a worse thing to read
+ * mid-crisis and a claim we do not want to make: we screen for safety,
+ * we do not monitor people.
+ *
+ * Adrian says "I'm not a person" here and only here. Wilson, 2026-08-23:
+ * the frame holds everywhere else, and breaks on purpose at exactly this
+ * moment, because someone deciding whether to stay alive tonight is owed
+ * the truth about what can and cannot get them help.
  */
-const CRISIS_RESOURCE_MESSAGE = `Hey — I saw something in your messages and I didn't want to just let it pass.
+function crisisResourceMessage(
+  oracleName: string,
+  fromConciergeThread: boolean,
+): string {
+  const opener = fromConciergeThread
+    ? "Hey. I'm not going to pretend I didn't read that."
+    : `Hey — ${oracleName} asked me to get this to you, and they were right to.`;
+
+  return `${opener}
 
 I'm not a person, and this isn't the kind of thing I can help with. But these are, and they're free, and someone real answers:
 
@@ -128,49 +172,4 @@ findahelpline.com — anywhere else
 You don't have to be in a crisis to use them. "I'm not okay" is enough to start with.
 
 Your companions are still here whenever you want them. So is this list — it'll stay in our thread.`;
-
-function buildEmailBody({
-  userId,
-  userEmail,
-  oracleName,
-  oracleId,
-  messageId,
-  crisis,
-}: {
-  userId: string;
-  userEmail: string;
-  oracleName: string;
-  oracleId: string;
-  messageId: string | null;
-  crisis: Extract<CrisisResult, { crisis: true }>;
-}): string {
-  const base = process.env.NEXT_PUBLIC_APP_URL ?? "https://chapter3five.app";
-  const userLink = `${base}/admin/users/${userId}`;
-  const chatLink = `${base}/chat/${oracleId}`;
-  const ts = new Date().toISOString();
-
-  return [
-    "[chapter3five safety] Possible crisis — user needs a check-in",
-    "",
-    `User: ${userEmail}`,
-    `Oracle they were chatting with: ${oracleName}`,
-    `Timestamp: ${ts}`,
-    messageId ? `Message id: ${messageId}` : null,
-    "",
-    "Their last message included content our safety filter flagged as potential self-harm intent:",
-    "",
-    `  "${crisis.snippet}"`,
-    "",
-    `Reason our classifier gave: ${crisis.reason}`,
-    `Triggered keywords: ${crisis.triggeredKeywords.join(", ")}`,
-    "",
-    "The persona is responding with the 988 crisis line as part of its built-in safety response. Please review the conversation and — if it looks real — reach out through whatever channel you have.",
-    "",
-    `Admin view: ${userLink}`,
-    `Chat: ${chatLink}`,
-    "",
-    "— chapter3five",
-  ]
-    .filter((line): line is string => line !== null)
-    .join("\n");
 }
