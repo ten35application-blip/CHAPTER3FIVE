@@ -198,10 +198,15 @@ export async function POST(
       // the profile's deleted_at so the dashboard empties during
       // signout, and undeleting the profile leaves those rows behind.
       // Once 0136 gives soft-deleted rows a purge date, an undeleted
-      // account would lose every identity 30 days on. Clear the
-      // countdown on exactly the rows that went down with the account —
-      // matched on the shared stamp, so an identity deleted on its own
-      // keeps its own. They stay in Trash, restorable, as they are now.
+      // account would lose every identity 30 days on. Restore exactly
+      // the rows that went down with the account — matched on the
+      // shared stamp, so an identity the user deleted on its own stays
+      // in their Trash with its own stamp. These used to stay in Trash
+      // too, which meant an admin-restored account came back to an
+      // empty dashboard and a $4.99-per-identity paywall to recover
+      // companions they never chose to delete — while the self-serve
+      // path (lib/account/reactivate.ts) already brought them back
+      // free. Same account state now regardless of who restores it.
       // Fail closed on the READ too, not just the write — a failed
       // lookup would otherwise skip the clear and restore the account
       // anyway, reporting success while every identity stays on its
@@ -218,7 +223,7 @@ export async function POST(
       if (deletedProfile?.deleted_at) {
         const { error: cascadeErr } = await service
           .from("oracles")
-          .update({ scheduled_purge_at: null })
+          .update({ deleted_at: null, scheduled_purge_at: null })
           .eq("user_id", userId)
           .eq("deleted_at", deletedProfile.deleted_at);
         if (cascadeErr) {
