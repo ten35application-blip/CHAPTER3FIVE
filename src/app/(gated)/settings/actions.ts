@@ -487,6 +487,12 @@ export async function retryMintInheritCode(
     .select("code")
     .eq("oracle_id", oracleId)
     .is("revoked_at", null)
+      // maybeSingle() nulls out on 2+ rows. Two live codes should be
+      // impossible, but if a mint race ever produces them the owner
+      // must still SEE a code (and mint paths must reuse one, not add
+      // a third). Newest first.
+    .order("created_at", { ascending: false })
+    .limit(1)
     .maybeSingle<{ code: string }>();
   if (existing?.code) {
     // Someone raced us, or the user tapped twice. Hand back the real one.
