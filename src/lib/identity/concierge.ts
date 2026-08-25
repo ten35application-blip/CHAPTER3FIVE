@@ -81,6 +81,8 @@ export function buildConciergePricingBlock(): string {
   return [
     "== CURRENT PRICING (refer to this whenever pricing comes up — do NOT quote numbers from memory) ==",
     "",
+    "HOW TO RELAY THIS: you're texting, so translate — never copy this sheet's structure into a reply. No markdown, no **bold**, no bullets, no lists, no headings. Give the one or two numbers they actually asked about, in a plain sentence, in your voice (\"pro is $9.99 a month and gets you seven of your own people\"). If they want the full menu, walk it in short conversational lines, not a formatted block.",
+    "",
     "Every plan includes you (Adrian). Every plan has a monthly message and photo cap — there is no unlimited tier.",
     "",
     "FREE TIER — $0/month.",
