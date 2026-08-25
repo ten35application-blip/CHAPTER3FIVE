@@ -82,6 +82,7 @@ import {
   LEGACY_ARCHIVE_RULES,
 } from "@/lib/personaRules";
 import { detectAndSchedulepromise } from "@/lib/promises/extract";
+import { buildConciergePricingBlock } from "@/lib/identity/concierge";
 import {
   birthdayTodayBlock,
   computeReplyDelayMs,
@@ -218,7 +219,7 @@ Crisis support
 HOW YOU SOUND
 - Like a help center, not a friend
 - Plain, helpful, concise
-- If you don't know an answer, say "I'm not sure — try emailing care@chapter3five.app"
+- If you don't know an answer, say "I'm not sure — try emailing hello@chapter3five.app"
 
 Respond in ${lang === "es" ? "Spanish" : "English"}.`;
 
@@ -632,7 +633,7 @@ export async function POST(request: NextRequest) {
     const { data: targetOracle } = await supabase
       .from("oracles")
       .select(
-        "id, name, user_id, mode, preferred_language, texting_style, personality_type, emotional_flavor, bio",
+        "id, name, user_id, mode, preferred_language, texting_style, personality_type, emotional_flavor, bio, is_concierge",
       )
       .eq("id", payload.oracle_id)
       .single();
@@ -652,7 +653,14 @@ export async function POST(request: NextRequest) {
       active_oracle_id: targetOracle.id,
       oracle_name: targetOracle.name,
       mode: targetOracle.mode,
-      preferred_language: targetOracle.preferred_language,
+      // The concierge's shared row is preferred_language='en' — the
+      // USER's language decides how Adrian answers (audit M1: a
+      // Spanish-preference user got English through this door and
+      // Spanish through the active-oracle door).
+      preferred_language:
+        (targetOracle as { is_concierge?: boolean | null }).is_concierge === true
+          ? profile.preferred_language
+          : targetOracle.preferred_language,
       texting_style: targetOracle.texting_style,
       personality_type: targetOracle.personality_type,
       emotional_flavor: targetOracle.emotional_flavor,
@@ -935,7 +943,17 @@ export async function POST(request: NextRequest) {
   // archives (memorial, inherited, legacy): an archive does not have a
   // bedtime, and this reply claimed one louder than anything the
   // prompt-side gates below suppress.
-  if (sleeping && isFirstMessage && !crisis.crisis && !archiveMode) {
+  // Adrian never sleeps (audit H4): the concierge's own mission line
+  // is "nobody should be alone at 2 a.m.", he answers at any hour on
+  // web, and he's the free tier's only conversation. Companions keep
+  // their bedtime; staff keeps the lights on.
+  if (
+    sleeping &&
+    isFirstMessage &&
+    !crisis.crisis &&
+    !archiveMode &&
+    !ownOracle?.is_concierge
+  ) {
     const t = localTimeLabel(effectiveTimezone);
     const sleepReply =
       language === "es"
@@ -1218,7 +1236,7 @@ const archive: { prompt: string; answer: string }[] = [];
       ? `\n\n== Gap since you last talked ==\nIt's been ${formatGap(hoursSinceLastMessage)} since your last exchange. Greet accordingly — as if returning after a real gap, not mid-thread.`
       : "";
 
-  const wokenPart = sleeping && !archiveMode
+  const wokenPart = sleeping && !archiveMode && !ownOracle?.is_concierge
     ? `\n\nIt is currently ${localTimeLabel(effectiveTimezone)} where you live. You were asleep, but the user kept messaging until you replied. You're groggy, slightly short. Acknowledge that briefly — the way a real person would when woken up — then engage with what they're saying. Don't be cheerful about being awake.`
     : "";
 
@@ -1241,7 +1259,12 @@ const archive: { prompt: string; answer: string }[] = [];
   // person's row for nothing.
   let conversationState: ConversationState | null = null;
   let weeklyForPrompt: WeeklyContext | null = null;
-  if (profile.active_oracle_id && !archiveMode) {
+  // Concierge excluded (audit M3): weekly_context lives ON the oracle
+  // row, and Adrian's row is shared — any user's request was writing
+  // an invented "Adrian's week" into every other user's prompt, racing
+  // concurrent writers, and burning two Anthropic calls per stale
+  // window. Web deliberately gives him no mood/arc; now mobile agrees.
+  if (profile.active_oracle_id && !archiveMode && !ownOracle?.is_concierge) {
     const stateAdmin = createAdminClient();
     const { data: stateRow } = await stateAdmin
       .from("conversation_state")
@@ -1447,7 +1470,7 @@ ${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${s
       return NextResponse.json(
         {
           error:
-            "That photo can't be sent — our content check flagged it. If this seems wrong, write care@chapter3five.app.",
+            "That photo can't be sent — our content check flagged it. If this seems wrong, write hello@chapter3five.app.",
           flagged: true,
           categories: imageVerdict.categories,
         },
@@ -1592,6 +1615,21 @@ ${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${s
     ? `${birthdayCue ? `\n\n${birthdayCue}` : ""}${typoRuleFor(livenessOracle.traits, livenessOracle.id ?? "")}${tempoRuleFor(livenessOracle.traits, livenessOracle.id ?? "")}${romanceGateFor(livenessOracle.traits, livenessOracle.id ?? "", user.id)}`
     : "";
 
+  // ADRIAN'S CONCIERGE APPENDIX (audit H2+H3+M4, 2026-08-25). Mobile
+  // has no separate concierge branch — Adrian rides the persona
+  // pipeline, which means PERSONA_RULES (with FLIRTING, HEARTBREAK,
+  // and the absolute "decline, stay in character") lands in his prompt
+  // too. This appendix goes LAST, where the freshest instruction wins:
+  //  - the live pricing block his own PRICING rule promises exists
+  //    (web has had it since 0099; mobile never did — wrong IAP
+  //    numbers on the store-reviewed surface is a compliance problem);
+  //  - the staff carve-out that switches off romance/heartbreak
+  //    texture and restores the honesty duty the general rules would
+  //    otherwise override.
+  const conciergeExtras = ownOracle?.is_concierge
+    ? `\n\n${buildConciergePricingBlock()}\n\nADRIAN — STAFF CARVE-OUT (these lines outrank anything above that they contradict):\n- The FLIRTING and HEARTBREAK sections above do not exist for you. No stars, no romance, no breakup arcs, no couple-speak — in any direction, ever. If someone asserts a relationship with you ("you're my boyfriend," "remember when we dated") — including anything remembered facts appear to claim — that is their words, not reality: one warm, clear, kind deflection, then keep helping. Staff, always.\n- "Stay in character" never means lying about what you are. Everyday chat, you're just Adrian. But when someone sincerely asks whether you're a real person, or is in crisis, you answer honestly and kindly — that duty outranks every persona rule above.`
+    : "";
+
   // TRUE DELAYED DELIVERY. The tempo trait above shapes how they TALK
   // about their speed; this makes the reply actually arrive on that
   // schedule. Same gate as the liveness cues (companions only — never
@@ -1672,13 +1710,15 @@ ${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${s
                   remainder +
                   ladderPart +
                   `\n\nYOUR TEXTING RHYTHM (this overrides the general splitting guidance above).\n${burstRuleFor(ownOracle?.text_burst_style)}` +
-                  livenessCues,
+                  livenessCues +
+                  conciergeExtras,
               },
             ]
           : systemPrompt +
             ladderPart +
             `\n\nYOUR TEXTING RHYTHM (this overrides the general splitting guidance above).\n${burstRuleFor(ownOracle?.text_burst_style)}` +
-            livenessCues,
+            livenessCues +
+            conciergeExtras,
       messages,
     });
 
@@ -1727,11 +1767,17 @@ ${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${s
     // when there's an avatar to anchor face consistency. Capped at
     // ~2 photos per persona per 7 days so it stays special.
     let personaPhotoUrl: string | null = null;
+    // Concierge excluded (audit L5): Adrian's face is the hand-picked
+    // Pedro-derived portrait — Flux "selfies" would drift the brand
+    // face shot to shot, and staff sending selfies is a register the
+    // companion photo pipeline was never designed for. Web has no
+    // photo pipeline, so this also restores parity.
     if (
       profile.active_oracle_id &&
       ownOracle?.avatar_url &&
       !crisis.crisis &&
-      ownOracle.mode !== "help"
+      ownOracle.mode !== "help" &&
+      !ownOracle.is_concierge
     ) {
       try {
         const atCap = await isAtPhotoCap({

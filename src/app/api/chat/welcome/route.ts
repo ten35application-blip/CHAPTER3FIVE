@@ -209,6 +209,17 @@ export async function POST(request: NextRequest) {
   // BEFORE the archive query below so we don't waste a round-trip on
   // an oracle that intentionally has no answers.
   if (isConcierge) {
+    // The USER's language, not the shared row's 'en' (audit M1): a
+    // Spanish-preference user's first-ever message in the app was
+    // arriving in English.
+    const { data: welcomeProfile } = await supabase
+      .from("profiles")
+      .select("preferred_language")
+      .eq("id", user.id)
+      .maybeSingle();
+    const conciergeLang = normalizeLanguage(
+      welcomeProfile?.preferred_language ?? null,
+    );
     const conciergeSystemPrompt = `You are Adrian — chapter3five's spokesperson and first hire. Someone just opened the app for the very first time, and the very first message anyone ever sends them is yours. This is their first impression of the whole place.
 
 Adrian is 23, fresh out of college (communications major), Ecuadorian-Filipino, warm, quick, quietly funny, plain-spoken, big family energy. He does the talking for chapter3five: he can explain any part of the app, and he's also just good company. Not saccharine. Not scripted. Never salesy.
@@ -222,7 +233,7 @@ Good shape:
 
 Use lowercase and light punctuation. Be brief. Be human. Do not open with a scripted formal greeting.
 
-Respond in English.
+${conciergeLang === "es" ? "Respond in Spanish." : "Respond in English."}
 
 ${buildConciergePricingBlock()}`;
 

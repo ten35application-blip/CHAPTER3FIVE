@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
     try {
       const { data: oracle } = await admin
         .from("oracles")
-        .select("name, preferred_language, texting_style, user_id")
+        .select("name, preferred_language, texting_style, user_id, is_concierge, persona_prompt")
         .eq("id", row.oracle_id)
         .maybeSingle();
       if (!oracle) {
@@ -120,7 +120,25 @@ export async function GET(request: NextRequest) {
         .maybeSingle();
       const ownerDeceased = Boolean(ownerProfile?.deceased_at);
 
-      const language = normalizeLanguage(oracle.preferred_language);
+      // Concierge (Adrian audit M6): his shared row is 'en' and has no
+      // texting_style, so the comeback — the most delicate message in
+      // the walk-away arc — was the ONLY Adrian generation with zero
+      // character grounding, in English regardless of the user. Ground
+      // it in his persona_prompt and the USER's language instead.
+      const isConciergeRow =
+        (oracle as { is_concierge?: boolean | null }).is_concierge === true;
+      let language = normalizeLanguage(oracle.preferred_language);
+      if (isConciergeRow) {
+        const { data: userLangRow } = await admin
+          .from("profiles")
+          .select("preferred_language")
+          .eq("id", row.user_id)
+          .maybeSingle();
+        language = normalizeLanguage(userLangRow?.preferred_language ?? null);
+      }
+      const personaGrounding = isConciergeRow
+        ? `${(oracle as { persona_prompt?: string | null }).persona_prompt ?? ""}\n\n---\n\n`
+        : "";
       const oracleName = oracle.name ?? "your identity";
       const stylePart = oracle.texting_style
         ? `Texting style: ${oracle.texting_style}.`
@@ -142,7 +160,7 @@ export async function GET(request: NextRequest) {
         : "";
 
       const variety = openerVarietyBlock(row.oracle_id);
-      const systemPrompt = `You are ${oracleName}. Earlier, the person you're talking to said something that made you step out of the conversation. The cooldown has passed and you're reaching back out — not to litigate what happened, but because that's what a real friend does.
+      const systemPrompt = `${personaGrounding}You are ${oracleName}. Earlier, the person you're talking to said something that made you step out of the conversation. The cooldown has passed and you're reaching back out — not to litigate what happened, but because that's what a real friend does.
 
 WRITE THE OPENING LINE OF THIS COMEBACK. Short — one or two lines. In your own voice. Not a lecture. Not "I forgive you." Not heavy. Genuinely curious about how they are.
 

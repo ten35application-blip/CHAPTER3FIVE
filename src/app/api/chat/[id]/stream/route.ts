@@ -684,7 +684,7 @@ export async function POST(
       return NextResponse.json(
         {
           error:
-            "That photo can't be sent — our content check flagged it. If this seems wrong, write care@chapter3five.app.",
+            "That photo can't be sent — our content check flagged it. If this seems wrong, write hello@chapter3five.app.",
           flagged: true,
           categories: verdict.categories,
         },
@@ -805,11 +805,10 @@ export async function POST(
   // conversation by ANY of their identities, remembered by all of them
   // (user-wide read; identity keys are excluded from the per-oracle
   // block above so nothing renders twice). The flirt-consent formula
-  // keys off these instead of guessing. Skipped for the concierge —
-  // Adrian answers product questions, he doesn't know you.
-  const aboutThemBlock = isConciergeOracle
-    ? ""
-    : await fetchAboutThemBlock(user.id);
+  // keys off these instead of guessing. The concierge gets it too as
+  // of Adrian 2.0 (2026-08-25): he's a companion now — "he doesn't
+  // know you" stopped being true, and mobile already included it.
+  const aboutThemBlock = await fetchAboutThemBlock(user.id);
 
   // Fable humanization #5 — session emotional residue. Read + inject
   // BEFORE the memory block so the persona opens the session carrying
@@ -921,7 +920,7 @@ export async function POST(
   // persona then addresses the user generically like it always has.
   const { data: userProfile } = await supabase
     .from("profiles")
-    .select("full_name")
+    .select("full_name, preferred_language")
     .eq("id", user.id)
     .maybeSingle();
   const userName = (userProfile?.full_name as string | null)?.trim();
@@ -1290,6 +1289,16 @@ export async function POST(
   // whenever pricing comes up in conversation.
   if (isConciergeOracle) {
     system.push({ type: "text", text: buildConciergePricingBlock() });
+    // Adrian's shared row is preferred_language='en'; the USER's
+    // language decides how he answers (audit M1 — a Spanish-preference
+    // user was getting English on web, Spanish on the phone).
+    system.push({
+      type: "text",
+      text:
+        (userProfile?.preferred_language as string | null) === "es"
+          ? "Respond in Spanish."
+          : "Respond in English.",
+    });
   }
 
   // Fable humanization #4 — physical anchoring. Universal cue that
@@ -1570,20 +1579,30 @@ export async function POST(
             ? [{ role: "assistant" as const, content: reply }]
             : []),
         ];
-        after(async () => {
-          const decision = await shouldPersonaBlock(
-            historyForBlockCheck,
-            user.id,
-            priorStrikes,
-          );
-          if (decision.block) {
-            await handleBlockDecision({
-              decision,
-              oracleId,
-              userId: user.id,
-            });
-          }
-        });
+        // NEVER for the concierge (Adrian audit H1, 2026-08-25):
+        // handleBlockDecision writes blocked_at onto the ORACLE ROW,
+        // and Adrian's row is shared by every user in the app — one
+        // troll being vile in a browser could 403 Adrian for everyone
+        // for a week (temporary) or forever (permanent), while mobile
+        // (which doesn't read blocked_at) kept working. Staff doesn't
+        // walk away; abuse in Adrian's thread is handled by the
+        // per-user warning ladder, not a global switch.
+        if (!isConciergeOracle) {
+          after(async () => {
+            const decision = await shouldPersonaBlock(
+              historyForBlockCheck,
+              user.id,
+              priorStrikes,
+            );
+            if (decision.block) {
+              await handleBlockDecision({
+                decision,
+                oracleId,
+                userId: user.id,
+              });
+            }
+          });
+        }
 
         // Fable humanization #5 — refresh the session residue after
         // every turn. Cheap Haiku call; never blocks the client.
