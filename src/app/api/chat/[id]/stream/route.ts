@@ -1,4 +1,4 @@
-import { birthdayTodayBlock, typoRuleFor } from "@/lib/identity/liveness";
+import { birthdayTodayBlock, typoRuleFor, tempoRuleFor } from "@/lib/identity/liveness";
 import { NextResponse, type NextRequest } from "next/server";
 import { after } from "next/server";
 import type Anthropic from "@anthropic-ai/sdk";
@@ -958,6 +958,10 @@ export async function POST(
     if (birthdayCue) system.push({ type: "text", text: birthdayCue });
     const typoRule = typoRuleFor(oracle.traits, oracleId);
     if (typoRule) system.push({ type: "text", text: typoRule.trim() });
+    system.push({
+      type: "text",
+      text: tempoRuleFor(oracle.traits, oracleId).trim(),
+    });
   }
   if (aboutThemBlock) {
     system.push({ type: "text", text: aboutThemBlock });

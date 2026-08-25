@@ -2951,6 +2951,11 @@ export type Traits = {
    *  null = clean texter (most). Pre-trait identities derive a stable
    *  tier from their id in lib/identity/liveness.ts. */
   typoProneness?: "rare" | "regular" | null;
+  /** Reply tempo (2026-08-27, Wilson: "every identity shouldn't
+   *  respond right away"): the personality of texting speed. Shapes
+   *  voice and self-narration now; will drive real delayed delivery
+   *  when that lands. Pre-trait identities derive from id. */
+  replyTempo?: "instant" | "quick" | "thoughtful" | "busy" | null;
 
   /**
    * Formula expansion v5 (Fable + Claude joint proposal, Wilson
@@ -3402,9 +3407,19 @@ export function rollHumanization(): {
   textBurstStyle: TextBurstStyle | null;
   chronotype: Chronotype | null;
   typoProneness: "rare" | "regular" | null;
+  replyTempo: "instant" | "quick" | "thoughtful" | "busy";
 } {
   const typoRoll = Math.random();
+  const tempoRoll = Math.random();
   return {
+    replyTempo:
+      tempoRoll < 0.25
+        ? "instant"
+        : tempoRoll < 0.65
+          ? "quick"
+          : tempoRoll < 0.9
+            ? "thoughtful"
+            : "busy",
     typoProneness: typoRoll < 0.1 ? "regular" : typoRoll < 0.35 ? "rare" : null,
     disclosurePace: maybeRoll(HUMANIZATION_ROLL_PROB.disclosurePace, rollDisclosurePace),
     silenceStyle: maybeRoll(HUMANIZATION_ROLL_PROB.silenceStyle, rollSilenceStyle),

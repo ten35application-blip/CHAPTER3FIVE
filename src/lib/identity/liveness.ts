@@ -110,3 +110,47 @@ export function typoRuleFor(traits: unknown, oracleId: string): string {
     `messages are clean — the typo is seasoning, not a personality.`
   );
 }
+
+/**
+ * The personality of texting speed (2026-08-27, Wilson: "some like to
+ * reply right away, others take a few moments and some can take an
+ * hour or more depending on their lifestyle"). This is the VOICE
+ * layer — how they narrate their own tempo — shipped ahead of real
+ * delayed delivery so the character is already consistent when the
+ * mechanics arrive. Trait when rolled; stable id-derivation for the
+ * ones born before it.
+ */
+export function tempoRuleFor(traits: unknown, oracleId: string): string {
+  let tempo: string | null = null;
+  const fromTrait =
+    typeof traits === "object" && traits !== null
+      ? (traits as { replyTempo?: unknown }).replyTempo
+      : undefined;
+  if (
+    fromTrait === "instant" ||
+    fromTrait === "quick" ||
+    fromTrait === "thoughtful" ||
+    fromTrait === "busy"
+  ) {
+    tempo = fromTrait;
+  } else {
+    let h = 0;
+    for (let i = 0; i < oracleId.length; i++) {
+      h = (h * 33 + oracleId.charCodeAt(i)) | 0;
+    }
+    const u = ((h >>> 0) % 1000) / 1000;
+    tempo =
+      u < 0.25 ? "instant" : u < 0.65 ? "quick" : u < 0.9 ? "thoughtful" : "busy";
+  }
+  const RULES: Record<string, string> = {
+    instant:
+      "YOUR TEMPO. You're a phone-always-in-hand texter — replies come fast and you own it ('lol I answer too fast, I know').",
+    quick:
+      "YOUR TEMPO. You usually answer within a few minutes. When a reply comes after a longer real-world gap, react like someone who just picked their phone back up ('sorry — was driving').",
+    thoughtful:
+      "YOUR TEMPO. You're a texter who sits with things before answering. When the real-world gap since their message was long, own it in character ('been thinking about what you said'). Your replies read considered, never rushed.",
+    busy:
+      "YOUR TEMPO. Your life is FULL — work, people, obligations from your own story. When gaps happen, they happened because of YOUR life ('just got off a double, reading this now'). Sometimes a quick short reply mid-day, the real one later. Never apologize like a service; apologize like a person with a life.",
+  };
+  return `\n\n${RULES[tempo] ?? RULES.quick}`;
+}

@@ -543,7 +543,7 @@ export async function GET(request: NextRequest) {
         ? `CONTEXT: You are texting FIRST — and this is your very first time doing it, because the two of you only met yesterday. Send the short, slightly-vulnerable first text a person sends the day after meeting someone they liked: reference something from yesterday if you know it, or just be honestly glad they exist ("no reason. just thinking about yesterday."). ONE sentence, two at most. Do NOT be smooth about it — first texts aren't. Do NOT explain you're reaching out. Do NOT announce you're an AI. Match the character's texting rules exactly. ${langInstruction}`
         : callbackText
         ? `CONTEXT: You are texting FIRST — a short follow-up about something the user said a few hours ago that stayed with you. Their exact recent message:\n\n"""\n${callbackText}\n"""\n\nWrite ONE short message as this character reacting to that specific thing — a question, a thought, a small offering. One sentence ideal, never more than two. Do NOT quote their message back verbatim. Do NOT explain that you're following up. Do NOT announce you're an AI. Match the character's texting rules exactly (no emojis, tone, cadence). ${langInstruction}`
-        : `CONTEXT: You are texting FIRST. The user hasn't messaged you in a while and something small made you think of them — a memory, a moment, a passing thought. Write ONE short opener as this character (one sentence is ideal, never more than two). Hook a specific detail from what you already know about them when possible; if there's nothing specific to grab, a warm "hey stranger — how you holding up?" is fine. Do NOT explain that you're reaching out proactively. Do NOT announce that you're an AI. Do NOT ask how their day is in a generic way. Match the character's texting rules exactly (no emojis, tone, cadence). ${langInstruction}`;
+        : `CONTEXT: You are texting FIRST. The user hasn't messaged you in a while and something small made you think of them${localDaypartHint(now, profile.timezone as string | null)} — a memory, a moment, a passing thought. Write ONE short opener as this character (one sentence is ideal, never more than two). Hook a specific detail from what you already know about them when possible; if there's nothing specific to grab, a warm "hey stranger — how you holding up?" is fine. Do NOT explain that you're reaching out proactively. Do NOT announce that you're an AI. Do NOT ask how their day is in a generic way. Match the character's texting rules exactly (no emojis, tone, cadence). ${langInstruction}`;
 
       const systemPrompt = `${pick.oracle.persona_prompt}\n\n---\n\n${contextBlock}\n\n${anchorsBlock}${moodBlock ? `\n\n${moodBlock}` : ""}`;
 
@@ -725,6 +725,32 @@ function readChronotype(traits: unknown): string | null {
 /** Morning people text 8-12, night owls 17-22, steady/unknown any
  *  time inside the base window. Requires a known timezone — without
  *  one the base window's UTC fallback already applies upstream. */
+
+/** "It's morning where they are" — lets the generic reach-out become a
+ *  good-morning or goodnight text when the clock fits (2026-08-27,
+ *  Wilson's supportive-love layer). Empty string mid-day. */
+function localDaypartHint(now: Date, tz: string | null): string {
+  try {
+    const hour = parseInt(
+      new Intl.DateTimeFormat("en-US", {
+        hour: "numeric",
+        hour12: false,
+        timeZone: tz ?? "America/New_York",
+      }).format(now),
+      10,
+    );
+    if (hour >= 6 && hour < 11) {
+      return ". It's MORNING where they are — a good-morning text is exactly right if it fits your relationship: theirs specifically, not a greeting card";
+    }
+    if (hour >= 19 && hour < 22) {
+      return ". It's EVENING where they are — a goodnight-ish text lands well if it fits your relationship: soft, small, yours";
+    }
+    return "";
+  } catch {
+    return "";
+  }
+}
+
 function withinChronotypeBand(
   now: Date,
   tz: string | null,
