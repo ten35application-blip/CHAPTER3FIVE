@@ -2956,6 +2956,15 @@ export type Traits = {
    *  voice and self-narration now; will drive real delayed delivery
    *  when that lands. Pre-trait identities derive from id. */
   replyTempo?: "instant" | "quick" | "thoughtful" | "busy" | null;
+  /** Romantic availability (2026-08-27, the Stars System) — rolled
+   *  AGE-REALISTICALLY: a 21-year-old is mostly single and tossed
+   *  back and forth, a 52-year-old is mostly married. Drives whether
+   *  romance is even possible with this identity, and gives every
+   *  closed door a personality (the married one is faithful, the
+   *  separated one needs time). Pre-trait identities derive from
+   *  id + age in liveness.ts, with their written story taking
+   *  precedence on any conflict. */
+  availability?: Availability | null;
 
   /**
    * Formula expansion v5 (Fable + Claude joint proposal, Wilson
@@ -3399,6 +3408,35 @@ export function rollChronotype(): Chronotype {
 
 /** All humanization rolls in one call. Returns a bag of nullable
  *  values so the caller can spread it into Traits at roll time. */
+export const AVAILABILITIES = [
+  "single",
+  "casually_dating",
+  "in_a_relationship",
+  "married",
+  "separated_needs_time",
+  "widowed",
+] as const;
+export type Availability = (typeof AVAILABILITIES)[number];
+
+/** Age-realistic availability (Wilson 2026-08-27: "some older people
+ *  might be married, maybe 21 is more single and tossed back and
+ *  forth"). Buckets are rough US-shaped reality, not census data. */
+export function rollAvailability(ageYears: number): Availability {
+  const r = Math.random();
+  if (ageYears < 26) {
+    // young: mostly single, plenty of situationships, marriage rare
+    return r < 0.55 ? "single" : r < 0.8 ? "casually_dating" : r < 0.93 ? "in_a_relationship" : r < 0.97 ? "married" : "separated_needs_time";
+  }
+  if (ageYears < 35) {
+    return r < 0.33 ? "single" : r < 0.48 ? "casually_dating" : r < 0.68 ? "in_a_relationship" : r < 0.9 ? "married" : r < 0.97 ? "separated_needs_time" : "widowed";
+  }
+  if (ageYears < 50) {
+    return r < 0.18 ? "single" : r < 0.26 ? "casually_dating" : r < 0.4 ? "in_a_relationship" : r < 0.8 ? "married" : r < 0.94 ? "separated_needs_time" : "widowed";
+  }
+  // 50+
+  return r < 0.12 ? "single" : r < 0.16 ? "casually_dating" : r < 0.26 ? "in_a_relationship" : r < 0.72 ? "married" : r < 0.83 ? "separated_needs_time" : "widowed";
+}
+
 export function rollHumanization(): {
   disclosurePace: number | null;
   silenceStyle: SilenceStyle | null;
@@ -4239,6 +4277,7 @@ export function rollTraits(opts?: {
       stubbornness: pickInt(101),
     },
     textFirstFrequency: rollTextFirstFrequency(),
+    availability: rollAvailability(age),
     ...rollHumanization(),
     ...rollExpansion({
       ageYears: age,

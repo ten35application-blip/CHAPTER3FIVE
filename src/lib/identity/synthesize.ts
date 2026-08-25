@@ -209,6 +209,7 @@ Gender: ${traits.gender}
 Birthday: ${traits.birthday} (age ${age})
 Horoscope: ${traits.horoscope}
 Sexual orientation: ${traits.sexualOrientation}
+Relationship status: ${traits.availability ?? "single"} — their story must MATCH this (a married character has a spouse woven into their life; a separated one carries that recent weight; casually_dating means someone's around but it isn't serious)
 Cultural background: ${traits.cultural}
 MBTI: ${mbti}
 Enneagram: ${traits.enneagram}

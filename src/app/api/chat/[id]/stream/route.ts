@@ -1,4 +1,4 @@
-import { birthdayTodayBlock, typoRuleFor, tempoRuleFor } from "@/lib/identity/liveness";
+import { birthdayTodayBlock, typoRuleFor, tempoRuleFor, romanceGateFor } from "@/lib/identity/liveness";
 import { NextResponse, type NextRequest } from "next/server";
 import { after } from "next/server";
 import type Anthropic from "@anthropic-ai/sdk";
@@ -961,6 +961,10 @@ export async function POST(
     system.push({
       type: "text",
       text: tempoRuleFor(oracle.traits, oracleId).trim(),
+    });
+    system.push({
+      type: "text",
+      text: romanceGateFor(oracle.traits, oracleId, user.id).trim(),
     });
   }
   if (aboutThemBlock) {

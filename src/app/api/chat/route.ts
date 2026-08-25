@@ -82,7 +82,7 @@ import {
   LEGACY_ARCHIVE_RULES,
 } from "@/lib/personaRules";
 import { detectAndSchedulepromise } from "@/lib/promises/extract";
-import { birthdayTodayBlock, typoRuleFor, tempoRuleFor } from "@/lib/identity/liveness";
+import { birthdayTodayBlock, typoRuleFor, tempoRuleFor, romanceGateFor } from "@/lib/identity/liveness";
 import {
   generateConversationState,
   generateWeeklyContext,
@@ -1506,7 +1506,7 @@ ${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${s
     ? birthdayTodayBlock(livenessOracle.traits, profile.timezone ?? null)
     : null;
   const livenessCues = livenessOracle
-    ? `${birthdayCue ? `\n\n${birthdayCue}` : ""}${typoRuleFor(livenessOracle.traits, livenessOracle.id ?? "")}${tempoRuleFor(livenessOracle.traits, livenessOracle.id ?? "")}`
+    ? `${birthdayCue ? `\n\n${birthdayCue}` : ""}${typoRuleFor(livenessOracle.traits, livenessOracle.id ?? "")}${tempoRuleFor(livenessOracle.traits, livenessOracle.id ?? "")}${romanceGateFor(livenessOracle.traits, livenessOracle.id ?? "", user.id)}`
     : "";
 
   // If the user attached an image, send it to Anthropic as a vision
