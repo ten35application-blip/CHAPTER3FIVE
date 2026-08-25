@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { authorizeCronTick } from "@/lib/cronTick";
 import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { normalizeLanguage } from "@/lib/i18n/language";
 import { isOracleMuted } from "@/lib/muted";
@@ -37,8 +38,12 @@ export const maxDuration = 300;
 const HOUR = 3_600_000;
 
 export async function GET(request: NextRequest) {
-  const auth = request.headers.get("authorization");
-  if (!process.env.CRON_SECRET || auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  // Two doors (see cronTick.ts). pg_cron calls HOURLY — "text me in
+  // the morning" should land in the morning, not at the one daily
+  // slot Vercel Hobby may or may not honor (the digest caught this
+  // job never firing at all). 45-minute gap; every ping is
+  // status-flagged so re-runs can't double-send.
+  if (!(await authorizeCronTick(request, "promised_pings", 45))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

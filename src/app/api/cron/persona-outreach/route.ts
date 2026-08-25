@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { authorizeCronTick } from "@/lib/cronTick";
 import { after } from "next/server";
 import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { normalizeLanguage } from "@/lib/i18n/language";
@@ -60,8 +61,12 @@ const FALLBACK_MAX_HOUR_UTC = 20;
 const BATCH_LIMIT = 200;
 
 export async function GET(request: NextRequest) {
-  const auth = request.headers.get("authorization");
-  if (!process.env.CRON_SECRET || auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  // Two doors (see cronTick.ts): CRON_SECRET for Vercel/manual, or an
+  // atomic tick claim for the pg_cron backstop — Vercel Hobby skipped
+  // this job three days straight (2026-08-22→25) while "identities
+  // text you first" quietly died. 20-hour gap = one run per day, no
+  // matter who calls.
+  if (!(await authorizeCronTick(request, "persona_outreach", 20 * 60))) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 

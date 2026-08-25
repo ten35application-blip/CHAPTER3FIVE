@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { authorizeCronTick } from "@/lib/cronTick";
 import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { normalizeLanguage } from "@/lib/i18n/language";
 import { recordAnthropicSpend } from "@/lib/spendGovernor";
@@ -108,8 +109,11 @@ function isAnniversary(iso: string, todayMD: { month: number; day: number; year:
 }
 
 export async function GET(request: NextRequest) {
-  const auth = request.headers.get("authorization");
-  if (!process.env.CRON_SECRET || auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  // Two doors (see cronTick.ts): CRON_SECRET, or the pg_cron
+  // backstop's tick claim (Vercel Hobby skipped this job 2026-08-24).
+  // 20-hour gap = once daily; anniversary_acknowledgments dedupes per
+  // year on top.
+  if (!(await authorizeCronTick(request, "anniversaries", 20 * 60))) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
