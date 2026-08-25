@@ -1,4 +1,10 @@
-import { birthdayTodayBlock, typoRuleFor, tempoRuleFor, romanceGateFor } from "@/lib/identity/liveness";
+import {
+  birthdayTodayBlock,
+  computeReplyDelayMs,
+  typoRuleFor,
+  tempoRuleFor,
+  romanceGateFor,
+} from "@/lib/identity/liveness";
 import { NextResponse, type NextRequest } from "next/server";
 import { after } from "next/server";
 import type Anthropic from "@anthropic-ai/sdk";
@@ -33,7 +39,10 @@ import {
 } from "@/lib/memory/retrieve";
 import { shouldPersonaBlock } from "@/lib/safety/block-detector";
 import { handleBlockDecision } from "@/lib/safety/block-notify";
-import { checkForCrisis } from "@/lib/safety/crisis-detector";
+import {
+  checkForCrisis,
+  screenForCrisisKeywords,
+} from "@/lib/safety/crisis-detector";
 import { handleCrisis } from "@/lib/safety/crisis-notify";
 import {
   canChatWithOracle,
@@ -110,6 +119,11 @@ export async function POST(
      *  Vercel's UTC. Absent → server falls back to server-hour, which
      *  works but is phase-shifted for non-US-East users. */
     hour_of_day?: number;
+    /** Client opt-in for true delayed delivery (2026-08-25): only
+     *  clients that know how to hide a reply until visible_at and
+     *  reveal it on time ask for delays. Stale tabs running old JS
+     *  never send it and keep the instant path. */
+    supports_delayed_delivery?: boolean;
   };
   try {
     payload = await request.json();
@@ -512,12 +526,47 @@ export async function POST(
     }
   }
 
+  // FLUSH PENDING DELAYED REPLIES — the user texting again means the
+  // person on the other end picks up their phone: everything still
+  // hidden becomes visible now, and this turn's reply follows it.
+  // Without this, a short-delay reply #2 could arrive before a
+  // long-delay reply #1, which reads as a glitch, not a life. (Same
+  // block as the mobile route.) Fire-and-forget; the client refetches
+  // well after this lands.
+  {
+    const flushNowIso = new Date().toISOString();
+    const { data: flushedRows } = await admin
+      .from("messages")
+      // reveal_push_sent_at too: the user is watching these arrive —
+      // the minutely reveal-push cron must not buzz them about it.
+      .update({ visible_at: flushNowIso, reveal_push_sent_at: flushNowIso })
+      .eq("user_id", user.id)
+      .eq("oracle_id", oracleId)
+      .eq("role", "assistant")
+      .gt("visible_at", flushNowIso)
+      .select("id");
+    // Audit M4: the receipt can't lag the reply — a flushed answer on
+    // screen above a user message still reading "✓ Sent" (future read
+    // stamp) is a lie in the other direction.
+    if (flushedRows && flushedRows.length > 0) {
+      await admin
+        .from("messages")
+        .update({ read_by_oracle_at: flushNowIso })
+        .eq("user_id", user.id)
+        .eq("oracle_id", oracleId)
+        .eq("role", "user")
+        .gt("read_by_oracle_at", flushNowIso);
+    }
+  }
+
   // Recent history (this user's thread with this persona), oldest first.
   // Soft-deleted rows (conversation-delete via hub) are excluded so
   // Claude never gets recycled deleted context.
   const { data: historyRows } = await supabase
     .from("messages")
-    .select("role, content, created_at")
+    // visible_at rides along for the delay computation only — the
+    // model mapping below uses role/content and ignores it.
+    .select("role, content, created_at, visible_at")
     .eq("oracle_id", oracleId)
     .eq("user_id", user.id)
     .is("deleted_at", null)
@@ -744,17 +793,8 @@ export async function POST(
     });
   }
 
-  // The persona "reads" the user's messages the moment it starts
-  // composing a reply → ✓✓ on the client.
-  const readByOracleAt = new Date().toISOString();
-  await admin
-    .from("messages")
-    .update({ read_by_oracle_at: readByOracleAt })
-    .eq("oracle_id", oracleId)
-    .eq("user_id", user.id)
-    .eq("role", "user")
-    .is("read_by_oracle_at", null)
-    .is("deleted_at", null);
+  // (Read receipt moved below — it rides the delayed-delivery clock,
+  // which needs the distress signal computed first.)
 
   // What this persona remembers about this user (formula v4). Changes
   // whenever the extractor lands a new fact, so it must live AFTER the
@@ -788,6 +828,66 @@ export async function POST(
     .filter((h) => h.role === "user")
     .map((h) => (typeof h.content === "string" ? h.content : ""));
   const distressed = anyRecentTurnDistressed(userMessage, recentUserTurns);
+
+  // TRUE DELAYED DELIVERY (2026-08-25, same clock as the mobile
+  // route). The tempo trait shapes how they TALK about their speed;
+  // this makes the reply actually arrive on that schedule. Companions
+  // only — never archives, never Adrian, never memorial — never a
+  // retry (the user is watching a spinner), and never when the message
+  // trips the crisis keyword screen or the distress signal: a person
+  // in a hard moment gets an answer, not realism. The full crisis
+  // classifier runs in after() on this route, too late to gate the
+  // delay — the keyword screen is the synchronous front door and errs
+  // toward instant.
+  const replyDelayMs =
+    payload.supports_delayed_delivery === true &&
+    !isRetry &&
+    !isConciergeOracle &&
+    !isArchiveOracle &&
+    !memorialMode &&
+    !distressed &&
+    screenForCrisisKeywords(userMessage).length === 0
+      ? computeReplyDelayMs({
+          traits: oracle.traits,
+          oracleId,
+          // ARRIVAL time, not write time (audit M1): a delayed reply
+          // is written long before it lands — measuring the gap from
+          // created_at made live back-and-forth look stale and
+          // slow-tier companions compounded their own delays forever.
+          minutesSinceLastExchange: (() => {
+            if (history.length === 0) return null;
+            const last = history[history.length - 1] as {
+              created_at?: string | null;
+              visible_at?: string | null;
+            };
+            const arrival = Math.max(
+              last.created_at ? new Date(last.created_at).getTime() : 0,
+              last.visible_at ? new Date(last.visible_at).getTime() : 0,
+            );
+            return arrival > 0 ? (Date.now() - arrival) / 60_000 : null;
+          })(),
+          crisis: false,
+          distressed,
+        })
+      : 0;
+  const turnVisibleAtIso =
+    replyDelayMs > 0 ? new Date(Date.now() + replyDelayMs).toISOString() : null;
+
+  // The persona "reads" the user's messages the moment it starts
+  // composing a reply → ✓✓ on the client. On a delayed turn the read
+  // moment IS the reveal moment — the busy texter reads your message
+  // when they pick their phone back up, and an instant "Read" under a
+  // 40-minute silence would give the whole trick away. Clients treat a
+  // future read time as not-read-yet.
+  const readByOracleAt = turnVisibleAtIso ?? new Date().toISOString();
+  await admin
+    .from("messages")
+    .update({ read_by_oracle_at: readByOracleAt })
+    .eq("oracle_id", oracleId)
+    .eq("user_id", user.id)
+    .eq("role", "user")
+    .is("read_by_oracle_at", null)
+    .is("deleted_at", null);
 
   // Fable humanization #3 — memory imperfection. If the persona was
   // rolled with warm_foggy or conflator memory_style at synthesis
@@ -1269,6 +1369,9 @@ export async function POST(
         type: "begin",
         userMessageId,
         readByOracleAt,
+        // Non-null = this turn is delayed: the client drops the typing
+        // bubble, ignores streamed tokens, and reveals at this moment.
+        visibleAt: turnVisibleAtIso,
       });
 
       try {
@@ -1296,7 +1399,10 @@ export async function POST(
         // need to "read and start typing" like a real friend would; snappy
         // is the correct UX for product Q&A. Non-persona surface anyway,
         // no chronotype/mood to compute against.
-        const replyGapMs = isRetry || isConciergeOracle
+        // A delayed turn also skips the pre-stream typing pause — the
+        // client isn't showing a typing bubble for it, so the pause
+        // would be seconds of pure server time nobody sees.
+        const replyGapMs = isRetry || isConciergeOracle || replyDelayMs > 0
           ? 0
           : computeReplyGapMs({
               chronotype: coerceChronotype(oracle.chronotype),
@@ -1433,6 +1539,9 @@ export async function POST(
               oracle_id: oracleId,
               role: "assistant",
               content: part,
+              // Delayed turns: hidden until the reveal moment. All
+              // parts of a burst share it — they arrive together.
+              visible_at: turnVisibleAtIso,
             })
             .select("id")
             .single();
@@ -1578,9 +1687,14 @@ export async function POST(
         // part replies (baseline) keep the flat messageId shape so
         // older clients continue to work.
         if (insertedParts.length > 1) {
-          send({ type: "done", messageId, parts: insertedParts });
+          send({
+            type: "done",
+            messageId,
+            parts: insertedParts,
+            visibleAt: turnVisibleAtIso,
+          });
         } else {
-          send({ type: "done", messageId });
+          send({ type: "done", messageId, visibleAt: turnVisibleAtIso });
         }
       } catch (err) {
         console.error("[chat stream] anthropic stream failed:", err);

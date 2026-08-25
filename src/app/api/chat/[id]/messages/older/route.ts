@@ -65,6 +65,10 @@ export async function GET(
     // the server page — otherwise recovering a conversation later would
     // double up rows.
     .is("deleted_at", null)
+    // Delayed replies that haven't "arrived" never render anywhere.
+    // Older pages shouldn't contain any (hidden rows are the newest by
+    // definition) — belt and suspenders.
+    .or(`visible_at.is.null,visible_at.lte.${new Date().toISOString()}`)
     .lt("created_at", before)
     .order("created_at", { ascending: false })
     .limit(PAGE_SIZE);

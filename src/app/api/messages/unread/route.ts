@@ -31,6 +31,8 @@ export async function GET(request: NextRequest) {
     .eq("oracle_id", profile.active_oracle_id)
     .eq("role", "assistant")
     .is("deleted_at", null)
+    // Delayed replies that haven't "arrived" can't be unread yet.
+    .or(`visible_at.is.null,visible_at.lte.${new Date().toISOString()}`)
     .gt("created_at", since);
 
   return NextResponse.json({ count: count ?? 0 });

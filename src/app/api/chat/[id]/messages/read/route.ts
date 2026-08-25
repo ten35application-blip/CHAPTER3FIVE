@@ -47,7 +47,11 @@ export async function POST(
     .eq("role", "assistant")
     .is("read_at", null)
     // Soft-deleted messages don't render; don't touch their receipts.
-    .is("deleted_at", null);
+    .is("deleted_at", null)
+    // Neither do delayed replies that haven't "arrived" — a read
+    // stamp on a message the user has never seen is a tripwire for
+    // whoever reads read_at next.
+    .or(`visible_at.is.null,visible_at.lte.${new Date().toISOString()}`);
 
   // Cross-device read state (0121): stamp "this thread was open now"
   // so the mobile dashboard + Home Screen widget clear their red dot

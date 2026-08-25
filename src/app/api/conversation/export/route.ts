@@ -78,6 +78,10 @@ export async function GET(request: NextRequest) {
     .eq("oracle_id", oracleId)
     .eq("user_id", user.id)
     .is("deleted_at", null)
+    // A delayed reply that hasn't "arrived" isn't part of the
+    // conversation yet — exporting it would spoil the delivery trick.
+    // (The full account data export deliberately includes everything.)
+    .or(`visible_at.is.null,visible_at.lte.${new Date().toISOString()}`)
     .order("created_at", { ascending: true });
 
   const oracleName = oracle.name ?? "your identity";

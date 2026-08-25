@@ -41,7 +41,15 @@ type ActionsTarget = { messageId: string; anchor: DOMRect } | null;
 const LONG_PRESS_MS = 350;
 
 type StreamEvent =
-  | { type: "begin"; userMessageId: string | null; readByOracleAt: string }
+  | {
+      type: "begin";
+      userMessageId: string | null;
+      readByOracleAt: string;
+      /** TRUE DELAYED DELIVERY: non-null = this reply won't "arrive"
+       *  until this moment. The client suppresses the typing bubble
+       *  and streamed text, then reveals the persisted reply on time. */
+      visibleAt?: string | null;
+    }
   | { type: "text"; text: string }
   | {
       type: "done";
@@ -52,6 +60,7 @@ type StreamEvent =
        *  so the client can render staggered bubbles. Absent for single-
        *  message replies (baseline). */
       parts?: { id: string; content: string }[];
+      visibleAt?: string | null;
     }
   /** Phase B.2 persona-side reaction: the persona tapped back on the
    *  user's just-landed message with `[react:KIND]` at the top of their
@@ -201,6 +210,7 @@ export default function ChatSurface({
   avatarUrl,
   oneLineHook,
   initialMessages,
+  pendingMessages,
   initialBlocked,
   isConcierge,
   isSelfArchive,
@@ -216,6 +226,11 @@ export default function ChatSurface({
    *  of who they are when they pull the face up. */
   oneLineHook: string | null;
   initialMessages: ChatMessage[];
+  /** TRUE DELAYED DELIVERY: replies already written but not yet
+   *  "arrived" (messages.visible_at in the future) when the page
+   *  loaded. Hidden from the transcript; each is revealed by a timer
+   *  at its moment. */
+  pendingMessages?: (ChatMessage & { visibleAt: string })[];
   initialBlocked: boolean;
   /** Internal note on why the block was set — accepted but deliberately
    *  never rendered; the blocked copy is fixed and warm. */
@@ -401,6 +416,66 @@ export default function ChatSurface({
     );
   }, [oracleId]);
 
+  // ── TRUE DELAYED DELIVERY (2026-08-25) ─────────────────────────
+  // A delayed reply exists server-side before it has "arrived". Each
+  // pending reveal holds its bubbles + a timer for its moment. Sending
+  // a new message FLUSHES them instead of clearing them — the server
+  // does the same to the rows (texting again = the companion picks up
+  // their phone), so screen and database stay in step.
+  const delayedRevealsRef = useRef<{ timerId: number; fire: () => void }[]>([]);
+  const armDelayedReveal = useCallback(
+    (visibleAt: string, bubbles: ChatMessage[]) => {
+      const fire = () => {
+        setMessages((prev) => {
+          const have = new Set(prev.map((m) => m.id));
+          const fresh = bubbles.filter((m) => !have.has(m.id));
+          return fresh.length > 0 ? [...prev, ...fresh] : prev;
+        });
+        // Only mark read if the tab is actually being looked at — a
+        // reveal into a hidden tab must keep its unread dot, or the
+        // reply arrives pre-read and unannounced (audit M2).
+        if (document.visibilityState === "visible") markRead();
+      };
+      const ms =
+        Math.max(0, new Date(visibleAt).getTime() - Date.now()) + 400;
+      const timerId = window.setTimeout(() => {
+        delayedRevealsRef.current = delayedRevealsRef.current.filter(
+          (e) => e.timerId !== timerId,
+        );
+        fire();
+      }, ms);
+      delayedRevealsRef.current.push({ timerId, fire });
+    },
+    [markRead],
+  );
+  const flushDelayedReveals = useCallback(() => {
+    const entries = delayedRevealsRef.current;
+    delayedRevealsRef.current = [];
+    for (const e of entries) {
+      window.clearTimeout(e.timerId);
+      e.fire();
+    }
+  }, []);
+  // Unmount: clear timers WITHOUT firing — a reveal into an unmounted
+  // surface is a no-op anyway, and the next page load re-arms from the
+  // server's pending rows.
+  useEffect(
+    () => () => {
+      for (const e of delayedRevealsRef.current) window.clearTimeout(e.timerId);
+      delayedRevealsRef.current = [];
+    },
+    [],
+  );
+  // Replies that were already pending when the page loaded.
+  useEffect(() => {
+    for (const p of pendingMessages ?? []) {
+      const { visibleAt, ...bubble } = p;
+      armDelayedReveal(visibleAt, [bubble]);
+    }
+    // Mount-only: the server snapshot is a point-in-time fact.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // The user is looking at the thread — everything the persona said is
   // now "seen". As of 2026-08-03 the read route clears manually_unread
   // too, so simply opening the thread (not only sending) restores a
@@ -490,6 +565,10 @@ export default function ChatSurface({
       // turn if left running — clear it now so the visible order
       // matches the true send order.
       clearBurstTimers();
+      // Sending again reveals any still-hidden delayed reply NOW —
+      // mirrors the server-side flush, and keeps the transcript order
+      // honest (their reply above your new message).
+      flushDelayedReveals();
 
       const tempId = `optimistic-${Date.now()}`;
       if (text !== null) {
@@ -526,6 +605,8 @@ export default function ChatSurface({
               ? {
                   user_message: text,
                   hour_of_day: hourOfDay,
+                  // This build hides-and-reveals — the server may delay.
+                  supports_delayed_delivery: true,
                   ...(image ? { image_storage_path: image.storagePath } : {}),
                 }
               : { retry: true, hour_of_day: hourOfDay },
@@ -616,8 +697,20 @@ export default function ChatSurface({
         let buf = "";
         let sawDone = false;
 
+        // Non-null = this turn is delayed. Set at "begin"; from then on
+        // the typing indicator and streamed text stay dark, and "done"
+        // arms a reveal instead of appending.
+        let delayedVisibleAt: string | null = null;
+
         const handle = (evt: StreamEvent) => {
           if (evt.type === "begin") {
+            if (typeof evt.visibleAt === "string" && evt.visibleAt) {
+              delayedVisibleAt = evt.visibleAt;
+              // No typing bubble for someone who hasn't picked up
+              // their phone yet.
+              setIsStreaming(false);
+              setStreamText("");
+            }
             setMessages((prev) =>
               prev.map((m) => {
                 if (m.id === tempId) {
@@ -629,7 +722,17 @@ export default function ChatSurface({
                   };
                 }
                 // The server marked every unread user message as read.
-                if (m.role === "user" && !m.readByOracleAt) {
+                // A FUTURE stamp is also updatable — the double-text
+                // flush pulls those back server-side — but only ever
+                // EARLIER; a fresh delayed turn must not push an
+                // already-settled receipt back into the future.
+                if (
+                  m.role === "user" &&
+                  (!m.readByOracleAt ||
+                    (new Date(m.readByOracleAt).getTime() > Date.now() &&
+                      new Date(evt.readByOracleAt).getTime() <
+                        new Date(m.readByOracleAt).getTime()))
+                ) {
                   return { ...m, readByOracleAt: evt.readByOracleAt };
                 }
                 return m;
@@ -638,8 +741,9 @@ export default function ChatSurface({
           } else if (evt.type === "text") {
             acc += evt.text;
             // Display strips [NEXT] markers so a mid-stream split
-            // doesn't flash the literal to the user.
-            setStreamText(stripPersonaMarkers(acc));
+            // doesn't flash the literal to the user. Delayed turns
+            // accumulate silently — the text is for the reveal.
+            if (!delayedVisibleAt) setStreamText(stripPersonaMarkers(acc));
           } else if (evt.type === "reaction") {
             // Persona tapped back on the user's just-landed message.
             // Server has already persisted; render the badge on the
@@ -651,6 +755,43 @@ export default function ChatSurface({
             );
           } else if (evt.type === "done") {
             sawDone = true;
+            // Delayed turn: nothing appears now. Arm the reveal with
+            // the persisted bubbles — burst parts each as their own
+            // bubble, or the single accumulated reply — and go quiet.
+            const doneVisibleAt =
+              (typeof evt.visibleAt === "string" && evt.visibleAt) ||
+              delayedVisibleAt;
+            if (doneVisibleAt) {
+              const revealIso = new Date().toISOString();
+              const bubbles: ChatMessage[] = (
+                evt.parts && evt.parts.length > 0
+                  ? evt.parts
+                  : [
+                      {
+                        id: evt.messageId ?? `reply-${Date.now()}`,
+                        content: stripPersonaMarkers(acc).trim(),
+                      },
+                    ]
+              )
+                .filter((p) => p.content)
+                .map((p) => ({
+                  id: p.id,
+                  role: "assistant" as const,
+                  content: p.content,
+                  createdAt: revealIso,
+                  readByOracleAt: null,
+                  pending: false,
+                  imageUrl: null,
+                  myReaction: null,
+                  theirReaction: null,
+                }));
+              if (bubbles.length > 0) {
+                armDelayedReveal(doneVisibleAt, bubbles);
+              }
+              setIsStreaming(false);
+              setStreamText("");
+              return;
+            }
             // Multi-message burst: the server returns pre-split parts
             // with real DB ids. Render each as its own bubble with a
             // stagger so it feels like the persona sent them in
@@ -1338,7 +1479,9 @@ export default function ChatSurface({
                             <span aria-label="Sending">
                               <PendingDots />
                             </span>
-                          ) : m.readByOracleAt ? (
+                          ) : m.readByOracleAt &&
+                            new Date(m.readByOracleAt).getTime() <=
+                              Date.now() ? (
                             <span
                               aria-label="Read"
                               className="flex items-center gap-1 text-teal-strong"

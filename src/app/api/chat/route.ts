@@ -82,7 +82,13 @@ import {
   LEGACY_ARCHIVE_RULES,
 } from "@/lib/personaRules";
 import { detectAndSchedulepromise } from "@/lib/promises/extract";
-import { birthdayTodayBlock, typoRuleFor, tempoRuleFor, romanceGateFor } from "@/lib/identity/liveness";
+import {
+  birthdayTodayBlock,
+  computeReplyDelayMs,
+  typoRuleFor,
+  tempoRuleFor,
+  romanceGateFor,
+} from "@/lib/identity/liveness";
 import {
   generateConversationState,
   generateWeeklyContext,
@@ -232,6 +238,13 @@ export async function POST(request: NextRequest) {
     oracle_id?: string;
     image_url?: string;
     image_storage_path?: string;
+    // Client opt-in for true delayed delivery (2026-08-25). The 1.2
+    // binary in Play review renders replies straight from this
+    // response and would show a "delayed" reply instantly WITHOUT its
+    // notification (we skip the server push for delayed turns). Only
+    // clients that declare they can hide-and-reveal get delays; old
+    // clients keep the instant path untouched.
+    supports_delayed_delivery?: boolean;
   };
   try {
     payload = await request.json();
@@ -324,6 +337,50 @@ export async function POST(request: NextRequest) {
   const conversationOracleId =
     (typeof payload.oracle_id === "string" ? payload.oracle_id : null) ??
     profile.active_oracle_id;
+
+  // FLUSH PENDING DELAYED REPLIES. If the user double-texts while a
+  // delayed reply is still hidden, the person on the other end "picks
+  // up their phone" — everything pending becomes visible now, and the
+  // new turn's reply follows. Without this, reply #2 (short delay,
+  // active conversation) could arrive BEFORE reply #1 (long delay),
+  // which reads as a glitch, not a life.
+  //
+  // AWAITED, and the flushed rows come back: the phone builds the
+  // `history` it sends from its FILTERED view, so a still-hidden reply
+  // is missing from it — without the merge below, the companion would
+  // answer the double-text not knowing what it already said and could
+  // repeat or contradict itself.
+  let flushedReplies: { role: string; content: string; created_at: string }[] =
+    [];
+  if (conversationOracleId) {
+    const flushNowIso = new Date().toISOString();
+    const flushAdmin = createAdminClient();
+    const { data: flushed } = await flushAdmin
+      .from("messages")
+      // reveal_push_sent_at too: the user is watching these arrive
+      // right now — the minutely reveal-push cron must not buzz them
+      // about it a moment later.
+      .update({ visible_at: flushNowIso, reveal_push_sent_at: flushNowIso })
+      .eq("user_id", user.id)
+      .eq("oracle_id", conversationOracleId)
+      .eq("role", "assistant")
+      .gt("visible_at", flushNowIso)
+      .select("role, content, created_at");
+    flushedReplies = flushed ?? [];
+    // The receipt can't lag the reply: a flushed answer on screen above
+    // a user message still reading "✓ Sent" (future read stamp) is a
+    // lie in the other direction. Pull those stamps back to now.
+    if (flushedReplies.length > 0) {
+      await flushAdmin
+        .from("messages")
+        .update({ read_by_oracle_at: flushNowIso })
+        .eq("user_id", user.id)
+        .eq("oracle_id", conversationOracleId)
+        .eq("role", "user")
+        .gt("read_by_oracle_at", flushNowIso);
+    }
+  }
+
   if (history.length === 0 && conversationOracleId) {
     // Soft-deleted rows (conversation-delete via hub) are excluded so
     // the model never gets recycled deleted context. Matches the
@@ -352,6 +409,18 @@ export async function POST(request: NextRequest) {
       // doesn't silently 400 and lose a whispered lock-screen reply.
       while (history.length > 0 && history[0].role !== "user") {
         history.shift();
+      }
+    }
+  } else if (history.length > 0 && flushedReplies.length > 0) {
+    // Client-supplied history predates the flush above — append the
+    // just-revealed replies so the model knows what it already said.
+    // They're the newest assistant rows, so the end (sorted among
+    // themselves) is their correct position.
+    for (const f of [...flushedReplies].sort((a, b) =>
+      a.created_at < b.created_at ? -1 : 1,
+    )) {
+      if (f.content && history[history.length - 1]?.content !== f.content) {
+        history.push({ role: "assistant", content: String(f.content) });
       }
     }
   }
@@ -1118,17 +1187,31 @@ const archive: { prompt: string; answer: string }[] = [];
   if (profile.active_oracle_id) {
     const { data: lastMsgRow } = await supabase
       .from("messages")
-      .select("created_at")
+      .select("created_at, visible_at")
       .eq("oracle_id", profile.active_oracle_id)
       .eq("user_id", user.id)
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    hoursSinceLastMessage = lastMsgRow?.created_at
-      ? (Date.now() - new Date(lastMsgRow.created_at as string).getTime()) /
-        3_600_000
-      : null;
+    // ARRIVAL time, not write time (audit M1): a delayed reply is
+    // written ~40 min before it lands, so measuring from created_at
+    // made an active back-and-forth look like a 40-minute-old thread
+    // and slow-tier companions compounded their own delays forever.
+    // GREATEST(created_at, visible_at) is when the exchange actually
+    // happened for the user.
+    const lastArrival = lastMsgRow
+      ? Math.max(
+          lastMsgRow.created_at
+            ? new Date(lastMsgRow.created_at as string).getTime()
+            : 0,
+          lastMsgRow.visible_at
+            ? new Date(lastMsgRow.visible_at as string).getTime()
+            : 0,
+        )
+      : 0;
+    hoursSinceLastMessage =
+      lastArrival > 0 ? (Date.now() - lastArrival) / 3_600_000 : null;
   }
   const gapPart =
     hoursSinceLastMessage !== null && hoursSinceLastMessage > 6 && !archiveMode
@@ -1509,6 +1592,29 @@ ${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${s
     ? `${birthdayCue ? `\n\n${birthdayCue}` : ""}${typoRuleFor(livenessOracle.traits, livenessOracle.id ?? "")}${tempoRuleFor(livenessOracle.traits, livenessOracle.id ?? "")}${romanceGateFor(livenessOracle.traits, livenessOracle.id ?? "", user.id)}`
     : "";
 
+  // TRUE DELAYED DELIVERY. The tempo trait above shapes how they TALK
+  // about their speed; this makes the reply actually arrive on that
+  // schedule. Same gate as the liveness cues (companions only — never
+  // archives, never Adrian), never crisis or distress, and only for
+  // clients that opted in (see the payload comment). archiveMode is
+  // belt-and-suspenders: a memorial reached via a beneficiary grant
+  // rides an oracle whose flags could pass the liveness gate.
+  const replyDelayMs =
+    payload.supports_delayed_delivery === true &&
+    livenessOracle &&
+    !archiveMode &&
+    !crisis.crisis &&
+    !distressed
+      ? computeReplyDelayMs({
+          traits: livenessOracle.traits,
+          oracleId: livenessOracle.id ?? "",
+          minutesSinceLastExchange:
+            hoursSinceLastMessage === null ? null : hoursSinceLastMessage * 60,
+          crisis: crisis.crisis,
+          distressed,
+        })
+      : 0;
+
   // If the user attached an image, send it to Anthropic as a vision
   // input. URL-based images are supported by the API. The image lives
   // in the chat-photos bucket as a long-lived signed URL.
@@ -1604,6 +1710,19 @@ ${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${s
       .filter((s) => s.length > 0);
     const reply = replies[0] ?? rawReply;
 
+    // ONE reveal moment for the whole turn — the DB rows, the read
+    // receipt, and the reveal push must all agree on it, so it's
+    // computed once here, not re-derived per use.
+    const turnVisibleAtIso =
+      replyDelayMs > 0 ? new Date(Date.now() + replyDelayMs).toISOString() : null;
+    // Audit H2: a delayed response may only claim visible_at if the
+    // rows actually persisted — otherwise the client hides a reply
+    // that exists nowhere and the reveal finds nothing. On persist
+    // failure the response falls back to the instant shape and the
+    // client renders the bursts ephemerally, same as the instant
+    // path's failure mode.
+    let delayedRowsPersisted = false;
+
     // Persona photo decision. Only fires for non-crisis turns and
     // when there's an avatar to anchor face consistency. Capped at
     // ~2 photos per persona per 7 days so it stays special.
@@ -1655,6 +1774,12 @@ ${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${s
       // message they answer (Wilson mobile report 2026-08-02). 1ms
       // steps keep user → burst-1 → burst-2 order stable everywhere.
       const persistBase = Date.now();
+      // Delayed turns "arrive" later: the reply rows carry visible_at
+      // and the user's read receipt moves to the SAME moment — the
+      // busy texter reads your message when they pick up their phone
+      // to answer it, not the second you send it. An instant "Read"
+      // under a 40-minute silence would give the whole trick away.
+      const visibleIso = turnVisibleAtIso;
       const rows: {
         user_id: string;
         oracle_id: string;
@@ -1664,6 +1789,7 @@ ${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${s
         image_storage_path?: string | null;
         read_by_oracle_at?: string | null;
         created_at?: string;
+        visible_at?: string | null;
       }[] = [
         {
           user_id: user.id,
@@ -1676,8 +1802,10 @@ ${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${s
           // already "read" this turn (their reply is composed and
           // about to land in the same insert). Mobile receipt UI
           // flips from Sent → Read on the next resync. Web stream
-          // route does the same at stream/route.ts:533.
-          read_by_oracle_at: new Date().toISOString(),
+          // route does the same at stream/route.ts:533. On delayed
+          // turns the stamp is the reveal time (future) — clients
+          // treat a future read time as not-read-yet.
+          read_by_oracle_at: visibleIso ?? new Date().toISOString(),
           created_at: new Date(persistBase).toISOString(),
         },
       ];
@@ -1690,6 +1818,7 @@ ${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${s
           content: r,
           image_url: isLast && personaPhotoUrl ? personaPhotoUrl : null,
           created_at: new Date(persistBase + 1 + i).toISOString(),
+          visible_at: visibleIso,
         });
       });
       // Assistant rows are written server-side: clients may only insert
@@ -1697,6 +1826,7 @@ ${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${s
       const { error: persistErr } = await createAdminClient()
         .from("messages")
         .insert(rows);
+      if (!persistErr) delayedRowsPersisted = true;
 
       // Pack-credit consumption — only after the rows actually landed
       // so a failed persist doesn't eat a paid credit. Never throws;
@@ -1730,12 +1860,20 @@ ${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${s
       //
       // Best-effort and awaited-but-swallowed: a push failure must never
       // turn a delivered reply into an error response.
+      // Delayed turns skip the immediate server push entirely — the
+      // client that opted in schedules a LOCAL notification for the
+      // reveal moment instead (the phone's own alarm clock, free, and
+      // it fires with the app force-quit). An instant push announcing
+      // a message that won't show for 40 minutes would be worse than
+      // either.
       if (!persistErr && replies.length > 0) {
         const preview = replies[replies.length - 1] ?? reply;
         // Did this exchange contain a "text me in the morning"-style
         // promise? Prescreened by regex, decided by Haiku, delivered by
         // the promised-pings cron — in after(), so noticing a promise
-        // never delays keeping the conversation.
+        // never delays keeping the conversation. Runs on delayed turns
+        // too — a promise made in a reply that arrives at 3pm is still
+        // a promise.
         const promiseUserText = userMessage ?? "";
         const promiseReplyText = replies.join("\n");
         after(async () => {
@@ -1761,7 +1899,7 @@ ${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${s
         // Force-quitting is not a rare thing for someone to do here:
         // you text your companion and put the phone away. That is the
         // moment the notification matters most.
-        after(async () => {
+        if (replyDelayMs === 0) after(async () => {
           // AWAITED — after()'s lambda freezes the instant its promise
           // settles; a void'd fetch still in flight at that moment is
           // dropped, which is a reply notification that never arrives
@@ -1939,7 +2077,14 @@ ${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${s
 
     // Backward-compatible: still return single `reply` for clients
     // that haven't been updated; new clients use `replies[]`.
-    return NextResponse.json({ reply, replies });
+    // visible_at is null unless this turn was delayed — and it can
+    // only be non-null for clients that opted in via
+    // supports_delayed_delivery, so old binaries never see it.
+    return NextResponse.json({
+      reply,
+      replies,
+      visible_at: delayedRowsPersisted ? turnVisibleAtIso : null,
+    });
   } catch (err) {
     // When Anthropic hiccups, don't break character with a generic
     // "Something went wrong" — that breaks the illusion the whole product

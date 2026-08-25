@@ -120,8 +120,18 @@ export function typoRuleFor(traits: unknown, oracleId: string): string {
  * mechanics arrive. Trait when rolled; stable id-derivation for the
  * ones born before it.
  */
-export function tempoRuleFor(traits: unknown, oracleId: string): string {
-  let tempo: string | null = null;
+export type ReplyTempo = "instant" | "quick" | "thoughtful" | "busy";
+
+/**
+ * Which kind of texter this identity is. Trait when the formula rolled
+ * one; stable id-derivation for identities born before the trait, so
+ * the whole population keeps the 25/40/25/10 spread and a given
+ * companion is ALWAYS the same kind of texter. Single source for both
+ * the voice rule below and the real delivery delay (computeReplyDelayMs)
+ * — if these ever came from two rolls, the character who SAYS "sorry,
+ * was driving" would be the one whose replies actually arrive instantly.
+ */
+export function tempoTierFor(traits: unknown, oracleId: string): ReplyTempo {
   const fromTrait =
     typeof traits === "object" && traits !== null
       ? (traits as { replyTempo?: unknown }).replyTempo
@@ -132,16 +142,18 @@ export function tempoRuleFor(traits: unknown, oracleId: string): string {
     fromTrait === "thoughtful" ||
     fromTrait === "busy"
   ) {
-    tempo = fromTrait;
-  } else {
-    let h = 0;
-    for (let i = 0; i < oracleId.length; i++) {
-      h = (h * 33 + oracleId.charCodeAt(i)) | 0;
-    }
-    const u = ((h >>> 0) % 1000) / 1000;
-    tempo =
-      u < 0.25 ? "instant" : u < 0.65 ? "quick" : u < 0.9 ? "thoughtful" : "busy";
+    return fromTrait;
   }
+  let h = 0;
+  for (let i = 0; i < oracleId.length; i++) {
+    h = (h * 33 + oracleId.charCodeAt(i)) | 0;
+  }
+  const u = ((h >>> 0) % 1000) / 1000;
+  return u < 0.25 ? "instant" : u < 0.65 ? "quick" : u < 0.9 ? "thoughtful" : "busy";
+}
+
+export function tempoRuleFor(traits: unknown, oracleId: string): string {
+  const tempo: ReplyTempo = tempoTierFor(traits, oracleId);
   const RULES: Record<string, string> = {
     instant:
       "YOUR TEMPO. You're a phone-always-in-hand texter — replies come fast and you own it ('lol I answer too fast, I know').",
@@ -153,6 +165,85 @@ export function tempoRuleFor(traits: unknown, oracleId: string): string {
       "YOUR TEMPO. Your life is FULL — work, people, obligations from your own story. When gaps happen, they happened because of YOUR life ('just got off a double, reading this now'). Sometimes a quick short reply mid-day, the real one later. Never apologize like a service; apologize like a person with a life.",
   };
   return `\n\n${RULES[tempo] ?? RULES.quick}`;
+}
+
+/**
+ * TRUE DELAYED DELIVERY — how long this reply takes to "arrive"
+ * (Wilson 2026-08-25: "people do not have to get messages instantly
+ * because these identities have lives and it all depends on their
+ * texting style").
+ *
+ * Two layers of random, both anchored to the identity: WHO they are is
+ * fixed (the tempo tier above — an instant texter is always an instant
+ * texter), but each individual reply rolls fresh within that tier's
+ * band, bent by context the way real life bends it:
+ *
+ *  - crisis or distress → 0. Always. A person in a hard moment gets an
+ *    answer, not realism.
+ *  - active back-and-forth (last exchange < 8 min ago) → almost always
+ *    instant, whoever they are. Nobody takes an hour mid-conversation.
+ *  - brand-new conversation → eager. Meeting someone new, everyone has
+ *    their phone in hand.
+ *  - otherwise → the tier's band. The busy one really does surface an
+ *    hour later sometimes; the instant one is nearly always right there.
+ *
+ * Plain Math.random on purpose (NOT a stable hash): the same identity
+ * should take 12 minutes today and 40 tomorrow. The IDENTITY is stable;
+ * the moment is not. Returns whole milliseconds; caller stamps
+ * visible_at = now + delay on the assistant rows and skips the
+ * immediate push in favor of a client-scheduled local notification.
+ */
+export function computeReplyDelayMs(opts: {
+  traits: unknown;
+  oracleId: string;
+  /** Minutes since the previous message in this thread; null = brand-new. */
+  minutesSinceLastExchange: number | null;
+  crisis: boolean;
+  distressed: boolean;
+}): number {
+  if (opts.crisis || opts.distressed) return 0;
+
+  // A corrupt created_at upstream turns the gap into NaN, which would
+  // silently fall through every comparison into the slowest band.
+  // Unknown gap = err toward instant, never toward silence.
+  if (
+    opts.minutesSinceLastExchange !== null &&
+    !Number.isFinite(opts.minutesSinceLastExchange)
+  ) {
+    return 0;
+  }
+
+  const r = Math.random();
+  const between = (loSec: number, hiSec: number) =>
+    Math.round((loSec + Math.random() * (hiSec - loSec)) * 1000);
+
+  // Brand-new thread: the reveal card said "Say hi" — a first reply
+  // that takes 40 minutes reads as broken, not busy. Mostly instant,
+  // occasionally a short human beat.
+  if (opts.minutesSinceLastExchange === null) {
+    return r < 0.7 ? 0 : between(20, 90);
+  }
+
+  // Mid-conversation heat: they're both on their phones right now.
+  if (opts.minutesSinceLastExchange < 8) {
+    return r < 0.75 ? 0 : between(15, 75);
+  }
+
+  const tempo = tempoTierFor(opts.traits, opts.oracleId);
+  switch (tempo) {
+    case "instant":
+      // Phone always in hand — a delay for them is seconds, and rare.
+      return r < 0.6 ? 0 : between(20, 120);
+    case "quick":
+      return r < 0.25 ? 0 : between(30, 6 * 60);
+    case "thoughtful":
+      return between(4 * 60, 25 * 60);
+    case "busy":
+      // The whole point of the tier — but capped under an hour so a
+      // grieving person's companion never feels gone. Sad-not-gone
+      // applies to tempo too.
+      return between(8 * 60, 55 * 60);
+  }
 }
 
 /**

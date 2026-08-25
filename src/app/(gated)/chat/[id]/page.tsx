@@ -108,7 +108,7 @@ export default async function ChatPage({
   const { data: rows } = await supabase
     .from("messages")
     .select(
-      "id, role, content, created_at, read_by_oracle_at, image_storage_path",
+      "id, role, content, created_at, read_by_oracle_at, image_storage_path, visible_at",
     )
     .eq("oracle_id", oracle.id)
     .eq("user_id", user.id)
@@ -161,21 +161,34 @@ export default async function ChatPage({
     }
   }
 
+  // TRUE DELAYED DELIVERY (2026-08-25): replies whose visible_at is
+  // still in the future haven't "arrived" — they're split out of the
+  // transcript and handed to ChatSurface separately, which reveals
+  // each at its moment with a timer.
+  const nowMs = Date.now();
+  const toChatMessage = (m: NonNullable<typeof rows>[number]): ChatMessage => ({
+    id: m.id,
+    role: m.role as "user" | "assistant",
+    content: m.content,
+    createdAt: m.created_at,
+    readByOracleAt: m.read_by_oracle_at,
+    pending: false,
+    imageUrl: m.image_storage_path
+      ? (signedByPath.get(m.image_storage_path) ?? null)
+      : null,
+    myReaction: reactionsByMessage.get(m.id)?.mine ?? null,
+    theirReaction: reactionsByMessage.get(m.id)?.theirs ?? null,
+  });
+  const isStillHidden = (m: { visible_at: string | null }) =>
+    !!m.visible_at && new Date(m.visible_at).getTime() > nowMs;
   const initialMessages: ChatMessage[] = (rows ?? [])
+    .filter((m) => !isStillHidden(m))
     .reverse()
-    .map((m) => ({
-      id: m.id,
-      role: m.role as "user" | "assistant",
-      content: m.content,
-      createdAt: m.created_at,
-      readByOracleAt: m.read_by_oracle_at,
-      pending: false,
-      imageUrl: m.image_storage_path
-        ? (signedByPath.get(m.image_storage_path) ?? null)
-        : null,
-      myReaction: reactionsByMessage.get(m.id)?.mine ?? null,
-      theirReaction: reactionsByMessage.get(m.id)?.theirs ?? null,
-    }));
+    .map(toChatMessage);
+  const pendingMessages = (rows ?? [])
+    .filter((m) => isStillHidden(m))
+    .reverse()
+    .map((m) => ({ ...toChatMessage(m), visibleAt: m.visible_at as string }));
 
   // Phase-4 (2026-08-03): fetch the inherit code for this identity so
   // the zoom modal can surface it. Only legacy identities THIS user
@@ -212,6 +225,7 @@ export default async function ChatPage({
       avatarUrl={oracle.avatar_url}
       oneLineHook={oracle.one_line_hook ?? null}
       initialMessages={initialMessages}
+      pendingMessages={pendingMessages}
       initialBlocked={!!oracle.blocked_at}
       blockReason={oracle.block_reason ?? null}
       isConcierge={!!oracle.is_concierge}

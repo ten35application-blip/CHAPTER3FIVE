@@ -155,9 +155,12 @@ export default async function DashboardPage({
       // per-row iMessage-style last-message preview (mobile parity
       // 2026-08-03; dashboard rows now show "You: …" / assistant
       // preview + a relative timestamp).
-      .select("oracle_id, role, created_at, content")
+      .select("oracle_id, role, created_at, content, visible_at")
       .eq("user_id", user.id)
-      .is("deleted_at", null),
+      .is("deleted_at", null)
+      // Delayed replies that haven't "arrived" are invisible
+      // everywhere — no preview, no unread dot, no spoilers.
+      .or(`visible_at.is.null,visible_at.lte.${new Date().toISOString()}`),
     supabase
       .from("messages")
       .select("oracle_id")
@@ -193,7 +196,14 @@ export default async function DashboardPage({
   for (const r of activeMsgOracleRows ?? []) {
     const oid = r.oracle_id as string | null;
     if (!oid) continue;
-    const created = r.created_at as string;
+    // ARRIVAL time, not write time (audit M2): a delayed reply is
+    // written long before it lands. Its unread comparison and its
+    // preview timestamp must use the moment the user could first see
+    // it, or a peek-then-reveal thread arrives pre-read and unmarked.
+    const created =
+      typeof r.visible_at === "string" && r.visible_at > (r.created_at as string)
+        ? (r.visible_at as string)
+        : (r.created_at as string);
     const prev = lastMsgByOracle.get(oid);
     // Same-column string compare is safe here (uniform PostgREST format).
     if (!prev || created > prev.created_at) {
