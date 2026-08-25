@@ -279,6 +279,13 @@ export const SPEECH_HABITS = [
   "Changes subject when uncomfortable",
 ] as const;
 
+// Expanded 2026-08-25 (Wilson: occupation is a HEADLINE trait — "what
+// do you do?" is the first question every real conversation asks, and
+// 20 broad buckets read as repetition long before any hidden trait
+// would). Specific beats categorical: "hospice nurse" and "ER nurse"
+// produce completely different people. The original 20 stay — they're
+// stored in existing identities' traits and are join keys, not labels.
+// Ordinary lives, richly specific: that's the app's whole voice.
 export const OCCUPATIONS = [
   "Teacher/educator",
   "Nurse/healthcare",
@@ -300,6 +307,82 @@ export const OCCUPATIONS = [
   "Retail",
   "Domestic worker",
   "Entrepreneur",
+  // — healthcare, specific —
+  "Hospice nurse",
+  "ER nurse",
+  "School nurse",
+  "Dialysis technician",
+  "Home health aide",
+  "Paramedic/EMT",
+  "Dental hygienist",
+  "Pharmacy technician",
+  "Physical therapist",
+  "Midwife",
+  // — trades & hands —
+  "Union electrician",
+  "Plumber",
+  "HVAC technician",
+  "Auto mechanic",
+  "Welder",
+  "Carpenter/cabinet maker",
+  "Roofer",
+  "Locksmith",
+  "Seamstress/tailor",
+  "Upholsterer",
+  // — service & community —
+  "Barber/hairdresser",
+  "Mail carrier",
+  "Librarian",
+  "Crossing guard",
+  "School bus driver",
+  "Bartender",
+  "Diner waitress/waiter",
+  "Grocery store manager",
+  "Night-shift stocker",
+  "Janitor/custodian",
+  "Funeral director",
+  "Church organist/choir director",
+  "Daycare provider",
+  "Dog groomer",
+  "Florist",
+  "Baker",
+  "Butcher",
+  "Fishmonger",
+  "Shoe repairman/cobbler",
+  "Laundromat owner",
+  // — office, civic & professional —
+  "Bank teller",
+  "Court stenographer",
+  "911 dispatcher",
+  "Social worker",
+  "Substitute teacher",
+  "School cafeteria worker",
+  "Postal clerk",
+  "Insurance adjuster",
+  "Real estate agent",
+  "Paralegal",
+  "Bookkeeper for small businesses",
+  "Union rep",
+  // — outdoors, transport & industry —
+  "Long-haul trucker",
+  "Taxi/rideshare driver",
+  "Landscaper",
+  "Commercial fisherman",
+  "Park ranger",
+  "Railroad worker",
+  "Warehouse forklift operator",
+  "Line cook",
+  "Housekeeper at a hotel",
+  "Security guard",
+  // — creative & odd corners of a town —
+  "Wedding photographer",
+  "Piano teacher",
+  "Sign painter",
+  "Radio DJ (local station)",
+  "Newspaper pressman",
+  "Thrift store manager",
+  "Antique dealer",
+  "Tattoo artist",
 ] as const;
 
 export const FAITH_LEVELS = [
