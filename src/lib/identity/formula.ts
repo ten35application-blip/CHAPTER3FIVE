@@ -3418,23 +3418,33 @@ export const AVAILABILITIES = [
 ] as const;
 export type Availability = (typeof AVAILABILITIES)[number];
 
-/** Age-realistic availability (Wilson 2026-08-27: "some older people
- *  might be married, maybe 21 is more single and tossed back and
- *  forth"). Buckets are rough US-shaped reality, not census data. */
-export function rollAvailability(ageYears: number): Availability {
+/** Availability DERIVES from relationshipHistory — the household
+ *  cluster's single source of truth (self-audit 2026-08-27: an
+ *  independent roll produced "Married once (lasting)" + status
+ *  "single" on ~1 in 6 identities, the exact contradiction class the
+ *  2026-08-04 cluster fix exists to kill). Partnered histories map
+ *  directly; unpartnered ones get an age-flavored present tense (a
+ *  young divorcé is more likely casually dating; an older one more
+ *  likely settled-single). */
+export function rollAvailability(
+  relationshipHistory: string,
+  ageYears: number,
+): Availability {
+  if (relationshipHistory === "Married once (lasting)") return "married";
+  if (relationshipHistory === "Long-term partner never married") {
+    return "in_a_relationship";
+  }
+  if (relationshipHistory === "Widowed") return "widowed";
   const r = Math.random();
-  if (ageYears < 26) {
-    // young: mostly single, plenty of situationships, marriage rare
-    return r < 0.55 ? "single" : r < 0.8 ? "casually_dating" : r < 0.93 ? "in_a_relationship" : r < 0.97 ? "married" : "separated_needs_time";
+  if (relationshipHistory === "Married once (divorced)") {
+    return r < 0.55 ? "single" : r < 0.8 ? "casually_dating" : "separated_needs_time";
   }
-  if (ageYears < 35) {
-    return r < 0.33 ? "single" : r < 0.48 ? "casually_dating" : r < 0.68 ? "in_a_relationship" : r < 0.9 ? "married" : r < 0.97 ? "separated_needs_time" : "widowed";
+  if (relationshipHistory === "Married multiple times") {
+    return r < 0.5 ? "single" : r < 0.8 ? "casually_dating" : "separated_needs_time";
   }
-  if (ageYears < 50) {
-    return r < 0.18 ? "single" : r < 0.26 ? "casually_dating" : r < 0.4 ? "in_a_relationship" : r < 0.8 ? "married" : r < 0.94 ? "separated_needs_time" : "widowed";
-  }
-  // 50+
-  return r < 0.12 ? "single" : r < 0.16 ? "casually_dating" : r < 0.26 ? "in_a_relationship" : r < 0.72 ? "married" : r < 0.83 ? "separated_needs_time" : "widowed";
+  // Lifelong single: the young ones date around more.
+  if (ageYears < 30) return r < 0.55 ? "single" : "casually_dating";
+  return r < 0.8 ? "single" : "casually_dating";
 }
 
 export function rollHumanization(): {
@@ -4277,7 +4287,7 @@ export function rollTraits(opts?: {
       stubbornness: pickInt(101),
     },
     textFirstFrequency: rollTextFirstFrequency(),
-    availability: rollAvailability(age),
+    availability: rollAvailability(relationshipHistory, age),
     ...rollHumanization(),
     ...rollExpansion({
       ageYears: age,
@@ -4331,6 +4341,12 @@ export function reconcileTraitsToAge(traits: Traits): Traits {
   const age = ageFromBirthday(t.birthday);
   const hasKids = !t.parenthood.startsWith("No children");
   const isOnlyChild = t.siblings.startsWith("Only child");
+
+  // Availability re-derives from the (kept) relationship history and
+  // the NEW age — the one age-conditioned trait this function used to
+  // skip (self-audit 2026-08-27: a 62-roll turned 23 by a photo kept
+  // "widowed", an outcome the roll itself makes unreachable there).
+  t.availability = rollAvailability(t.relationshipHistory, age);
 
   // Loss recency — both ends, same math as the roll.
   if (t.deadRelativeYearsSince > 0) {

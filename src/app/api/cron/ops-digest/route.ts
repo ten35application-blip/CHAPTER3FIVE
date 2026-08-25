@@ -16,6 +16,10 @@ export const maxDuration = 60;
  * never a dead digest.
  */
 
+// reflect (weekly, Sundays) is deliberately ABSENT from this list —
+// including it would false-alarm six days out of seven. If it ever
+// needs health-checking, give it its own weekly-aware check; do not
+// just add it here.
 const EXPECTED_CRONS = [
   "proactive",
   "purge",
@@ -46,7 +50,7 @@ export async function GET(request: NextRequest) {
       .gte("ran_at", dayAgo);
     const ran = new Set((data ?? []).map((r) => r.job as string));
     const errored = (data ?? []).filter((r) => r.status === "error");
-    const missing = EXPECTED_CRONS.filter((j) => j !== "reflect" && !ran.has(j));
+    const missing = EXPECTED_CRONS.filter((j) => !ran.has(j));
     if (missing.length === 0 && errored.length === 0) {
       lines.push("CRONS — all ran clean.");
     } else {

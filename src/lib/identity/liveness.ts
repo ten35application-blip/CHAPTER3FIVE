@@ -193,32 +193,51 @@ function pairChemistry(oracleId: string, userId: string): Chemistry {
 }
 
 function deriveAvailability(traits: unknown, oracleId: string): string {
-  const fromTrait =
+  const t =
     typeof traits === "object" && traits !== null
-      ? (traits as { availability?: unknown }).availability
-      : undefined;
-  if (typeof fromTrait === "string" && fromTrait.length > 0) return fromTrait;
-  // Pre-trait identities: stable id-derivation shaped by their age.
-  let age = 34;
-  const bday =
-    typeof traits === "object" && traits !== null
-      ? (traits as { birthday?: unknown }).birthday
-      : undefined;
-  if (typeof bday === "string") {
-    const y = parseInt(bday.slice(0, 4), 10);
-    if (Number.isFinite(y)) age = new Date().getUTCFullYear() - y;
+      ? (traits as { availability?: unknown; relationshipHistory?: unknown })
+      : {};
+  if (typeof t.availability === "string" && t.availability.length > 0) {
+    return t.availability;
   }
+  // Pre-trait identities: their relationshipHistory IS the truth the
+  // household cluster rolled — map it exactly like rollAvailability,
+  // with the unpartnered flavor chosen by a stable id-hash instead of
+  // Math.random (same identity, same status, forever) and NO age in
+  // the derivation at all: an age recomputed every call drifts across
+  // birthdays and quietly divorced people mid-relationship (self-audit
+  // 2026-08-27).
+  const history =
+    typeof t.relationshipHistory === "string" ? t.relationshipHistory : "";
   let h = 0;
   const key = `${oracleId}:availability`;
   for (let i = 0; i < key.length; i++) h = (h * 37 + key.charCodeAt(i)) | 0;
   const u = ((h >>> 0) % 1000) / 1000;
-  if (age < 26)
-    return u < 0.55 ? "single" : u < 0.8 ? "casually_dating" : u < 0.93 ? "in_a_relationship" : "married";
-  if (age < 35)
-    return u < 0.33 ? "single" : u < 0.48 ? "casually_dating" : u < 0.68 ? "in_a_relationship" : u < 0.9 ? "married" : "separated_needs_time";
-  if (age < 50)
-    return u < 0.18 ? "single" : u < 0.26 ? "casually_dating" : u < 0.4 ? "in_a_relationship" : u < 0.8 ? "married" : u < 0.94 ? "separated_needs_time" : "widowed";
-  return u < 0.12 ? "single" : u < 0.16 ? "casually_dating" : u < 0.26 ? "in_a_relationship" : u < 0.72 ? "married" : u < 0.83 ? "separated_needs_time" : "widowed";
+  if (history === "Married once (lasting)") return "married";
+  if (history === "Long-term partner never married") return "in_a_relationship";
+  if (history === "Widowed") return "widowed";
+  if (history === "Married once (divorced)") {
+    return u < 0.55 ? "single" : u < 0.8 ? "casually_dating" : "separated_needs_time";
+  }
+  if (history === "Married multiple times") {
+    return u < 0.5 ? "single" : u < 0.8 ? "casually_dating" : "separated_needs_time";
+  }
+  if (history === "Lifelong single") {
+    return u < 0.7 ? "single" : "casually_dating";
+  }
+  // No history at all (oldest rows): stable hash across the general
+  // adult distribution, no age input.
+  return u < 0.3
+    ? "single"
+    : u < 0.45
+      ? "casually_dating"
+      : u < 0.6
+        ? "in_a_relationship"
+        : u < 0.85
+          ? "married"
+          : u < 0.93
+            ? "separated_needs_time"
+            : "widowed";
 }
 
 export function romanceGateFor(

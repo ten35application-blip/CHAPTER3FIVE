@@ -1,75 +1,23 @@
 import Link from "next/link";
-import {
-  createAdminClient,
-  daysAgo,
-  fetchPaidPayments,
-  formatUsd,
-  getEmailMap,
-  safeCount,
-  safeSelect,
-  startOfMonth,
-  startOfToday,
-  sumCents,
-} from "@/lib/admin/queries";
+import { createAdminClient, formatUsd } from "@/lib/admin/queries";
+import { fetchAdminHome } from "@/lib/admin/home";
 
 /**
  * The admin home, redone (Wilson 2026-08-26: "CLEAN, easy to read,
  * easy to navigate — chevrons, not the slide to the right").
  *
  * One page, three chevron sections — Revenue, Users, Reports — built
- * on native <details>/<summary>, so there is zero client JS, nothing
- * horizontally scrolling except tables inside their own containers,
- * and every section's summary row already tells the story while
- * closed (counts and totals live in the chevron row itself). Deep
- * pages (/admin/users/[id], /admin/identities/[id]) remain for
- * drill-down; this page is the place you actually live.
+ * on native <details>/<summary>: zero client JS, nothing horizontally
+ * scrolling except tables inside their own containers, and every
+ * drawer's summary row tells the story while closed.
+ *
+ * ALL data comes from fetchAdminHome — the same assembly the mobile
+ * app renders via /api/admin/home. One source; the two admins cannot
+ * disagree (self-audit 2026-08-27: this page briefly kept its own
+ * duplicate assembly, which is drift waiting to happen).
  */
 
 export const dynamic = "force-dynamic";
-
-type StoreRow = {
-  user_id: string | null;
-  product_id: string | null;
-  platform: string | null;
-  amount_cents: number | null;
-  purchased_at: string | null;
-  refunded_at: string | null;
-};
-type ProfileRow = {
-  id: string;
-  created_at: string;
-  subscription_tier: string | null;
-  pro_until: string | null;
-  last_active_at: string | null;
-  deleted_at: string | null;
-};
-type ReportRow = {
-  id: string;
-  reason: string | null;
-  status: string | null;
-  created_at: string;
-  reporter_user_id: string | null;
-};
-type OracleReportRow = {
-  id: string;
-  reason: string | null;
-  status: string | null;
-  created_at: string;
-  reporter_user_id: string | null;
-};
-type CrisisRow = {
-  id: string;
-  user_id: string | null;
-  flagged_at: string;
-  resolved_at: string | null;
-};
-type FailRow = {
-  id: string;
-  kind: string | null;
-  created_at: string;
-  user_id: string | null;
-  resolved_at: string | null;
-};
 
 const fmtDate = (iso: string | null | undefined) =>
   iso
@@ -89,123 +37,8 @@ const fmtDateTime = (iso: string | null | undefined) =>
     : "—";
 
 export default async function AdminHomePage() {
-  const supabase = createAdminClient();
-  const monthStart = startOfMonth();
-  const today = startOfToday();
-  const week = daysAgo(7);
-
-  const [
-    payments,
-    storeRows,
-    profiles,
-    totalUsers,
-    msgReports,
-    oracleReports,
-    crisisFlags,
-    grantFails,
-  ] = await Promise.all([
-    fetchPaidPayments(supabase),
-    safeSelect<StoreRow>(
-      supabase,
-      "store_purchases",
-      "user_id, product_id, platform, amount_cents, purchased_at, refunded_at",
-      (q) => q.order("purchased_at", { ascending: false }).limit(200),
-    ),
-    safeSelect<ProfileRow>(
-      supabase,
-      "profiles",
-      "id, created_at, subscription_tier, pro_until, last_active_at, deleted_at",
-      (q) => q.order("created_at", { ascending: false }).limit(100),
-    ),
-    safeCount(supabase, "profiles"),
-    safeSelect<ReportRow>(
-      supabase,
-      "message_reports",
-      "id, reason, status, created_at, reporter_user_id",
-      (q) => q.order("created_at", { ascending: false }).limit(50),
-    ),
-    safeSelect<OracleReportRow>(
-      supabase,
-      "oracle_reports",
-      "id, reason, status, created_at, reporter_user_id",
-      (q) => q.order("created_at", { ascending: false }).limit(50),
-    ),
-    safeSelect<CrisisRow>(
-      supabase,
-      "crisis_flags",
-      "id, user_id, flagged_at, resolved_at",
-      (q) => q.order("flagged_at", { ascending: false }).limit(50),
-    ),
-    safeSelect<FailRow>(
-      supabase,
-      "grant_failures",
-      "id, kind, created_at, user_id, resolved_at",
-      (q) => q.order("created_at", { ascending: false }).limit(50),
-    ),
-  ]);
-
-  // getEmailMap loads the whole auth list once (fine at this scale —
-  // its own docstring says move to a SQL view past a few thousand).
-  const emails = await getEmailMap(supabase);
-  const emailOf = (id: string | null | undefined) =>
-    (id && emails.get(id)) || "—";
-
-  // ── Revenue numbers ──
-  const liveStore = storeRows.filter((r) => !r.refunded_at);
-  const storeSum = (since?: Date) =>
-    liveStore
-      .filter((r) => !since || new Date(r.purchased_at ?? 0) >= since)
-      .reduce((s, r) => s + (r.amount_cents ?? 0), 0);
-  const webToday = sumCents(payments, today);
-  const webMonth = sumCents(payments, monthStart);
-  const webAll = sumCents(payments);
-  const revToday = storeSum(today) + webToday;
-  const revWeek = storeSum(week) + sumCents(payments, week);
-  const revMonth = storeSum(monthStart) + webMonth;
-  const revAll = storeSum() + webAll;
-
-  // A single unified ledger, newest first.
-  type LedgerRow = {
-    when: string;
-    email: string;
-    item: string;
-    platform: string;
-    amount: number;
-    refunded: boolean;
-  };
-  const ledger: LedgerRow[] = [
-    ...storeRows.map((r) => ({
-      when: r.purchased_at ?? "",
-      email: emailOf(r.user_id),
-      item: (r.product_id ?? "").replace("chapter3five.", ""),
-      platform: r.platform === "ios" ? "" : "▶",
-      amount: r.amount_cents ?? 0,
-      refunded: !!r.refunded_at,
-    })),
-    ...payments.map((p) => ({
-      when: (p.paid_at ?? p.created_at) as string,
-      email: emailOf(p.user_id),
-      item: p.purpose ?? "payment",
-      platform: "web",
-      amount: p.amount_cents ?? 0,
-      refunded: p.status === "refunded",
-    })),
-  ]
-    .sort((a, b) => (a.when < b.when ? 1 : -1))
-    .slice(0, 60);
-
-  const openFails = grantFails.filter((f) => !f.resolved_at);
-
-  // ── Reports numbers ──
-  const pendingMsg = msgReports.filter((r) => r.status === "pending");
-  const pendingOracle = oracleReports.filter((r) => r.status === "pending");
-  const openCrisis = crisisFlags.filter((c) => !c.resolved_at);
-  const reportsNeedingEyes =
-    pendingMsg.length + pendingOracle.length + openCrisis.length;
-
-  const usersThisWeek = profiles.filter(
-    (p) => new Date(p.created_at) >= week,
-  ).length;
+  const home = await fetchAdminHome(createAdminClient());
+  const { revenue, users, reports } = home;
 
   return (
     <div className="mx-auto w-full max-w-3xl">
@@ -221,28 +54,31 @@ export default async function AdminHomePage() {
         {/* ── 1 · REVENUE ─────────────────────────────── */}
         <Section
           title="Revenue"
-          summary={`${formatUsd(revMonth)} this month · ${formatUsd(revAll)} all-time`}
-          alert={openFails.length > 0 ? `${openFails.length} grant failure(s)` : null}
+          summary={`${formatUsd(revenue.month)} this month · ${formatUsd(revenue.allTime)} all-time`}
+          alert={
+            revenue.openFailures.length > 0
+              ? `${revenue.openFailures.length} grant failure(s)`
+              : null
+          }
           defaultOpen
         >
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Stat label="Today" value={formatUsd(revToday)} />
-            <Stat label="7 days" value={formatUsd(revWeek)} />
-            <Stat label="This month" value={formatUsd(revMonth)} />
-            <Stat label="All-time" value={formatUsd(revAll)} />
+            <Stat label="Today" value={formatUsd(revenue.today)} />
+            <Stat label="7 days" value={formatUsd(revenue.week)} />
+            <Stat label="This month" value={formatUsd(revenue.month)} />
+            <Stat label="All-time" value={formatUsd(revenue.allTime)} />
           </div>
 
-          {openFails.length > 0 && (
+          {revenue.openFailures.length > 0 && (
             <div className="mt-4 rounded-xl border border-coral/40 bg-coral/10 px-4 py-3 text-sm text-coral-strong">
               <p className="font-semibold">
-                {openFails.length} payment(s) may not have delivered what
-                was bought:
+                {revenue.openFailures.length} payment(s) may not have
+                delivered what was bought:
               </p>
               <ul className="mt-2 space-y-1">
-                {openFails.slice(0, 5).map((f) => (
-                  <li key={f.id}>
-                    {fmtDateTime(f.created_at)} — {emailOf(f.user_id)} —{" "}
-                    {f.kind ?? "unknown"}
+                {revenue.openFailures.slice(0, 5).map((f, i) => (
+                  <li key={i}>
+                    {fmtDateTime(f.when)} — {f.email} — {f.kind}
                   </li>
                 ))}
               </ul>
@@ -251,14 +87,14 @@ export default async function AdminHomePage() {
 
           <AdminTable
             head={["When", "Who", "What", "Where", "Amount"]}
-            rows={ledger.map((l) => [
+            rows={revenue.ledger.map((l) => [
               fmtDateTime(l.when),
               l.email,
               l.refunded ? `${l.item} (refunded)` : l.item,
               l.platform,
-              formatUsd(l.amount),
+              formatUsd(l.amountCents),
             ])}
-            dimRow={(i) => ledger[i].refunded}
+            dimRow={(i) => revenue.ledger[i].refunded}
             empty="No payments yet — the first one shows up here."
           />
         </Section>
@@ -266,26 +102,21 @@ export default async function AdminHomePage() {
         {/* ── 2 · USERS ───────────────────────────────── */}
         <Section
           title="Users"
-          summary={`${totalUsers} total · ${usersThisWeek} new this week`}
+          summary={`${users.total} total · ${users.newThisWeek} new this week`}
         >
           <AdminTable
             head={["Email", "Joined", "Plan", "Last seen"]}
-            rows={profiles.map((p) => [
+            rows={users.rows.map((u) => [
               <Link
-                key={p.id}
-                href={`/admin/users/${p.id}`}
+                key={u.id}
+                href={`/admin/users/${u.id}`}
                 className="font-medium text-warm-100 underline-offset-4 hover:underline"
               >
-                {emailOf(p.id)}
+                {u.email}
               </Link>,
-              fmtDate(p.created_at),
-              p.deleted_at
-                ? "deleted"
-                : p.subscription_tier ??
-                  (p.pro_until && new Date(p.pro_until) > new Date()
-                    ? "pro"
-                    : "free"),
-              fmtDate(p.last_active_at),
+              fmtDate(u.joined),
+              u.plan,
+              fmtDate(u.lastSeen),
             ])}
             empty="Nobody yet."
           />
@@ -309,32 +140,32 @@ export default async function AdminHomePage() {
         <Section
           title="Reports"
           summary={
-            reportsNeedingEyes === 0
+            reports.needingEyes === 0
               ? "queue empty"
-              : `${reportsNeedingEyes} need eyes`
+              : `${reports.needingEyes} need eyes`
           }
           alert={
-            openCrisis.length > 0
-              ? `${openCrisis.length} crisis flag(s)`
-              : reportsNeedingEyes > 0
-                ? `${reportsNeedingEyes} pending`
+            reports.crisis.length > 0
+              ? `${reports.crisis.length} crisis flag(s)`
+              : reports.needingEyes > 0
+                ? `${reports.needingEyes} pending`
                 : null
           }
         >
-          {openCrisis.length > 0 && (
+          {reports.crisis.length > 0 && (
             <div className="mb-4 rounded-xl border border-coral/40 bg-coral/10 px-4 py-3 text-sm text-coral-strong">
               <p className="font-semibold">
                 Crisis flags — these are people. Same-day, always.
               </p>
               <ul className="mt-2 space-y-1">
-                {openCrisis.map((c) => (
+                {reports.crisis.map((c) => (
                   <li key={c.id}>
-                    {fmtDateTime(c.flagged_at)} —{" "}
+                    {fmtDateTime(c.when)} —{" "}
                     <Link
-                      href={`/admin/users/${c.user_id}`}
+                      href={`/admin/users/${c.userId}`}
                       className="underline underline-offset-4"
                     >
-                      {emailOf(c.user_id)}
+                      {c.email}
                     </Link>
                   </li>
                 ))}
@@ -347,13 +178,13 @@ export default async function AdminHomePage() {
           </h3>
           <AdminTable
             head={["When", "Reporter", "Reason", "Status"]}
-            rows={msgReports.map((r) => [
-              fmtDateTime(r.created_at),
-              emailOf(r.reporter_user_id),
-              r.reason ?? "—",
-              r.status ?? "—",
+            rows={reports.messages.map((r) => [
+              fmtDateTime(r.when),
+              r.reporter,
+              r.reason,
+              r.status,
             ])}
-            dimRow={(i) => msgReports[i].status !== "pending"}
+            dimRow={(i) => reports.messages[i].status !== "pending"}
             empty="No message reports."
           />
 
@@ -362,13 +193,13 @@ export default async function AdminHomePage() {
           </h3>
           <AdminTable
             head={["When", "Reporter", "Reason", "Status"]}
-            rows={oracleReports.map((r) => [
-              fmtDateTime(r.created_at),
-              emailOf(r.reporter_user_id),
-              r.reason ?? "—",
-              r.status ?? "—",
+            rows={reports.identities.map((r) => [
+              fmtDateTime(r.when),
+              r.reporter,
+              r.reason,
+              r.status,
             ])}
-            dimRow={(i) => oracleReports[i].status !== "pending"}
+            dimRow={(i) => reports.identities[i].status !== "pending"}
             empty="No identity reports."
           />
           <p className="mt-3 text-xs text-warm-400">
