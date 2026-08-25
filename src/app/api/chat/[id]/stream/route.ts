@@ -1579,30 +1579,27 @@ export async function POST(
             ? [{ role: "assistant" as const, content: reply }]
             : []),
         ];
-        // NEVER for the concierge (Adrian audit H1, 2026-08-25):
-        // handleBlockDecision writes blocked_at onto the ORACLE ROW,
-        // and Adrian's row is shared by every user in the app — one
-        // troll being vile in a browser could 403 Adrian for everyone
-        // for a week (temporary) or forever (permanent), while mobile
-        // (which doesn't read blocked_at) kept working. Staff doesn't
-        // walk away; abuse in Adrian's thread is handled by the
-        // per-user warning ladder, not a global switch.
-        if (!isConciergeOracle) {
-          after(async () => {
-            const decision = await shouldPersonaBlock(
-              historyForBlockCheck,
-              user.id,
-              priorStrikes,
-            );
-            if (decision.block) {
-              await handleBlockDecision({
-                decision,
-                oracleId,
-                userId: user.id,
-              });
-            }
-          });
-        }
+        // Concierge nuance (Adrian audits H1 + F2, 2026-08-25): the
+        // detector RUNS for Adrian — abuse still earns per-user
+        // strikes, warnings, and walk-aways, same as mobile's
+        // judgeTone — but the oracle-level blocked_at write is
+        // suppressed, because his row is shared and one troll in a
+        // browser must never black Adrian out for every user at once.
+        after(async () => {
+          const decision = await shouldPersonaBlock(
+            historyForBlockCheck,
+            user.id,
+            priorStrikes,
+          );
+          if (decision.block) {
+            await handleBlockDecision({
+              decision,
+              oracleId,
+              userId: user.id,
+              suppressOracleFlag: isConciergeOracle,
+            });
+          }
+        });
 
         // Fable humanization #5 — refresh the session residue after
         // every turn. Cheap Haiku call; never blocks the client.

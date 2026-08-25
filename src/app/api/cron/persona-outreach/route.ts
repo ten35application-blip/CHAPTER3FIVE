@@ -76,10 +76,21 @@ export async function GET(request: NextRequest) {
   let skippedForTime = 0;
   const now = new Date(startedAt);
 
-  // Candidate users: opted in, onboarded, alive, undeleted, with a push
-  // subscription (no point pinging someone who won't hear it). Batch-
-  // limit so we don't burn through Anthropic in a single hour.
-  const { data: candidates, error } = await admin
+  // Candidate users: opted in, onboarded, alive, undeleted, with SOME
+  // way to hear the text (no point pinging someone who won't). Two
+  // push channels exist: profiles.push_subscription is the WEB-push
+  // blob, and phone Expo tokens live in device_tokens — filtering on
+  // the web column alone silently excluded nearly every mobile user
+  // from outreach forever (Adrian-wave audit F1, 2026-08-25: 7 of 8
+  // token-holding users had NULL push_subscription). The route already
+  // sends to BOTH channels at delivery time; eligibility now matches.
+  const { data: deviceTokenRows } = await admin
+    .from("device_tokens")
+    .select("user_id");
+  const hasDeviceToken = new Set(
+    (deviceTokenRows ?? []).map((r) => r.user_id as string),
+  );
+  const { data: candidatesRaw, error } = await admin
     .from("profiles")
     .select(
       "id, preferred_language, timezone, push_subscription, oracle_name, muted_conversations",
@@ -88,8 +99,10 @@ export async function GET(request: NextRequest) {
     .eq("onboarding_completed", true)
     .is("deceased_at", null)
     .is("deleted_at", null)
-    .not("push_subscription", "is", null)
     .limit(BATCH_LIMIT);
+  const candidates = (candidatesRaw ?? []).filter(
+    (p) => p.push_subscription != null || hasDeviceToken.has(p.id as string),
+  );
 
   if (error) {
     // 'persona-outreach', hyphenated — this job wrote 'persona_outreach'

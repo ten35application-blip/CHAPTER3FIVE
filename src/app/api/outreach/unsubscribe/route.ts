@@ -60,18 +60,18 @@ export async function GET(request: NextRequest) {
   if (!verify(u, t)) {
     return page(
       "That link didn't work",
-      "It may be old or incomplete. You can also turn check-ins off from Settings inside the app, or write to care@chapter3five.app.",
+      "It may be old or incomplete. You can also turn check-ins off from Settings inside the app, or write to hello@chapter3five.app.",
     );
   }
   const ok = await unsubscribe(u);
   return ok
     ? page(
         "You won't get these check-ins anymore.",
-        "Your companions are still here whenever you want them — this only stops the emails. Changed your mind? Write to care@chapter3five.app.",
+        "Your companions are still here whenever you want them — this only stops the emails. Changed your mind? Write to hello@chapter3five.app.",
       )
     : page(
         "Something went sideways",
-        "Give the link one more try in a moment, or write to care@chapter3five.app and we'll turn it off by hand.",
+        "Give the link one more try in a moment, or write to hello@chapter3five.app and we'll turn it off by hand.",
       );
 }
 

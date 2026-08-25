@@ -13,7 +13,7 @@ export default function SupportPage() {
       kicker="We're here"
       title="Support."
       tagline="Something not working, or just need a hand? Send us a note and a real person writes back."
-      contactEmail="care@chapter3five.app"
+      contactEmail="hello@chapter3five.app"
       contactNote="Fastest way to reach us is email. We answer within one business day."
     >
       <p>
@@ -35,10 +35,10 @@ export default function SupportPage() {
         window &mdash; if you change your mind, sign back in during that
         window to cancel it. On the web, email us at{" "}
         <a
-          href="mailto:care@chapter3five.app"
+          href="mailto:hello@chapter3five.app"
           className="font-semibold text-coral-strong hover:underline"
         >
-          care@chapter3five.app
+          hello@chapter3five.app
         </a>{" "}
         and we&rsquo;ll process it for you. See our{" "}
         <Link

@@ -4,7 +4,7 @@ import { resend } from "./resend";
 import { createAdminClient } from "./supabase/admin";
 
 const FROM = "chapter3five <noreply@chapter3five.app>";
-const CARE_INBOX = process.env.CARE_TEAM_EMAIL ?? "care@chapter3five.app";
+const CARE_INBOX = process.env.CARE_TEAM_EMAIL ?? "hello@chapter3five.app";
 
 type EmailKind =
   | "welcome"

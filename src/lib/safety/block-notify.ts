@@ -24,10 +24,16 @@ export async function handleBlockDecision({
   decision,
   oracleId,
   userId,
+  suppressOracleFlag = false,
 }: {
   decision: Extract<BlockDecision, { block: true }>;
   oracleId: string;
   userId: string;
+  /** Concierge conversations (Adrian audit F2, 2026-08-25): his row is
+   *  SHARED, so the oracle-level blocked_at write would black him out
+   *  for every user at once. The per-user chat_blocks ladder below
+   *  still applies in full — abuse costs the abuser, never everyone. */
+  suppressOracleFlag?: boolean;
 }): Promise<void> {
   const admin = createAdminClient();
   const now = new Date().toISOString();
@@ -53,7 +59,7 @@ export async function handleBlockDecision({
   // both gates skip it, the cron's expired-and-unclosed filter skips
   // it, and it still counts in the escalation history.
   let blockedUntil: string | null = null;
-  let shouldSetOracleFlag = true;
+  let shouldSetOracleFlag = !suppressOracleFlag;
   if (decision.severity === "warning") {
     shouldSetOracleFlag = false;
     blockedUntil = now;

@@ -146,7 +146,7 @@ export async function GET(request: NextRequest) {
         "Avatar image files (in Supabase Storage) are not included in this JSON. They remain accessible via the avatar_url field on your oracles + profile. Authentication system rows (auth.users session metadata) are also excluded by design.",
       ai: "Conversations are processed by Anthropic at message time; chapter3five does not retain conversation data with Anthropic.",
       contact:
-        "Questions: care@chapter3five.app. To delete everything in this export, use Settings → Delete account.",
+        "Questions: hello@chapter3five.app. To delete everything in this export, use Settings → Delete account.",
     },
   };
 

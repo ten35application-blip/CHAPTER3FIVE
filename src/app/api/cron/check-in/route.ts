@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { authorizeCronTick } from "@/lib/cronTick";
 import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { normalizeLanguage } from "@/lib/i18n/language";
 import { isOracleMuted } from "@/lib/muted";
@@ -30,8 +31,13 @@ export const maxDuration = 300;
 const BATCH = 50;
 
 export async function GET(request: NextRequest) {
-  const auth = request.headers.get("authorization");
-  if (!process.env.CRON_SECRET || auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  // Two doors (see cronTick.ts): CRON_SECRET, or the pg_cron tick
+  // claim. This cron was DESIGNED hourly (see the docstring) — a
+  // moderate walk-away cools off in hours — but Vercel Hobby forced it
+  // daily and sometimes skipped even that (Adrian-wave audit F5).
+  // pg_cron now calls hourly; 45-minute gap, and every processed row
+  // is closed by its unblocked_at stamp so re-runs can't double-send.
+  if (!(await authorizeCronTick(request, "check_in", 45))) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
