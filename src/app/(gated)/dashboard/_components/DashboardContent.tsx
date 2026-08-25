@@ -1,5 +1,6 @@
-import { cdnImage } from "@/lib/imageCdn";
 "use client";
+
+import { cdnImage } from "@/lib/imageCdn";
 
 import Link from "next/link";
 import {
