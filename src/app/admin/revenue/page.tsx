@@ -236,7 +236,7 @@ function MonthBreakdownCard({
         <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-warm-300">
           The month, settled
           <span className="normal-case tracking-normal font-normal text-xs text-warm-400">
-            · updates the 27th of every month
+            · figures settle every 27th · new month shows on the 1st
           </span>
           {example ? (
             <span className="rounded-full bg-coral/15 px-2.5 py-0.5 text-[10px] font-bold tracking-widest text-coral-strong ring-1 ring-coral/30">

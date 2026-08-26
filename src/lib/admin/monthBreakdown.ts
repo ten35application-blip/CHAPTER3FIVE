@@ -295,31 +295,21 @@ export async function fetchMonthBreakdown(
   });
 }
 
-/** "2026-08" for the settlement default (or a validated ?month= param).
+/** "YYYY-MM" default (or a validated ?month= param).
  *
- * THE 27TH RULE (Wilson 2026-08-26, no emails — the screen IS the
- * ritual): the default month rolls over on the 27th. Before the 27th
- * you're looking at LAST month (fully banked, safe to transfer); on
- * the 27th the fresh month takes the stage. The arrows still walk
- * anywhere. */
+ * Wilson's cadence (2026-08-26, final): the NEW month takes the stage
+ * on the 1st; the 27th is settlement day (figures final, transfers
+ * made) — both stated on the card. Month is reckoned in EASTERN so
+ * the 1st arrives on Wilson's midnight, not UTC's. */
 export function normalizeMonthParam(raw: string | null | undefined): string {
   if (raw && /^\d{4}-(0[1-9]|1[0-2])$/.test(raw)) return raw;
-  // Wilson's clock, not the server's: the roll to the fresh month
-  // happens at midnight into the 27th EASTERN, so a 3-4am check on
-  // the 27th always shows the new month (Vercel runs UTC, which would
-  // have flipped at 8pm ET on the 26th).
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/New_York",
     year: "numeric",
     month: "2-digit",
-    day: "2-digit",
   }).formatToParts(new Date());
   const get = (t: string) => +(parts.find((p) => p.type === t)?.value ?? "0");
-  const y = get("year");
-  const mo = get("month");
-  const day = get("day");
-  const d = day >= 27 ? new Date(y, mo - 1, 1) : new Date(y, mo - 2, 1);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  return `${get("year")}-${String(get("month")).padStart(2, "0")}`;
 }
 
 export function prevMonth(month: string): string {
