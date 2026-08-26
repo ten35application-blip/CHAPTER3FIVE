@@ -44,7 +44,13 @@ export default async function AdminRevenuePage({
   if (payments.length === 0) {
     return (
       <div className="flex max-w-3xl flex-col gap-8">
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
+          <Link
+            href="/admin/revenue/statement"
+            className="rounded-full bg-teal/10 px-4 py-2 text-sm font-semibold text-teal-strong ring-1 ring-teal/25 transition-colors hover:bg-teal/15"
+          >
+            Accountant statement
+          </Link>
           <ExportCsvButton kind="settlements" />
         </div>
         <div className="rounded-2xl bg-ink-soft px-6 py-8 text-center ring-1 ring-warm-700">
@@ -127,7 +133,13 @@ export default async function AdminRevenuePage({
             feed the month breakdown below
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href={`/admin/revenue/statement?month=${month}`}
+            className="rounded-full bg-teal/10 px-4 py-2 text-sm font-semibold text-teal-strong ring-1 ring-teal/25 transition-colors hover:bg-teal/15"
+          >
+            Accountant statement
+          </Link>
           <ExportCsvButton kind="settlements" />
           <ExportCsvButton />
         </div>
