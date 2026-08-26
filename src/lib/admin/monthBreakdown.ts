@@ -31,6 +31,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export type MonthBreakdown = {
   month: string; // "2026-08"
   monthLabel: string; // "August 2026"
+  /** "counting Jul 27 → Aug 26 · final on the 27th" */
+  periodLabel: string;
   grossWebCents: number;
   grossStoreCents: number;
   grossCents: number;
@@ -96,6 +98,7 @@ export function exampleMonthBreakdown(settings: {
 function computeBreakdown(inputs: {
   month: string;
   monthLabel: string;
+  periodLabel?: string;
   grossWebCents: number;
   grossStoreCents: number;
   anthropicCents: number;
@@ -175,6 +178,8 @@ function computeBreakdown(inputs: {
   return {
     month: inputs.month,
     monthLabel: inputs.monthLabel,
+    periodLabel:
+      inputs.periodLabel ?? "counting the 27th → the 26th · final on the 27th",
     grossWebCents: inputs.grossWebCents,
     grossStoreCents: inputs.grossStoreCents,
     grossCents,
@@ -231,10 +236,24 @@ export async function fetchMonthBreakdown(
   const [yStr, mStr] = month.split("-");
   const y = Number.parseInt(yStr, 10);
   const m = Number.parseInt(mStr, 10); // 1-12
-  const start = new Date(y, m - 1, 1);
-  const end = new Date(y, m, 1);
+  // SETTLEMENT WINDOW (Wilson 2026-08-26, final): month M counts the
+  // 27th of the PREVIOUS month through the 26th of M, and goes FINAL
+  // on M's 27th — transfer day. Sales on the 27th-31st belong to the
+  // NEXT month's window, so settled numbers can never move after the
+  // transfer. Boundary pinned at midnight EST (05:00 UTC) year-round
+  // for determinism; the one-hour summer skew is deliberate.
+  const start = new Date(Date.UTC(y, m - 2, 27, 5, 0, 0));
+  const end = new Date(Date.UTC(y, m - 1, 27, 5, 0, 0));
   const startIso = start.toISOString();
   const endIso = end.toISOString();
+  const fmtDay = (d: Date) =>
+    d.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      timeZone: "America/New_York",
+    });
+  const lastDay = new Date(end.getTime() - 24 * 3600 * 1000);
+  const periodLabel = `counting ${fmtDay(start)} → ${fmtDay(lastDay)} · final on the 27th`;
 
   const [settingsRow, payments, storeRows, spendRows, oracleCount] =
     await Promise.all([
@@ -304,10 +323,11 @@ export async function fetchMonthBreakdown(
   // can never disagree.
   return computeBreakdown({
     month,
-    monthLabel: start.toLocaleDateString("en-US", {
+    monthLabel: new Date(y, m - 1, 1).toLocaleDateString("en-US", {
       month: "long",
       year: "numeric",
     }),
+    periodLabel,
     grossWebCents,
     grossStoreCents,
     anthropicCents,

@@ -268,6 +268,9 @@ function MonthBreakdownCard({
       </div>
 
       <div className="overflow-hidden rounded-2xl bg-ink-soft ring-1 ring-warm-700">
+        <p className="border-b border-warm-700/60 bg-ink px-5 py-2 text-[11px] font-medium tracking-wide text-warm-400">
+          {b.periodLabel} — transfer day. After that, these numbers never move.
+        </p>
         {example ? (
           <p className="border-b border-warm-700/60 bg-ink px-5 py-3 text-xs leading-relaxed text-warm-400">
             Made-up revenue ($1,000 month: $650 through the stores, $350
