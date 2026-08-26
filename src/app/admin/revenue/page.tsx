@@ -319,8 +319,9 @@ function MonthBreakdownCard({
                       {formatUsd(b.taxSavingsPerPartnerCents)}
                     </span>{" "}
                     <span className="text-warm-400">
-                      — their own taxes, on their own half (
-                      {formatUsd(b.profitShareCents)}). They file alone.
+                      — {pct}% of their own half only (
+                      {formatUsd(b.profitShareCents)}) — never of the whole,
+                      never twice. They file alone.
                     </span>
                   </p>
                   <p className="mt-0.5 text-warm-50">
