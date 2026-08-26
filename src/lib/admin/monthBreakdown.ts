@@ -57,6 +57,9 @@ export type MonthBreakdown = {
   transferPerPartnerCents: number;
   /** Of that transfer, what each sends to savings for taxes. */
   taxSavingsPerPartnerCents: number;
+  /** Each partner's FULL half of profit — what the tax % anchors to
+   *  (the law taxes all profit, even what stays in the account). */
+  profitShareCents: number;
   partnerA: string;
   partnerB: string;
   keepInAccountCents: number; // bills + growth cushion, held before any split
@@ -287,6 +290,7 @@ function computeBreakdown(inputs: {
     perPartnerCents,
     transferPerPartnerCents,
     taxSavingsPerPartnerCents,
+    profitShareCents: Math.round(shareCents),
     partnerA: settings.partner_a ?? "Danisel",
     partnerB: settings.partner_b ?? "Pedro",
     keepInAccountCents: holdbackCents,

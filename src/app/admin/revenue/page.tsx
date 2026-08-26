@@ -301,43 +301,43 @@ function MonthBreakdownCard({
         <div className="m-4 rounded-xl bg-ink px-4 py-4 text-sm leading-relaxed ring-1 ring-warm-700">
           {b.profitCents > 0 ? (
             <>
-              <p className="font-bold text-teal-strong">
-                {b.partnerA} — transfer to bank account:{" "}
-                {formatUsd(b.transferPerPartnerCents)}
-              </p>
-              <p className="mt-1 font-bold text-teal-strong">
-                {b.partnerB} — transfer to bank account:{" "}
-                {formatUsd(b.transferPerPartnerCents)}
-              </p>
-              <p className="mt-2 text-warm-50">
-                After the bank transfer: each sends{" "}
-                <span className="font-bold">
-                  {formatUsd(b.taxSavingsPerPartnerCents)}
-                </span>{" "}
-                to savings for taxes ({pct}%) — leaving{" "}
-                <span className="font-bold">
-                  {formatUsd(b.perPartnerCents)}
-                </span>{" "}
-                each to spend.
-              </p>
-              {b.retainedTailCents > 0 ? (
-                <p className="mt-2 text-warm-300">
-                  <span className="font-semibold text-warm-100">
-                    {formatUsd(b.retainedTailCents)}
-                  </span>{" "}
-                  made after the 27th last cycle — stays in the account,
-                  compounding (its taxes are already inside the reserve).
-                </p>
-              ) : null}
+              {[b.partnerA, b.partnerB].map((name) => (
+                <div
+                  key={name}
+                  className="mb-2 rounded-lg bg-ink-soft px-3 py-2.5 ring-1 ring-warm-700/60"
+                >
+                  <p className="text-sm font-bold text-teal-strong">{name}</p>
+                  <p className="mt-1 text-warm-50">
+                    💵 Money to their bank:{" "}
+                    <span className="font-bold">
+                      {formatUsd(b.transferPerPartnerCents)}
+                    </span>
+                  </p>
+                  <p className="mt-0.5 text-warm-50">
+                    🏦 Put in savings for taxes:{" "}
+                    <span className="font-bold">
+                      {formatUsd(b.taxSavingsPerPartnerCents)}
+                    </span>{" "}
+                    <span className="text-warm-400">
+                      — their own taxes, on their own half (
+                      {formatUsd(b.profitShareCents)}). They file alone.
+                    </span>
+                  </p>
+                  <p className="mt-0.5 text-warm-50">
+                    🎉 Free to spend:{" "}
+                    <span className="font-bold">
+                      {formatUsd(b.perPartnerCents)}
+                    </span>
+                  </p>
+                </div>
+              ))}
               <p className="mt-2 text-warm-300">
-                Stays in the business account:{" "}
+                🏢 The business keeps{" "}
                 <span className="font-semibold text-warm-100">
                   {formatUsd(b.keepInAccountCents)}
                 </span>{" "}
-                — next month&apos;s bills ({formatUsd(b.billsCents)}) + a
-                growth cushion ({formatUsd(b.cushionCents)}) so the account
-                never runs dry if we keep growing. Held back before the
-                split.
+                — next month&apos;s bills, a safety cushion, and the
+                after-the-27th money. Nobody spends this.
               </p>
             </>
           ) : (
