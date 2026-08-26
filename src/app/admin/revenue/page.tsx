@@ -257,7 +257,6 @@ function MonthBreakdownCard({
   b: MonthBreakdown;
   example?: boolean;
 }) {
-  const pct = Math.round(b.taxReserveRate * 100);
   return (
     <section className="flex flex-col gap-3">
       {example ? null : (
@@ -343,35 +342,42 @@ function MonthBreakdownCard({
         <div className="m-4 rounded-xl bg-ink px-4 py-4 text-sm leading-relaxed ring-1 ring-warm-700">
           {b.profitCents > 0 ? (
             <>
-              <div className="mb-2 rounded-lg bg-ink-soft px-3 py-2.5 ring-1 ring-warm-700/60">
-                <p className="text-sm font-bold text-teal-strong">
-                  {b.partnerA} &amp; {b.partnerB} — each
-                </p>
-                <p className="mt-1 text-warm-50">
-                  💵 Money to each of their banks:{" "}
-                  <span className="font-bold">
-                    {formatUsd(b.transferPerPartnerCents)}
-                  </span>{" "}
-                  <span className="text-warm-400">— all theirs to spend</span>
-                </p>
-                <p className="mt-0.5 text-xs leading-relaxed text-warm-400">
-                  🏦 Each one&apos;s tax money ({formatUsd(b.taxSavingsPerPartnerCents)}
-                  {" "}— {pct}% of each one&apos;s own {formatUsd(b.profitShareCents)}{" "}
-                  half) is already held by the business, paid to the IRS
-                  quarterly in each name. Taxed once, never twice; they file
-                  alone.
-                </p>
-              </div>
+              {b.partners.map((p) => (
+                <div
+                  key={p.name}
+                  className="mb-2 rounded-lg bg-ink-soft px-3 py-2.5 ring-1 ring-warm-700/60"
+                >
+                  <p className="text-sm font-bold text-teal-strong">
+                    {p.name}{" "}
+                    <span className="font-semibold text-warm-400">
+                      · lives in {p.residence}
+                    </span>
+                  </p>
+                  <p className="mt-1 text-warm-50">
+                    💵 To {p.name}&apos;s bank:{" "}
+                    <span className="font-bold">{formatUsd(p.transferCents)}</span>{" "}
+                    <span className="text-warm-400">— all theirs to spend</span>
+                  </p>
+                  <p className="mt-0.5 text-xs leading-relaxed text-warm-400">
+                    🏦 {p.name}&apos;s tax envelope:{" "}
+                    <span className="font-semibold text-warm-200">
+                      {formatUsd(p.taxEnvelopeCents)}
+                    </span>{" "}
+                    ({p.taxRatePct}% of their own {formatUsd(p.profitShareCents)}{" "}
+                    half) — held by the business. {p.taxNote}
+                  </p>
+                </div>
+              ))}
               <p className="mt-2 text-warm-300">
                 🏢 The business keeps{" "}
                 <span className="font-semibold text-warm-100">
                   {formatUsd(b.keepInAccountCents)}
                 </span>{" "}
                 — next month&apos;s bills, a safety cushion, both tax
-                envelopes ({formatUsd(b.taxSavingsPerPartnerCents)} for{" "}
-                {b.partnerA} + {formatUsd(b.taxSavingsPerPartnerCents)} for{" "}
-                {b.partnerB}), and the after-the-27th money (compounding for future endeavors).
-                Nobody spends this.
+                envelopes ({formatUsd(b.partners[0].taxEnvelopeCents)} for{" "}
+                {b.partners[0].name} + {formatUsd(b.partners[1].taxEnvelopeCents)}{" "}
+                for {b.partners[1].name}), and the after-the-27th money
+                (compounding for future endeavors). Nobody spends this.
               </p>
             </>
           ) : (
@@ -391,13 +397,24 @@ function MonthBreakdownCard({
           ) : null}
           <div className="mt-3 rounded-lg bg-ink-soft px-3 py-2.5 ring-1 ring-warm-700/60">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-warm-400">
-              The ladder — monthly profit → reserve rate
+              The ladder — monthly profit → each one&apos;s rate
             </p>
             <p className="mt-1.5 text-xs leading-relaxed text-warm-300 tabular-nums">
+              <span className="font-semibold text-warm-200">Bethlehem PA:</span>{" "}
               {b.taxLadder
                 .map(
                   (r) =>
-                    `$${(r.profitCents / 100000).toFixed(0)}k → ${r.ratePct}%`,
+                    `$${(r.profitCents / 100000).toFixed(0)}k → ${r.ratePctPA ?? r.ratePct}%`,
+                )
+                .join("  ·  ")
+                .replace("$1000k", "$1M")}
+            </p>
+            <p className="mt-1 text-xs leading-relaxed text-warm-300 tabular-nums">
+              <span className="font-semibold text-warm-200">Bronx NYC:</span>{" "}
+              {b.taxLadder
+                .map(
+                  (r) =>
+                    `$${(r.profitCents / 100000).toFixed(0)}k → ${r.ratePctNYC ?? r.ratePct}%`,
                 )
                 .join("  ·  ")
                 .replace("$1000k", "$1M")}
@@ -408,12 +425,13 @@ function MonthBreakdownCard({
             </p>
           </div>
           <p className="mt-2 text-xs leading-relaxed text-warm-400">
-            The {pct}% is computed fresh each month from the real
-            components: PA&apos;s flat 3.07% + Bethlehem&apos;s 1% local on
-            LLC profits + self-employment (with its wage-base cap) + the
-            actual federal brackets on each annualized share — bigger
-            months reserve at higher rates, exactly like the real bill.
-            An estimate, not tax advice.
+            Each rate is computed fresh each month for where that partner
+            lives. Danisel (Bethlehem): PA&apos;s flat 3.07% + Bethlehem&apos;s
+            1% local + self-employment + the federal brackets. Pedro (Bronx):
+            NY State&apos;s brackets + NYC&apos;s city tax + self-employment +
+            federal — PA taxes his share first and New York credits every PA
+            dollar, so he&apos;s never taxed twice; the city tax is his real
+            extra. Estimates, not tax advice.
           </p>
         </div>
       </div>

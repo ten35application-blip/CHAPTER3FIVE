@@ -40,8 +40,7 @@ export default async function SettlementStatementPage({
   const isFinal = b.month < currentMonth;
   const window = b.periodLabel.split(" · ")[0].replace("counting ", "");
   const tailHeld = Math.min(b.retainedTailCents, Math.max(0, b.profitCents));
-  const transferredTotal = b.transferPerPartnerCents * 2;
-  const ratePct = (b.taxReserveRate * 100).toFixed(1);
+  const transferredTotal = b.partners.reduce((a, p) => a + p.transferCents, 0);
 
   return (
     <div className="mx-auto max-w-[860px]">
@@ -128,10 +127,16 @@ export default async function SettlementStatementPage({
 
         {/* Ownership line — the fact the accountant checks first */}
         <p className="mt-4 text-sm text-neutral-600">
-          Members: <span className="font-semibold text-neutral-900">{b.partnerA} (50%)</span>{" "}
-          and <span className="font-semibold text-neutral-900">{b.partnerB} (50%)</span> —
-          equal partners; each files individually and is taxed only on their own
-          half of profit.
+          Members:{" "}
+          <span className="font-semibold text-neutral-900">
+            {b.partners[0].name} (50%, {b.partners[0].residence})
+          </span>{" "}
+          and{" "}
+          <span className="font-semibold text-neutral-900">
+            {b.partners[1].name} (50%, {b.partners[1].residence})
+          </span>{" "}
+          — equal partners; each files individually and is taxed only on their
+          own half of profit, under their own state&apos;s rules.
         </p>
 
         {/* 1 · Revenue */}
@@ -168,15 +173,25 @@ export default async function SettlementStatementPage({
           <Row label="Next month's operating bills" cents={b.billsCents} />
           <Row label="Growth cushion (larger of 50% of bills / 10% of profit)" cents={b.cushionCents} />
           <Row label="Compounding reserve (earned the 27th → 1st — never distributed)" cents={tailHeld} />
-          <Row label={`${b.partnerA}'s tax envelope (${ratePct}% of his/her half — paid quarterly in ${b.partnerA}'s name)`} cents={b.taxSavingsPerPartnerCents} />
-          <Row label={`${b.partnerB}'s tax envelope (${ratePct}% of his/her half — paid quarterly in ${b.partnerB}'s name)`} cents={b.taxSavingsPerPartnerCents} />
+          {b.partners.map((p) => (
+            <Row
+              key={p.name}
+              label={`${p.name}'s tax envelope (${p.taxRatePct}% of their half — ${p.residence}; paid quarterly in ${p.name}'s name)`}
+              cents={p.taxEnvelopeCents}
+            />
+          ))}
           <Row label="Total kept in the account" cents={b.keepInAccountCents} strong rule />
         </StatementSection>
 
         {/* 4 · Distributions */}
         <StatementSection title="4 · Distributions to members (the 27th)">
-          <Row label={`Transferred to ${b.partnerA} — 50%, fully spendable`} cents={b.transferPerPartnerCents} />
-          <Row label={`Transferred to ${b.partnerB} — 50%, fully spendable`} cents={b.transferPerPartnerCents} />
+          {b.partners.map((p) => (
+            <Row
+              key={p.name}
+              label={`Transferred to ${p.name} — their half after their own tax envelope, fully spendable`}
+              cents={p.transferCents}
+            />
+          ))}
           <Row label="Total distributed" cents={transferredTotal} strong rule />
         </StatementSection>
 
@@ -189,9 +204,16 @@ export default async function SettlementStatementPage({
               {formatUsd(b.profitShareCents)}
             </span>{" "}
             (50% of net profit) — taxable to each member individually when
-            earned, regardless of what was distributed. Tax money is held by
-            the business and paid at quarterly estimated-tax dates in each
-            member's own name; member transfers are not taxable events.
+            earned, regardless of what was distributed. Envelopes are sized
+            for where each member lives: {b.partners[0].name} (
+            {b.partners[0].residence}) at {b.partners[0].taxRatePct}%,{" "}
+            {b.partners[1].name} ({b.partners[1].residence}) at{" "}
+            {b.partners[1].taxRatePct}%. For the New York member, PA taxes
+            the share first and New York credits every PA dollar (Form
+            IT-112-R) — taxed once, never twice; NYC&apos;s city tax stacks
+            with no credit. Tax money is held by the business and paid at
+            quarterly estimated-tax dates in each member&apos;s own name;
+            member transfers are not taxable events.
             {b.refundedCents > 0
               ? ` Refunds this period (informational): ${formatUsd(b.refundedCents)}.`
               : ""}

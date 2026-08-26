@@ -54,7 +54,9 @@ export async function GET(request: Request) {
   // Expense names come from live business_settings — identical across
   // rows in one export, so each expense gets its own column.
   const expenseNames = first.expenses.map((e) => e.name);
-  const { partnerA, partnerB } = first;
+  const [pA, pB] = first.partners;
+  const partnerA = pA.name;
+  const partnerB = pB.name;
 
   const generated = new Intl.DateTimeFormat("en-US", {
     dateStyle: "long",
@@ -64,7 +66,10 @@ export async function GET(request: Request) {
   const preamble = [
     cell("CHAPTER3FIVE LLC — Monthly Settlement Ledger"),
     cell(
-      `Ownership: ${partnerA} 50% / ${partnerB} 50% — equal partners; each is taxed only on their own half (separate filings)`,
+      `Ownership: ${partnerA} 50% (${pA.residence}) / ${partnerB} 50% (${pB.residence}) — equal partners; each is taxed only on their own half, under their own state's rules (separate filings)`,
+    ),
+    cell(
+      `The New York member: PA taxes the share first (nonresident 3.07%) and New York credits every PA dollar (Form IT-112-R) — taxed once, never twice; NYC's city tax stacks with no credit`,
     ),
     cell(
       "Each month counts the previous 27th through the 26th; figures go FINAL on the 27th (transfer day) and never move after",
@@ -73,7 +78,7 @@ export async function GET(request: Request) {
       "Money made from the 27th to the 1st is never distributed — it stays in the account, compounding for emergencies, hiring, and future endeavors (its taxes are still reserved)",
     ),
     cell(
-      `Tax envelopes are held by the business and paid quarterly to the IRS / PA / local in each partner's own name — transfers to partners are fully spendable`,
+      `Tax envelopes are held by the business and paid quarterly to the IRS / each partner's own state and city in their own name — transfers to partners are fully spendable`,
     ),
     cell(
       `Generated ${generated} · amounts in USD · (est.) = estimated rate, tuned as real statements land · not tax advice`,
@@ -104,7 +109,8 @@ export async function GET(request: Request) {
     `Transferred to ${partnerB} (27th)`,
     "Total transferred out",
     "Each partner's profit share (50%)",
-    "Effective tax rate",
+    `${partnerA}'s tax rate (${pA.residence})`,
+    `${partnerB}'s tax rate (${pB.residence})`,
     "Refunds (info)",
   ]
     .map(cell)
@@ -133,14 +139,15 @@ export async function GET(request: Request) {
         usd(b.billsCents),
         usd(b.cushionCents),
         usd(tailHeld),
-        usd(b.taxSavingsPerPartnerCents),
-        usd(b.taxSavingsPerPartnerCents),
+        usd(b.partners[0].taxEnvelopeCents),
+        usd(b.partners[1].taxEnvelopeCents),
         usd(b.keepInAccountCents),
-        usd(b.transferPerPartnerCents),
-        usd(b.transferPerPartnerCents),
-        usd(b.transferPerPartnerCents * 2),
+        usd(b.partners[0].transferCents),
+        usd(b.partners[1].transferCents),
+        usd(b.partners[0].transferCents + b.partners[1].transferCents),
         usd(b.profitShareCents),
-        `${(b.taxReserveRate * 100).toFixed(1)}%`,
+        `${b.partners[0].taxRatePct}%`,
+        `${b.partners[1].taxRatePct}%`,
         usd(b.refundedCents),
       ]
         .map(cell)

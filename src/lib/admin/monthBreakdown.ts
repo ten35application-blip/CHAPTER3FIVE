@@ -66,8 +66,28 @@ export type MonthBreakdown = {
   billsCents: number;
   cushionCents: number;
   refundedCents: number; // informational
-  /** amount → reserve-rate rungs, computed from the same formula. */
-  taxLadder: { profitCents: number; ratePct: number }[];
+  /** amount → reserve-rate rungs, computed from the same formula.
+   *  ratePct = the PA-resident rate (legacy clients); the per-state
+   *  columns carry both engines. */
+  taxLadder: {
+    profitCents: number;
+    ratePct: number;
+    ratePctPA: number;
+    ratePctNYC: number;
+  }[];
+  /** THE PER-PARTNER TRUTH (Wilson 2026-08-26: Pedro lives in the
+   *  Bronx — NY State + NYC tax his half, PA + Bethlehem tax
+   *  Danisel's). Each partner's own envelope comes out of their OWN
+   *  half, so transfers can differ. Order matches partnerA/partnerB. */
+  partners: {
+    name: string;
+    residence: string; // "Bethlehem, PA" | "Bronx, NYC"
+    profitShareCents: number; // their half of profit
+    taxEnvelopeCents: number; // held by the business for THEIR taxes
+    taxRatePct: number; // effective rate on their half, 1 decimal
+    transferCents: number; // to their bank on the 27th — fully spendable
+    taxNote: string; // the how-it-works line, written once, shown everywhere
+  }[];
   /** Net receipts earned during the window's tail (the previous
    *  month's 27th → its end): Wilson's compounding rule — this money
    *  STAYS in the account permanently (held back before any split),
@@ -103,19 +123,13 @@ export function exampleMonthBreakdown(settings: {
   });
 }
 
-/** 2026-ish federal brackets (single filer, annual dollars) — the
- *  progressive stack applied to the annualized profit share. Bracket
- *  edges drift yearly; close is honest for a reserve. */
-function federalAnnualTaxDollars(taxable: number): number {
-  const brackets: [number, number][] = [
-    [11925, 0.1],
-    [48475, 0.12],
-    [103350, 0.22],
-    [197300, 0.24],
-    [250525, 0.32],
-    [626350, 0.35],
-    [Infinity, 0.37],
-  ];
+/** Marginal-bracket tax on annual dollars — shared by the federal,
+ *  NY State, and NYC stacks. Edges drift yearly; close is honest for
+ *  a reserve. */
+function bracketTaxDollars(
+  taxable: number,
+  brackets: [number, number][],
+): number {
   let tax = 0;
   let prev = 0;
   for (const [edge, rate] of brackets) {
@@ -127,11 +141,73 @@ function federalAnnualTaxDollars(taxable: number): number {
   return tax;
 }
 
-/** Per-partner monthly tax reserve for a Bethlehem PA resident's LLC
- *  profit share: SE (SS wage-base capped, Medicare uncapped + 0.9%
- *  additional) + PA 3.07% + Bethlehem 1% + federal brackets on the
- *  annualized share (minus the deductible half of SE). */
-function taxSaveForShareCents(shareCents: number): number {
+/** 2026-ish federal brackets (single filer, annual dollars). */
+const FEDERAL_BRACKETS: [number, number][] = [
+  [11925, 0.1],
+  [48475, 0.12],
+  [103350, 0.22],
+  [197300, 0.24],
+  [250525, 0.32],
+  [626350, 0.35],
+  [Infinity, 0.37],
+];
+
+/** 2026 NY State brackets (single filer, annual dollars). */
+const NY_STATE_BRACKETS: [number, number][] = [
+  [8500, 0.039],
+  [11700, 0.044],
+  [13900, 0.0515],
+  [80650, 0.054],
+  [215400, 0.059],
+  [1077550, 0.0685],
+  [5000000, 0.0965],
+  [25000000, 0.103],
+  [Infinity, 0.109],
+];
+
+/** NYC resident city income tax (single filer, annual dollars) —
+ *  stacks ON TOP of NY State with NO credit for other states. */
+const NYC_CITY_BRACKETS: [number, number][] = [
+  [12000, 0.03078],
+  [25000, 0.03762],
+  [50000, 0.03819],
+  [Infinity, 0.03876],
+];
+
+/** WHERE EACH PARTNER LIVES decides which governments tax their half
+ *  (Wilson 2026-08-26: "pedro lives in new york in the bronx").
+ *  - bethlehem_pa (Danisel): PA flat 3.07% + Bethlehem 1% EIT.
+ *  - nyc (Pedro): NY State brackets + NYC city tax. PA taxes his
+ *    PA-source share first (nonresident, 3.07%) but New York credits
+ *    every PA dollar (Form IT-112-R) — never taxed twice; the reserve
+ *    only needs NY + NYC, and the PA payment rides inside it. NYC's
+ *    city tax has no credit — that's Pedro's real extra cost.
+ *  Anyone unlisted defaults to PA. */
+type Residence = "bethlehem_pa" | "nyc";
+const PARTNER_RESIDENCE: Record<string, Residence> = {
+  Danisel: "bethlehem_pa",
+  Pedro: "nyc",
+};
+
+const RESIDENCE_LABEL: Record<Residence, string> = {
+  bethlehem_pa: "Bethlehem, PA",
+  nyc: "Bronx, NYC",
+};
+
+function residenceTaxNote(name: string, residence: Residence): string {
+  return residence === "nyc"
+    ? `${name}'s half is taxed by New York: NY State brackets + NYC city tax + self-employment + federal. PA taxes the share first (3.07%) and New York subtracts every PA dollar (Form IT-112-R) — taxed once, never twice; the city tax is the extra. Paid quarterly in ${name}'s own name.`
+    : `${name}'s half is taxed in Pennsylvania: PA flat 3.07% + Bethlehem 1% local + self-employment + federal. Paid quarterly in ${name}'s own name.`;
+}
+
+/** Per-partner monthly tax reserve for their LLC profit share: SE
+ *  (SS wage-base capped, Medicare uncapped + 0.9% additional) + the
+ *  RESIDENCE's state/local stack + federal brackets on the annualized
+ *  share (minus the deductible half of SE). */
+function taxSaveForShareCents(
+  shareCents: number,
+  residence: Residence,
+): number {
   if (shareCents <= 0) return 0;
   const seBaseAnnualDollars = (shareCents * 0.9235 * 12) / 100;
   const ssAnnual = Math.min(seBaseAnnualDollars, 176100) * 0.124;
@@ -139,11 +215,17 @@ function taxSaveForShareCents(shareCents: number): number {
     seBaseAnnualDollars * 0.029 +
     Math.max(0, seBaseAnnualDollars - 200000) * 0.009;
   const seCents = ((ssAnnual + medicareAnnual) * 100) / 12;
-  const paCents = shareCents * 0.0307;
-  const localCents = shareCents * 0.01;
   const annualTaxable = Math.max(0, (shareCents - seCents / 2) * 12) / 100;
-  const fedCents = (federalAnnualTaxDollars(annualTaxable) * 100) / 12;
-  return Math.round(seCents + paCents + localCents + fedCents);
+  const stateLocalCents =
+    residence === "nyc"
+      ? ((bracketTaxDollars(annualTaxable, NY_STATE_BRACKETS) +
+          bracketTaxDollars(annualTaxable, NYC_CITY_BRACKETS)) *
+          100) /
+        12
+      : shareCents * 0.0307 + shareCents * 0.01;
+  const fedCents =
+    (bracketTaxDollars(annualTaxable, FEDERAL_BRACKETS) * 100) / 12;
+  return Math.round(seCents + stateLocalCents + fedCents);
 }
 
 /** THE LADDER (Wilson 2026-08-26: "write somewhere the amount → tax
@@ -151,14 +233,23 @@ function taxSaveForShareCents(shareCents: number): number {
  *  the SAME formula at sample monthly-profit levels — it can never
  *  drift from the card's math. Rates are marginal-stacked: only the
  *  dollars past each rung pay the higher lanes. */
-export function taxLadder(): { profitCents: number; ratePct: number }[] {
+export function taxLadder(): {
+  profitCents: number;
+  ratePct: number;
+  ratePctPA: number;
+  ratePctNYC: number;
+}[] {
   const samples = [
     100000, 500000, 1000000, 2500000, 5000000, 10000000, 25000000, 100000000,
   ];
   return samples.map((profitCents) => {
     const share = profitCents / 2;
-    const save = taxSaveForShareCents(share);
-    return { profitCents, ratePct: Math.round((save / share) * 1000) / 10 };
+    const pa =
+      Math.round((taxSaveForShareCents(share, "bethlehem_pa") / share) * 1000) /
+      10;
+    const nyc =
+      Math.round((taxSaveForShareCents(share, "nyc") / share) * 1000) / 10;
+    return { profitCents, ratePct: pa, ratePctPA: pa, ratePctNYC: nyc };
   });
 }
 
@@ -231,10 +322,25 @@ function computeBreakdown(inputs: {
   // yearly and personal situations differ — but it now moves with the
   // money the way the real bill does.
   const shareCents = profitCents > 0 ? profitCents / 2 : 0;
-  const taxSavePerPartner = taxSaveForShareCents(shareCents);
-  const taxReserveCents = profitCents > 0 ? taxSavePerPartner * 2 : 0;
+  // PER-PARTNER ENVELOPES (Wilson 2026-08-26: Pedro is in the Bronx —
+  // NY State + NYC tax his half; PA + Bethlehem tax Danisel's). Each
+  // envelope is computed on that partner's OWN half with THEIR state
+  // stack, and comes out of THEIR half — so transfers can differ.
+  const partnerNames = [
+    settings.partner_a ?? "Pedro",
+    settings.partner_b ?? "Danisel",
+  ];
+  const partnerCalc = partnerNames.map((name) => {
+    const residence = PARTNER_RESIDENCE[name] ?? "bethlehem_pa";
+    const envelope =
+      profitCents > 0 ? taxSaveForShareCents(shareCents, residence) : 0;
+    return { name, residence, envelope };
+  });
+  const taxReserveCents = partnerCalc[0].envelope + partnerCalc[1].envelope;
   const taxReserveRate =
-    shareCents > 0 ? taxSavePerPartner / shareCents : Number(settings.tax_reserve_rate);
+    shareCents > 0
+      ? taxReserveCents / (shareCents * 2)
+      : Number(settings.tax_reserve_rate);
   const fixedTotal = fixed.reduce((a, f) => a + f.cents, 0);
   // Wilson's holdback rule (2026-08-26): before ANY split, the
   // account keeps its own survival money — next month's bills plus a
@@ -260,22 +366,48 @@ function computeBreakdown(inputs: {
   // reaches a partner's bank is 100% spendable. Nobody does savings
   // homework; nothing is ever taxed twice — the LLC→bank move is not
   // a taxable event at all.
-  const holdbackCents =
-    fixedTotal +
-    cushionCents +
-    Math.min(retainedTailCents, Math.max(0, profitCents)) +
-    taxReserveCents;
-  const distributableCents =
-    profitCents > holdbackCents ? profitCents - holdbackCents : 0;
-  // Each partner transfers their half of the after-holdback pool.
-  // Taxes are owed on their share of PROFIT (not of the transfer), so
-  // the savings line is (profit/2) × rate regardless of what was
-  // withheld — the honest number for year-end.
+  const commonHoldCents =
+    fixedTotal + cushionCents + Math.min(retainedTailCents, Math.max(0, profitCents));
+  const holdbackCents = commonHoldCents + taxReserveCents;
+  // FAIR SPLIT WITH UNEQUAL ENVELOPES: each partner's transfer = their
+  // half of profit − their half of the common holdback − their OWN tax
+  // envelope. Pedro's NY+NYC envelope is bigger than Danisel's PA one,
+  // so his spendable transfer is smaller — his taxes never eat into
+  // her half. If one partner's half can't cover their envelope in a
+  // tiny month, the shortfall shrinks the total paid out (the account
+  // never sends more cash than the after-holdback pool has).
+  let transferCentsA = 0;
+  let transferCentsB = 0;
+  if (profitCents > holdbackCents) {
+    let rawA = profitCents / 2 - commonHoldCents / 2 - partnerCalc[0].envelope;
+    let rawB = profitCents / 2 - commonHoldCents / 2 - partnerCalc[1].envelope;
+    if (rawA < 0) {
+      rawB += rawA;
+      rawA = 0;
+    }
+    if (rawB < 0) {
+      rawA += rawB;
+      rawB = 0;
+    }
+    transferCentsA = Math.max(0, Math.floor(rawA));
+    transferCentsB = Math.max(0, Math.floor(rawB));
+  }
+  const distributableCents = transferCentsA + transferCentsB;
+  // Legacy "each" fields (older mobile builds read these): the average
+  // — totals stay exact, per-partner truth lives in `partners`.
   const transferPerPartnerCents = Math.floor(distributableCents / 2);
-  // Tax money is held by the BUSINESS (see above) — the transfer IS
-  // the spendable amount, whole.
-  const taxSavingsPerPartnerCents = profitCents > 0 ? taxSavePerPartner : 0;
+  const taxSavingsPerPartnerCents = Math.round(taxReserveCents / 2);
   const perPartnerCents = transferPerPartnerCents;
+  const partners = partnerCalc.map((p, i) => ({
+    name: p.name,
+    residence: RESIDENCE_LABEL[p.residence],
+    profitShareCents: Math.round(shareCents),
+    taxEnvelopeCents: p.envelope,
+    taxRatePct:
+      shareCents > 0 ? Math.round((p.envelope / shareCents) * 1000) / 10 : 0,
+    transferCents: i === 0 ? transferCentsA : transferCentsB,
+    taxNote: residenceTaxNote(p.name, p.residence),
+  }));
 
   return {
     month: inputs.month,
@@ -308,6 +440,7 @@ function computeBreakdown(inputs: {
     refundedCents: inputs.refundedCents,
     taxLadder: taxLadder(),
     retainedTailCents,
+    partners,
   };
 }
 
