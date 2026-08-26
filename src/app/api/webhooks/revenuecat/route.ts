@@ -897,12 +897,26 @@ export async function POST(request: NextRequest) {
       `[revenuecat-webhook] ${type} for deleted account ${appUserId} — acking without state change`,
     );
     if (type !== "EXPIRATION" && type !== "CANCELLATION") {
-      await recordGrantFailure({
-        kind: "unrecognized_purchase",
-        userId: null,
-        purpose: `revenuecat:deleted-account:${type}:${event.product_id ?? "?"}:${appUserId} (txn ${event.original_transaction_id ?? "?"} — restore purchases on the live account moves it)`,
-        error: new Error("store event for a deleted account"),
-      });
+      // ONCE PER TRANSACTION, EVER (Wilson 2026-08-26: "why do we keep
+      // getting these" — RevenueCat's retry ladder re-delivers the
+      // same dead-account event on a ~daily backoff, and every
+      // delivery filed a fresh admin alert for the same ghost). One
+      // transaction = one alert; re-deliveries ack silently.
+      const ghostTxn = event.original_transaction_id ?? "?";
+      const { data: alreadyLogged } = await admin
+        .from("grant_failures")
+        .select("id")
+        .eq("kind", "unrecognized_purchase")
+        .ilike("purpose", `%txn ${ghostTxn}%`)
+        .limit(1);
+      if (!alreadyLogged || alreadyLogged.length === 0) {
+        await recordGrantFailure({
+          kind: "unrecognized_purchase",
+          userId: null,
+          purpose: `revenuecat:deleted-account:${type}:${event.product_id ?? "?"}:${appUserId} (txn ${ghostTxn} — restore purchases on the live account moves it)`,
+          error: new Error("store event for a deleted account"),
+        });
+      }
     }
     return NextResponse.json({ received: true, skipped: "deleted-account" });
   }
