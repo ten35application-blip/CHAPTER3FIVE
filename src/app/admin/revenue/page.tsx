@@ -344,6 +344,24 @@ function MonthBreakdownCard({
               lands, not before.
             </p>
           ) : null}
+          <div className="mt-3 rounded-lg bg-ink-soft px-3 py-2.5 ring-1 ring-warm-700/60">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-warm-400">
+              The ladder — monthly profit → reserve rate
+            </p>
+            <p className="mt-1.5 text-xs leading-relaxed text-warm-300 tabular-nums">
+              {b.taxLadder
+                .map(
+                  (r) =>
+                    `$${(r.profitCents / 100000).toFixed(0)}k → ${r.ratePct}%`,
+                )
+                .join("  ·  ")
+                .replace("$1000k", "$1M")}
+            </p>
+            <p className="mt-1.5 text-[11px] leading-relaxed text-warm-400">
+              Only the dollars past each rung pay the higher lanes — a bigger
+              month is always more take-home.
+            </p>
+          </div>
           <p className="mt-2 text-xs leading-relaxed text-warm-400">
             The {pct}% is computed fresh each month from the real
             components: PA&apos;s flat 3.07% + Bethlehem&apos;s 1% local on

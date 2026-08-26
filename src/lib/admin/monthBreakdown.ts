@@ -63,6 +63,8 @@ export type MonthBreakdown = {
   billsCents: number;
   cushionCents: number;
   refundedCents: number; // informational
+  /** amount → reserve-rate rungs, computed from the same formula. */
+  taxLadder: { profitCents: number; ratePct: number }[];
 };
 
 /**
@@ -115,6 +117,41 @@ function federalAnnualTaxDollars(taxable: number): number {
     prev = edge;
   }
   return tax;
+}
+
+/** Per-partner monthly tax reserve for a Bethlehem PA resident's LLC
+ *  profit share: SE (SS wage-base capped, Medicare uncapped + 0.9%
+ *  additional) + PA 3.07% + Bethlehem 1% + federal brackets on the
+ *  annualized share (minus the deductible half of SE). */
+function taxSaveForShareCents(shareCents: number): number {
+  if (shareCents <= 0) return 0;
+  const seBaseAnnualDollars = (shareCents * 0.9235 * 12) / 100;
+  const ssAnnual = Math.min(seBaseAnnualDollars, 176100) * 0.124;
+  const medicareAnnual =
+    seBaseAnnualDollars * 0.029 +
+    Math.max(0, seBaseAnnualDollars - 200000) * 0.009;
+  const seCents = ((ssAnnual + medicareAnnual) * 100) / 12;
+  const paCents = shareCents * 0.0307;
+  const localCents = shareCents * 0.01;
+  const annualTaxable = Math.max(0, (shareCents - seCents / 2) * 12) / 100;
+  const fedCents = (federalAnnualTaxDollars(annualTaxable) * 100) / 12;
+  return Math.round(seCents + paCents + localCents + fedCents);
+}
+
+/** THE LADDER (Wilson 2026-08-26: "write somewhere the amount → tax
+ *  rate so we always know what to put into savings"). Computed from
+ *  the SAME formula at sample monthly-profit levels — it can never
+ *  drift from the card's math. Rates are marginal-stacked: only the
+ *  dollars past each rung pay the higher lanes. */
+export function taxLadder(): { profitCents: number; ratePct: number }[] {
+  const samples = [
+    100000, 500000, 1000000, 2500000, 5000000, 10000000, 25000000, 100000000,
+  ];
+  return samples.map((profitCents) => {
+    const share = profitCents / 2;
+    const save = taxSaveForShareCents(share);
+    return { profitCents, ratePct: Math.round((save / share) * 1000) / 10 };
+  });
 }
 
 /** The one place the formula lives — the real month and the example
@@ -184,22 +221,7 @@ function computeBreakdown(inputs: {
   // yearly and personal situations differ — but it now moves with the
   // money the way the real bill does.
   const shareCents = profitCents > 0 ? profitCents / 2 : 0;
-  // Self-employment, done properly: 12.4% Social Security only up to
-  // the annual wage base (~$176k), 2.9% Medicare uncapped (+0.9%
-  // additional past $200k) — computed on the ANNUALIZED share so big
-  // months don't over-reserve the capped piece.
-  const seBaseAnnualDollars = (shareCents * 0.9235 * 12) / 100;
-  const ssAnnual = Math.min(seBaseAnnualDollars, 176100) * 0.124;
-  const medicareAnnual =
-    seBaseAnnualDollars * 0.029 +
-    Math.max(0, seBaseAnnualDollars - 200000) * 0.009;
-  const seCents = ((ssAnnual + medicareAnnual) * 100) / 12;
-  const paCents = shareCents * 0.0307;
-  const localCents = shareCents * 0.01;
-  const annualTaxable = Math.max(0, (shareCents - seCents / 2) * 12) / 100; // dollars
-  const fedAnnual = federalAnnualTaxDollars(annualTaxable);
-  const fedCents = (fedAnnual * 100) / 12;
-  const taxSavePerPartner = Math.round(seCents + paCents + localCents + fedCents);
+  const taxSavePerPartner = taxSaveForShareCents(shareCents);
   const taxReserveCents = profitCents > 0 ? taxSavePerPartner * 2 : 0;
   const taxReserveRate =
     shareCents > 0 ? taxSavePerPartner / shareCents : Number(settings.tax_reserve_rate);
@@ -259,6 +281,7 @@ function computeBreakdown(inputs: {
     billsCents: fixedTotal,
     cushionCents,
     refundedCents: inputs.refundedCents,
+    taxLadder: taxLadder(),
   };
 }
 
