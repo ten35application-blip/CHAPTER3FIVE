@@ -5,6 +5,7 @@ import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { normalizeLanguage } from "@/lib/i18n/language";
 import { isOracleMuted } from "@/lib/muted";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { canCompanionInitiate } from "@/lib/identity/canInitiate";
 import {
   coerceTextFirstFrequency,
   DEFAULT_TEXT_FIRST_FREQUENCY,
@@ -258,7 +259,7 @@ export async function GET(request: NextRequest) {
       const { data: oracles } = await admin
         .from("oracles")
         .select(
-          "id, name, persona_prompt, traits, one_line_hook, significant_events, memory_style, created_at, is_legacy, creation_source",
+          "id, name, persona_prompt, traits, one_line_hook, significant_events, memory_style, created_at, is_legacy, creation_source, is_photo_placeholder",
         )
         .eq("user_id", profile.id)
         .is("deleted_at", null)
@@ -269,8 +270,12 @@ export async function GET(request: NextRequest) {
       // Drop personas the user has blocked. This cron never consulted
       // muted_conversations before the block-contract fix — a blocked
       // companion could still cold-open a thread and fire a push.
+      // canCompanionInitiate: unborn companions (photo placeholders /
+      // no persona) never speak first — the Danisel ghost-ping fix.
       const reachable = oracles.filter(
-        (o) => !isOracleMuted(profile.muted_conversations, o.id as string),
+        (o) =>
+          canCompanionInitiate(o) &&
+          !isOracleMuted(profile.muted_conversations, o.id as string),
       );
       if (reachable.length === 0) continue;
 

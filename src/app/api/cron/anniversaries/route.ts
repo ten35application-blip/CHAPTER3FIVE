@@ -6,6 +6,7 @@ import { recordAnthropicSpend } from "@/lib/spendGovernor";
 import { openerVarietyBlock } from "@/lib/identity/opener";
 import { isOracleMuted } from "@/lib/muted";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { canCompanionInitiate } from "@/lib/identity/canInitiate";
 import { sendPushToUser } from "@/lib/push";
 import { moderateText } from "@/lib/moderation";
 import { startCronBudget } from "@/lib/cron/budget";
@@ -192,13 +193,17 @@ export async function GET(request: NextRequest) {
     // pointer.
     const { data: senderOracle } = await admin
       .from("oracles")
-      .select("id, name")
+      .select("id, name, persona_prompt, is_photo_placeholder, is_concierge")
       .eq("id", p.active_oracle_id)
       .is("deleted_at", null)
       .is("blocked_at", null)
       .is("conversation_archived_at", null)
       .maybeSingle();
     if (!senderOracle) continue;
+    // Unborn companions (photo placeholders / no persona) never speak
+    // first; Adrian speaks from his hand-written voice.
+    if (!senderOracle.is_concierge && !canCompanionInitiate(senderOracle))
+      continue;
     const todayMD = localMonthDay(p.timezone);
 
     const hits: AnniversaryHit[] = [];
@@ -435,7 +440,7 @@ ${variety}
       // costs nothing.
       const { data: allOracles } = await admin
         .from("oracles")
-        .select("id, name, persona_prompt, traits")
+        .select("id, name, persona_prompt, traits, is_photo_placeholder")
         .eq("user_id", p.id)
         .eq("is_legacy", false)
         .eq("is_concierge", false)
@@ -445,6 +450,7 @@ ${variety}
         // the main loop honors it four hundred lines up; so does this.
         .is("conversation_archived_at", null);
       const bdayOracles = (allOracles ?? []).filter((o) => {
+        if (!canCompanionInitiate(o)) return false; // unborn never speak
         const b = (o.traits as { birthday?: unknown } | null)?.birthday;
         return typeof b === "string" && b.endsWith(mmdd);
       });

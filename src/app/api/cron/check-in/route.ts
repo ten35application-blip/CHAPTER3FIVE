@@ -4,6 +4,7 @@ import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { normalizeLanguage } from "@/lib/i18n/language";
 import { isOracleMuted } from "@/lib/muted";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { canCompanionInitiate } from "@/lib/identity/canInitiate";
 import { recordAnthropicSpend } from "@/lib/spendGovernor";
 import { openerVarietyBlock } from "@/lib/identity/opener";
 import { sendPushToUser } from "@/lib/push";
@@ -78,9 +79,19 @@ export async function GET(request: NextRequest) {
     try {
       const { data: oracle } = await admin
         .from("oracles")
-        .select("name, preferred_language, texting_style, user_id, is_concierge, persona_prompt")
+        .select("name, preferred_language, texting_style, user_id, is_concierge, persona_prompt, is_photo_placeholder")
         .eq("id", row.oracle_id)
         .maybeSingle();
+      // Unborn companions (photo placeholders / no persona) never
+      // speak first — but Adrian (concierge) speaks from his own
+      // hand-written voice, so he passes on is_concierge.
+      if (oracle && !oracle.is_concierge && !canCompanionInitiate(oracle)) {
+        await admin
+          .from("chat_blocks")
+          .update({ unblocked_at: new Date().toISOString() })
+          .eq("id", row.id);
+        continue;
+      }
       if (!oracle) {
         // Oracle was deleted; just close out the block silently.
         await admin

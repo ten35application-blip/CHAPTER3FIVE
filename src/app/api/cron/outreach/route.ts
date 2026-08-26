@@ -3,6 +3,7 @@ import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { normalizeLanguage } from "@/lib/i18n/language";
 import { isOracleMuted } from "@/lib/muted";
 import { sendOutreachEmail } from "@/lib/notifications";
+import { canCompanionInitiate } from "@/lib/identity/canInitiate";
 
 export const runtime = "nodejs";
 // Literal, not the shared constant: Next reads segment config
@@ -113,15 +114,20 @@ export async function GET(request: NextRequest) {
       // user has none, there is nobody to miss them: skip, no email.
       const { data: liveOracles } = await supabase
         .from("oracles")
-        .select("id, name, is_concierge")
+        .select("id, name, is_concierge, persona_prompt, is_photo_placeholder")
         .eq("user_id", profile.id)
         .is("deleted_at", null)
         .is("blocked_at", null)
         .is("conversation_archived_at", null)
         .order("is_concierge", { ascending: true })
         .limit(5);
+      // Unborn companions (photo placeholders / no persona) can't
+      // "miss you" — only real contacts and Adrian may be named.
       const companion = (liveOracles ?? []).find(
-        (o) => o.name && !isOracleMuted(muted, o.id),
+        (o) =>
+          o.name &&
+          (o.is_concierge || canCompanionInitiate(o)) &&
+          !isOracleMuted(muted, o.id),
       );
       if (!companion) continue;
 

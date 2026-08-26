@@ -4,6 +4,7 @@ import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { normalizeLanguage } from "@/lib/i18n/language";
 import { isOracleMuted } from "@/lib/muted";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { canCompanionInitiate } from "@/lib/identity/canInitiate";
 import { moderateText } from "@/lib/moderation";
 import { recordAnthropicSpend } from "@/lib/spendGovernor";
 import { sendPushToUser } from "@/lib/push";
@@ -95,13 +96,16 @@ export async function GET(request: NextRequest) {
 
       const { data: oracle } = await admin
         .from("oracles")
-        .select("id, name, persona_prompt, deleted_at, blocked_at")
+        .select("id, name, persona_prompt, deleted_at, blocked_at, is_photo_placeholder")
         .eq("id", ping.oracle_id)
         .maybeSingle();
       if (
         !oracle ||
         oracle.deleted_at ||
         oracle.blocked_at ||
+        // Unborn companions (photo placeholders / no persona) never
+        // speak first — a promise can only come from a real thread.
+        !canCompanionInitiate(oracle) ||
         isOracleMuted(profile.muted_conversations, ping.oracle_id)
       ) {
         await admin
