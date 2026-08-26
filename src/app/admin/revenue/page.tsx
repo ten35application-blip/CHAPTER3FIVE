@@ -327,7 +327,13 @@ function MonthBreakdownCard({
               </p>
               <p className="mt-2 text-warm-300">
                 Stays in the business account:{" "}
-                {formatUsd(b.keepInAccountCents)} for next month&apos;s bills.
+                <span className="font-semibold text-warm-100">
+                  {formatUsd(b.keepInAccountCents)}
+                </span>{" "}
+                — next month&apos;s bills ({formatUsd(b.billsCents)}) + a
+                growth cushion ({formatUsd(b.cushionCents)}) so the account
+                never runs dry if we keep growing. Held back before the
+                split.
               </p>
             </>
           ) : (

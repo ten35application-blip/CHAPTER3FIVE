@@ -57,7 +57,9 @@ export type MonthBreakdown = {
   taxSavingsPerPartnerCents: number;
   partnerA: string;
   partnerB: string;
-  keepInAccountCents: number; // next month's fixed bills (reserve travels with the transfers)
+  keepInAccountCents: number; // bills + growth cushion, held before any split
+  billsCents: number;
+  cushionCents: number;
   refundedCents: number; // informational
 };
 
@@ -141,16 +143,27 @@ function computeBreakdown(inputs: {
   const taxReserveRate = Number(settings.tax_reserve_rate);
   const taxReserveCents =
     profitCents > 0 ? Math.round(profitCents * taxReserveRate) : 0;
-  const distributableCents = profitCents > 0 ? profitCents - taxReserveCents : 0;
-  const perPartnerCents = Math.floor(distributableCents / 2);
-  // Wilson's split model (2026-08-26): each partner transfers their
-  // FULL half of profit to their own bank, THEN moves the tax share
-  // into personal savings — so the transfer line is profit/2 and the
-  // savings line rides with it. Rounding: spendable floors, the tax
-  // share absorbs the odd cents.
-  const transferPerPartnerCents = profitCents > 0 ? Math.floor(profitCents / 2) : 0;
-  const taxSavingsPerPartnerCents = transferPerPartnerCents - perPartnerCents;
   const fixedTotal = fixed.reduce((a, f) => a + f.cents, 0);
+  // Wilson's holdback rule (2026-08-26): before ANY split, the
+  // account keeps its own survival money — next month's bills plus a
+  // 50% growth cushion, so a soft month or a growth spurt never
+  // catches the account empty. Only what's left after the holdback
+  // gets split.
+  const cushionCents = Math.round(fixedTotal * 0.5);
+  const holdbackCents = fixedTotal + cushionCents;
+  const distributableCents =
+    profitCents > holdbackCents ? profitCents - holdbackCents : 0;
+  // Each partner transfers their half of the after-holdback pool.
+  // Taxes are owed on their share of PROFIT (not of the transfer), so
+  // the savings line is (profit/2) × rate regardless of what was
+  // withheld — the honest number for year-end.
+  const transferPerPartnerCents = Math.floor(distributableCents / 2);
+  const taxSavingsPerPartnerCents =
+    profitCents > 0 ? Math.round((profitCents / 2) * taxReserveRate) : 0;
+  const perPartnerCents = Math.max(
+    0,
+    transferPerPartnerCents - taxSavingsPerPartnerCents,
+  );
 
   return {
     month: inputs.month,
@@ -174,7 +187,9 @@ function computeBreakdown(inputs: {
     taxSavingsPerPartnerCents,
     partnerA: settings.partner_a ?? "Danisel",
     partnerB: settings.partner_b ?? "Pedro",
-    keepInAccountCents: fixedTotal,
+    keepInAccountCents: holdbackCents,
+    billsCents: fixedTotal,
+    cushionCents,
     refundedCents: inputs.refundedCents,
   };
 }
