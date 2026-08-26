@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   createAdminClient,
   daysAgo,
@@ -7,30 +8,50 @@ import {
   startOfMonth,
   sumCents,
 } from "@/lib/admin/queries";
+import {
+  fetchMonthBreakdown,
+  nextMonth,
+  normalizeMonthParam,
+  prevMonth,
+  type MonthBreakdown,
+} from "@/lib/admin/monthBreakdown";
 import { ExportCsvButton } from "./ExportCsvButton";
 
 /**
- * /admin/revenue — money reports. Reads the one-time `payments` table
- * (0009); the recurring side arrives with the Stripe-billing task, at
- * which point subscription rows land here with purpose 'subscription'
- * and the breakdown below just starts filling in.
+ * /admin/revenue — money reports: the month breakdown FIRST (what
+ * stays for taxes and bills, what Danisel and Pedro each transfer —
+ * Wilson's launch-morning ask, 2026-08-26), then the Stripe payment
+ * detail below. Stripe + both app stores have been wired since
+ * 2026-08-21; the old "once Stripe is wired" copy here outlived the
+ * wiring by five days.
  */
-export default async function AdminRevenuePage() {
+export default async function AdminRevenuePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ month?: string }>;
+}) {
   const supabase = createAdminClient();
-  const payments = await fetchPaidPayments(supabase);
+  const { month: monthParam } = await searchParams;
+  const month = normalizeMonthParam(monthParam ?? null);
+  const [payments, breakdown] = await Promise.all([
+    fetchPaidPayments(supabase),
+    fetchMonthBreakdown(supabase, month),
+  ]);
 
   if (payments.length === 0) {
     return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 text-center">
-        <p className="text-3xl font-semibold tracking-tight text-warm-50">
-          Revenue lives here once Stripe is wired.
-        </p>
-        <p className="max-w-md text-base leading-relaxed text-warm-300">
-          Everything is pre-plumbed — the charts, the breakdown, the CSV
-          export. The first paid charge that lands in the{" "}
-          <span className="font-medium text-warm-100">payments</span> table
-          lights this page up.
-        </p>
+      <div className="flex max-w-3xl flex-col gap-8">
+        <MonthBreakdownCard b={breakdown} />
+        <div className="rounded-2xl bg-ink-soft px-6 py-8 text-center ring-1 ring-warm-700">
+          <p className="text-xl font-semibold tracking-tight text-warm-50">
+            No web payments yet
+          </p>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-warm-300">
+            Stripe and both app stores are wired and listening — the first
+            real sale lands here (and in the month breakdown above) the
+            moment it happens.
+          </p>
+        </div>
       </div>
     );
   }
@@ -83,12 +104,14 @@ export default async function AdminRevenuePage() {
             Revenue
           </h1>
           <p className="text-sm text-warm-300">
-            All-time {formatUsd(allTime)} · one-time payments only until
-            Stripe subscriptions land
+            All-time web {formatUsd(allTime)} · Stripe + both app stores
+            feed the month breakdown below
           </p>
         </div>
         <ExportCsvButton />
       </header>
+
+      <MonthBreakdownCard b={breakdown} />
 
       <section className="flex flex-col gap-1 rounded-3xl bg-ink-soft px-8 py-8 ring-1 ring-warm-700">
         <p className="text-xs font-semibold uppercase tracking-wider text-warm-400">
@@ -174,6 +197,138 @@ function BreakdownRow({
               ? "font-semibold text-warm-50"
               : "font-medium text-warm-100"
         }
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * The month, settled — the answer the owners open this page for:
+ * what stays in the account (taxes + bills) and what Danisel and
+ * Pedro can each transfer out. Amounts from fetchMonthBreakdown;
+ * store commission / Stripe fees / Replicate / the tax rate are
+ * labeled estimates, and Anthropic is the real ledger number.
+ */
+function MonthBreakdownCard({ b }: { b: MonthBreakdown }) {
+  const pct = Math.round(b.taxReserveRate * 100);
+  return (
+    <section className="flex flex-col gap-3">
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-warm-300">
+          The month, settled
+        </h2>
+        <div className="flex items-center gap-3 text-sm">
+          <Link
+            href={`/admin/revenue?month=${prevMonth(b.month)}`}
+            className="font-semibold text-coral-strong hover:text-coral"
+          >
+            ‹
+          </Link>
+          <span className="font-semibold text-warm-50">{b.monthLabel}</span>
+          <Link
+            href={`/admin/revenue?month=${nextMonth(b.month)}`}
+            className="font-semibold text-coral-strong hover:text-coral"
+          >
+            ›
+          </Link>
+        </div>
+      </div>
+
+      <div className="overflow-hidden rounded-2xl bg-ink-soft ring-1 ring-warm-700">
+        <div className="flex flex-col gap-1 px-5 py-4 text-sm">
+          <BRow label="Customers paid" value={formatUsd(b.grossCents)} strong />
+          <BRow
+            label="Apple/Google keep (est.)"
+            value={`−${formatUsd(b.storeCommissionCents)}`}
+          />
+          <BRow
+            label="Stripe keeps (est.)"
+            value={`−${formatUsd(b.webProcessingCents)}`}
+          />
+          <BRow
+            label="Reaches the bank"
+            value={formatUsd(b.netReceiptsCents)}
+            strong
+          />
+        </div>
+        <div className="flex flex-col gap-1 border-t border-warm-700/60 px-5 py-4 text-sm">
+          {b.expenses.map((e) => (
+            <BRow key={e.name} label={e.name} value={`−${formatUsd(e.cents)}`} />
+          ))}
+          <BRow
+            label="Profit"
+            value={formatUsd(b.profitCents)}
+            strong
+            tint={b.profitCents >= 0 ? "text-teal-strong" : "text-coral-strong"}
+          />
+        </div>
+        <div className="m-4 rounded-xl bg-ink px-4 py-4 text-sm leading-relaxed ring-1 ring-warm-700">
+          {b.profitCents > 0 ? (
+            <>
+              <p className="text-warm-50">
+                <span className="font-bold">
+                  Stays in the account: {formatUsd(b.keepInAccountCents)}
+                </span>{" "}
+                — {formatUsd(b.taxReserveCents)} tax reserve ({pct}%) +{" "}
+                {formatUsd(b.keepInAccountCents - b.taxReserveCents)} for next
+                month&apos;s bills.
+              </p>
+              <p className="mt-2 text-warm-50">
+                <span className="font-bold text-teal-strong">
+                  {b.partnerA} can transfer {formatUsd(b.perPartnerCents)}
+                </span>{" "}
+                ·{" "}
+                <span className="font-bold text-teal-strong">
+                  {b.partnerB} can transfer {formatUsd(b.perPartnerCents)}
+                </span>{" "}
+                — taxes already held back, theirs to spend.
+              </p>
+            </>
+          ) : (
+            <p className="text-warm-300">
+              No profit to split this month — nothing transfers out, nothing
+              owed to the reserve. The lines above show what the account still
+              covers.
+            </p>
+          )}
+          {b.storeNetCents > 0 ? (
+            <p className="mt-2 text-xs leading-relaxed text-warm-400">
+              Timing: {formatUsd(b.webNetCents)} of this arrives within days
+              (web). {formatUsd(b.storeNetCents)} is store money — Apple pays
+              about a month behind, Google mid-next-month. Transfer after it
+              lands, not before.
+            </p>
+          ) : null}
+          <p className="mt-2 text-xs leading-relaxed text-warm-400">
+            Estimates, not tax advice — the {pct}% reserve is the working
+            guess until Pedro confirms the real rate with the filings.
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function BRow({
+  label,
+  value,
+  strong,
+  tint,
+}: {
+  label: string;
+  value: string;
+  strong?: boolean;
+  tint?: string;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-6">
+      <span className={strong ? "font-semibold text-warm-50" : "text-warm-400"}>
+        {label}
+      </span>
+      <span
+        className={`tabular-nums ${tint ?? (strong ? "font-bold text-warm-50" : "font-medium text-warm-200")}`}
       >
         {value}
       </span>
