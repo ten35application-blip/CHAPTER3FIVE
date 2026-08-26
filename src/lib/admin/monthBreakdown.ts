@@ -295,11 +295,21 @@ export async function fetchMonthBreakdown(
   });
 }
 
-/** "2026-08" for now (or a validated ?month= param). */
+/** "2026-08" for the settlement default (or a validated ?month= param).
+ *
+ * THE 27TH RULE (Wilson 2026-08-26, no emails — the screen IS the
+ * ritual): the default month rolls over on the 27th. Before the 27th
+ * you're looking at LAST month (fully banked, safe to transfer); on
+ * the 27th the fresh month takes the stage. The arrows still walk
+ * anywhere. */
 export function normalizeMonthParam(raw: string | null | undefined): string {
   if (raw && /^\d{4}-(0[1-9]|1[0-2])$/.test(raw)) return raw;
   const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const d =
+    now.getDate() >= 27
+      ? now
+      : new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
 export function prevMonth(month: string): string {
