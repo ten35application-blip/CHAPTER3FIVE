@@ -58,9 +58,9 @@ export default async function AdminRevenuePage({
           </p>
         </div>
         {example ? (
-        <details className="group">
-          <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-semibold uppercase tracking-wider text-warm-300 [&::-webkit-details-marker]:hidden">
-            <span className="inline-block transition-transform group-open:rotate-90">›</span>
+        <details open className="group">
+          <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-bold uppercase tracking-wider text-teal-strong [&::-webkit-details-marker]:hidden">
+            <span className="inline-block text-2xl leading-none transition-transform group-open:rotate-90">›</span>
             Example — how a month reads
             <span className="rounded-full bg-coral/15 px-2.5 py-0.5 text-[10px] font-bold tracking-widest text-coral-strong ring-1 ring-coral/30">
               EXAMPLE
@@ -134,9 +134,9 @@ export default async function AdminRevenuePage({
       </header>
 
       {example ? (
-        <details className="group">
-          <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-semibold uppercase tracking-wider text-warm-300 [&::-webkit-details-marker]:hidden">
-            <span className="inline-block transition-transform group-open:rotate-90">›</span>
+        <details open className="group">
+          <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-bold uppercase tracking-wider text-teal-strong [&::-webkit-details-marker]:hidden">
+            <span className="inline-block text-2xl leading-none transition-transform group-open:rotate-90">›</span>
             Example — how a month reads
             <span className="rounded-full bg-coral/15 px-2.5 py-0.5 text-[10px] font-bold tracking-widest text-coral-strong ring-1 ring-coral/30">
               EXAMPLE
@@ -248,6 +248,7 @@ function MonthBreakdownCard({
   const pct = Math.round(b.taxReserveRate * 100);
   return (
     <section className="flex flex-col gap-3">
+      {example ? null : (
       <div className="flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-warm-300">
           The month, settled
@@ -282,12 +283,15 @@ function MonthBreakdownCard({
           )}
         </div>
       </div>
+      )}
 
       <div className="overflow-hidden rounded-2xl bg-ink-soft ring-1 ring-warm-700">
         <p className="border-b border-warm-700/60 bg-ink px-5 py-2 text-[11px] font-medium tracking-wide text-warm-400">
           {b.periodLabel} — transfer day. After that, these numbers never
-          move. Money made from the 27th to the 1st stays in the account —
-          compounding monthly for emergencies, hiring, and growth.
+          move. All taxes are already accounted for and left in the
+          account. Money made from the 27th to the 1st stays in the account
+          — compounding monthly for emergencies, hiring, and future
+          endeavors.
         </p>
         {example ? (
           <p className="border-b border-warm-700/60 bg-ink px-5 py-3 text-xs leading-relaxed text-warm-400">
