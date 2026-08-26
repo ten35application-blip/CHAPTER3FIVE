@@ -65,6 +65,11 @@ export type MonthBreakdown = {
   refundedCents: number; // informational
   /** amount → reserve-rate rungs, computed from the same formula. */
   taxLadder: { profitCents: number; ratePct: number }[];
+  /** Net receipts earned during the window's tail (the previous
+   *  month's 27th → its end): Wilson's compounding rule — this money
+   *  STAYS in the account permanently (held back before any split),
+   *  while its taxes are still reserved with the rest of profit. */
+  retainedTailCents: number;
 };
 
 /**
@@ -165,6 +170,8 @@ function computeBreakdown(inputs: {
   anthropicCents: number;
   replicateCents: number;
   refundedCents: number;
+  /** Net receipts from the window's tail days — retained, never split. */
+  retainedTailCents?: number;
   settings: {
     tax_reserve_rate: number;
     store_commission_rate: number;
@@ -239,7 +246,12 @@ function computeBreakdown(inputs: {
     Math.round(fixedTotal * 0.5),
     profitCents > 0 ? Math.round(profitCents * 0.1) : 0,
   );
-  const holdbackCents = fixedTotal + cushionCents;
+  // Wilson's compounding rule (2026-08-26): money made from the 27th
+  // to month-end never gets distributed — it stays and compounds (for
+  // hires, usage spikes, whatever growth demands). Its TAXES are
+  // still reserved (pass-through taxes all profit, withdrawn or not).
+  const retainedTailCents = Math.max(0, Math.round(inputs.retainedTailCents ?? 0));
+  const holdbackCents = fixedTotal + cushionCents + Math.min(retainedTailCents, Math.max(0, profitCents));
   const distributableCents =
     profitCents > holdbackCents ? profitCents - holdbackCents : 0;
   // Each partner transfers their half of the after-holdback pool.
@@ -282,6 +294,7 @@ function computeBreakdown(inputs: {
     cushionCents,
     refundedCents: inputs.refundedCents,
     taxLadder: taxLadder(),
+    retainedTailCents,
   };
 }
 
@@ -333,6 +346,10 @@ export async function fetchMonthBreakdown(
     });
   const lastDay = new Date(end.getTime() - 24 * 3600 * 1000);
   const periodLabel = `counting ${fmtDay(start)} → ${fmtDay(lastDay)} · final on the 27th`;
+  // The tail: window start (prev 27th) → the 1st of the settlement
+  // month. Revenue in here is Wilson's compound-in-the-account money.
+  const tailEnd = new Date(Date.UTC(y, m - 1, 1, 5, 0, 0));
+  const tailEndIso = tailEnd.toISOString();
 
   const [settingsRow, payments, storeRows, spendRows, oracleCount] =
     await Promise.all([
@@ -398,9 +415,22 @@ export async function fetchMonthBreakdown(
   // is the honest proxy until per-call logging exists.
   const replicateCents = (oracleCount.count ?? 0) * 4;
 
+  // Tail-net: what the 27th→month-end days brought in, after the
+  // platform cuts — the amount that stays and compounds.
+  const tailWeb = paidWeb
+    .filter((p) => (p.paid_at ?? p.created_at) < tailEndIso)
+    .reduce((a, p) => a + p.amount_cents, 0);
+  const tailStore = storeEarned
+    .filter((r) => r.purchased_at < tailEndIso)
+    .reduce((a, r) => a + r.amount_cents, 0);
+  const retainedTailCents =
+    Math.round(tailWeb * (1 - Number(settings.web_processing_rate))) +
+    Math.round(tailStore * (1 - Number(settings.store_commission_rate)));
+
   // ONE formula (computeBreakdown) — the real month and the example
   // can never disagree.
   return computeBreakdown({
+    retainedTailCents,
     month,
     monthLabel: new Date(y, m - 1, 1).toLocaleDateString("en-US", {
       month: "long",

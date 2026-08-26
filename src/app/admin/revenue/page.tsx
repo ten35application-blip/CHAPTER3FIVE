@@ -318,6 +318,15 @@ function MonthBreakdownCard({
                 </span>{" "}
                 each to spend.
               </p>
+              {b.retainedTailCents > 0 ? (
+                <p className="mt-2 text-warm-300">
+                  <span className="font-semibold text-warm-100">
+                    {formatUsd(b.retainedTailCents)}
+                  </span>{" "}
+                  made after the 27th last cycle — stays in the account,
+                  compounding (its taxes are already inside the reserve).
+                </p>
+              ) : null}
               <p className="mt-2 text-warm-300">
                 Stays in the business account:{" "}
                 <span className="font-semibold text-warm-100">
