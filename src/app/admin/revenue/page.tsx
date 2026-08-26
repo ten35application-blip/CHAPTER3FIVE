@@ -63,7 +63,6 @@ export default async function AdminRevenuePage({
     );
   }
 
-  const mtd = sumCents(payments, startOfMonth());
   const allTime = sumCents(payments);
 
   // ---- Last-30-days daily buckets (pure CSS bar chart — no library). ----
@@ -123,15 +122,6 @@ export default async function AdminRevenuePage({
 
       {example ? <MonthBreakdownCard b={example} example /> : null}
       <MonthBreakdownCard b={breakdown} />
-
-      <section className="flex flex-col gap-1 rounded-3xl bg-ink-soft px-8 py-8 ring-1 ring-warm-700">
-        <p className="text-xs font-semibold uppercase tracking-wider text-warm-400">
-          Month to date
-        </p>
-        <p className="text-5xl font-semibold tracking-tight">
-          <span className="text-gradient-cta">{formatUsd(mtd)}</span>
-        </p>
-      </section>
 
       <section className="flex flex-col gap-3">
         <h2 className="text-sm font-semibold uppercase tracking-wider text-warm-300">
