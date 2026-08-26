@@ -331,27 +331,25 @@ function MonthBreakdownCard({
         <div className="m-4 rounded-xl bg-ink px-4 py-4 text-sm leading-relaxed ring-1 ring-warm-700">
           {b.profitCents > 0 ? (
             <>
-              {[b.partnerA, b.partnerB].map((name) => (
-                <div
-                  key={name}
-                  className="mb-2 rounded-lg bg-ink-soft px-3 py-2.5 ring-1 ring-warm-700/60"
-                >
-                  <p className="text-sm font-bold text-teal-strong">{name}</p>
-                  <p className="mt-1 text-warm-50">
-                    💵 Money to their bank:{" "}
-                    <span className="font-bold">
-                      {formatUsd(b.transferPerPartnerCents)}
-                    </span>{" "}
-                    <span className="text-warm-400">— all theirs to spend</span>
-                  </p>
-                  <p className="mt-0.5 text-xs leading-relaxed text-warm-400">
-                    🏦 Their tax money ({formatUsd(b.taxSavingsPerPartnerCents)},
-                    on their own half of {formatUsd(b.profitShareCents)}) is
-                    already held by the business — paid to the IRS at
-                    quarterly time. Taxed once, never twice; they file alone.
-                  </p>
-                </div>
-              ))}
+              <div className="mb-2 rounded-lg bg-ink-soft px-3 py-2.5 ring-1 ring-warm-700/60">
+                <p className="text-sm font-bold text-teal-strong">
+                  {b.partnerA} &amp; {b.partnerB} — each
+                </p>
+                <p className="mt-1 text-warm-50">
+                  💵 Money to each of their banks:{" "}
+                  <span className="font-bold">
+                    {formatUsd(b.transferPerPartnerCents)}
+                  </span>{" "}
+                  <span className="text-warm-400">— all theirs to spend</span>
+                </p>
+                <p className="mt-0.5 text-xs leading-relaxed text-warm-400">
+                  🏦 Each one&apos;s tax money ({formatUsd(b.taxSavingsPerPartnerCents)}
+                  {" "}— {pct}% of each one&apos;s own {formatUsd(b.profitShareCents)}{" "}
+                  half) is already held by the business, paid to the IRS
+                  quarterly in each name. Taxed once, never twice; they file
+                  alone.
+                </p>
+              </div>
               <p className="mt-2 text-warm-300">
                 🏢 The business keeps{" "}
                 <span className="font-semibold text-warm-100">
