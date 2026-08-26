@@ -85,7 +85,18 @@ export type MonthBreakdown = {
     profitShareCents: number; // their half of profit
     taxEnvelopeCents: number; // held by the business for THEIR taxes
     taxRatePct: number; // effective rate on their half, 1 decimal
-    transferCents: number; // to their bank on the 27th — fully spendable
+    /** Their spendable entitlement this month. monthly payout: goes to
+     *  their bank on the 27th. december payout: STAYS in the account,
+     *  piling into their once-a-year pot. */
+    transferCents: number;
+    /** When they actually take money out (Wilson 2026-08-26: Pedro
+     *  draws once a year in December with his accountant; Danisel
+     *  takes hers on the 27th). Taxes are NOT affected — envelopes go
+     *  out quarterly for everyone; waiting doesn't delay taxes. */
+    payout: "monthly" | "december";
+    /** december partners only: everything accrued and undrawn through
+     *  THIS month (their pot). Monthly partners: equals transferCents. */
+    undrawnBalanceCents: number;
     taxNote: string; // the how-it-works line, written once, shown everywhere
   }[];
   /** Net receipts earned during the window's tail (the previous
@@ -192,6 +203,16 @@ const PARTNER_RESIDENCE: Record<string, Residence> = {
 const RESIDENCE_LABEL: Record<Residence, string> = {
   bethlehem_pa: "Bethlehem, PA",
   nyc: "Bronx, NYC",
+};
+
+/** WHEN each partner takes their money out (Wilson 2026-08-26:
+ *  "pedro is doing yearly" — one December draw with his accountant;
+ *  Danisel transfers on the 27th). Distribution timing is each
+ *  member's own election and does NOT change taxes: envelopes still
+ *  go out quarterly in each name — waiting doesn't delay taxes. */
+const PARTNER_PAYOUT: Record<string, "monthly" | "december"> = {
+  Danisel: "monthly",
+  Pedro: "december",
 };
 
 function residenceTaxNote(name: string, residence: Residence): string {
@@ -398,16 +419,24 @@ function computeBreakdown(inputs: {
   const transferPerPartnerCents = Math.floor(distributableCents / 2);
   const taxSavingsPerPartnerCents = Math.round(taxReserveCents / 2);
   const perPartnerCents = transferPerPartnerCents;
-  const partners = partnerCalc.map((p, i) => ({
-    name: p.name,
-    residence: RESIDENCE_LABEL[p.residence],
-    profitShareCents: Math.round(shareCents),
-    taxEnvelopeCents: p.envelope,
-    taxRatePct:
-      shareCents > 0 ? Math.round((p.envelope / shareCents) * 1000) / 10 : 0,
-    transferCents: i === 0 ? transferCentsA : transferCentsB,
-    taxNote: residenceTaxNote(p.name, p.residence),
-  }));
+  const partners = partnerCalc.map((p, i) => {
+    const transferCents = i === 0 ? transferCentsA : transferCentsB;
+    return {
+      name: p.name,
+      residence: RESIDENCE_LABEL[p.residence],
+      profitShareCents: Math.round(shareCents),
+      taxEnvelopeCents: p.envelope,
+      taxRatePct:
+        shareCents > 0 ? Math.round((p.envelope / shareCents) * 1000) / 10 : 0,
+      transferCents,
+      payout: PARTNER_PAYOUT[p.name] ?? "monthly",
+      // Cumulative pot for December partners is layered on in
+      // fetchMonthBreakdown (needs month history); this month alone
+      // is the honest default for the example card.
+      undrawnBalanceCents: transferCents,
+      taxNote: residenceTaxNote(p.name, p.residence),
+    };
+  });
 
   return {
     month: inputs.month,
@@ -470,6 +499,9 @@ export async function fetchExampleBreakdown(
 export async function fetchMonthBreakdown(
   supabase: SupabaseClient,
   month: string, // "YYYY-MM"
+  /** internal: true while walking history for the December pot —
+   *  stops the walk from recursing into its own walk. */
+  skipHistory = false,
 ): Promise<MonthBreakdown> {
   const [yStr, mStr] = month.split("-");
   const y = Number.parseInt(yStr, 10);
@@ -575,7 +607,7 @@ export async function fetchMonthBreakdown(
 
   // ONE formula (computeBreakdown) — the real month and the example
   // can never disagree.
-  return computeBreakdown({
+  const breakdown = computeBreakdown({
     retainedTailCents,
     month,
     monthLabel: new Date(y, m - 1, 1).toLocaleDateString("en-US", {
@@ -590,6 +622,38 @@ export async function fetchMonthBreakdown(
     refundedCents: refundedWeb + refundedStore,
     settings: settings as Parameters<typeof exampleMonthBreakdown>[0],
   });
+
+  // THE DECEMBER POT (Wilson 2026-08-26: Pedro draws once a year with
+  // his accountant): a December partner's undrawn balance = every
+  // settled month's entitlement since launch, through this month.
+  // Walks prior months only when someone actually defers (Pedro), and
+  // only when this call isn't already a history step. Fine at this
+  // scale (a handful of months × a few queries); revisit with a
+  // materialized ledger if the walk ever gets long.
+  if (!skipHistory && breakdown.partners.some((p) => p.payout === "december")) {
+    const priorTotals = new Map<string, number>();
+    let cursor = prevMonth(month);
+    let steps = 0;
+    while (cursor >= "2026-08" && steps < 24) {
+      const prior = await fetchMonthBreakdown(supabase, cursor, true);
+      for (const p of prior.partners) {
+        if (p.payout === "december") {
+          priorTotals.set(
+            p.name,
+            (priorTotals.get(p.name) ?? 0) + p.transferCents,
+          );
+        }
+      }
+      cursor = prevMonth(cursor);
+      steps += 1;
+    }
+    for (const p of breakdown.partners) {
+      if (p.payout === "december") {
+        p.undrawnBalanceCents = p.transferCents + (priorTotals.get(p.name) ?? 0);
+      }
+    }
+  }
+  return breakdown;
 }
 
 /** "YYYY-MM" default (or a validated ?month= param).

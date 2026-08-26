@@ -72,6 +72,9 @@ export async function GET(request: Request) {
       `The New York member: PA taxes the share first (nonresident 3.07%) and New York credits every PA dollar (Form IT-112-R) — taxed once, never twice; NYC's city tax stacks with no credit`,
     ),
     cell(
+      `Payout elections: ${pA.name} takes ${pA.payout === "december" ? "one December draw a year (share accrues in the account)" : "their transfer on the 27th"}; ${pB.name} takes ${pB.payout === "december" ? "one December draw a year (share accrues in the account)" : "their transfer on the 27th"}. Deferring a draw never defers taxes — envelopes go out quarterly`,
+    ),
+    cell(
       "Each month counts the previous 27th through the 26th; figures go FINAL on the 27th (transfer day) and never move after",
     ),
     cell(
@@ -105,9 +108,10 @@ export async function GET(request: Request) {
     `Held: ${partnerA}'s tax envelope`,
     `Held: ${partnerB}'s tax envelope`,
     "Total kept in account",
-    `Transferred to ${partnerA} (27th)`,
-    `Transferred to ${partnerB} (27th)`,
-    "Total transferred out",
+    `${pA.payout === "december" ? "Accrued to" : "Transferred to"} ${partnerA} (${pA.payout === "december" ? "December draw" : "27th"})`,
+    `${pB.payout === "december" ? "Accrued to" : "Transferred to"} ${partnerB} (${pB.payout === "december" ? "December draw" : "27th"})`,
+    "Paid out of the account (27th)",
+    "Waiting for December draws (cumulative)",
     "Each partner's profit share (50%)",
     `${partnerA}'s tax rate (${pA.residence})`,
     `${partnerB}'s tax rate (${pB.residence})`,
@@ -144,7 +148,16 @@ export async function GET(request: Request) {
         usd(b.keepInAccountCents),
         usd(b.partners[0].transferCents),
         usd(b.partners[1].transferCents),
-        usd(b.partners[0].transferCents + b.partners[1].transferCents),
+        usd(
+          b.partners
+            .filter((p) => p.payout !== "december")
+            .reduce((a, p) => a + p.transferCents, 0),
+        ),
+        usd(
+          b.partners
+            .filter((p) => p.payout === "december")
+            .reduce((a, p) => a + p.undrawnBalanceCents, 0),
+        ),
         usd(b.profitShareCents),
         `${b.partners[0].taxRatePct}%`,
         `${b.partners[1].taxRatePct}%`,

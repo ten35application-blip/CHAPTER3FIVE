@@ -51,7 +51,6 @@ export default async function AdminRevenuePage({
           >
             Accountant statement
           </Link>
-          <ExportCsvButton kind="settlements" />
         </div>
         <div className="rounded-2xl bg-ink-soft px-6 py-8 text-center ring-1 ring-warm-700">
           <p className="text-xl font-semibold tracking-tight text-warm-50">
@@ -135,12 +134,11 @@ export default async function AdminRevenuePage({
         </div>
         <div className="flex flex-wrap gap-2">
           <Link
-            href={`/admin/revenue/statement?month=${month}`}
+            href={`/admin/revenue/statement?months=${month}`}
             className="rounded-full bg-teal/10 px-4 py-2 text-sm font-semibold text-teal-strong ring-1 ring-teal/25 transition-colors hover:bg-teal/15"
           >
             Accountant statement
           </Link>
-          <ExportCsvButton kind="settlements" />
           <ExportCsvButton />
         </div>
       </header>
@@ -353,11 +351,32 @@ function MonthBreakdownCard({
                       · lives in {p.residence}
                     </span>
                   </p>
-                  <p className="mt-1 text-warm-50">
-                    💵 To {p.name}&apos;s bank:{" "}
-                    <span className="font-bold">{formatUsd(p.transferCents)}</span>{" "}
-                    <span className="text-warm-400">— all theirs to spend</span>
-                  </p>
+                  {p.payout === "december" ? (
+                    <>
+                      <p className="mt-1 text-warm-50">
+                        🗓️ {p.name}&apos;s share this month:{" "}
+                        <span className="font-bold">
+                          {formatUsd(p.transferCents)}
+                        </span>{" "}
+                        <span className="text-warm-400">
+                          — stays in the account for his once-a-year December
+                          draw
+                        </span>
+                      </p>
+                      <p className="mt-0.5 text-sm font-semibold text-teal-strong">
+                        💰 Waiting in {p.name}&apos;s December pot:{" "}
+                        {formatUsd(p.undrawnBalanceCents)}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="mt-1 text-warm-50">
+                      💵 To {p.name}&apos;s bank:{" "}
+                      <span className="font-bold">
+                        {formatUsd(p.transferCents)}
+                      </span>{" "}
+                      <span className="text-warm-400">— all theirs to spend</span>
+                    </p>
+                  )}
                   <p className="mt-0.5 text-xs leading-relaxed text-warm-400">
                     🏦 {p.name}&apos;s tax envelope:{" "}
                     <span className="font-semibold text-warm-200">
@@ -365,6 +384,9 @@ function MonthBreakdownCard({
                     </span>{" "}
                     ({p.taxRatePct}% of their own {formatUsd(p.profitShareCents)}{" "}
                     half) — held by the business. {p.taxNote}
+                    {p.payout === "december"
+                      ? " Waiting until December does NOT delay taxes — the envelope still goes out every quarter."
+                      : ""}
                   </p>
                 </div>
               ))}
@@ -378,6 +400,13 @@ function MonthBreakdownCard({
                 {b.partners[0].name} + {formatUsd(b.partners[1].taxEnvelopeCents)}{" "}
                 for {b.partners[1].name}), and the after-the-27th money
                 (compounding for future endeavors). Nobody spends this.
+                {b.partners
+                  .filter((p) => p.payout === "december")
+                  .map(
+                    (p) =>
+                      ` ${p.name}'s December pot (${formatUsd(p.undrawnBalanceCents)}) waits in the account too — his money, already counted, taken once a year.`,
+                  )
+                  .join("")}
               </p>
             </>
           ) : (
