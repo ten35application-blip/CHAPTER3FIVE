@@ -55,6 +55,7 @@ export default async function AdminRevenuePage({
           </p>
         </div>
         {example ? <MonthBreakdownCard b={example} example /> : null}
+        <MonthBreakdownCard b={breakdown} />
       </div>
     );
   }
@@ -114,11 +115,8 @@ export default async function AdminRevenuePage({
         <ExportCsvButton />
       </header>
 
-      {example ? (
-        <MonthBreakdownCard b={example} example />
-      ) : (
-        <MonthBreakdownCard b={breakdown} />
-      )}
+      {example ? <MonthBreakdownCard b={example} example /> : null}
+      <MonthBreakdownCard b={breakdown} />
 
       <section className="flex flex-col gap-1 rounded-3xl bg-ink-soft px-8 py-8 ring-1 ring-warm-700">
         <p className="text-xs font-semibold uppercase tracking-wider text-warm-400">
