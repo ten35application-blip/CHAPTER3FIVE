@@ -12,6 +12,7 @@ import { ActionButton } from "../../_components/ActionButton";
 import {
   deleteIdentityAction,
   deleteUserAction,
+  giftAction,
   grantExtraInheritedSlotAction,
   grantProAction,
   refundPaymentAction,
@@ -175,13 +176,38 @@ export default async function AdminUserDetailPage({
         />
         <div className="flex flex-wrap gap-2 px-4 py-3">
           <ActionButton
-            label="Grant Pro (30 days)"
-            confirm={`Grant ${email} 30 days of Pro on the house?`}
+            label="Gift a month of Pro"
+            confirm={`Gift ${email} a free month of Pro? They see the gift next open, press OK, and it lands.`}
+            action={giftAction.bind(null, user.id, "pro_month")}
+          />
+          <ActionButton
+            label="Gift a companion"
+            confirm={`Gift ${email} a free companion? Claimed with OK on their next open.`}
+            action={giftAction.bind(null, user.id, "companion")}
+          />
+          <ActionButton
+            label="Gift +100 messages"
+            confirm={`Gift ${email} a +100 message pack?`}
+            action={giftAction.bind(null, user.id, "message_pack")}
+          />
+          <ActionButton
+            label="Gift +12 images"
+            confirm={`Gift ${email} a +12 image pack?`}
+            action={giftAction.bind(null, user.id, "image_pack")}
+          />
+          <ActionButton
+            label="Gift an inherit credit"
+            confirm={`Gift ${email} one free inherit-code redemption?`}
+            action={giftAction.bind(null, user.id, "inherit_credit")}
+          />
+          <ActionButton
+            label="Grant Pro instantly (no gift moment)"
+            confirm={`Grant ${email} 30 days of Pro RIGHT NOW, silently (no gift message)?`}
             action={grantProAction.bind(null, user.id)}
           />
           <ActionButton
-            label="Grant inherited slot credit"
-            confirm={`Give ${email} 1 inherited-slot credit (unlocks one code redemption) on the house?`}
+            label="Grant inherit credit instantly"
+            confirm={`Give ${email} 1 inherit credit RIGHT NOW, silently?`}
             action={grantExtraInheritedSlotAction.bind(null, user.id)}
           />
         </div>

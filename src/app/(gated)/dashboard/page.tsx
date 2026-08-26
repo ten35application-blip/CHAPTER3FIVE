@@ -9,6 +9,7 @@ import { HubSheet } from "./_components/HubSheet";
 import { DashboardContent, type Identity } from "./_components/DashboardContent";
 import { PurchaseToast } from "./_components/PurchaseToast";
 import { PushOptIn } from "./_components/PushOptIn";
+import { GiftMoment } from "./_components/GiftMoment";
 import { UserMenu } from "./_components/UserMenu";
 import { signOut } from "./actions";
 
@@ -520,6 +521,7 @@ export default async function DashboardPage({
       />
 
       {showPackToast ? <PurchaseToast kind="pack" /> : null}
+      <GiftMoment />
       {showUpgradedToast ? <PurchaseToast kind="upgraded" /> : null}
 
       {/* Middle — favorites row + search + swipeable list */}

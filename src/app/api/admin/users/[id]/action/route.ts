@@ -49,6 +49,11 @@ const USER_ACTIONS = [
   "delete_user",
   "grant_inherited_slot_credit",
   "reset_password",
+  "gift_pro_month",
+  "gift_companion",
+  "gift_message_pack",
+  "gift_image_pack",
+  "gift_inherit_credit",
 ] as const;
 const TARGET_ACTIONS = [
   "delete_identity",
@@ -314,6 +319,40 @@ export async function POST(
           next !== null
             ? `Slot credit granted — they now have ${next}.`
             : "Slot credit granted.",
+      });
+    }
+
+    // GIFTS (Wilson 2026-08-26): unlike the instant grants above, a
+    // gift is a PENDING row the user claims — on next app open they
+    // get the branded "the team has given you…" moment, press OK, and
+    // THEN it lands (POST /api/gifts/claim applies it). Nothing
+    // arrives silently.
+    case "gift_pro_month":
+    case "gift_companion":
+    case "gift_message_pack":
+    case "gift_image_pack":
+    case "gift_inherit_credit": {
+      const kind = action.replace(/^gift_/, "");
+      const { error } = await service.from("admin_gifts").insert({
+        user_id: userId,
+        kind,
+        created_by: gate.user.id ?? null,
+      });
+      if (error) return dbError("create gift", error, adminEmail, userId);
+      log(adminEmail, `gifted ${kind} to ${userId} (pending claim)`);
+      const label =
+        kind === "pro_month"
+          ? "a free month of Pro"
+          : kind === "companion"
+            ? "a free companion"
+            : kind === "message_pack"
+              ? "a +100 message pack"
+              : kind === "image_pack"
+                ? "a +12 image pack"
+                : "a free inherit credit";
+      return NextResponse.json({
+        ok: true,
+        message: `Gift created: ${label}. They'll see it next time they open the app, press OK, and it lands.`,
       });
     }
 

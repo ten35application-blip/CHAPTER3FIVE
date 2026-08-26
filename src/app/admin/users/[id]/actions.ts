@@ -350,3 +350,49 @@ export async function grantExtraInheritedSlotAction(
       : `Inherited slot credit granted.`,
   };
 }
+
+
+/** Create a pending GIFT (Wilson 2026-08-26): unlike the instant
+ *  grants, a gift waits for the user's next open — they get the
+ *  branded "the team has given you…" moment and the OK is what
+ *  applies it (POST /api/gifts/claim). */
+export async function giftAction(
+  userId: string,
+  kind:
+    | "pro_month"
+    | "companion"
+    | "message_pack"
+    | "image_pack"
+    | "inherit_credit",
+): Promise<ActionResult> {
+  const admin = await requireAdmin();
+  const service = createAdminClient();
+  const { error } = await service.from("admin_gifts").insert({
+    user_id: userId,
+    kind,
+    created_by: admin.id,
+  });
+  if (error) return { ok: false, message: `Failed: ${error.message}` };
+  await recordAudit({
+    actorUserId: admin.id,
+    actorEmail: admin.email ?? null,
+    action: "admin_created_gift",
+    targetUserId: userId,
+    details: { kind },
+  });
+  revalidatePath(`/admin/users/${userId}`);
+  const label =
+    kind === "pro_month"
+      ? "a free month of Pro"
+      : kind === "companion"
+        ? "a free companion"
+        : kind === "message_pack"
+          ? "a +100 message pack"
+          : kind === "image_pack"
+            ? "a +12 image pack"
+            : "a free inherit credit";
+  return {
+    ok: true,
+    message: `Gift created: ${label}. They'll see it next time they open the app, press OK, and it lands.`,
+  };
+}
