@@ -125,7 +125,7 @@ export default async function AdminRevenuePage({
 
       <section className="flex flex-col gap-3">
         <h2 className="text-sm font-semibold uppercase tracking-wider text-warm-300">
-          Daily revenue · last 30 days
+          Last 30 days — what the app made each day
         </h2>
         <div className="rounded-2xl bg-ink-soft px-5 pb-3 pt-6 ring-1 ring-warm-700">
           <div className="flex h-40 items-end gap-[3px]">
@@ -345,8 +345,10 @@ function MonthBreakdownCard({
             </p>
           ) : null}
           <p className="mt-2 text-xs leading-relaxed text-warm-400">
-            Estimates, not tax advice — the {pct}% reserve is the working
-            guess until Pedro confirms the real rate with the filings.
+            The {pct}% reserve is built from the real pieces: PA&apos;s flat
+            3.07% + Bethlehem&apos;s 1% local (which taxes LLC net profits) +
+            ~14% self-employment + a federal share that grows with income.
+            Still an estimate, not tax advice — Pedro true-ups at filing.
           </p>
         </div>
       </div>
