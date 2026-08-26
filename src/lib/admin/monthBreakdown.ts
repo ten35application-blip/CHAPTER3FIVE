@@ -304,11 +304,21 @@ export async function fetchMonthBreakdown(
  * anywhere. */
 export function normalizeMonthParam(raw: string | null | undefined): string {
   if (raw && /^\d{4}-(0[1-9]|1[0-2])$/.test(raw)) return raw;
-  const now = new Date();
-  const d =
-    now.getDate() >= 27
-      ? now
-      : new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  // Wilson's clock, not the server's: the roll to the fresh month
+  // happens at midnight into the 27th EASTERN, so a 3-4am check on
+  // the 27th always shows the new month (Vercel runs UTC, which would
+  // have flipped at 8pm ET on the 26th).
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const get = (t: string) => +(parts.find((p) => p.type === t)?.value ?? "0");
+  const y = get("year");
+  const mo = get("month");
+  const day = get("day");
+  const d = day >= 27 ? new Date(y, mo - 1, 1) : new Date(y, mo - 2, 1);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 

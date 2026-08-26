@@ -41,3 +41,69 @@ export async function exportPaymentsCsv(): Promise<CsvExport> {
     csv: [header, ...lines].join("\n"),
   };
 }
+
+
+/** The month-by-month settlement ledger (Wilson 2026-08-26): every
+ *  month since launch on one row each — in, kept, costs, profit,
+ *  reserve, per-partner transfers/savings/spendable. Same shared
+ *  formula as the Revenue cards. */
+export async function exportSettlementsCsv(): Promise<{
+  filename: string;
+  csv: string;
+}> {
+  await requireAdmin();
+  const supabase = createAdminClient();
+  const { fetchMonthBreakdown, prevMonth, normalizeMonthParam } =
+    await import("@/lib/admin/monthBreakdown");
+
+  const months: string[] = [];
+  let m = normalizeMonthParam(null);
+  while (m >= "2026-08" && months.length < 120) {
+    months.push(m);
+    m = prevMonth(m);
+  }
+  months.reverse();
+
+  const usd = (c: number) => (c / 100).toFixed(2);
+  const rows = [
+    "Month,Customers paid,Store cut (est),Stripe cut (est),Reached the bank,Fixed bills,Anthropic (actual),Replicate (est),Total costs,Profit,Tax reserve,Pedro transfer,Danisel transfer,Each to tax savings,Each spendable,Stays for bills,Refunded",
+  ];
+  for (const month of months) {
+    const b = await fetchMonthBreakdown(supabase, month);
+    const fixedCents = b.expenses
+      .filter(
+        (e) =>
+          !e.name.startsWith("Anthropic") && !e.name.startsWith("Replicate"),
+      )
+      .reduce((a, e) => a + e.cents, 0);
+    const anthropic =
+      b.expenses.find((e) => e.name.startsWith("Anthropic"))?.cents ?? 0;
+    const replicate =
+      b.expenses.find((e) => e.name.startsWith("Replicate"))?.cents ?? 0;
+    rows.push(
+      [
+        b.monthLabel.replaceAll(",", ""),
+        usd(b.grossCents),
+        usd(b.storeCommissionCents),
+        usd(b.webProcessingCents),
+        usd(b.netReceiptsCents),
+        usd(fixedCents),
+        usd(anthropic),
+        usd(replicate),
+        usd(b.totalExpensesCents),
+        usd(b.profitCents),
+        usd(b.taxReserveCents),
+        usd(b.transferPerPartnerCents),
+        usd(b.transferPerPartnerCents),
+        usd(b.taxSavingsPerPartnerCents),
+        usd(b.perPartnerCents),
+        usd(b.keepInAccountCents),
+        usd(b.refundedCents),
+      ].join(","),
+    );
+  }
+  return {
+    filename: "chapter3five-months-settled.csv",
+    csv: rows.join("\n") + "\n",
+  };
+}

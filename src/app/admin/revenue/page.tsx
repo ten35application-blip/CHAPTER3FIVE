@@ -44,6 +44,9 @@ export default async function AdminRevenuePage({
   if (payments.length === 0) {
     return (
       <div className="flex max-w-3xl flex-col gap-8">
+        <div className="flex justify-end">
+          <ExportCsvButton kind="settlements" />
+        </div>
         <div className="rounded-2xl bg-ink-soft px-6 py-8 text-center ring-1 ring-warm-700">
           <p className="text-xl font-semibold tracking-tight text-warm-50">
             No payments yet
@@ -112,7 +115,10 @@ export default async function AdminRevenuePage({
             feed the month breakdown below
           </p>
         </div>
-        <ExportCsvButton />
+        <div className="flex gap-2">
+          <ExportCsvButton kind="settlements" />
+          <ExportCsvButton />
+        </div>
       </header>
 
       {example ? <MonthBreakdownCard b={example} example /> : null}
