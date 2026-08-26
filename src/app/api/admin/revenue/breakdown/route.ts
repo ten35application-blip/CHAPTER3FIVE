@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/api/adminAuth";
 import {
+  fetchExampleBreakdown,
   fetchMonthBreakdown,
   normalizeMonthParam,
 } from "@/lib/admin/monthBreakdown";
@@ -22,5 +23,12 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const month = normalizeMonthParam(url.searchParams.get("month"));
   const breakdown = await fetchMonthBreakdown(gate.admin, month);
-  return NextResponse.json(breakdown);
+  // Empty month → teach the formula with a clearly-labeled EXAMPLE
+  // built from the LIVE rates and fixed costs, so the first real
+  // month reads exactly like the rehearsal did.
+  const example =
+    breakdown.grossCents === 0
+      ? await fetchExampleBreakdown(gate.admin)
+      : null;
+  return NextResponse.json({ ...breakdown, example });
 }

@@ -56,6 +56,138 @@ export type MonthBreakdown = {
   refundedCents: number; // informational
 };
 
+/**
+ * THE EXAMPLE MONTH (Wilson 2026-08-26): until real payments exist,
+ * the empty revenue screen teaches the formula with made-up revenue —
+ * clearly labeled EXAMPLE — run through the SAME math and the REAL
+ * configured rates/costs, so the day money arrives, the page looks
+ * exactly like the example did. Sample story: $1,000 month — $650
+ * through the stores, $350 through the site.
+ */
+export function exampleMonthBreakdown(settings: {
+  tax_reserve_rate: number;
+  store_commission_rate: number;
+  web_processing_rate: number;
+  partner_a: string;
+  partner_b: string;
+  fixed_monthly_costs: { name: string; cents: number }[];
+}): MonthBreakdown {
+  return computeBreakdown({
+    month: "0000-00",
+    monthLabel: "Example month",
+    grossWebCents: 35000,
+    grossStoreCents: 65000,
+    anthropicCents: 2600, // ~what a month of chatting costs at this scale
+    replicateCents: 200, // ~50 faces
+    refundedCents: 0,
+    settings,
+  });
+}
+
+/** The one place the formula lives — the real month and the example
+ *  both flow through here, so they can never disagree. */
+function computeBreakdown(inputs: {
+  month: string;
+  monthLabel: string;
+  grossWebCents: number;
+  grossStoreCents: number;
+  anthropicCents: number;
+  replicateCents: number;
+  refundedCents: number;
+  settings: {
+    tax_reserve_rate: number;
+    store_commission_rate: number;
+    web_processing_rate: number;
+    partner_a: string;
+    partner_b: string;
+    fixed_monthly_costs: { name: string; cents: number }[];
+  };
+}): MonthBreakdown {
+  const { settings } = inputs;
+  const grossCents = inputs.grossWebCents + inputs.grossStoreCents;
+  const storeCommissionCents = Math.round(
+    inputs.grossStoreCents * Number(settings.store_commission_rate),
+  );
+  const webProcessingCents = Math.round(
+    inputs.grossWebCents * Number(settings.web_processing_rate),
+  );
+  const netReceiptsCents = grossCents - storeCommissionCents - webProcessingCents;
+
+  const fixed = (settings.fixed_monthly_costs ?? []).map((f) => ({
+    name: f.name,
+    cents: f.cents,
+    estimated: false,
+  }));
+  const expenses = [
+    ...fixed,
+    {
+      name: "Anthropic (actual, per message)",
+      cents: inputs.anthropicCents,
+      estimated: false,
+    },
+    {
+      name: "Replicate (faces, estimated)",
+      cents: inputs.replicateCents,
+      estimated: true,
+    },
+  ];
+  const totalExpensesCents = expenses.reduce((a, e) => a + e.cents, 0);
+  const profitCents = netReceiptsCents - totalExpensesCents;
+  const taxReserveRate = Number(settings.tax_reserve_rate);
+  const taxReserveCents =
+    profitCents > 0 ? Math.round(profitCents * taxReserveRate) : 0;
+  const distributableCents = profitCents > 0 ? profitCents - taxReserveCents : 0;
+  const perPartnerCents = Math.floor(distributableCents / 2);
+  const fixedTotal = fixed.reduce((a, f) => a + f.cents, 0);
+
+  return {
+    month: inputs.month,
+    monthLabel: inputs.monthLabel,
+    grossWebCents: inputs.grossWebCents,
+    grossStoreCents: inputs.grossStoreCents,
+    grossCents,
+    storeCommissionCents,
+    webProcessingCents,
+    netReceiptsCents,
+    webNetCents: inputs.grossWebCents - webProcessingCents,
+    storeNetCents: inputs.grossStoreCents - storeCommissionCents,
+    expenses,
+    totalExpensesCents,
+    profitCents,
+    taxReserveRate,
+    taxReserveCents,
+    distributableCents,
+    perPartnerCents,
+    partnerA: settings.partner_a ?? "Danisel",
+    partnerB: settings.partner_b ?? "Pedro",
+    keepInAccountCents: taxReserveCents + fixedTotal,
+    refundedCents: inputs.refundedCents,
+  };
+}
+
+/** Example with the LIVE settings (rates + fixed costs) applied. */
+export async function fetchExampleBreakdown(
+  supabase: SupabaseClient,
+): Promise<MonthBreakdown> {
+  const { data } = await supabase
+    .from("business_settings")
+    .select(
+      "tax_reserve_rate, store_commission_rate, web_processing_rate, partner_a, partner_b, fixed_monthly_costs",
+    )
+    .eq("id", true)
+    .maybeSingle();
+  return exampleMonthBreakdown(
+    (data ?? {
+      tax_reserve_rate: 0.32,
+      store_commission_rate: 0.15,
+      web_processing_rate: 0.032,
+      partner_a: "Danisel",
+      partner_b: "Pedro",
+      fixed_monthly_costs: [],
+    }) as Parameters<typeof exampleMonthBreakdown>[0],
+  );
+}
+
 export async function fetchMonthBreakdown(
   supabase: SupabaseClient,
   month: string, // "YYYY-MM"

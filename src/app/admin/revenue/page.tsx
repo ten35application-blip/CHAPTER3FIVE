@@ -9,6 +9,7 @@ import {
   sumCents,
 } from "@/lib/admin/queries";
 import {
+  fetchExampleBreakdown,
   fetchMonthBreakdown,
   nextMonth,
   normalizeMonthParam,
@@ -37,21 +38,23 @@ export default async function AdminRevenuePage({
     fetchPaidPayments(supabase),
     fetchMonthBreakdown(supabase, month),
   ]);
+  const example =
+    breakdown.grossCents === 0 ? await fetchExampleBreakdown(supabase) : null;
 
   if (payments.length === 0) {
     return (
       <div className="flex max-w-3xl flex-col gap-8">
-        <MonthBreakdownCard b={breakdown} />
         <div className="rounded-2xl bg-ink-soft px-6 py-8 text-center ring-1 ring-warm-700">
           <p className="text-xl font-semibold tracking-tight text-warm-50">
-            No web payments yet
+            No payments yet
           </p>
           <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-warm-300">
             Stripe and both app stores are wired and listening — the first
-            real sale lands here (and in the month breakdown above) the
-            moment it happens.
+            real sale fills in the breakdown below, using exactly the
+            formula shown in the example.
           </p>
         </div>
+        {example ? <MonthBreakdownCard b={example} example /> : null}
       </div>
     );
   }
@@ -111,7 +114,11 @@ export default async function AdminRevenuePage({
         <ExportCsvButton />
       </header>
 
-      <MonthBreakdownCard b={breakdown} />
+      {example ? (
+        <MonthBreakdownCard b={example} example />
+      ) : (
+        <MonthBreakdownCard b={breakdown} />
+      )}
 
       <section className="flex flex-col gap-1 rounded-3xl bg-ink-soft px-8 py-8 ring-1 ring-warm-700">
         <p className="text-xs font-semibold uppercase tracking-wider text-warm-400">
@@ -211,32 +218,57 @@ function BreakdownRow({
  * store commission / Stripe fees / Replicate / the tax rate are
  * labeled estimates, and Anthropic is the real ledger number.
  */
-function MonthBreakdownCard({ b }: { b: MonthBreakdown }) {
+function MonthBreakdownCard({
+  b,
+  example = false,
+}: {
+  b: MonthBreakdown;
+  example?: boolean;
+}) {
   const pct = Math.round(b.taxReserveRate * 100);
   return (
     <section className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-warm-300">
+        <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-warm-300">
           The month, settled
+          {example ? (
+            <span className="rounded-full bg-coral/15 px-2.5 py-0.5 text-[10px] font-bold tracking-widest text-coral-strong ring-1 ring-coral/30">
+              EXAMPLE
+            </span>
+          ) : null}
         </h2>
         <div className="flex items-center gap-3 text-sm">
-          <Link
-            href={`/admin/revenue?month=${prevMonth(b.month)}`}
-            className="font-semibold text-coral-strong hover:text-coral"
-          >
-            ‹
-          </Link>
-          <span className="font-semibold text-warm-50">{b.monthLabel}</span>
-          <Link
-            href={`/admin/revenue?month=${nextMonth(b.month)}`}
-            className="font-semibold text-coral-strong hover:text-coral"
-          >
-            ›
-          </Link>
+          {example ? (
+            <span className="font-semibold text-warm-50">{b.monthLabel}</span>
+          ) : (
+            <>
+              <Link
+                href={`/admin/revenue?month=${prevMonth(b.month)}`}
+                className="font-semibold text-coral-strong hover:text-coral"
+              >
+                ‹
+              </Link>
+              <span className="font-semibold text-warm-50">{b.monthLabel}</span>
+              <Link
+                href={`/admin/revenue?month=${nextMonth(b.month)}`}
+                className="font-semibold text-coral-strong hover:text-coral"
+              >
+                ›
+              </Link>
+            </>
+          )}
         </div>
       </div>
 
       <div className="overflow-hidden rounded-2xl bg-ink-soft ring-1 ring-warm-700">
+        {example ? (
+          <p className="border-b border-warm-700/60 bg-ink px-5 py-3 text-xs leading-relaxed text-warm-400">
+            Made-up revenue ($1,000 month: $650 through the stores, $350
+            through the site) run through the REAL formula with your real
+            rates and bills — so the first real month reads exactly like
+            this rehearsal.
+          </p>
+        ) : null}
         <div className="flex flex-col gap-1 px-5 py-4 text-sm">
           <BRow label="Customers paid" value={formatUsd(b.grossCents)} strong />
           <BRow
