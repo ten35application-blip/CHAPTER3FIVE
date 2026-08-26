@@ -345,10 +345,12 @@ function MonthBreakdownCard({
             </p>
           ) : null}
           <p className="mt-2 text-xs leading-relaxed text-warm-400">
-            The {pct}% reserve is built from the real pieces: PA&apos;s flat
-            3.07% + Bethlehem&apos;s 1% local (which taxes LLC net profits) +
-            ~14% self-employment + a federal share that grows with income.
-            Still an estimate, not tax advice — Pedro true-ups at filing.
+            The {pct}% is computed fresh each month from the real
+            components: PA&apos;s flat 3.07% + Bethlehem&apos;s 1% local on
+            LLC profits + self-employment (with its wage-base cap) + the
+            actual federal brackets on each annualized share — bigger
+            months reserve at higher rates, exactly like the real bill.
+            An estimate, not tax advice.
           </p>
         </div>
       </div>

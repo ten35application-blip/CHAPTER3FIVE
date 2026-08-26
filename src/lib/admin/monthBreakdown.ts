@@ -93,6 +93,30 @@ export function exampleMonthBreakdown(settings: {
   });
 }
 
+/** 2026-ish federal brackets (single filer, annual dollars) — the
+ *  progressive stack applied to the annualized profit share. Bracket
+ *  edges drift yearly; close is honest for a reserve. */
+function federalAnnualTaxDollars(taxable: number): number {
+  const brackets: [number, number][] = [
+    [11925, 0.1],
+    [48475, 0.12],
+    [103350, 0.22],
+    [197300, 0.24],
+    [250525, 0.32],
+    [626350, 0.35],
+    [Infinity, 0.37],
+  ];
+  let tax = 0;
+  let prev = 0;
+  for (const [edge, rate] of brackets) {
+    if (taxable <= prev) break;
+    const slice = Math.min(taxable, edge) - prev;
+    tax += slice * rate;
+    prev = edge;
+  }
+  return tax;
+}
+
 /** The one place the formula lives — the real month and the example
  *  both flow through here, so they can never disagree. */
 function computeBreakdown(inputs: {
@@ -143,9 +167,42 @@ function computeBreakdown(inputs: {
   ];
   const totalExpensesCents = expenses.reduce((a, e) => a + e.cents, 0);
   const profitCents = netReceiptsCents - totalExpensesCents;
-  const taxReserveRate = Number(settings.tax_reserve_rate);
-  const taxReserveCents =
-    profitCents > 0 ? Math.round(profitCents * taxReserveRate) : 0;
+  // THE COMPUTED TAX RESERVE (Wilson 2026-08-26: "implement the
+  // correct percentage into the formula"). Not a flat guess — built
+  // from the verified components for a Bethlehem PA resident's LLC
+  // profit share:
+  //   PA flat income tax          3.07%
+  //   Bethlehem local EIT         1.00% (taxes residents' net profits)
+  //   Self-employment             15.3% on 92.35% of the share
+  //   Federal                     the real progressive brackets,
+  //                               applied to the ANNUALIZED share
+  //                               (minus the deductible half of SE) —
+  //                               a big month reserves at a higher
+  //                               rate, exactly like April will.
+  // Deliberately conservative: no standard deduction assumed (other
+  // income likely consumes it). Still an estimate — brackets shift
+  // yearly and personal situations differ — but it now moves with the
+  // money the way the real bill does.
+  const shareCents = profitCents > 0 ? profitCents / 2 : 0;
+  // Self-employment, done properly: 12.4% Social Security only up to
+  // the annual wage base (~$176k), 2.9% Medicare uncapped (+0.9%
+  // additional past $200k) — computed on the ANNUALIZED share so big
+  // months don't over-reserve the capped piece.
+  const seBaseAnnualDollars = (shareCents * 0.9235 * 12) / 100;
+  const ssAnnual = Math.min(seBaseAnnualDollars, 176100) * 0.124;
+  const medicareAnnual =
+    seBaseAnnualDollars * 0.029 +
+    Math.max(0, seBaseAnnualDollars - 200000) * 0.009;
+  const seCents = ((ssAnnual + medicareAnnual) * 100) / 12;
+  const paCents = shareCents * 0.0307;
+  const localCents = shareCents * 0.01;
+  const annualTaxable = Math.max(0, (shareCents - seCents / 2) * 12) / 100; // dollars
+  const fedAnnual = federalAnnualTaxDollars(annualTaxable);
+  const fedCents = (fedAnnual * 100) / 12;
+  const taxSavePerPartner = Math.round(seCents + paCents + localCents + fedCents);
+  const taxReserveCents = profitCents > 0 ? taxSavePerPartner * 2 : 0;
+  const taxReserveRate =
+    shareCents > 0 ? taxSavePerPartner / shareCents : Number(settings.tax_reserve_rate);
   const fixedTotal = fixed.reduce((a, f) => a + f.cents, 0);
   // Wilson's holdback rule (2026-08-26): before ANY split, the
   // account keeps its own survival money — next month's bills plus a
@@ -168,8 +225,7 @@ function computeBreakdown(inputs: {
   // the savings line is (profit/2) × rate regardless of what was
   // withheld — the honest number for year-end.
   const transferPerPartnerCents = Math.floor(distributableCents / 2);
-  const taxSavingsPerPartnerCents =
-    profitCents > 0 ? Math.round((profitCents / 2) * taxReserveRate) : 0;
+  const taxSavingsPerPartnerCents = profitCents > 0 ? taxSavePerPartner : 0;
   const perPartnerCents = Math.max(
     0,
     transferPerPartnerCents - taxSavingsPerPartnerCents,
