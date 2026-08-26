@@ -49,7 +49,7 @@ export default async function AdminRevenuePage({
             href="/admin/revenue/statement"
             className="rounded-full bg-teal/10 px-4 py-2 text-sm font-semibold text-teal-strong ring-1 ring-teal/25 transition-colors hover:bg-teal/15"
           >
-            Accountant statement
+            Statement
           </Link>
         </div>
         <div className="rounded-2xl bg-ink-soft px-6 py-8 text-center ring-1 ring-warm-700">
@@ -137,7 +137,7 @@ export default async function AdminRevenuePage({
             href={`/admin/revenue/statement?months=${month}`}
             className="rounded-full bg-teal/10 px-4 py-2 text-sm font-semibold text-teal-strong ring-1 ring-teal/25 transition-colors hover:bg-teal/15"
           >
-            Accountant statement
+            Statement
           </Link>
           <ExportCsvButton />
         </div>
