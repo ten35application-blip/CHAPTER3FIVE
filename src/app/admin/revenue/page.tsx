@@ -356,8 +356,8 @@ function MonthBreakdownCard({
                 — next month&apos;s bills, a safety cushion, both tax
                 envelopes ({formatUsd(b.taxSavingsPerPartnerCents)} for{" "}
                 {b.partnerA} + {formatUsd(b.taxSavingsPerPartnerCents)} for{" "}
-                {b.partnerB}), and the after-the-27th money. Nobody spends
-                this.
+                {b.partnerB}), and the after-the-27th money (compounding for future endeavors).
+                Nobody spends this.
               </p>
             </>
           ) : (
