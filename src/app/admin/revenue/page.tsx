@@ -57,7 +57,20 @@ export default async function AdminRevenuePage({
             formula shown in the example.
           </p>
         </div>
-        {example ? <MonthBreakdownCard b={example} example /> : null}
+        {example ? (
+        <details className="group">
+          <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-semibold uppercase tracking-wider text-warm-300 [&::-webkit-details-marker]:hidden">
+            <span className="inline-block transition-transform group-open:rotate-90">›</span>
+            Example — how a month reads
+            <span className="rounded-full bg-coral/15 px-2.5 py-0.5 text-[10px] font-bold tracking-widest text-coral-strong ring-1 ring-coral/30">
+              EXAMPLE
+            </span>
+          </summary>
+          <div className="mt-3">
+            <MonthBreakdownCard b={example} example />
+          </div>
+        </details>
+        ) : null}
         <MonthBreakdownCard b={breakdown} />
       </div>
     );
@@ -120,7 +133,20 @@ export default async function AdminRevenuePage({
         </div>
       </header>
 
-      {example ? <MonthBreakdownCard b={example} example /> : null}
+      {example ? (
+        <details className="group">
+          <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-semibold uppercase tracking-wider text-warm-300 [&::-webkit-details-marker]:hidden">
+            <span className="inline-block transition-transform group-open:rotate-90">›</span>
+            Example — how a month reads
+            <span className="rounded-full bg-coral/15 px-2.5 py-0.5 text-[10px] font-bold tracking-widest text-coral-strong ring-1 ring-coral/30">
+              EXAMPLE
+            </span>
+          </summary>
+          <div className="mt-3">
+            <MonthBreakdownCard b={example} example />
+          </div>
+        </details>
+      ) : null}
       <MonthBreakdownCard b={breakdown} />
 
       <section className="flex flex-col gap-3">
@@ -327,8 +353,11 @@ function MonthBreakdownCard({
                 <span className="font-semibold text-warm-100">
                   {formatUsd(b.keepInAccountCents)}
                 </span>{" "}
-                — next month&apos;s bills, a safety cushion, both partners&apos;
-                tax money, and the after-the-27th money. Nobody spends this.
+                — next month&apos;s bills, a safety cushion, both tax
+                envelopes ({formatUsd(b.taxSavingsPerPartnerCents)} for{" "}
+                {b.partnerA} + {formatUsd(b.taxSavingsPerPartnerCents)} for{" "}
+                {b.partnerB}), and the after-the-27th money. Nobody spends
+                this.
               </p>
             </>
           ) : (
