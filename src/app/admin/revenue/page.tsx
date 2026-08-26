@@ -299,23 +299,28 @@ function MonthBreakdownCard({
         <div className="m-4 rounded-xl bg-ink px-4 py-4 text-sm leading-relaxed ring-1 ring-warm-700">
           {b.profitCents > 0 ? (
             <>
-              <p className="text-warm-50">
-                <span className="font-bold">
-                  Stays in the account: {formatUsd(b.keepInAccountCents)}
-                </span>{" "}
-                — {formatUsd(b.taxReserveCents)} tax reserve ({pct}%) +{" "}
-                {formatUsd(b.keepInAccountCents - b.taxReserveCents)} for next
-                month&apos;s bills.
+              <p className="font-bold text-teal-strong">
+                {b.partnerA} — transfer to bank account:{" "}
+                {formatUsd(b.transferPerPartnerCents)}
+              </p>
+              <p className="mt-1 font-bold text-teal-strong">
+                {b.partnerB} — transfer to bank account:{" "}
+                {formatUsd(b.transferPerPartnerCents)}
               </p>
               <p className="mt-2 text-warm-50">
-                <span className="font-bold text-teal-strong">
-                  {b.partnerA} can transfer {formatUsd(b.perPartnerCents)}
+                After the bank transfer: each sends{" "}
+                <span className="font-bold">
+                  {formatUsd(b.taxSavingsPerPartnerCents)}
                 </span>{" "}
-                ·{" "}
-                <span className="font-bold text-teal-strong">
-                  {b.partnerB} can transfer {formatUsd(b.perPartnerCents)}
+                to savings for taxes ({pct}%) — leaving{" "}
+                <span className="font-bold">
+                  {formatUsd(b.perPartnerCents)}
                 </span>{" "}
-                — taxes already held back, theirs to spend.
+                each to spend.
+              </p>
+              <p className="mt-2 text-warm-300">
+                Stays in the business account:{" "}
+                {formatUsd(b.keepInAccountCents)} for next month&apos;s bills.
               </p>
             </>
           ) : (

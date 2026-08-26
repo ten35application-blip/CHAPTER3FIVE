@@ -50,9 +50,14 @@ export type MonthBreakdown = {
   taxReserveCents: number; // 0 when profit <= 0
   distributableCents: number;
   perPartnerCents: number;
+  /** Each partner's FULL transfer out (their half of profit) — the
+   *  tax share travels with it and goes to their personal savings. */
+  transferPerPartnerCents: number;
+  /** Of that transfer, what each sends to savings for taxes. */
+  taxSavingsPerPartnerCents: number;
   partnerA: string;
   partnerB: string;
-  keepInAccountCents: number; // tax reserve + next month's fixed bills
+  keepInAccountCents: number; // next month's fixed bills (reserve travels with the transfers)
   refundedCents: number; // informational
 };
 
@@ -138,6 +143,13 @@ function computeBreakdown(inputs: {
     profitCents > 0 ? Math.round(profitCents * taxReserveRate) : 0;
   const distributableCents = profitCents > 0 ? profitCents - taxReserveCents : 0;
   const perPartnerCents = Math.floor(distributableCents / 2);
+  // Wilson's split model (2026-08-26): each partner transfers their
+  // FULL half of profit to their own bank, THEN moves the tax share
+  // into personal savings — so the transfer line is profit/2 and the
+  // savings line rides with it. Rounding: spendable floors, the tax
+  // share absorbs the odd cents.
+  const transferPerPartnerCents = profitCents > 0 ? Math.floor(profitCents / 2) : 0;
+  const taxSavingsPerPartnerCents = transferPerPartnerCents - perPartnerCents;
   const fixedTotal = fixed.reduce((a, f) => a + f.cents, 0);
 
   return {
@@ -158,9 +170,11 @@ function computeBreakdown(inputs: {
     taxReserveCents,
     distributableCents,
     perPartnerCents,
+    transferPerPartnerCents,
+    taxSavingsPerPartnerCents,
     partnerA: settings.partner_a ?? "Danisel",
     partnerB: settings.partner_b ?? "Pedro",
-    keepInAccountCents: taxReserveCents + fixedTotal,
+    keepInAccountCents: fixedTotal,
     refundedCents: inputs.refundedCents,
   };
 }
@@ -255,16 +269,6 @@ export async function fetchMonthBreakdown(
     .reduce((a, r) => a + r.amount_cents, 0);
   const grossStoreCents = storeEarned.reduce((a, r) => a + r.amount_cents, 0);
 
-  const grossCents = grossWebCents + grossStoreCents;
-  const storeCommissionCents = Math.round(
-    grossStoreCents * Number(settings.store_commission_rate),
-  );
-  const webProcessingCents = Math.round(
-    grossWebCents * Number(settings.web_processing_rate),
-  );
-  const netReceiptsCents =
-    grossCents - storeCommissionCents - webProcessingCents;
-
   // Real Anthropic spend for the month, straight from the ledger.
   const anthropicCents = (spendRows.data ?? []).reduce(
     (a, r) => a + (r.cents ?? 0),
@@ -274,28 +278,9 @@ export async function fetchMonthBreakdown(
   // is the honest proxy until per-call logging exists.
   const replicateCents = (oracleCount.count ?? 0) * 4;
 
-  const fixed = (
-    (settings.fixed_monthly_costs ?? []) as { name: string; cents: number }[]
-  ).map((f) => ({ name: f.name, cents: f.cents, estimated: false }));
-  const expenses = [
-    ...fixed,
-    { name: "Anthropic (actual, per message)", cents: anthropicCents, estimated: false },
-    { name: "Replicate (faces, estimated)", cents: replicateCents, estimated: true },
-  ];
-  const totalExpensesCents = expenses.reduce((a, e) => a + e.cents, 0);
-
-  const profitCents = netReceiptsCents - totalExpensesCents;
-  const taxReserveRate = Number(settings.tax_reserve_rate);
-  const taxReserveCents =
-    profitCents > 0 ? Math.round(profitCents * taxReserveRate) : 0;
-  const distributableCents = profitCents > 0 ? profitCents - taxReserveCents : 0;
-  // Odd cent goes to the reserve, never invented: split floors.
-  const perPartnerCents = Math.floor(distributableCents / 2);
-
-  const fixedTotal = fixed.reduce((a, f) => a + f.cents, 0);
-  const keepInAccountCents = taxReserveCents + fixedTotal;
-
-  return {
+  // ONE formula (computeBreakdown) — the real month and the example
+  // can never disagree.
+  return computeBreakdown({
     month,
     monthLabel: start.toLocaleDateString("en-US", {
       month: "long",
@@ -303,24 +288,11 @@ export async function fetchMonthBreakdown(
     }),
     grossWebCents,
     grossStoreCents,
-    grossCents,
-    storeCommissionCents,
-    webProcessingCents,
-    netReceiptsCents,
-    webNetCents: grossWebCents - webProcessingCents,
-    storeNetCents: grossStoreCents - storeCommissionCents,
-    expenses,
-    totalExpensesCents,
-    profitCents,
-    taxReserveRate,
-    taxReserveCents,
-    distributableCents,
-    perPartnerCents,
-    partnerA: settings.partner_a ?? "Danisel",
-    partnerB: settings.partner_b ?? "Pedro",
-    keepInAccountCents,
+    anthropicCents,
+    replicateCents,
     refundedCents: refundedWeb + refundedStore,
-  };
+    settings: settings as Parameters<typeof exampleMonthBreakdown>[0],
+  });
 }
 
 /** "2026-08" for now (or a validated ?month= param). */
