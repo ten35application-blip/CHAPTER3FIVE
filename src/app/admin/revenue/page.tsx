@@ -311,24 +311,14 @@ function MonthBreakdownCard({
                     💵 Money to their bank:{" "}
                     <span className="font-bold">
                       {formatUsd(b.transferPerPartnerCents)}
-                    </span>
-                  </p>
-                  <p className="mt-0.5 text-warm-50">
-                    🏦 Put in savings for taxes:{" "}
-                    <span className="font-bold">
-                      {formatUsd(b.taxSavingsPerPartnerCents)}
                     </span>{" "}
-                    <span className="text-warm-400">
-                      — {pct}% of their own half only (
-                      {formatUsd(b.profitShareCents)}) — never of the whole,
-                      never twice. They file alone.
-                    </span>
+                    <span className="text-warm-400">— all theirs to spend</span>
                   </p>
-                  <p className="mt-0.5 text-warm-50">
-                    🎉 Free to spend:{" "}
-                    <span className="font-bold">
-                      {formatUsd(b.perPartnerCents)}
-                    </span>
+                  <p className="mt-0.5 text-xs leading-relaxed text-warm-400">
+                    🏦 Their tax money ({formatUsd(b.taxSavingsPerPartnerCents)},
+                    on their own half of {formatUsd(b.profitShareCents)}) is
+                    already held by the business — paid to the IRS at
+                    quarterly time. Taxed once, never twice; they file alone.
                   </p>
                 </div>
               ))}
@@ -337,8 +327,8 @@ function MonthBreakdownCard({
                 <span className="font-semibold text-warm-100">
                   {formatUsd(b.keepInAccountCents)}
                 </span>{" "}
-                — next month&apos;s bills, a safety cushion, and the
-                after-the-27th money. Nobody spends this.
+                — next month&apos;s bills, a safety cushion, both partners&apos;
+                tax money, and the after-the-27th money. Nobody spends this.
               </p>
             </>
           ) : (

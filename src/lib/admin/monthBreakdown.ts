@@ -254,7 +254,17 @@ function computeBreakdown(inputs: {
   // hires, usage spikes, whatever growth demands). Its TAXES are
   // still reserved (pass-through taxes all profit, withdrawn or not).
   const retainedTailCents = Math.max(0, Math.round(inputs.retainedTailCents ?? 0));
-  const holdbackCents = fixedTotal + cushionCents + Math.min(retainedTailCents, Math.max(0, profitCents));
+  // THE TAX-DISTRIBUTION MODEL (Wilson 2026-08-26, final): the
+  // BUSINESS holds each partner's tax money (standard partnership
+  // practice — paid out at quarterly estimated-tax time), so what
+  // reaches a partner's bank is 100% spendable. Nobody does savings
+  // homework; nothing is ever taxed twice — the LLC→bank move is not
+  // a taxable event at all.
+  const holdbackCents =
+    fixedTotal +
+    cushionCents +
+    Math.min(retainedTailCents, Math.max(0, profitCents)) +
+    taxReserveCents;
   const distributableCents =
     profitCents > holdbackCents ? profitCents - holdbackCents : 0;
   // Each partner transfers their half of the after-holdback pool.
@@ -262,11 +272,10 @@ function computeBreakdown(inputs: {
   // the savings line is (profit/2) × rate regardless of what was
   // withheld — the honest number for year-end.
   const transferPerPartnerCents = Math.floor(distributableCents / 2);
+  // Tax money is held by the BUSINESS (see above) — the transfer IS
+  // the spendable amount, whole.
   const taxSavingsPerPartnerCents = profitCents > 0 ? taxSavePerPartner : 0;
-  const perPartnerCents = Math.max(
-    0,
-    transferPerPartnerCents - taxSavingsPerPartnerCents,
-  );
+  const perPartnerCents = transferPerPartnerCents;
 
   return {
     month: inputs.month,
