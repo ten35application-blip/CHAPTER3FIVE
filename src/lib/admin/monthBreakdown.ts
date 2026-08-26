@@ -149,7 +149,14 @@ function computeBreakdown(inputs: {
   // 50% growth cushion, so a soft month or a growth spurt never
   // catches the account empty. Only what's left after the holdback
   // gets split.
-  const cushionCents = Math.round(fixedTotal * 0.5);
+  // Cushion = the BIGGER of 50% of bills (survival floor for lean
+  // months) or 10% of profit (great months bank real growth money).
+  // Both halves recompute monthly from live numbers — the cushion
+  // grows itself as the business does.
+  const cushionCents = Math.max(
+    Math.round(fixedTotal * 0.5),
+    profitCents > 0 ? Math.round(profitCents * 0.1) : 0,
+  );
   const holdbackCents = fixedTotal + cushionCents;
   const distributableCents =
     profitCents > holdbackCents ? profitCents - holdbackCents : 0;
