@@ -47,12 +47,65 @@ export async function GET(request: NextRequest) {
   }
 
   // Claim a signup-promo slot if one is running. Server-only RPC.
+  // supabase-js returns errors IN-BAND — a try/catch alone would let a
+  // broken RPC grant nothing forever with zero logs (audit 2026-09-01).
+  const admin = createAdminClient();
   try {
-    await createAdminClient().rpc("claim_signup_promo", {
+    const { error: promoErr } = await admin.rpc("claim_signup_promo", {
       target_user_id: user.id,
     });
-  } catch {
-    /* no promo, quota gone, or already claimed — nothing to do */
+    if (promoErr) console.error("[gifts] claim_signup_promo failed:", promoErr);
+  } catch (err) {
+    console.error("[gifts] claim_signup_promo threw:", err);
+  }
+
+  // THE HEAL (audit 2026-09-01, born from a live 502 mid-mint): the
+  // companion pipeline can die between the claimed_at stamp and the
+  // reveal — deploy, timeout, Replicate slowness — and the user's gift
+  // would be silently lost, because every other heal path (adoptOrphan,
+  // the redeem stranded-pass) deliberately skips reward companions.
+  // This runs on the surface a gift recipient ALWAYS returns to.
+  try {
+    const cutoff = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    const { data: rewards } = await admin
+      .from("oracles")
+      .select("id, provisioning, persona_prompt, created_at")
+      .eq("user_id", user.id)
+      .eq("is_referral_reward", true)
+      .is("deleted_at", null);
+    for (const o of rewards ?? []) {
+      if (!o.provisioning || o.created_at >= cutoff) continue;
+      if (o.persona_prompt) {
+        // Persona exists — reveal it (a missing portrait is degraded,
+        // not lost; the face can be regenerated later).
+        await admin.from("oracles").update({ provisioning: false }).eq("id", o.id);
+      } else {
+        // Died before the persona — this row can never speak. Clear it
+        // so the re-offered gift can mint clean.
+        await admin.from("oracles").delete().eq("id", o.id);
+      }
+    }
+    // A claimed PROMO gift with NO reward companion at all = the mint
+    // died before the insert. Un-claim it so the moment re-offers.
+    const { count: liveRewards } = await admin
+      .from("oracles")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("is_referral_reward", true)
+      .is("deleted_at", null);
+    if ((liveRewards ?? 0) === 0) {
+      const { error: healErr } = await admin
+        .from("admin_gifts")
+        .update({ claimed_at: null })
+        .eq("user_id", user.id)
+        .eq("kind", "companion")
+        .not("promo_id", "is", null)
+        .not("claimed_at", "is", null)
+        .lt("claimed_at", cutoff);
+      if (healErr) console.error("[gifts] heal unclaim failed:", healErr);
+    }
+  } catch (err) {
+    console.error("[gifts] stranded-gift heal threw:", err);
   }
 
   const { data } = await supabase
