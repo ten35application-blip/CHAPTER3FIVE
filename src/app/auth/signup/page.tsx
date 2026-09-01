@@ -90,6 +90,32 @@ async function signUp(formData: FormData) {
 
   if (error) {
     const msg = error.message.toLowerCase();
+    // THE DOOR IS FULL, NOT BROKEN (Wilson 2026-09-01, before the
+    // Resend Pro upgrade lands). Every signup needs a confirmation
+    // email, so a rush can exhaust the hourly email allowance — and
+    // the generic "something went wrong" below reads as a broken app
+    // to someone who just decided to trust us. Name it honestly,
+    // promise a time, and tell them they haven't lost anything.
+    const rateLimited =
+      (error as { status?: number }).status === 429 ||
+      (error as { code?: string }).code === "over_email_send_rate_limit" ||
+      msg.includes("rate limit") ||
+      msg.includes("too many requests") ||
+      (msg.includes("only request this after") && msg.includes("security"));
+    if (rateLimited) {
+      // Supabase's per-user throttle says "after N seconds" — when it
+      // does, quote the real number instead of a guess.
+      const secs = Number(/after (\d+) seconds?/i.exec(error.message)?.[1] ?? 0);
+      const when =
+        secs > 0 && secs < 600
+          ? `about ${Math.max(1, Math.ceil(secs / 60))} minute${Math.ceil(secs / 60) === 1 ? "" : "s"}`
+          : "about an hour";
+      redirectWithError(
+        "/auth/signup",
+        `More people are joining than we can welcome at once. Come back in ${when} and you'll walk right in — you haven't lost your place.`,
+        error,
+      );
+    }
     if (msg.includes("registered") || msg.includes("already")) {
       redirectWithError(
         "/auth/signup",
