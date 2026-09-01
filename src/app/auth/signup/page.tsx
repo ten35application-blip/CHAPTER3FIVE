@@ -90,29 +90,35 @@ async function signUp(formData: FormData) {
 
   if (error) {
     const msg = error.message.toLowerCase();
-    // THE DOOR IS FULL, NOT BROKEN (Wilson 2026-09-01, before the
-    // Resend Pro upgrade lands). Every signup needs a confirmation
-    // email, so a rush can exhaust the hourly email allowance — and
-    // the generic "something went wrong" below reads as a broken app
-    // to someone who just decided to trust us. Name it honestly,
-    // promise a time, and tell them they haven't lost anything.
-    const rateLimited =
-      (error as { status?: number }).status === 429 ||
-      (error as { code?: string }).code === "over_email_send_rate_limit" ||
-      msg.includes("rate limit") ||
-      msg.includes("too many requests") ||
-      (msg.includes("only request this after") && msg.includes("security"));
-    if (rateLimited) {
-      // Supabase's per-user throttle says "after N seconds" — when it
-      // does, quote the real number instead of a guess.
-      const secs = Number(/after (\d+) seconds?/i.exec(error.message)?.[1] ?? 0);
-      const when =
-        secs > 0 && secs < 600
-          ? `about ${Math.max(1, Math.ceil(secs / 60))} minute${Math.ceil(secs / 60) === 1 ? "" : "s"}`
-          : "about an hour";
+    // TWO DIFFERENT WALLS, TWO DIFFERENT TRUTHS (Wilson 2026-09-01:
+    // "that message should ONLY fire when we capped").
+    //
+    //  A) PROJECT EMAIL CAP — we genuinely cannot send another
+    //     confirmation right now. Everyone is affected. Come back later.
+    //  B) PER-USER THROTTLE — THIS person clicked twice in a few
+    //     seconds. Nothing is full. Telling them we're at capacity
+    //     would be a lie, and the fix is to wait a moment, not an hour.
+    const status = (error as { status?: number }).status;
+    const code = (error as { code?: string }).code;
+    const throttleSecs = Number(
+      /only request this after (\d+) seconds?/i.exec(error.message)?.[1] ?? 0,
+    );
+    const userThrottled = throttleSecs > 0 || code === "over_request_rate_limit";
+    if (userThrottled) {
       redirectWithError(
         "/auth/signup",
-        `More people are joining than we can welcome at once. Come back in ${when} and you'll walk right in — you haven't lost your place.`,
+        `Almost — give it ${throttleSecs > 0 ? `${throttleSecs} seconds` : "a moment"} and press it once more.`,
+        error,
+      );
+    }
+    const emailCapped =
+      code === "over_email_send_rate_limit" ||
+      msg.includes("email rate limit") ||
+      (status === 429 && (msg.includes("email") || msg.includes("rate limit")));
+    if (emailCapped) {
+      redirectWithError(
+        "/auth/signup",
+        "More people are joining than we can welcome at once. Come back in about an hour and you'll walk right in — you haven't lost your place.",
         error,
       );
     }
