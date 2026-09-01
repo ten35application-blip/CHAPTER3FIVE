@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Image from "next/image";
 
 /**
  * THE GIFT MOMENT — web twin of the mobile dashboard's GiftMoment
@@ -64,6 +65,27 @@ export function GiftMoment() {
   const [claiming, setClaiming] = useState(false);
   const [doneText, setDoneText] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  // Companion claims genuinely take ~30s (persona + face are being
+  // MADE) — narrate the wait instead of a silent "Opening…".
+  const CREATING = [
+    "Creating your companion — this takes a moment…",
+    "Drawing their face…",
+    "Writing who they are…",
+    "Getting their first words ready…",
+    "Almost there…",
+  ];
+  const [creatingStep, setCreatingStep] = useState(0);
+  useEffect(() => {
+    if (!claiming) {
+      setCreatingStep(0);
+      return;
+    }
+    const t = setInterval(
+      () => setCreatingStep((n) => Math.min(n + 1, CREATING.length - 1)),
+      6000,
+    );
+    return () => clearInterval(t);
+  }, [claiming, CREATING.length]);
 
   const check = useCallback(async () => {
     try {
@@ -130,12 +152,20 @@ export function GiftMoment() {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-6">
       <div className="max-h-[90dvh] w-full max-w-sm overflow-y-auto rounded-3xl bg-ink-soft px-7 py-8 text-center ring-1 ring-warm-700">
-        <p className="text-5xl">🎁</p>
+        <Image
+          src="/logo-transparent.png"
+          alt=""
+          width={64}
+          height={64}
+          className="mx-auto h-16 w-16"
+        />
         <h2 className="mt-3 text-xl font-bold tracking-tight text-warm-50">
           {label.title}
         </h2>
         <p className="mt-2 text-sm leading-relaxed text-warm-300">
-          {doneText ?? label.body}
+          {claiming && gift.kind === "companion"
+            ? CREATING[creatingStep]
+            : (doneText ?? label.body)}
         </p>
 
         {showShare ? (
@@ -169,6 +199,10 @@ export function GiftMoment() {
               </button>
             </div>
             <p className="mt-3 text-xs leading-relaxed text-warm-400">
+              You can always find this link again on the Create an identity
+              screen — it never expires.
+            </p>
+            <p className="mt-2 text-xs leading-relaxed text-warm-400">
               In a hurry? Basic and Pro come with companions of their own —{" "}
               <a
                 href="/upgrade"
@@ -195,7 +229,7 @@ export function GiftMoment() {
           }}
           className="bg-gradient-cta mt-6 h-12 w-full rounded-full text-base font-bold text-white transition-all hover:-translate-y-px active:opacity-90 disabled:opacity-60"
         >
-          {claiming ? "Opening…" : doneText ? "Done" : "Okay"}
+          {claiming ? (gift.kind === "companion" ? "Creating…" : "Opening…") : doneText ? "Done" : "Okay"}
         </button>
       </div>
     </div>
