@@ -39,7 +39,7 @@ export async function acceptTerms(formData: FormData) {
   if (missing.length > 0) {
     redirectWithError(
       "/onboarding",
-      "Please check every box to continue.",
+      "Please check the box to continue.",
     );
   }
 
@@ -57,10 +57,34 @@ export async function acceptTerms(formData: FormData) {
   // mobile client can't PATCH the columns directly and bypass this
   // action. The admin client bypasses the trigger via service_role.
   const admin = createAdminClient();
-  const { error } = await admin.from("profiles").upsert({
-    id: user.id,
-    terms_accepted_at: new Date().toISOString(),
-    terms_version_accepted: CURRENT_TERMS_VERSION,
+
+  // PARITY WITH MOBILE (2026-09-03 audit): the mobile route also sets
+  // onboarding_completed + assigns the concierge in one atomic RPC —
+  // this action used to write only the terms columns, so a WEB
+  // accepter landed inside the app with onboarding_completed=false
+  // and NO active oracle (nobody to talk to; and the mobile app
+  // would re-wall them). Same RPC, same semantics: the 0120
+  // coalesce keeps a just-redeemed inherited code's oracle.
+  const { data: concierge } = await admin
+    .from("oracles")
+    .select("id, name")
+    .eq("is_concierge", true)
+    .limit(1)
+    .maybeSingle<{ id: string; name: string | null }>();
+  if (!concierge) {
+    console.error(
+      "[onboarding] concierge oracle not found (is_concierge=true).",
+    );
+    redirectWithError(
+      "/onboarding",
+      "We're finishing a small update. Please try again in a few minutes.",
+    );
+  }
+  const { error } = await admin.rpc("accept_terms_and_default_oracle", {
+    p_user_id: user.id,
+    p_terms_version: CURRENT_TERMS_VERSION,
+    p_concierge_id: concierge!.id,
+    p_concierge_name: concierge!.name ?? "Adrian",
   });
 
   if (error) {

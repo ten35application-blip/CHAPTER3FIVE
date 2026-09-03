@@ -89,7 +89,7 @@ export default async function OnboardingPage({
           One more thing.
         </h1>
         <p className="mt-4 max-w-sm text-base leading-relaxed text-warm-300">
-          Read each, check the box. We record what you agreed to and when.
+          Read through, check one box. We record what you agreed to and when.
         </p>
 
         {error ? (
