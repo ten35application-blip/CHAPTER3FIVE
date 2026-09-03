@@ -94,12 +94,29 @@ async function recordStorePurchase(event: RevenueCatEvent, appUserId: string) {
     const admin = createAdminClient();
 
     if (isRefund(event)) {
-      await admin
+      // Stamp ONE row — the most recent unrefunded purchase of this
+      // product (by the store's own transaction id when we have it).
+      // The old version stamped every row the user ever bought, which
+      // erased months of real revenue on a single refund (2026-09-02).
+      let q = admin
         .from("store_purchases")
-        .update({ refunded_at: new Date().toISOString() })
+        .select("id")
         .eq("user_id", appUserId)
         .eq("product_id", productId)
         .is("refunded_at", null);
+      if (event.original_transaction_id) {
+        q = q.eq("original_transaction_id", event.original_transaction_id);
+      }
+      const { data: target } = await q
+        .order("purchased_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (target?.id) {
+        await admin
+          .from("store_purchases")
+          .update({ refunded_at: new Date().toISOString() })
+          .eq("id", target.id);
+      }
       return;
     }
     const EARNING_EVENTS = new Set([
@@ -110,15 +127,35 @@ async function recordStorePurchase(event: RevenueCatEvent, appUserId: string) {
     ]);
     if (!EARNING_EVENTS.has(event.type ?? "")) return;
 
+    // What the customer actually paid (RevenueCat reports it in USD)
+    // and what the store let us keep — real numbers for the books,
+    // list price as the fallback. takehome_percentage is 0.85/0.70.
+    const paidCents =
+      typeof event.price === "number" && event.price > 0
+        ? Math.round(event.price * 100)
+        : price.cents;
+    const takehome =
+      typeof event.takehome_percentage === "number" &&
+      event.takehome_percentage > 0 &&
+      event.takehome_percentage <= 1
+        ? event.takehome_percentage
+        : null;
     await admin.from("store_purchases").insert({
       user_id: appUserId,
       platform: platformFromStore(event.store),
       product_id: productId,
-      amount_cents: price.cents,
+      amount_cents: paidCents,
+      net_cents: takehome === null ? null : Math.round(paidCents * takehome),
+      takehome_pct: takehome,
       kind: price.kind,
       original_transaction_id: event.original_transaction_id ?? null,
+      store_transaction_id: event.transaction_id ?? null,
       revenuecat_event_id: event.id ?? null,
       event_type: event.type ?? null,
+      purchased_at:
+        typeof event.purchased_at_ms === "number" && event.purchased_at_ms > 0
+          ? new Date(event.purchased_at_ms).toISOString()
+          : new Date().toISOString(),
     });
   } catch (err) {
     // 23505 = replayed delivery, which is the guard working.
@@ -207,6 +244,15 @@ type RevenueCatEvent = {
    *  claim-key note below. */
   purchased_at_ms?: number | null;
   environment?: string;
+  // Money fields (purchase events): what was paid in USD and the
+  // share the store passes through (0.85 / 0.70) — recorded on
+  // store_purchases so the revenue page uses real cuts, not guesses.
+  price?: number | null;
+  currency?: string | null;
+  takehome_percentage?: number | null;
+  commission_percentage?: number | null;
+  tax_percentage?: number | null;
+  transaction_id?: string | null;
   // TRANSFER events only: the app user ids the store receipt moved
   // between. No product/entitlement fields accompany them.
   transferred_from?: string[] | null;

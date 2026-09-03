@@ -7,6 +7,8 @@ import {
   prevMonth,
   type MonthBreakdown,
 } from "@/lib/admin/monthBreakdown";
+import { fetchMarketingReports, type MarketingReport } from "@/lib/admin/marketingReports";
+import { TAX_GOVERNMENT_LABEL } from "@/lib/admin/taxPayments";
 import { PrintButton } from "./PrintButton";
 import { MonthPicker } from "./MonthPicker";
 
@@ -56,6 +58,9 @@ export default async function SettlementStatementPage({
   for (const month of selected) {
     breakdowns.push(await fetchMonthBreakdown(supabase, month));
   }
+  // What Navy Federal showed in the Marketing account on the 1st, per
+  // month — printed beside the formula's figure in section 6.
+  const reports = await fetchMarketingReports(supabase);
 
   return (
     <div className="mx-auto max-w-[860px]">
@@ -86,7 +91,11 @@ export default async function SettlementStatementPage({
 
       <div className="flex flex-col gap-8">
         {breakdowns.map((b) => (
-          <StatementSheet key={b.month} b={b} isFinal={b.month < currentMonth} />
+          <StatementSheet
+            key={b.month}
+            b={b}
+            report={reports.get(b.month) ?? null}
+          />
         ))}
       </div>
     </div>
@@ -95,17 +104,17 @@ export default async function SettlementStatementPage({
 
 function StatementSheet({
   b,
-  isFinal,
+  report,
 }: {
   b: MonthBreakdown;
-  isFinal: boolean;
+  report: MarketingReport | null;
 }) {
   const window = b.periodLabel.split(" · ")[0].replace("counting ", "");
-  const tailHeld = Math.min(b.retainedTailCents, Math.max(0, b.profitCents));
-  const paidOutNow = b.partners
-    .filter((p) => p.payout !== "december")
-    .reduce((a, p) => a + p.transferCents, 0);
+  // FINAL means one thing: the month is in the ledger. A past month
+  // that somehow isn't frozen must not be dressed up as final.
+  const frozen = b.frozen;
   const decemberPartners = b.partners.filter((p) => p.payout === "december");
+  const potsAfter = decemberPartners.reduce((a, p) => a + (p.undrawnBalanceCents ?? 0), 0);
 
   return (
     <div className="statement-sheet rounded-2xl bg-white px-8 py-9 text-neutral-900 shadow-xl ring-1 ring-neutral-200 print:rounded-none print:px-2 print:py-0 print:shadow-none print:ring-0">
@@ -139,13 +148,13 @@ function StatementSheet({
           <p className="mt-0.5 text-xs text-neutral-500">Counting {window}</p>
           <p
             className={`mt-2 inline-block rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide ${
-              isFinal
+              frozen
                 ? "bg-neutral-900 text-white"
                 : "bg-amber-100 text-amber-800"
             }`}
           >
-            {isFinal
-              ? "Final — settled on the 27th"
+            {frozen
+              ? `Final — ledger ${b.settledAt?.slice(0, 10) ?? "entry"}`
               : "In progress — final on the 27th"}
           </p>
         </div>
@@ -165,13 +174,27 @@ function StatementSheet({
         own half of profit, under their own state&apos;s rules.
       </p>
 
+      {/* The month in one paragraph — same words as the card and the sheet */}
+      <div className="mt-5 rounded-md border border-neutral-300 bg-neutral-50 px-4 py-3">
+        <p className="text-xs font-bold uppercase tracking-[0.12em] text-neutral-500">Summary</p>
+        <p className="mt-1 text-sm leading-relaxed text-neutral-900">{b.summary}</p>
+      </div>
+
       {/* 1 · Revenue */}
       <StatementSection title="1 · Revenue">
         <Row label="Web sales (site, via Stripe)" cents={b.grossWebCents} />
         <Row label="App store sales (Apple + Google)" cents={b.grossStoreCents} />
         <Row label="Total sales" cents={b.grossCents} strong />
-        <Row label="Less: store commission (est.)" cents={-b.storeCommissionCents} muted />
-        <Row label="Less: card processing (est.)" cents={-b.webProcessingCents} muted />
+        <Row
+          label={`Less: store commission (${b.storeCommissionActual ? "per RevenueCat" : "est."})`}
+          cents={-b.storeCommissionCents}
+          muted
+        />
+        <Row
+          label={`Less: card processing (Stripe 2.9% + 30¢ × ${b.webChargeCount ?? 0} charges)`}
+          cents={-b.webProcessingCents}
+          muted
+        />
         <Row label="Net receipts (reaches the bank)" cents={b.netReceiptsCents} strong rule />
       </StatementSection>
 
@@ -189,48 +212,228 @@ function StatementSheet({
         <p className="text-lg font-bold tabular-nums">{formatUsd(b.profitCents)}</p>
       </div>
 
-      {/* 3 · Held in the business account */}
-      <StatementSection title="3 · Held in the business account">
-        <Row label="Next month's operating bills" cents={b.billsCents} />
-        <Row label="Growth cushion (larger of 50% of bills / 10% of profit)" cents={b.cushionCents} />
-        <Row label="Compounding reserve (earned the 27th → 1st — never distributed)" cents={tailHeld} />
-        {b.partners.map((p) => (
+      {/* 3 · Member contributions — capital, outside profit */}
+      {(b.contributionsCents ?? 0) > 0 ||
+      (b.lockedSavingsDepositCents ?? 0) > 0 ||
+      (b.shortfallCoveredCents ?? 0) > 0 ||
+      b.partners.some((p) => (p.capitalCents ?? 0) > 0) ? (
+        <StatementSection title="3 · Member capital contributions (not income)">
+          {b.partners.map((p) => (
+            <Row
+              key={p.name}
+              label={`Contributed by ${p.name} on the 1st — capital; cumulative ${formatUsd(p.capitalCents ?? 0)} (owed back to the member; a return of capital is not income)`}
+              cents={p.contributionCents ?? 0}
+            />
+          ))}
+          {b.partners
+            .filter((p) => (p.savingsDepositCents ?? 0) > 0)
+            .map((p) => (
+              <Row
+                key={`${p.name}-savings`}
+                label={`Savings-account minimum put in by ${p.name} — capital; stays in savings`}
+                cents={p.savingsDepositCents ?? 0}
+              />
+            ))}
+          {b.partners
+            .filter((p) => (p.shortfallCoveredCents ?? 0) > 0)
+            .map((p) => (
+              <Row
+                key={`${p.name}-shortfall`}
+                label={`Loss beyond the reserve paid out of pocket by ${p.name} — capital; owed back`}
+                cents={p.shortfallCoveredCents ?? 0}
+              />
+            ))}
           <Row
-            key={p.name}
-            label={`${p.name}'s tax envelope (${p.taxRatePct}% of their half — ${p.residence}; paid quarterly in ${p.name}'s name)`}
-            cents={p.taxEnvelopeCents}
+            label="Total capital put in this month"
+            cents={
+              (b.contributionsCents ?? 0) +
+              (b.lockedSavingsDepositCents ?? 0) +
+              (b.shortfallCoveredCents ?? 0)
+            }
+            strong
+            rule
           />
-        ))}
-        <Row label="Total kept in the account" cents={b.keepInAccountCents} strong rule />
+        </StatementSection>
+      ) : null}
+
+      {/* 4 · Taxes held — itemized per government */}
+      <StatementSection title="4 · Tax envelopes held by the business (paid in each member's own name — Danisel four times a year, Pedro once in December)">
+        {b.partners.map((p) => {
+          const t = p.taxParts;
+          return (
+            <div key={p.name} className="flex flex-col">
+              <Row
+                label={`${p.name} — ${p.taxRatePct}% of their ${formatUsd(p.profitShareCents)} half (${p.residence})`}
+                cents={p.taxEnvelopeCents}
+                strong
+              />
+              {t ? (
+                <>
+                  <Row label="   Self-employment tax (IRS)" cents={t.seCents} muted />
+                  <Row label="   Federal income tax (IRS)" cents={t.federalCents} muted />
+                  {t.cityCents > 0 ? (
+                    <>
+                      <Row
+                        label={`   New York State income tax (of which ${formatUsd(t.paNonresidentCents)} is paid to PA first as nonresident tax and credited by NY, Form IT-112-R)`}
+                        cents={t.stateCents}
+                        muted
+                      />
+                      <Row label="   New York City income tax (no credit)" cents={t.cityCents} muted />
+                    </>
+                  ) : (
+                    <>
+                      <Row label="   Pennsylvania income tax (3.07%)" cents={t.stateCents} muted />
+                      <Row label="   Bethlehem earned-income tax (1%)" cents={t.localCents} muted />
+                    </>
+                  )}
+                </>
+              ) : null}
+              <Row label={`   Held for ${p.name} coming into this month`} cents={p.taxHeldBeforeCents ?? 0} muted />
+              {(p.taxPayments ?? []).map((t, i) => (
+                <Row
+                  key={`${t.paidOn}-${i}`}
+                  label={`   Sent ${t.paidOn} — ${TAX_GOVERNMENT_LABEL[t.government] ?? t.government}${t.note ? ` (${t.note})` : ""}`}
+                  cents={-t.amountCents}
+                  muted
+                />
+              ))}
+              <Row
+                label={`   Held for ${p.name} after this month${(p.taxOverpaidCents ?? 0) > 0 ? ` — ${formatUsd(p.taxOverpaidCents)} more was sent than was held; the business advanced it` : ""}`}
+                cents={p.taxHeldCents ?? p.taxEnvelopeCents}
+                muted
+              />
+              {p.taxDueNote ? (
+                <p className="pl-3 text-xs leading-relaxed text-warm-400">{p.taxDueNote}</p>
+              ) : null}
+            </div>
+          );
+        })}
+        <Row label="Total tax envelopes this month" cents={b.taxReserveCents} strong rule />
+        {(b.taxPaidTotalCents ?? 0) > 0 ? (
+          <Row label="Total tax payments sent this month (both names)" cents={b.taxPaidTotalCents ?? 0} muted />
+        ) : null}
+        <Row label="Total held for taxes after this month (both)" cents={b.taxHeldTotalCents ?? 0} />
       </StatementSection>
 
-      {/* 4 · Member entitlements */}
-      <StatementSection title="4 · Member entitlements (settled the 27th)">
+      {/* 5 · The operating reserve — a balance, not a monthly charge */}
+      <StatementSection title="5 · Operating reserve (a target balance the account keeps)">
+        <Row label="Carried in from last month" cents={b.reserveCarriedCents ?? 0} muted />
+        {(b.contributionsCents ?? 0) > 0 ? (
+          <Row label="Plus member contributions (section 3)" cents={b.contributionsCents ?? 0} muted />
+        ) : null}
+        {(b.reserveTopUpCents ?? 0) > 0 ? (
+          <Row label="Plus top-up from this month's profit" cents={b.reserveTopUpCents ?? 0} muted />
+        ) : null}
+        {(b.reserveDrawCents ?? 0) > 0 ? (
+          <Row label="Less: drawn to cover this month's loss" cents={-(b.reserveDrawCents ?? 0)} muted />
+        ) : null}
+        <Row
+          label={`Reserve after settlement — target ${formatUsd(b.reserveTargetCents ?? 0)} (next month's bills ${formatUsd(b.billsCents)} = fixed subscriptions + this month's usage costs, + cushion ${formatUsd(b.cushionCents)}, the larger of 50% of bills / 10% of profit — room for usage to grow)`}
+          cents={b.reserveAfterCents ?? 0}
+          strong
+          rule
+        />
+        {(b.shortfallCents ?? 0) > 0 ? (
+          <Row
+            label={
+              b.shortfallPaidBy
+                ? `Shortfall the reserve could not cover — paid out of pocket by ${b.shortfallPaidBy} (booked as capital, section 3)`
+                : "Shortfall the reserve could not cover — paid out of pocket, not yet booked to a member"
+            }
+            cents={b.shortfallCents ?? 0}
+            strong
+          />
+        ) : null}
+      </StatementSection>
+
+      {/* 6 · Marketing account (Navy Federal) */}
+      <StatementSection title="6 · Marketing account at Navy Federal (the 27th → 1st money — never distributed)">
+        <Row label="Earned from the 27th → the 1st (net of platform fees)" cents={b.retainedTailCents} muted />
+        <Row
+          label="Transferred to the Marketing account on the 27th (after taxes and the reserve)"
+          cents={b.growthTransferCents ?? 0}
+          strong
+        />
+        <Row
+          label="Marketing account balance per the formula, after this month's transfer (since launch)"
+          cents={b.growthBalanceCents ?? 0}
+          strong
+          rule
+        />
+        <Row
+          label={
+            report
+              ? `Marketing account balance per Navy Federal, reported ${report.reportedOn}${
+                  report.balanceCents === (b.growthBalanceCents ?? 0)
+                    ? " — matches the formula"
+                    : ` — ${formatUsd(Math.abs(report.balanceCents - (b.growthBalanceCents ?? 0)))} ${report.balanceCents > (b.growthBalanceCents ?? 0) ? "above" : "below"} the formula`
+                }`
+              : "Marketing account balance per Navy Federal — not yet reported for this month"
+          }
+          cents={report ? report.balanceCents : null}
+          muted={!report}
+        />
+      </StatementSection>
+
+      {/* 7 · Member entitlements */}
+      <StatementSection title="7 · Member entitlements (settled the 27th)">
         {b.partners.map((p) =>
           p.payout === "december" ? (
             <Row
               key={p.name}
-              label={`Accrued to ${p.name} — held for their once-a-year December draw (member election); cumulative pot ${formatUsd(p.undrawnBalanceCents)}`}
+              label={`Accrued to ${p.name} — held for their once-a-year December draw (member election); pot now ${formatUsd(p.undrawnBalanceCents)}${(p.drawCents ?? 0) > 0 ? ` — DECEMBER DRAW PAID ${formatUsd(p.drawCents)}` : ""}`}
               cents={p.transferCents}
             />
           ) : (
             <Row
               key={p.name}
-              label={`Transferred to ${p.name} — their half after their own tax envelope, fully spendable`}
+              label={`Transferred to ${p.name} — their half after their own tax envelope and half the common holds, fully spendable`}
               cents={p.transferCents}
             />
           ),
         )}
-        <Row label="Paid out of the account this month" cents={paidOutNow} strong rule />
-        {decemberPartners.map((p) => (
+        <Row
+          label="Paid out of the account on transfer day (member draws + marketing transfer)"
+          cents={b.paidOutCents ?? 0}
+          strong
+          rule
+        />
+        {potsAfter > 0
+          ? decemberPartners.map((p) => (
+              <Row
+                key={`${p.name}-pot`}
+                label={`Remains in the account for ${p.name}'s December draw (cumulative)`}
+                cents={p.undrawnBalanceCents}
+                strong
+              />
+            ))
+          : null}
+        {(b.taxPaidTotalCents ?? 0) > 0 ? (
           <Row
-            key={`${p.name}-pot`}
-            label={`Remains in the account for ${p.name}'s December draw (cumulative)`}
-            cents={p.undrawnBalanceCents}
+            label="Tax payments sent this month in their names (already left, on the days they were sent)"
+            cents={b.taxPaidTotalCents ?? 0}
+            muted
+          />
+        ) : null}
+        <Row
+          label="The operating account should hold after transfer day (reserve + taxes still held after payments sent + December pots)"
+          cents={b.accountShouldHoldCents ?? 0}
+          strong
+        />
+        {(b.lockedSavingsCents ?? 0) > 0 ? (
+          <Row
+            label="The savings account holds (bank minimum, a member's capital — never reserve, never marketing, never spent)"
+            cents={b.lockedSavingsCents ?? 0}
             strong
           />
-        ))}
+        ) : null}
       </StatementSection>
+
+      {b.contributionsVerdict ? (
+        <p className="mt-4 text-xs font-semibold text-neutral-700">
+          Member contributions: {b.contributionsVerdict}
+        </p>
+      ) : null}
 
       {/* Tax basis note — the K-1 anchor */}
       <div className="mt-6 rounded-xl bg-neutral-50 px-5 py-4 ring-1 ring-neutral-200 print:rounded-none">
@@ -248,9 +451,14 @@ function StatementSheet({
           {b.partners[1].taxRatePct}%. For the New York member, PA taxes the
           share first and New York credits every PA dollar (Form IT-112-R) —
           taxed once, never twice; NYC&apos;s city tax stacks with no credit.
-          Deferred December draws do not defer taxes — every envelope is paid
-          at quarterly estimated-tax dates in each member&apos;s own name.
-          Member transfers are not taxable events.
+          Each envelope is paid in that member&apos;s own name on their own
+          schedule — Danisel four times a year (IRS + PA Apr 15 / Jun 15 /
+          Sep 15 / Jan 15; Bethlehem through Keystone Collections Apr 15 /
+          Jul 15 / Oct 15 / Jan 15), Pedro once in December, his election.
+          Danisel files married-filing-separately and Pedro single; the
+          federal brackets and the Additional Medicare threshold follow.
+          Payments sent are recorded and drain the held amount in the month
+          they went out. Member transfers are not taxable events.
           {b.refundedCents > 0
             ? ` Refunds this period (informational): ${formatUsd(b.refundedCents)}.`
             : ""}
@@ -260,10 +468,11 @@ function StatementSheet({
       {/* Footer */}
       <footer className="mt-6 flex items-end justify-between gap-4 border-t border-neutral-300 pt-4">
         <p className="text-[10px] leading-relaxed text-neutral-400">
-          Prepared automatically from the live settlement ledger — the same
-          formula behind the admin revenue card and the in-app ledger. Store
-          commission, card fees, and Replicate are estimates until real
-          statements land. Not tax advice.
+          Prepared automatically from the settlement ledger — the same
+          formula behind the admin revenue card and the in-app ledger. Frozen
+          months are written on the 27th and never change. Store commission
+          (when RevenueCat didn&apos;t report it), Replicate, and the tax
+          engine are estimates. Not tax advice.
         </p>
         <p className="shrink-0 text-[10px] font-semibold text-neutral-500">
           chapter3five · admin
@@ -298,7 +507,8 @@ function Row({
   rule,
 }: {
   label: string;
-  cents: number;
+  /** null = no figure exists yet (prints "—", never a misleading $0.00). */
+  cents: number | null;
   strong?: boolean;
   muted?: boolean;
   rule?: boolean;
@@ -325,7 +535,7 @@ function Row({
           strong ? "font-bold text-neutral-900" : "text-neutral-700"
         }`}
       >
-        {formatUsd(cents)}
+        {cents === null ? "—" : formatUsd(cents)}
       </p>
     </div>
   );

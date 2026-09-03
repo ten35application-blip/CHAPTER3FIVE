@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import {
   createAdminClient,
   daysAgo,
@@ -9,14 +10,33 @@ import {
   sumCents,
 } from "@/lib/admin/queries";
 import {
+  LAUNCH_MONTH,
   fetchExampleBreakdown,
   fetchMonthBreakdown,
   nextMonth,
   normalizeMonthParam,
   prevMonth,
+  settlementWindow,
   type MonthBreakdown,
 } from "@/lib/admin/monthBreakdown";
+import { fetchMarketingReport, type MarketingReport } from "@/lib/admin/marketingReports";
+import {
+  TAX_GOVERNMENTS,
+  TAX_GOVERNMENT_LABEL,
+  fetchTaxPayments,
+  todayInNewYork,
+  type TaxPayment,
+} from "@/lib/admin/taxPayments";
 import { ExportCsvButton } from "./ExportCsvButton";
+import {
+  deleteTaxPaymentAction,
+  recordTaxPaymentAction,
+  saveMarketingReportAction,
+} from "./actions";
+
+/** The one input look, shared by every field on the card's forms. */
+const fieldClass =
+  "rounded-xl bg-ink px-3 py-1.5 text-sm font-semibold tabular-nums text-warm-50 ring-1 ring-warm-700 focus:outline-none focus:ring-2 focus:ring-teal";
 
 /**
  * /admin/revenue — money reports: the month breakdown FIRST (what
@@ -34,9 +54,15 @@ export default async function AdminRevenuePage({
   const supabase = createAdminClient();
   const { month: monthParam } = await searchParams;
   const month = normalizeMonthParam(monthParam ?? null);
-  const [payments, breakdown] = await Promise.all([
+  // The Marketing account (Navy Federal) as Wilson read it off the bank
+  // on the 1st — this month's report, plus last month's so the live
+  // card can nudge when the 1st came and went without one.
+  const [payments, breakdown, report, prevReport, taxPayments] = await Promise.all([
     fetchPaidPayments(supabase),
     fetchMonthBreakdown(supabase, month),
+    fetchMarketingReport(supabase, month),
+    fetchMarketingReport(supabase, prevMonth(month)),
+    fetchTaxPayments(supabase, { limit: 50 }),
   ]);
   const example =
     breakdown.grossCents === 0 ? await fetchExampleBreakdown(supabase) : null;
@@ -76,7 +102,7 @@ export default async function AdminRevenuePage({
           </div>
         </details>
         ) : null}
-        <MonthBreakdownCard b={breakdown} />
+        <MonthBreakdownCard b={breakdown} report={report} prevReport={prevReport} taxPayments={taxPayments} />
       </div>
     );
   }
@@ -157,7 +183,7 @@ export default async function AdminRevenuePage({
           </div>
         </details>
       ) : null}
-      <MonthBreakdownCard b={breakdown} />
+      <MonthBreakdownCard b={breakdown} report={report} prevReport={prevReport} taxPayments={taxPayments} />
 
       <section className="flex flex-col gap-3">
         <h2 className="text-sm font-semibold uppercase tracking-wider text-warm-300">
@@ -251,10 +277,25 @@ function BreakdownRow({
 function MonthBreakdownCard({
   b,
   example = false,
+  report = null,
+  prevReport = null,
+  taxPayments = [],
 }: {
   b: MonthBreakdown;
   example?: boolean;
+  /** What Navy Federal showed in the Marketing account on the 1st after this month's transfer day. */
+  report?: MarketingReport | null;
+  /** Last month's report — the live card nudges when it's missing. */
+  prevReport?: MarketingReport | null;
+  /** Recent tax payments with ids — so a live one can be removed. */
+  taxPayments?: TaxPayment[];
 }) {
+  // The 1st the report is read on: the month AFTER the settlement month.
+  const reportDay = `${settlementWindow(nextMonth(b.month)).monthLabel.split(" ")[0]} 1`;
+  const prevLabel = settlementWindow(prevMonth(b.month)).monthLabel;
+  const reportDiff = report ? report.balanceCents - (b.growthBalanceCents ?? 0) : 0;
+  const nudgePrev =
+    !example && !b.frozen && !prevReport && prevMonth(b.month) >= LAUNCH_MONTH;
   return (
     <section className="flex flex-col gap-3">
       {example ? null : (
@@ -277,14 +318,16 @@ function MonthBreakdownCard({
             <>
               <Link
                 href={`/admin/revenue?month=${prevMonth(b.month)}`}
-                className="font-semibold text-coral-strong hover:text-coral"
+                aria-label="Previous month"
+                className="flex h-11 w-11 items-center justify-center rounded-full text-4xl font-semibold leading-none text-coral-strong ring-1 ring-warm-700 hover:bg-ink-soft hover:text-coral"
               >
                 ‹
               </Link>
-              <span className="font-semibold text-warm-50">{b.monthLabel}</span>
+              <span className="text-base font-semibold text-warm-50">{b.monthLabel}</span>
               <Link
                 href={`/admin/revenue?month=${nextMonth(b.month)}`}
-                className="font-semibold text-coral-strong hover:text-coral"
+                aria-label="Next month"
+                className="flex h-11 w-11 items-center justify-center rounded-full text-4xl font-semibold leading-none text-coral-strong ring-1 ring-warm-700 hover:bg-ink-soft hover:text-coral"
               >
                 ›
               </Link>
@@ -295,38 +338,78 @@ function MonthBreakdownCard({
       )}
 
       <div className="overflow-hidden rounded-2xl bg-ink-soft ring-1 ring-warm-700">
-        <p className="border-b border-warm-700/60 bg-ink px-5 py-2 text-[11px] font-medium tracking-wide text-warm-400">
-          {b.periodLabel} — transfer day. After that, these numbers never
-          move. All taxes are already accounted for and left in the
-          account. Money made from the 27th to the 1st stays in the account
-          — compounding monthly for emergencies, hiring, and future
-          endeavors.
+        <p className="bg-ink px-5 py-2 text-[11px] font-medium tracking-wide text-warm-400">
+          {b.periodLabel}
+          {" · "}
+          {b.frozen ? (
+            <span className="font-bold text-teal-strong">
+              FINAL — in the ledger
+              {b.settledAt ? ` ${b.settledAt.slice(0, 10)}` : ""}
+            </span>
+          ) : example ? (
+            "goes final on the 27th"
+          ) : (
+            "still counting — final on the 27th"
+          )}
+          {b.settlementNote ? ` · ${b.settlementNote}` : ""}
         </p>
         {example ? (
-          <p className="border-b border-warm-700/60 bg-ink px-5 py-3 text-xs leading-relaxed text-warm-400">
-            Made-up revenue ($1,000 month: $650 through the stores, $350
-            through the site) run through the REAL formula with your real
-            rates and bills — so the first real month reads exactly like
-            this rehearsal.
+          <p className="bg-ink px-5 pb-2.5 text-xs leading-relaxed text-warm-400">
+            A made-up $1,000 month right after launch — $650 through the stores,
+            $350 through the site, about 5 of 31 days after the 27th, the
+            reserve empty and both $175s coming in — run through the real
+            formula with your real rates and bills.
           </p>
         ) : null}
-        <div className="flex flex-col gap-1 px-5 py-4 text-sm">
+
+        {/* THE MONTH IN ONE BREATH (Wilson 2026-09-03: "a quick paragraph
+            summary … so we don't have to look at all the numbers").
+            Written by the formula, same words on mobile and the sheet. */}
+        <div className="flex flex-col gap-3 border-t border-warm-700/60 px-5 py-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-warm-400">
+            Summary
+          </p>
+          <p className="text-[15px] leading-relaxed text-warm-50">{b.summary}</p>
+          <p
+            className={`text-xs leading-relaxed ${b.selfSustaining ? "font-semibold text-teal-strong" : "text-warm-200"}`}
+          >
+            {b.selfSustaining ? "✅ " : "🤝 "}
+            {b.contributionsVerdict}
+          </p>
+        </div>
+        <div className="flex flex-col gap-1.5 border-t border-warm-700/60 px-5 py-3">
+          <p className="mb-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-warm-400">
+            Coming up
+          </p>
+          {b.upcoming.map((line, i) => (
+            <p key={i} className="text-xs leading-relaxed text-warm-200">
+              {line}
+            </p>
+          ))}
+        </div>
+
+        <details className="group border-t border-warm-700/60 bg-ink">
+          <summary className="flex cursor-pointer list-none items-center gap-2 px-5 py-2.5 text-[10px] font-bold uppercase tracking-[0.14em] text-warm-400 [&::-webkit-details-marker]:hidden">
+            <span className="inline-block text-base leading-none transition-transform group-open:rotate-90">
+              ›
+            </span>
+            Show every number
+          </summary>
+          <div className="bg-ink-soft">
+        <Section title="Money in">
           <BRow label="Customers paid" value={formatUsd(b.grossCents)} strong />
           <BRow
-            label="Apple/Google keep (est.)"
+            label={`Apple/Google keep${b.storeCommissionActual ? " (actual)" : " (est.)"}`}
             value={`−${formatUsd(b.storeCommissionCents)}`}
           />
           <BRow
-            label="Stripe keeps (est.)"
+            label={`Stripe keeps (2.9% + 30¢ × ${b.webChargeCount ?? 0})`}
             value={`−${formatUsd(b.webProcessingCents)}`}
           />
-          <BRow
-            label="Reaches the bank"
-            value={formatUsd(b.netReceiptsCents)}
-            strong
-          />
-        </div>
-        <div className="flex flex-col gap-1 border-t border-warm-700/60 px-5 py-4 text-sm">
+          <BRow label="Reaches the bank" value={formatUsd(b.netReceiptsCents)} strong />
+        </Section>
+
+        <Section title="Bills">
           {b.expenses.map((e) => (
             <BRow key={e.name} label={e.name} value={`−${formatUsd(e.cents)}`} />
           ))}
@@ -336,135 +419,517 @@ function MonthBreakdownCard({
             strong
             tint={b.profitCents >= 0 ? "text-teal-strong" : "text-coral-strong"}
           />
-        </div>
-        <div className="m-4 rounded-xl bg-ink px-4 py-4 text-sm leading-relaxed ring-1 ring-warm-700">
-          {b.profitCents > 0 ? (
-            <>
-              {b.partners.map((p) => (
-                <div
-                  key={p.name}
-                  className="mb-2 rounded-lg bg-ink-soft px-3 py-2.5 ring-1 ring-warm-700/60"
-                >
-                  <p className="text-sm font-bold text-teal-strong">
-                    {p.name}{" "}
-                    <span className="font-semibold text-warm-400">
-                      · lives in {p.residence}
-                    </span>
+        </Section>
+
+        {(b.contributionsCents ?? 0) > 0 ||
+        (b.lockedSavingsDepositCents ?? 0) > 0 ||
+        (b.shortfallCoveredCents ?? 0) > 0 ? (
+          <Section
+            title="Capital put in"
+            note="Not income, not taxed, never split — the business owes it back."
+          >
+            {(b.contributionsCents ?? 0) > 0 ? (
+              <BRow
+                label={`Member contributions on the 1st (${formatUsd(b.contributionsPerMemberCents)} each)`}
+                value={`+${formatUsd(b.contributionsCents)}`}
+              />
+            ) : null}
+            {(b.lockedSavingsDepositCents ?? 0) > 0 ? (
+              <BRow
+                label={`Savings floor — ${b.partners
+                  .filter((p) => (p.savingsDepositCents ?? 0) > 0)
+                  .map((p) => `${p.name} ${formatUsd(p.savingsDepositCents ?? 0)}`)
+                  .join(" + ")}`}
+                value={`+${formatUsd(b.lockedSavingsDepositCents)}`}
+              />
+            ) : null}
+            {(b.shortfallCoveredCents ?? 0) > 0 ? (
+              <BRow
+                label={`Loss covered out of pocket by ${b.shortfallPaidBy ?? "a member"}`}
+                value={`+${formatUsd(b.shortfallCoveredCents)}`}
+              />
+            ) : null}
+          </Section>
+        ) : null}
+
+        {b.profitCents > 0 ? (
+          <Section title="The split — on the 27th">
+            {b.partners.map((p) => (
+              <div key={p.name} className="mb-2 flex flex-col gap-1">
+                <p className="text-xs font-bold text-teal-strong">
+                  {p.name}{" "}
+                  <span className="font-medium text-warm-400">· {p.residence}</span>
+                </p>
+                {p.payout === "december" ? (
+                  <>
+                    <BRow
+                      label="Share this month → December pot"
+                      value={formatUsd(p.transferCents)}
+                      strong
+                    />
+                    {(p.drawCents ?? 0) > 0 ? (
+                      <BRow
+                        label="December draw — to their bank (this month + the pot)"
+                        value={formatUsd(p.drawCents)}
+                        strong
+                        tint="text-teal-strong"
+                      />
+                    ) : (
+                      <BRow
+                        label="Waiting in the December pot"
+                        value={formatUsd(p.undrawnBalanceCents)}
+                      />
+                    )}
+                  </>
+                ) : (
+                  <BRow
+                    label="To their bank — theirs to spend"
+                    value={formatUsd(p.transferCents)}
+                    strong
+                    tint="text-teal-strong"
+                  />
+                )}
+                <BRow
+                  label={`Tax envelope, held (${p.taxRatePct}% of their ${formatUsd(p.profitShareCents)})`}
+                  value={formatUsd(p.taxEnvelopeCents)}
+                />
+                {p.taxParts ? (
+                  <p className="text-[11px] leading-snug text-warm-400 tabular-nums">
+                    SE {formatUsd(p.taxParts.seCents)} · federal{" "}
+                    {formatUsd(p.taxParts.federalCents)} ·{" "}
+                    {p.taxParts.cityCents > 0
+                      ? `NY State ${formatUsd(p.taxParts.stateCents)} (PA first ${formatUsd(p.taxParts.paNonresidentCents)}, NY credits it) · NYC ${formatUsd(p.taxParts.cityCents)}`
+                      : `PA ${formatUsd(p.taxParts.stateCents)} · Bethlehem ${formatUsd(p.taxParts.localCents)}`}
+                    {" · "}held for {p.name} now {formatUsd(p.taxHeldCents ?? p.taxEnvelopeCents)}
+                    {(p.taxPaidCents ?? 0) > 0 ? ` (after ${formatUsd(p.taxPaidCents)} sent this month)` : ""}
                   </p>
-                  {p.payout === "december" ? (
-                    <>
-                      <p className="mt-1 text-warm-50">
-                        🗓️ {p.name}&apos;s share this month:{" "}
-                        <span className="font-bold">
-                          {formatUsd(p.transferCents)}
-                        </span>{" "}
-                        <span className="text-warm-400">
-                          — stays in the account for his once-a-year December
-                          draw
-                        </span>
-                      </p>
-                      <p className="mt-0.5 text-sm font-semibold text-teal-strong">
-                        💰 Waiting in {p.name}&apos;s December pot:{" "}
-                        {formatUsd(p.undrawnBalanceCents)}
-                      </p>
-                    </>
-                  ) : (
-                    <p className="mt-1 text-warm-50">
-                      💵 To {p.name}&apos;s bank:{" "}
-                      <span className="font-bold">
-                        {formatUsd(p.transferCents)}
-                      </span>{" "}
-                      <span className="text-warm-400">— all theirs to spend</span>
-                    </p>
-                  )}
-                  <p className="mt-0.5 text-xs leading-relaxed text-warm-400">
-                    🏦 {p.name}&apos;s tax envelope:{" "}
-                    <span className="font-semibold text-warm-200">
-                      {formatUsd(p.taxEnvelopeCents)}
-                    </span>{" "}
-                    ({p.taxRatePct}% of their own {formatUsd(p.profitShareCents)}{" "}
-                    half) — held by the business. {p.taxNote}
-                    {p.payout === "december"
-                      ? " Waiting until December does NOT delay taxes — the envelope still goes out every quarter."
-                      : ""}
-                  </p>
-                </div>
-              ))}
-              <p className="mt-2 text-warm-300">
-                🏢 The business keeps{" "}
-                <span className="font-semibold text-warm-100">
-                  {formatUsd(b.keepInAccountCents)}
-                </span>{" "}
-                — next month&apos;s bills, a safety cushion, both tax
-                envelopes ({formatUsd(b.partners[0].taxEnvelopeCents)} for{" "}
-                {b.partners[0].name} + {formatUsd(b.partners[1].taxEnvelopeCents)}{" "}
-                for {b.partners[1].name}), and the after-the-27th money
-                (compounding for future endeavors). Nobody spends this.
-                {b.partners
-                  .filter((p) => p.payout === "december")
-                  .map(
-                    (p) =>
-                      ` ${p.name}'s December pot (${formatUsd(p.undrawnBalanceCents)}) waits in the account too — his money, already counted, taken once a year.`,
-                  )
-                  .join("")}
+                ) : null}
+              </div>
+            ))}
+            <BRow
+              label={`To Marketing (Navy Federal) — 27th→1st money, ${formatUsd(b.retainedTailCents)} earned${
+                (b.growthTransferCents ?? 0) < b.retainedTailCents
+                  ? "; the rest went to taxes + the reserve"
+                  : ""
+              }`}
+              value={formatUsd(b.growthTransferCents ?? 0)}
+              strong
+            />
+            <BRow
+              label={`Kept by the business — both envelopes${
+                (b.reserveTopUpCents ?? 0) > 0
+                  ? ` + ${formatUsd(b.reserveTopUpCents)} reserve top-up`
+                  : (b.reserveAfterCents ?? 0) >= (b.reserveTargetCents ?? 0)
+                    ? " (reserve already at target)"
+                    : ""
+              }`}
+              value={formatUsd(b.keepInAccountCents)}
+            />
+            {b.storeNetCents > 0 ? (
+              <p className="mt-1 text-[11px] leading-snug text-warm-400">
+                {formatUsd(b.storeNetCents)} of this is store money and lands late
+                (Apple about a month behind, Google mid-next-month) — transfer
+                after it lands.
               </p>
+            ) : null}
+          </Section>
+        ) : (
+          <Section title="The split — on the 27th">
+            <p className="text-warm-300">
+              No profit to split — nothing to the partners from this month,
+              nothing to Marketing.
+              {(b.reserveDrawCents ?? 0) > 0
+                ? ` The reserve covered ${formatUsd(b.reserveDrawCents)} of the ${formatUsd(-b.profitCents)} loss.`
+                : ""}
+            </p>
+            {/* A December pot still leaves in December, profit or not —
+                it's money already counted in earlier months. */}
+            {b.partners
+              .filter((p) => (p.drawCents ?? 0) > 0)
+              .map((p) => (
+                <BRow
+                  key={p.name}
+                  label={`${p.name}'s December draw — the pot, to their bank`}
+                  value={formatUsd(p.drawCents)}
+                  strong
+                  tint="text-teal-strong"
+                />
+              ))}
+            {(b.shortfallCents ?? 0) > 0 ? (
+              <p className="font-semibold text-coral-strong">
+                {formatUsd(b.shortfallCents)} beyond the reserve —{" "}
+                {b.shortfallPaidBy
+                  ? `${b.shortfallPaidBy} paid it out of pocket (capital, owed back).`
+                  : "paid out of pocket; nobody booked yet — say who and it becomes their capital."}
+              </p>
+            ) : null}
+          </Section>
+        )}
+
+        {/* The Marketing account, reconciled: what the formula says it
+            should hold vs what Navy Federal showed on the 1st (Wilson
+            2026-09-02 — he reports it every 1st). Keyed by this month. */}
+        <Section title="Marketing account · Navy Federal">
+          <BRow
+            label="Formula says it holds (every 27th→1st tail since launch)"
+            value={formatUsd(b.growthBalanceCents ?? 0)}
+            strong
+          />
+          {report ? (
+            <>
+              <BRow
+                label={`Bank showed on ${report.reportedOn}`}
+                value={formatUsd(report.balanceCents)}
+              />
+              <BRow
+                label={
+                  reportDiff === 0
+                    ? "Matches the formula"
+                    : reportDiff > 0
+                      ? "More than the formula expects"
+                      : "Less than the formula expects"
+                }
+                value={
+                  reportDiff === 0
+                    ? "✓"
+                    : `${reportDiff > 0 ? "+" : "−"}${formatUsd(Math.abs(reportDiff))}`
+                }
+                tint={
+                  reportDiff === 0
+                    ? "font-semibold text-teal-strong"
+                    : "font-semibold text-coral-strong"
+                }
+              />
             </>
           ) : (
-            <p className="text-warm-300">
-              No profit to split this month — nothing transfers out, nothing
-              owed to the reserve. The lines above show what the account still
-              covers.
+            <p className="text-[11px] leading-snug text-warm-400">
+              {example
+                ? "On the 1st you type what the bank shows; the two sit side by side."
+                : `Not reported yet — on ${reportDay}, type what the bank shows.`}
             </p>
           )}
-          {b.storeNetCents > 0 ? (
-            <p className="mt-2 text-xs leading-relaxed text-warm-400">
-              Timing: {formatUsd(b.webNetCents)} of this arrives within days
-              (web). {formatUsd(b.storeNetCents)} is store money — Apple pays
-              about a month behind, Google mid-next-month. Transfer after it
-              lands, not before.
+          {example ? null : (
+            <form
+              action={saveMarketingReportAction}
+              className="mt-1 flex flex-wrap items-end gap-2"
+            >
+              <input type="hidden" name="month" value={b.month} />
+              <label className="flex flex-col gap-1">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-warm-400">
+                  Navy Federal on {reportDay}
+                </span>
+                <input
+                  name="balance"
+                  type="text"
+                  inputMode="decimal"
+                  pattern="^\$?[0-9,]+(\.[0-9]{0,2})?$"
+                  title="A dollar amount like 1234.56"
+                  placeholder="0.00"
+                  required
+                  defaultValue={report ? (report.balanceCents / 100).toFixed(2) : ""}
+                  className="w-36 rounded-xl bg-ink px-3 py-1.5 text-sm font-semibold tabular-nums text-warm-50 ring-1 ring-warm-700 focus:outline-none focus:ring-2 focus:ring-teal"
+                />
+              </label>
+              <button
+                type="submit"
+                className="rounded-full bg-teal/10 px-4 py-1.5 text-sm font-semibold text-teal-strong ring-1 ring-teal/25 transition-colors hover:bg-teal/15"
+              >
+                {report ? "Update" : "Save"}
+              </button>
+            </form>
+          )}
+          {nudgePrev ? (
+            <p className="mt-1 text-xs font-semibold text-coral-strong">
+              {prevLabel}&apos;s balance isn&apos;t reported yet — tap ‹ and enter
+              what Navy Federal showed on the 1st.
             </p>
           ) : null}
-          <div className="mt-3 rounded-lg bg-ink-soft px-3 py-2.5 ring-1 ring-warm-700/60">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-warm-400">
-              The ladder — monthly profit → each one&apos;s rate
+        </Section>
+
+        {/* Taxes actually sent (Wilson 2026-09-02: Danisel four times a
+            year, Pedro once in December). Each payment drains that
+            member's held envelope in the month it went out. */}
+        <Section
+          title="Taxes · sent in each name"
+          note="Held money leaves when they pay. Record every payment here; the held amount drains and the bank line stays true."
+        >
+          {b.partners.map((p) => (
+            <div key={p.name} className="flex flex-col gap-0.5">
+              <BRow
+                label={`Held for ${p.name} now${(p.taxPaidCents ?? 0) > 0 ? ` (after ${formatUsd(p.taxPaidCents)} sent this month)` : ""}`}
+                value={formatUsd(p.taxHeldCents ?? 0)}
+                tint={(p.taxOverpaidCents ?? 0) > 0 ? "font-semibold text-coral-strong" : undefined}
+              />
+              {p.taxDueNote ? (
+                <p className="text-[11px] leading-snug text-warm-400">{p.taxDueNote}</p>
+              ) : null}
+              {(p.taxOverpaidCents ?? 0) > 0 ? (
+                <p className="text-[11px] font-semibold leading-snug text-coral-strong">
+                  {formatUsd(p.taxOverpaidCents)} more was sent than was held for {p.name} — the
+                  business advanced it; the next envelopes fill it back.
+                </p>
+              ) : null}
+              {(p.taxPayments ?? []).map((t, i) => {
+                const match = !b.frozen && !example
+                  ? taxPayments.find(
+                      (x) =>
+                        x.partner === p.name &&
+                        x.paidOn === t.paidOn &&
+                        x.amountCents === t.amountCents &&
+                        x.government === t.government,
+                    )
+                  : undefined;
+                return (
+                  <div
+                    key={`${t.paidOn}-${i}`}
+                    className="flex items-baseline justify-between gap-3 pl-3 text-xs text-warm-300"
+                  >
+                    <span>
+                      {t.paidOn} · {TAX_GOVERNMENT_LABEL[t.government] ?? t.government}
+                      {t.note ? ` · ${t.note}` : ""}
+                    </span>
+                    <span className="flex items-baseline gap-2 tabular-nums">
+                      {formatUsd(t.amountCents)}
+                      {match ? (
+                        <form action={deleteTaxPaymentAction}>
+                          <input type="hidden" name="id" value={match.id} />
+                          <button
+                            type="submit"
+                            title="Remove this payment (typed wrong)"
+                            className="text-[11px] text-warm-400 hover:text-coral-strong"
+                          >
+                            remove
+                          </button>
+                        </form>
+                      ) : null}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+          {example ? null : (
+            <form
+              action={recordTaxPaymentAction}
+              className="mt-1 flex flex-wrap items-end gap-2"
+            >
+              <label className="flex flex-col gap-1">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-warm-400">
+                  Who
+                </span>
+                <select name="partner" required className={fieldClass}>
+                  {b.partners.map((p) => (
+                    <option key={p.name} value={p.name}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-warm-400">
+                  To
+                </span>
+                <select name="government" required className={fieldClass}>
+                  {TAX_GOVERNMENTS.map((g) => (
+                    <option key={g} value={g}>
+                      {TAX_GOVERNMENT_LABEL[g]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-warm-400">
+                  Paid on
+                </span>
+                <input
+                  name="paidOn"
+                  type="date"
+                  required
+                  defaultValue={todayInNewYork()}
+                  max={todayInNewYork()}
+                  className={fieldClass}
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-warm-400">
+                  Amount
+                </span>
+                <input
+                  name="amount"
+                  type="text"
+                  inputMode="decimal"
+                  pattern="^\$?[0-9,]+(\.[0-9]{0,2})?$"
+                  title="A dollar amount like 1234.56"
+                  placeholder="0.00"
+                  required
+                  className={`w-28 ${fieldClass}`}
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-warm-400">
+                  Note (optional)
+                </span>
+                <input name="note" type="text" maxLength={500} placeholder="e.g. Q3 estimate" className={`w-40 ${fieldClass}`} />
+              </label>
+              <button
+                type="submit"
+                className="rounded-full bg-teal/10 px-4 py-1.5 text-sm font-semibold text-teal-strong ring-1 ring-teal/25 transition-colors hover:bg-teal/15"
+              >
+                Record payment
+              </button>
+            </form>
+          )}
+        </Section>
+
+        <Section title="Balances after transfer day">
+          <BRow
+            label={`Operating reserve (target ${formatUsd(b.reserveTargetCents ?? 0)})`}
+            value={formatUsd(b.reserveAfterCents ?? 0)}
+          />
+          <BRow
+            label="Taxes held for the partners (after payments sent)"
+            value={formatUsd(b.taxHeldTotalCents ?? 0)}
+          />
+          {(b.taxPaidTotalCents ?? 0) > 0 ? (
+            <BRow
+              label="Taxes sent this month in their names (already left the account)"
+              value={formatUsd(b.taxPaidTotalCents ?? 0)}
+            />
+          ) : null}
+          {b.partners
+            .filter((p) => p.payout === "december" && p.undrawnBalanceCents > 0)
+            .map((p) => (
+              <BRow
+                key={p.name}
+                label={`${p.name}'s December pot — already counted, taken once a year`}
+                value={formatUsd(p.undrawnBalanceCents)}
+              />
+            ))}
+          <BRow
+            label="The account should hold"
+            value={formatUsd(b.accountShouldHoldCents ?? 0)}
+            strong
+          />
+          {(b.lockedSavingsCents ?? 0) > 0 ? (
+            <BRow
+              label="Savings account — the bank's minimum, separate, never spent"
+              value={formatUsd(b.lockedSavingsCents)}
+            />
+          ) : null}
+        </Section>
+
+          </div>
+        </details>
+
+        <details className="group border-t border-warm-700/60 bg-ink">
+          <summary className="flex cursor-pointer list-none items-center gap-2 px-5 py-2.5 text-[10px] font-bold uppercase tracking-[0.14em] text-warm-400 [&::-webkit-details-marker]:hidden">
+            <span className="inline-block text-base leading-none transition-transform group-open:rotate-90">
+              ›
+            </span>
+            How this works
+          </summary>
+          <div className="flex flex-col gap-2 px-5 pb-4 text-xs leading-relaxed text-warm-400">
+            <p>
+              <span className="font-semibold text-warm-200">The month.</span>{" "}
+              Every month goes final on its 27th and is written to the ledger —
+              those numbers never move. Taxes are held by the business until
+              each partner sends their own estimated payment. Money made from
+              the 27th to the 1st is never split; it moves to the Marketing
+              account at Navy Federal on the 27th.
             </p>
-            <p className="mt-1.5 text-xs leading-relaxed text-warm-300 tabular-nums">
-              <span className="font-semibold text-warm-200">Bethlehem PA:</span>{" "}
+            <p>
+              <span className="font-semibold text-warm-200">Capital.</span> The
+              $175s on the 1st, the savings floor, and any loss covered out of
+              pocket are capital — not income, not taxed, never split. The
+              1st-of-month money fills the reserve until profit does. The
+              business owes it all back; returning it is not income.
+            </p>
+            <p>
+              <span className="font-semibold text-warm-200">The reserve.</span>{" "}
+              A target balance the account keeps, not a monthly charge: next
+              month&apos;s bills ({formatUsd(b.billsCents)} — the fixed subs
+              plus this month&apos;s usage) + a {formatUsd(b.cushionCents)}{" "}
+              cushion for growth. It rises as the app gets used more, fills
+              once, tops up only when it dips, and a loss draws it down.
+            </p>
+            <p>
+              <span className="font-semibold text-warm-200">Marketing.</span>{" "}
+              The formula&apos;s balance is every 27th→1st tail since launch,
+              never distributed; its taxes are already in the envelopes. On the
+              1st you type what the bank shows and the two sit side by side.
+            </p>
+            <p>
+              <span className="font-semibold text-warm-200">Taxes.</span> The
+              business holds each partner&apos;s envelope until they send an
+              estimated payment in their own name — Danisel four times a year
+              (IRS + PA Apr 15 / Jun 15 / Sep 15 / Jan 15; Bethlehem through
+              Keystone Apr 15 / Jul 15 / Oct 15 / Jan 15), Pedro once in
+              December with his draw. Record every payment above; the held
+              amount drains in the month it was sent. Danisel files
+              married-filing-separately, Pedro single — the federal brackets
+              follow. Not tax advice.
+            </p>
+            <p>
+              <span className="font-semibold text-warm-200">Timing.</span> Web
+              money arrives within days. Apple pays about a month behind,
+              Google mid-next-month — transfer after it lands, not before.
+            </p>
+            <p className="tabular-nums">
+              <span className="font-semibold text-warm-200">
+                The ladder — monthly profit → each one&apos;s rate.
+              </span>
+              <br />
+              Bethlehem PA:{" "}
               {b.taxLadder
-                .map(
-                  (r) =>
-                    `$${(r.profitCents / 100000).toFixed(0)}k → ${r.ratePctPA ?? r.ratePct}%`,
-                )
+                .map((r) => `$${(r.profitCents / 100000).toFixed(0)}k → ${r.ratePctPA ?? r.ratePct}%`)
                 .join("  ·  ")
                 .replace("$1000k", "$1M")}
-            </p>
-            <p className="mt-1 text-xs leading-relaxed text-warm-300 tabular-nums">
-              <span className="font-semibold text-warm-200">Bronx NYC:</span>{" "}
+              <br />
+              Bronx NYC:{" "}
               {b.taxLadder
-                .map(
-                  (r) =>
-                    `$${(r.profitCents / 100000).toFixed(0)}k → ${r.ratePctNYC ?? r.ratePct}%`,
-                )
+                .map((r) => `$${(r.profitCents / 100000).toFixed(0)}k → ${r.ratePctNYC ?? r.ratePct}%`)
                 .join("  ·  ")
                 .replace("$1000k", "$1M")}
-            </p>
-            <p className="mt-1.5 text-[11px] leading-relaxed text-warm-400">
+              <br />
               Only the dollars past each rung pay the higher lanes — a bigger
               month is always more take-home.
             </p>
+            {b.partners.map((p) => (
+              <p key={p.name}>{p.taxNote}</p>
+            ))}
+            <p>
+              Estimates, not tax advice. Store commission, Stripe fees, and the
+              tax rates are labeled estimates; Anthropic is the real ledger
+              number.
+            </p>
           </div>
-          <p className="mt-2 text-xs leading-relaxed text-warm-400">
-            Each rate is computed fresh each month for where that partner
-            lives. Danisel (Bethlehem): PA&apos;s flat 3.07% + Bethlehem&apos;s
-            1% local + self-employment + the federal brackets. Pedro (Bronx):
-            NY State&apos;s brackets + NYC&apos;s city tax + self-employment +
-            federal — PA taxes his share first and New York credits every PA
-            dollar, so he&apos;s never taxed twice; the city tax is his real
-            extra. Estimates, not tax advice.
-          </p>
-        </div>
+        </details>
       </div>
     </section>
+  );
+}
+
+/** One labeled group of the card: a small-caps caption, label:value
+ *  rows, an optional one-line footnote. Mirrors MSection on mobile. */
+function Section({
+  title,
+  note,
+  children,
+}: {
+  title: string;
+  note?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-1 border-t border-warm-700/60 px-5 py-3 text-sm">
+      <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.14em] text-warm-400">
+        {title}
+      </p>
+      {children}
+      {note ? (
+        <p className="mt-1 text-[11px] leading-snug text-warm-400">{note}</p>
+      ) : null}
+    </div>
   );
 }
 

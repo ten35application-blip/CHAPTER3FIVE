@@ -4,7 +4,10 @@ import {
   fetchExampleBreakdown,
   fetchMonthBreakdown,
   normalizeMonthParam,
+  prevMonth,
 } from "@/lib/admin/monthBreakdown";
+import { fetchMarketingReport } from "@/lib/admin/marketingReports";
+import { fetchTaxPayments } from "@/lib/admin/taxPayments";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,5 +33,22 @@ export async function GET(request: Request) {
     breakdown.grossCents === 0
       ? await fetchExampleBreakdown(gate.admin)
       : null;
-  return NextResponse.json({ ...breakdown, example });
+  // The Marketing account as the bank showed it on the 1st: this
+  // month's (after its transfer day) and last month's (what the live
+  // month card nudges for on the 1st).
+  // Tax payments ever recorded (with ids, so a live one can be
+  // deleted from the app); the month's counted ones sit inside
+  // breakdown.partners[].taxPayments.
+  const [marketingReport, marketingReportPrev, taxPayments] = await Promise.all([
+    fetchMarketingReport(gate.admin, month),
+    fetchMarketingReport(gate.admin, prevMonth(month)),
+    fetchTaxPayments(gate.admin, { limit: 50 }),
+  ]);
+  return NextResponse.json({
+    ...breakdown,
+    example,
+    marketingReport,
+    marketingReportPrev,
+    taxPayments,
+  });
 }

@@ -245,12 +245,17 @@ export async function GET(request: Request) {
     "anniversaries",
     "check-in",
     "persona-outreach",
+    "archive-backup",
+    "settle",
   ];
+  // Same table as api/admin/cron-health: settle is monthly (the 27th)
+  // and first fires 2026-09-27 — not stale before it's ever due.
   const graceMsFor = (job: string) =>
-    (job === "reflect" ? 9 * 24 : 48) * 60 * 60 * 1000;
+    (job === "reflect" ? 9 * 24 : job === "settle" ? 33 * 24 : 48) * 60 * 60 * 1000;
+  const notBefore: Record<string, string> = { settle: "2026-09-27T05:05:00Z" };
   const stale = cronJobList.filter((job) => {
     const row = latestByJob.get(job);
-    if (!row) return true;
+    if (!row) return !(notBefore[job] && Date.now() < new Date(notBefore[job]).getTime());
     return Date.now() - new Date(row.ran_at).getTime() > graceMsFor(job);
   });
   const errored = cronJobList.filter(

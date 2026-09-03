@@ -53,57 +53,85 @@ export async function exportSettlementsCsv(): Promise<{
 }> {
   await requireAdmin();
   const supabase = createAdminClient();
-  const { fetchMonthBreakdown, prevMonth, normalizeMonthParam } =
-    await import("@/lib/admin/monthBreakdown");
-
-  const months: string[] = [];
-  let m = normalizeMonthParam(null);
-  while (m >= "2026-08" && months.length < 120) {
-    months.push(m);
-    m = prevMonth(m);
-  }
-  months.reverse();
-
-  const usd = (c: number) => (c / 100).toFixed(2);
-  const rows = [
-    "Month,Customers paid,Store cut (est),Stripe cut (est),Reached the bank,Fixed bills,Anthropic (actual),Replicate (est),Total costs,Profit,Tax reserve,Pedro transfer,Danisel transfer,Each to tax savings,Each spendable,Stays for bills,Refunded",
-  ];
-  for (const month of months) {
-    const b = await fetchMonthBreakdown(supabase, month);
-    const fixedCents = b.expenses
-      .filter(
-        (e) =>
-          !e.name.startsWith("Anthropic") && !e.name.startsWith("Replicate"),
-      )
-      .reduce((a, e) => a + e.cents, 0);
-    const anthropic =
-      b.expenses.find((e) => e.name.startsWith("Anthropic"))?.cents ?? 0;
-    const replicate =
-      b.expenses.find((e) => e.name.startsWith("Replicate"))?.cents ?? 0;
-    rows.push(
-      [
-        b.monthLabel.replaceAll(",", ""),
-        usd(b.grossCents),
-        usd(b.storeCommissionCents),
-        usd(b.webProcessingCents),
-        usd(b.netReceiptsCents),
-        usd(fixedCents),
-        usd(anthropic),
-        usd(replicate),
-        usd(b.totalExpensesCents),
-        usd(b.profitCents),
-        usd(b.taxReserveCents),
-        usd(b.transferPerPartnerCents),
-        usd(b.transferPerPartnerCents),
-        usd(b.taxSavingsPerPartnerCents),
-        usd(b.perPartnerCents),
-        usd(b.keepInAccountCents),
-        usd(b.refundedCents),
-      ].join(","),
-    );
-  }
+  // Same builder as /api/admin/revenue/settlements.csv — one ledger,
+  // whichever way it's downloaded.
+  const { buildSettlementsCsv } = await import("@/lib/admin/settlementsCsv");
   return {
-    filename: "chapter3five-months-settled.csv",
-    csv: rows.join("\n") + "\n",
+    filename: "chapter3five-settlement-ledger.csv",
+    csv: await buildSettlementsCsv(supabase),
   };
+}
+
+/** The Marketing account (Navy Federal) as the bank showed it on the
+ *  1st (Wilson 2026-09-02) — one report per settlement month, sitting
+ *  beside what the formula says should be there. */
+export async function saveMarketingReportAction(formData: FormData): Promise<void> {
+  const user = await requireAdmin();
+  const month = String(formData.get("month") ?? "");
+  const raw = String(formData.get("balance") ?? "");
+  const { parseDollarsToCents, saveMarketingReport } = await import(
+    "@/lib/admin/marketingReports"
+  );
+  const balanceCents = parseDollarsToCents(raw);
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month) || balanceCents === null) {
+    // A malformed submit just re-renders; the form's own validation
+    // stops this before it reaches here.
+    return;
+  }
+  await saveMarketingReport(createAdminClient(), {
+    month,
+    balanceCents,
+    reportedBy: user.email ?? null,
+  });
+  const { revalidatePath } = await import("next/cache");
+  revalidatePath("/admin/revenue");
+  revalidatePath("/admin/revenue/statement");
+}
+
+/** An estimated-tax payment sent in a member's name (Wilson
+ *  2026-09-02: Danisel four times a year, Pedro once in December).
+ *  Drains that member's held envelope in the month it was sent. */
+export async function recordTaxPaymentAction(formData: FormData): Promise<void> {
+  const user = await requireAdmin();
+  const supabase = createAdminClient();
+  const { parseDollarsToCents } = await import("@/lib/admin/marketingReports");
+  const { recordTaxPayment } = await import("@/lib/admin/taxPayments");
+  const { loadSettings } = await import("@/lib/admin/monthBreakdown");
+  const amountCents = parseDollarsToCents(String(formData.get("amount") ?? ""));
+  // A malformed submit just re-renders; the form's own validation
+  // stops this before it reaches here.
+  if (amountCents === null) return;
+  const settings = await loadSettings(supabase);
+  try {
+    await recordTaxPayment(supabase, {
+      partner: String(formData.get("partner") ?? ""),
+      paidOn: String(formData.get("paidOn") ?? ""),
+      amountCents,
+      government: String(formData.get("government") ?? ""),
+      note: String(formData.get("note") ?? ""),
+      recordedBy: user.email ?? null,
+      partnerNames: [settings.partner_a, settings.partner_b],
+    });
+  } catch (err) {
+    console.error("[tax-payment] record failed:", err);
+    return;
+  }
+  const { revalidatePath } = await import("next/cache");
+  revalidatePath("/admin/revenue");
+  revalidatePath("/admin/revenue/statement");
+}
+
+/** Remove a payment typed wrong — only while its month is still live. */
+export async function deleteTaxPaymentAction(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const { deleteTaxPayment } = await import("@/lib/admin/taxPayments");
+  try {
+    await deleteTaxPayment(createAdminClient(), String(formData.get("id") ?? ""));
+  } catch (err) {
+    console.error("[tax-payment] delete failed:", err);
+    return;
+  }
+  const { revalidatePath } = await import("next/cache");
+  revalidatePath("/admin/revenue");
+  revalidatePath("/admin/revenue/statement");
 }

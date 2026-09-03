@@ -109,15 +109,22 @@ export type SpendRoute =
  *  0 for a call with any tokens — a 1-cent floor keeps the ledger
  *  from silently dropping tiny calls. */
 export function estimateCents(model: string, usage: SpendUsage): number {
+  const cents = exactCents(model, usage);
+  if (cents <= 0) return 0;
+  return Math.max(1, Math.ceil(cents));
+}
+
+/** The same cost without the ceil or the floor — fractional cents,
+ *  what Anthropic actually bills. The governor gates on whole cents;
+ *  the books (admin revenue) sum this so spend isn't overstated. */
+export function exactCents(model: string, usage: SpendUsage): number {
   const p = pricingFor(model);
   const perMillion =
     (usage.input_tokens ?? 0) * p.input +
     (usage.output_tokens ?? 0) * p.output +
     (usage.cache_read_input_tokens ?? 0) * p.cacheRead +
     (usage.cache_creation_input_tokens ?? 0) * p.cacheCreation;
-  const cents = perMillion / 1_000_000;
-  if (cents <= 0) return 0;
-  return Math.max(1, Math.ceil(cents));
+  return perMillion / 1_000_000;
 }
 
 /**
@@ -139,6 +146,7 @@ export async function recordAnthropicSpend(args: {
     await admin.from("chat_spend_events").insert({
       user_id: args.userId,
       cents,
+      exact_cents: Math.round(exactCents(args.model, args.usage) * 10000) / 10000,
       input_tokens: args.usage.input_tokens ?? null,
       output_tokens: args.usage.output_tokens ?? null,
       cache_read_tokens: args.usage.cache_read_input_tokens ?? null,

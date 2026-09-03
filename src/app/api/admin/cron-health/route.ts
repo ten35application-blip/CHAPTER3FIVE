@@ -19,7 +19,7 @@ export const runtime = "nodejs";
 
 // Expected cadence per job (from vercel.json). Grace = how much
 // slack we give before flagging as stale (roughly 2× cadence).
-const JOBS: Record<string, { cadenceHours: number; graceHours: number }> = {
+const JOBS: Record<string, { cadenceHours: number; graceHours: number; notBefore?: string }> = {
   outreach:            { cadenceHours: 24, graceHours: 48 },
   proactive:           { cadenceHours: 24, graceHours: 48 },
   purge:               { cadenceHours: 24, graceHours: 48 },
@@ -32,6 +32,13 @@ const JOBS: Record<string, { cadenceHours: number; graceHours: number }> = {
   // is daily; the readout tracks invocation cadence.
   "check-in":          { cadenceHours: 24, graceHours: 48 },
   "persona-outreach":  { cadenceHours: 24, graceHours: 48 },
+  // The daily vault snapshot (07:00 UTC). Before 2026-09-02 it wrote
+  // status rows nobody read; a failed backup now shows here.
+  "archive-backup":    { cadenceHours: 24, graceHours: 48 },
+  // settle — the 27th money cron (05:05 UTC). Monthly; grace is a
+  // month plus two days. It first fires 2026-09-27, so until then a
+  // missing row is "not due yet", not a stale job.
+  settle:              { cadenceHours: 24 * 31, graceHours: 24 * 33, notBefore: "2026-09-27T05:05:00Z" },
   // passing was deliberately unscheduled 2026-08-04 (see the header of
   // api/cron/passing/route.ts — inherit codes are live from mint, so
   // nothing needs to detect a death). Tracking it here would flag a
@@ -53,7 +60,7 @@ export async function GET() {
   const admin = createAdminClient();
 
   const results = await Promise.all(
-    Object.entries(JOBS).map(async ([job, { cadenceHours, graceHours }]) => {
+    Object.entries(JOBS).map(async ([job, { cadenceHours, graceHours, notBefore }]) => {
       // ran_at, NOT created_at — cron_runs is
       // (id, job, ran_at, status, processed, error, duration_ms) per
       // migration 0020. Selecting created_at returned PostgREST 42703
@@ -89,13 +96,15 @@ export async function GET() {
       }
 
       if (!latest) {
+        const notDueYet = Boolean(notBefore && Date.now() < new Date(notBefore).getTime());
         return {
           job,
-          status: "never_run" as const,
+          status: notDueYet ? ("not_due_yet" as const) : ("never_run" as const),
+          not_before: notBefore ?? null,
           cadence_hours: cadenceHours,
           last_run: null,
           hours_since_last: null,
-          stale: true,
+          stale: !notDueYet,
         };
       }
 
