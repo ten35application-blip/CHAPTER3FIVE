@@ -387,13 +387,52 @@ export default async function IdentityCreatePage({
       ) : null}
 
       <div className="flex flex-col gap-3">
-        {/* Card 1 — random identity. "Included in your plan · N
+        {/* Card 1 — Me. First on purpose: the 45 is the product (Wilson 2026-09-06). Free on all tiers, one per account. When one
+            exists the CTA disappears and the card reads "Already
+            created" (with a link back to it in the dashboard). Teal
+            CTA to match mobile. */}
+        <PathCardShell
+          title="Me"
+          subhead="Forty-five warm questions about YOU, in your own voice. Produces a code your family can hold on to so they can remember you here."
+          icon={<HeartTagIcon />}
+          statusLabel={hasMe ? "Already created" : "Free"}
+        >
+          {hasMe ? (
+            <p className="mt-2 text-center text-[13px] text-warm-300">
+              One Me per account. See it in your dashboard.
+            </p>
+          ) : (
+            <SolidPillLink
+              href="/identity/legacy/new?mode=self"
+              label={modesInProgress.has("self") ? "Finish the walk" : "Start the walk"}
+              tone="teal"
+            />
+          )}
+        </PathCardShell>
+
+        {/* Card 2 — legacy for someone else. Always $5, charged at
+            Finish by the existing other_identity_create flow — the
+            picker just previews the cost. Coral CTA to match mobile. */}
+        <PathCardShell
+          title="For someone you love"
+          subhead="Forty-five questions about a real person &mdash; a parent, a partner, a friend. Lands in your contacts, plus a code you can share with family."
+          icon={<InfinityIcon />}
+          statusLabel={`$${legacyOtherCents / 100} when you finish`}
+        >
+          <SolidPillLink
+            href="/identity/legacy/new?mode=other"
+            label={modesInProgress.has("other") ? "Finish the walk" : "Start the walk"}
+            tone="coral"
+          />
+        </PathCardShell>
+
+        {/* Card 3 — random identity (was card 1; Wilson 2026-09-06: the walks go first). "Included in your plan · N
             remaining" while under the tier's random quota (Basic 2 /
             Pro 4, plus purchased extra_oracle_credits); "$5" beyond
             that (buys 1 extra_oracle_credit via the 'oracle'
             checkout purpose). Coral CTA to match mobile. */}
         <PathCardShell
-          title="Add a companion"
+          title="Create an identity"
           subhead="A random personality written for you in about a minute. No questions, no photo &mdash; you get who you get."
           icon={<SparkIcon />}
           // No "Included in your plan" chip, ever (Wilson 2026-08-04).
@@ -443,7 +482,7 @@ export default async function IdentityCreatePage({
           )}
         </PathCardShell>
 
-        {/* Card 2 — photo identity. Three states, in priority order:
+        {/* Card 4 — photo identity (was card 2). Three states, in priority order:
             (a) unfilled placeholder exists → "Included in your plan"
                 + route to /chat/{placeholderId} so the existing
                 PhotoPlaceholderScreen upload flow fills the row
@@ -455,7 +494,7 @@ export default async function IdentityCreatePage({
             (c) filled photo exists → "$5" + BuyExtraCompanionCTA.
             Teal CTA in all three branches to match mobile. */}
         <PathCardShell
-          title="From a photo"
+          title="Create an identity from a photo"
           subhead="Upload a portrait. We read the face and build an identity to match. The photo becomes their face."
           icon={<PhotoIcon />}
           // Same rule as card 1. The unfilled-placeholder case is the one
@@ -502,45 +541,6 @@ export default async function IdentityCreatePage({
               tone="teal"
             />
           )}
-        </PathCardShell>
-
-        {/* Card 3 — Me. Free on all tiers, one per account. When one
-            exists the CTA disappears and the card reads "Already
-            created" (with a link back to it in the dashboard). Teal
-            CTA to match mobile. */}
-        <PathCardShell
-          title="Me"
-          subhead="Forty-five warm questions about YOU, in your own voice. Produces a code your family can hold on to so they can remember you here."
-          icon={<HeartTagIcon />}
-          statusLabel={hasMe ? "Already created" : "Free"}
-        >
-          {hasMe ? (
-            <p className="mt-2 text-center text-[13px] text-warm-300">
-              One Me per account. See it in your dashboard.
-            </p>
-          ) : (
-            <SolidPillLink
-              href="/identity/legacy/new?mode=self"
-              label={modesInProgress.has("self") ? "Finish the walk" : "Start the walk"}
-              tone="teal"
-            />
-          )}
-        </PathCardShell>
-
-        {/* Card 4 — legacy for someone else. Always $5, charged at
-            Finish by the existing other_identity_create flow — the
-            picker just previews the cost. Coral CTA to match mobile. */}
-        <PathCardShell
-          title="For someone you love"
-          subhead="Forty-five questions about a real person &mdash; a parent, a partner, a friend. Lands in your contacts, plus a code you can share with family."
-          icon={<InfinityIcon />}
-          statusLabel={`$${legacyOtherCents / 100} when you finish`}
-        >
-          <SolidPillLink
-            href="/identity/legacy/new?mode=other"
-            label={modesInProgress.has("other") ? "Finish the walk" : "Start the walk"}
-            tone="coral"
-          />
         </PathCardShell>
 
         {/* Earn one — the fifth way in (0143). */}

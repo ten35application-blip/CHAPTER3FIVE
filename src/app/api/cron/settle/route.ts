@@ -278,6 +278,9 @@ function transferSheet(
   if (b.lockedSavingsDepositCents > 0) {
     lines.push(`Savings floor put in by ${b.partners.filter((p) => p.savingsDepositCents > 0).map((p) => `${p.name} (${usd(p.savingsDepositCents)})`).join(" + ")} — capital, stays in savings`);
   }
+  for (const p of b.partners) {
+    if ((p.extraCapitalCents ?? 0) > 0) lines.push(`One-off deposit by ${p.name}: ${usd(p.extraCapitalCents)}${p.extraCapitalNote ? ` (${p.extraCapitalNote})` : ""} — capital, owed back; it sits in the reserve`);
+  }
   lines.push("");
   lines.push(status.resent ? "DO TODAY (the 27th) — ONLY IF NOT DONE ALREADY:" : "DO TODAY (the 27th):");
   if (b.storeNetCents > 0) {

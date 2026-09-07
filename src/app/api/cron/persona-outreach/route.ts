@@ -6,6 +6,7 @@ import { normalizeLanguage } from "@/lib/i18n/language";
 import { isOracleMuted } from "@/lib/muted";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { canCompanionInitiate } from "@/lib/identity/canInitiate";
+import { dailyYes, isInitiationHour, localClock, localDaysBetween, startOfLocalDay } from "@/lib/identity/initiationWindow";
 import {
   coerceTextFirstFrequency,
   DEFAULT_TEXT_FIRST_FREQUENCY,
@@ -65,9 +66,10 @@ export async function GET(request: NextRequest) {
   // Two doors (see cronTick.ts): CRON_SECRET for Vercel/manual, or an
   // atomic tick claim for the pg_cron backstop — Vercel Hobby skipped
   // this job three days straight (2026-08-22→25) while "identities
-  // text you first" quietly died. 20-hour gap = one run per day, no
-  // matter who calls.
-  if (!(await authorizeCronTick(request, "persona_outreach", 20 * 60))) {
+  // text you first" quietly died. HOURLY since 2026-09-05 (Vercel Pro
+  // + pg_cron backstop at :05): 50-minute gap = one run per hour, no
+  // matter who calls. Per-identity hours live in initiationWindow.ts.
+  if (!(await authorizeCronTick(request, "persona_outreach", 50))) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
@@ -133,7 +135,6 @@ export async function GET(request: NextRequest) {
   const nowIso = now.toISOString();
   const sixHoursAgo = new Date(startedAt - 6 * HOUR).toISOString();
   const fortyEightAgo = new Date(startedAt - 48 * HOUR).toISOString();
-  const twentyFourAgo = new Date(startedAt - 24 * HOUR).toISOString();
 
   for (const profile of candidates) {
     // Stop on our own terms rather than being killed mid-loop. See
@@ -242,12 +243,15 @@ export async function GET(request: NextRequest) {
             }
           : null;
 
-      // Any-persona-24h gate.
+      // Any-persona gate: one reach-out per user per LOCAL DAY. Was
+      // "last 24h", which with personal hours (2026-09-05) blocked a
+      // 9 am text because yesterday's went at 11 am — and the day
+      // slipped. Calendar days, like a person counts.
       const { count: recentOutreachCount } = await admin
         .from("persona_outreach_events")
         .select("id", { count: "exact", head: true })
         .eq("user_id", profile.id)
-        .gte("sent_at", twentyFourAgo);
+        .gte("sent_at", startOfLocalDay(now, profile.timezone as string | null).toISOString());
       if ((recentOutreachCount ?? 0) > 0) continue;
 
       // Pull the user's active (non-deleted, non-archived-conversation,
@@ -259,7 +263,7 @@ export async function GET(request: NextRequest) {
       const { data: oracles } = await admin
         .from("oracles")
         .select(
-          "id, name, persona_prompt, traits, one_line_hook, significant_events, memory_style, created_at, is_legacy, creation_source, is_photo_placeholder",
+          "id, name, persona_prompt, traits, chronotype, one_line_hook, significant_events, memory_style, created_at, is_legacy, creation_source, is_photo_placeholder",
         )
         .eq("user_id", profile.id)
         .is("deleted_at", null)
@@ -364,7 +368,15 @@ export async function GET(request: NextRequest) {
         // branch had no age gate at all).
         const oracleAgeMs =
           Date.now() - Date.parse((oracle.created_at as string) ?? "");
-        if (Number.isFinite(oracleAgeMs) && oracleAgeMs < 18 * HOUR) {
+        // Never cold-open on the day they were made (was "< 18h", which
+        // with personal hours skipped the whole next morning for an
+        // evening reveal). Their first chance is their hour tomorrow.
+        const daysSinceCreated = localDaysBetween(
+          (oracle.created_at as string) ?? "",
+          now,
+          profile.timezone as string | null,
+        );
+        if (daysSinceCreated < 1) {
           continue;
         }
         const freq = coerceTextFirstFrequency(
@@ -382,8 +394,7 @@ export async function GET(request: NextRequest) {
         // never cold-open (archives keep the old rule).
         const isDayAfterWindow =
           Number.isFinite(oracleAgeMs) &&
-          oracleAgeMs > 18 * HOUR &&
-          oracleAgeMs < 48 * HOUR &&
+          daysSinceCreated === 1 && // THE next calendar day, at their hour
           oracle.is_legacy !== true &&
           (oracle.creation_source === "random" ||
             oracle.creation_source === "photo") &&
@@ -403,44 +414,38 @@ export async function GET(request: NextRequest) {
         if (unanswered >= 4) thresholdDays *= 7;
         else if (unanswered >= 2) thresholdDays *= 3;
 
-        // Chronotype band: a morning person texts in the morning, a
-        // night owl in the evening. Only meaningful when we know the
-        // user's timezone; steady types (and unknown-tz users) use the
-        // whole 8am-10pm window. The cron runs hourly, so a persona
-        // outside its band right now simply qualifies later today.
-        if (!withinChronotypeBand(now, profile.timezone as string | null, readChronotype(oracle.traits))) {
+        // THEIR hour, not the cron's (2026-09-05, Wilson: "based off
+        // job, based off their texting style, based off how they carry
+        // themselves"). lib/identity/initiationWindow draws one hour a
+        // day per identity from chronotype + occupation + employment +
+        // daily ritual, seeded by (id, date). The old chronotype band
+        // assumed an hourly cron that never existed (Vercel Hobby ran
+        // this once a day at 3 pm ET), so morning people and night
+        // owls never texted first at all. Now the cron IS hourly.
+        if (!isInitiationHour(oid, { chronotype: oracle.chronotype as string | null, traits: oracle.traits }, now, profile.timezone as string | null)) {
           continue;
         }
+
+        // ONE DAY YES, ONE DAY NO (Wilson 2026-09-05: "baked into the
+        // formula"). The tier (with back-off multiplied in) is no longer
+        // a timer — it's the odds of today's coin. The day-after text is
+        // the one guaranteed yes. Two hard rules survive regardless of
+        // the coin: never twice from the same identity in one local day,
+        // and never cold-open a thread the user wrote in today.
+        const tz = profile.timezone as string | null;
+        const yesToday =
+          isDayAfterWindow || dailyYes(oid, localClock(now, tz).dateKey, thresholdDays);
+        if (!yesToday) continue;
+        const lastOutreach = latestOutreachByOracle.get(oid);
+        if (lastOutreach && localDaysBetween(lastOutreach, now, tz) < 1) continue;
+        const lastUserMsg = latestUserMsgByOracle.get(oid);
+        if (lastUserMsg && localDaysBetween(lastUserMsg, now, tz) < 1) continue;
 
         const latestMsg = latestByOracle.get(oid);
-        if (!latestMsg) {
-          // Never-messaged threads still qualify — treat as maximally
-          // silent so brand-new identities can send the first ping.
-          const overshoot = 999;
-          const lastOutreach = latestOutreachByOracle.get(oid);
-          if (lastOutreach) {
-            const daysSinceOutreach =
-              (startedAt - Date.parse(lastOutreach)) / DAY;
-            if (daysSinceOutreach < thresholdDays) continue;
-          }
-          eligible.push({ oracleId: oid, overshootDays: overshoot, oracle });
-          continue;
-        }
-        const daysSilent = (startedAt - Date.parse(latestMsg)) / DAY;
-        if (daysSilent < thresholdDays) continue;
-
-        const lastOutreach = latestOutreachByOracle.get(oid);
-        if (lastOutreach) {
-          const daysSinceOutreach =
-            (startedAt - Date.parse(lastOutreach)) / DAY;
-          if (daysSinceOutreach < thresholdDays) continue;
-        }
-
-        eligible.push({
-          oracleId: oid,
-          overshootDays: daysSilent - thresholdDays,
-          oracle,
-        });
+        // Sort key: the quieter the thread, the bigger the pull. A
+        // never-messaged thread is maximally quiet.
+        const daysSilent = latestMsg ? (startedAt - Date.parse(latestMsg)) / DAY : 999;
+        eligible.push({ oracleId: oid, overshootDays: daysSilent, oracle });
       }
 
       // Fresh-callback augmentation: an oracle with a recent (6-48h)
@@ -469,10 +474,11 @@ export async function GET(request: NextRequest) {
         // morning callback, the exact band the hourly retune enforces.
         const callbackInBand =
           !callbackOracle ||
-          withinChronotypeBand(
+          isInitiationHour(
+            callbackOracle.id as string,
+            { chronotype: callbackOracle.chronotype as string | null, traits: callbackOracle.traits },
             now,
             profile.timezone as string | null,
-            readChronotype(callbackOracle.traits),
           );
         if (callbackOracle && callbackInBand && !withinOracle24h) {
           callbackText = freshCallback.text;
@@ -739,16 +745,6 @@ function cadenceDays(freq: number): number {
   return CADENCE_DAYS[Math.round(freq)] ?? 5;
 }
 
-function readChronotype(traits: unknown): string | null {
-  if (typeof traits !== "object" || traits === null) return null;
-  const v = (traits as Record<string, unknown>).chronotype;
-  return typeof v === "string" ? v : null;
-}
-
-/** Morning people text 8-12, night owls 17-22, steady/unknown any
- *  time inside the base window. Requires a known timezone — without
- *  one the base window's UTC fallback already applies upstream. */
-
 /** "It's morning where they are" — lets the generic reach-out become a
  *  good-morning or goodnight text when the clock fits (2026-08-27,
  *  Wilson's supportive-love layer). Empty string mid-day. */
@@ -771,30 +767,6 @@ function localDaypartHint(now: Date, tz: string | null): string {
     return "";
   } catch {
     return "";
-  }
-}
-
-function withinChronotypeBand(
-  now: Date,
-  tz: string | null,
-  chronotype: string | null,
-): boolean {
-  if (!tz || !chronotype || chronotype === "steady") return true;
-  try {
-    const hour = parseInt(
-      new Intl.DateTimeFormat("en-US", {
-        hour: "numeric",
-        hour12: false,
-        timeZone: tz,
-      }).format(now),
-      10,
-    );
-    if (!Number.isFinite(hour)) return true;
-    if (chronotype === "morning_person") return hour >= 8 && hour < 12;
-    if (chronotype === "night_owl") return hour >= 17 && hour < 22;
-    return true;
-  } catch {
-    return true;
   }
 }
 

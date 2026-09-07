@@ -24,7 +24,7 @@
     },
     {
       "path": "/api/cron/persona-outreach",
-      "schedule": "0 19 * * *"
+      "schedule": "0 * * * *"
     },
     {
       "path": "/api/cron/promised-pings",

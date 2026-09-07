@@ -66,6 +66,9 @@ export async function GET(request: NextRequest) {
     subject_ready:
       !!(r.subject as { name?: string } | null)?.name &&
       !!(r.subject as { photoUrl?: string } | null)?.photoUrl,
+    // Dashboard "Finish recording Mom · 12 of 45" card (2026-09-06).
+    answered: Object.values((r.answers as Record<string, string>) ?? {}).filter((a) => a?.trim()).length,
+    subject_name: (r.subject as { name?: string } | null)?.name ?? null,
   }));
 
   return NextResponse.json({

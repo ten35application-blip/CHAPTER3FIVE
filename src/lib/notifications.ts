@@ -193,7 +193,7 @@ Open it when you're ready. There's no rush.
 
 ${opts.claimUrl}
 
-If you're struggling right now, you don't have to open this alone. In the US you can text or call 988 to talk to a real person about grief or crisis. Outside the US, your local emergency line.
+If you're struggling right now, you don't have to open this alone. In the US you can text or call 988 to talk to a real person about grief or crisis (Veterans: 988, then press 1). Outside the US, your local emergency line.
 
 — chapter3five`;
 

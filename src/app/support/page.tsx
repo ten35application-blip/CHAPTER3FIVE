@@ -95,7 +95,7 @@ export default function SupportPage() {
       <p>
         chapter3five isn&rsquo;t crisis care and isn&rsquo;t a substitute
         for a real person. If you&rsquo;re in the US, please call or text{" "}
-        <strong>988</strong>. UK Samaritans: <strong>116 123</strong>.
+        <strong>988</strong>. Veterans: 988, then press&nbsp;1, or text <strong>838255</strong>. UK Samaritans: <strong>116 123</strong>.
         Mexico SAPTEL: <strong>+52 55 5259&nbsp;8121</strong>. Reach a
         human when it counts.
       </p>

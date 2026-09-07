@@ -377,6 +377,15 @@ function SubjectScreen({
       >
         Back
       </Link>
+      {/* People now arrive here straight from the dashboard's Record rows
+          (2026-09-06), so "Back" to the picker isn't where most of them
+          came from. Autosave means leaving costs nothing. */}
+      <Link
+        href="/dashboard"
+        className="mt-3.5 text-center text-sm font-medium text-warm-400 transition-colors hover:text-warm-200"
+      >
+        Back to dashboard
+      </Link>
     </div>
   );
 }

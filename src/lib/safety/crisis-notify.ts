@@ -178,6 +178,7 @@ function crisisResourceMessage(
 I'm not a person, and this isn't the kind of thing I can help with. But these are, and they're free, and someone real answers:
 
 988 — call or text, US, any hour
+988, then press 1 — Veterans Crisis Line, US (or text 838255)
 741741 — text HOME, US, if talking is easier than speaking
 116 123 — Samaritans, UK
 +52 55 5259-8121 — SAPTEL, Mexico

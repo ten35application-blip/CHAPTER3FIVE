@@ -423,6 +423,7 @@ function MonthBreakdownCard({
 
         {(b.contributionsCents ?? 0) > 0 ||
         (b.lockedSavingsDepositCents ?? 0) > 0 ||
+        (b.extraCapitalCents ?? 0) > 0 ||
         (b.shortfallCoveredCents ?? 0) > 0 ? (
           <Section
             title="Capital put in"
@@ -443,6 +444,15 @@ function MonthBreakdownCard({
                 value={`+${formatUsd(b.lockedSavingsDepositCents)}`}
               />
             ) : null}
+            {b.partners
+              .filter((p) => (p.extraCapitalCents ?? 0) > 0)
+              .map((p) => (
+                <BRow
+                  key={`${p.name}-extra`}
+                  label={`One-off deposit by ${p.name}${p.extraCapitalNote ? ` — ${p.extraCapitalNote}` : ""} (lands in the reserve)`}
+                  value={`+${formatUsd(p.extraCapitalCents ?? 0)}`}
+                />
+              ))}
             {(b.shortfallCoveredCents ?? 0) > 0 ? (
               <BRow
                 label={`Loss covered out of pocket by ${b.shortfallPaidBy ?? "a member"}`}

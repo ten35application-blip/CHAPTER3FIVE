@@ -6,7 +6,8 @@ import Link from "next/link";
 import { getFreeIdentityId, getPlanTier, isPro } from "@/lib/subscription";
 import { ensureAdrianAvatar } from "@/lib/faces/adrian";
 import { HubSheet } from "./_components/HubSheet";
-import { DashboardContent, type Identity } from "./_components/DashboardContent";
+import { DashboardContent, type Identity, type RecordCardData } from "./_components/DashboardContent";
+import { LEGACY_QUESTION_COUNT } from "@/lib/legacy/questions";
 import { PurchaseToast } from "./_components/PurchaseToast";
 import { PushOptIn } from "./_components/PushOptIn";
 import { GiftMoment } from "./_components/GiftMoment";
@@ -92,7 +93,7 @@ export default async function DashboardPage({
   const { data: contactsRaw } = await supabase
     .from("oracles")
     .select(
-      "id, name, avatar_url, is_starred, manually_unread, created_at, conversation_archived_at, is_legacy, user_id, inherited_at, is_concierge, is_photo_placeholder",
+      "id, name, avatar_url, is_starred, manually_unread, created_at, conversation_archived_at, is_legacy, user_id, inherited_at, is_concierge, is_photo_placeholder, is_self_archive",
     )
     .eq("provisioning", false)
     .is("deleted_at", null)
@@ -377,6 +378,38 @@ export default async function DashboardPage({
   // chips; past the trial, every identity except the free one gets a
   // "Pro" chip and its row routes to /upgrade instead of the chat.
   const pro = await isPro(supabase);
+
+  // "Record a life" card (2026-09-06): the user's own 45 exists? and
+  // every walk in progress (per-mode drafts, 0138). RLS: users read
+  // their own drafts. Fail-soft — a failed read shows the Start card.
+  const { data: draftRows } = await supabase
+    .from("legacy_drafts")
+    .select("mode, subject, answers")
+    .eq("user_id", user.id)
+    .returns<{ mode: string; subject: { name?: string } | null; answers: Record<string, string> | null }[]>();
+  const record: RecordCardData = {
+    hasMe: (contactsRaw ?? []).some(
+      (r) => Boolean((r as { is_self_archive?: boolean }).is_self_archive) && r.user_id === user.id && !r.inherited_at,
+    ),
+    // Finished a walk for someone else (own legacy row that isn't the
+    // self archive, not an inherited copy) → the Other row stands down
+    // (Wilson 2026-09-06). Archived conversations still count.
+    hasOther: (contactsRaw ?? []).some(
+      (r) =>
+        Boolean(r.is_legacy) &&
+        !Boolean((r as { is_self_archive?: boolean }).is_self_archive) &&
+        r.user_id === user.id &&
+        !r.inherited_at,
+    ),
+    total: LEGACY_QUESTION_COUNT,
+    drafts: (draftRows ?? [])
+      .map((d) => ({
+        mode: (d.mode === "self" ? "self" : "other") as "self" | "other",
+        name: d.subject?.name ?? null,
+        answered: Object.values(d.answers ?? {}).filter((a) => a?.trim()).length,
+      }))
+      .filter((d) => d.answered > 0 || !!d.name),
+  };
   // Free-identity unlock RETIRED (Wilson 2026-08-19): free talks to
   // Adrian and $5-redeemed copies only. Passing null keeps the prop
   // wired so restoring the old behavior is this one line.
@@ -531,6 +564,7 @@ export default async function DashboardPage({
         freeIdentityId={freeIdentityId}
         welcomed={welcomed}
         autoPopulateInFlight={autoPopulateInFlight}
+        record={record}
       />
 
       {/* Bottom-right — hub FAB. Menu-of-options icon that opens a

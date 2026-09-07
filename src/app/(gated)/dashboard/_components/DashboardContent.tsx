@@ -73,6 +73,18 @@ type Props = {
    *  paid and immediately opens the app sees "they're coming" instead
    *  of a bare list. Server-computed from profiles.auto_populate_*. */
   autoPopulateInFlight?: boolean;
+  /** The "Record a life" / "Finish recording …" card (2026-09-06).
+   *  Server-computed: whether the user's own 45 exists, and every walk
+   *  in progress. Mobile app/dashboard.tsx renders the same card. */
+  record?: RecordCardData | null;
+};
+
+export type RecordCardData = {
+  hasMe: boolean;
+  /** Finished at least one walk for another person → Other row stands down. */
+  hasOther: boolean;
+  total: number;
+  drafts: { mode: "self" | "other"; name: string | null; answered: number }[];
 };
 
 /**
@@ -97,6 +109,7 @@ export function DashboardContent({
   freeIdentityId,
   welcomed,
   autoPopulateInFlight,
+  record,
 }: Props) {
   const [query, setQuery] = useState("");
   const [dismissedWelcome, setDismissedWelcome] = useState(false);
@@ -177,6 +190,13 @@ export function DashboardContent({
       {favorites.length > 0 && !searching ? (
         <PinnedStrip items={favorites} isLocked={isLocked} />
       ) : null}
+
+      {/* RECORD A LIFE — the 45 is the product, and nobody found it one
+          tap away (0 of 47 signups started it; Wilson 2026-09-06). One
+          card, two doors; a walk in progress becomes "Finish recording …";
+          stands down once the user's own archive exists. Hidden while
+          searching so it doesn't sit above filtered results. */}
+      {record && !searching ? <RecordRows data={record} /> : null}
 
       {identities.length === 0 ? (
         <EmptyState />
@@ -567,6 +587,75 @@ function SearchBar({
 /* ------------------------------------------------------------------ */
 /* Conversation list — swipeable rows                                   */
 /* ------------------------------------------------------------------ */
+
+/** RECORD ROWS (Wilson 2026-09-06): two INDEPENDENT rows styled like
+ *  conversation rows — the heart and infinity marks from Add a companion
+ *  as avatars. Me row hides once the user's own archive exists; the
+ *  Other row hides once one walk for someone else is finished. Mobile app/dashboard.tsx RecordRows is the
+ *  twin. */
+function RecordRows({ data }: { data: RecordCardData }) {
+  const selfDraft = data.drafts.find((d) => d.mode === "self") ?? null;
+  const otherDraft = data.drafts.find((d) => d.mode === "other") ?? null;
+  const progress = (d: { answered: number }) =>
+    d.answered > 0 ? `${d.answered} of ${data.total} answered` : "Just started · pick up where you left off";
+  const rows: { key: "self" | "other"; title: string; sub: string; href: string }[] = [];
+  if (!data.hasMe) {
+    rows.push({
+      key: "self",
+      title: selfDraft ? "Finish recording your life" : "Record your life",
+      sub: selfDraft ? progress(selfDraft) : "Forty-five questions · Free",
+      href: "/identity/legacy/new?mode=self",
+    });
+  }
+  if (otherDraft || !data.hasOther) rows.push({
+    key: "other",
+    title: otherDraft
+      ? `Finish recording ${otherDraft.name?.trim() ? otherDraft.name.trim() : "someone you love"}`
+      : "Record someone you love",
+    sub: otherDraft ? progress(otherDraft) : "Forty-five questions · $4.99 when you finish",
+    href: "/identity/legacy/new?mode=other",
+  });
+  if (rows.length === 0) return null;
+  return (
+    <ul className="mb-3 overflow-hidden rounded-3xl bg-ink-soft shadow-[0_8px_24px_-12px_rgba(28,28,26,0.10)] ring-1 ring-warm-700">
+      {rows.map((r, i) => (
+        <li key={r.key}>
+          {i > 0 ? <div className="mx-4 h-px bg-warm-700/70" /> : null}
+          <Link href={r.href} className="flex items-center gap-3 px-4 py-3.5 transition-opacity active:opacity-60" aria-label={r.title}>
+            <span className="flex h-[52px] w-[52px] flex-shrink-0 items-center justify-center rounded-full bg-warm-700">
+              {r.key === "self" ? <RecordHeartIcon /> : <RecordInfinityIcon />}
+            </span>
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span className="truncate text-base font-semibold tracking-tight text-warm-50">{r.title}</span>
+              <span className="truncate text-sm leading-snug text-warm-300">{r.sub}</span>
+            </span>
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function RecordHeartIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="text-teal-strong">
+      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+    </svg>
+  );
+}
+function RecordInfinityIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <defs>
+        <linearGradient id="c35-infinity-row" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#e88a76" />
+          <stop offset="100%" stopColor="#7ec4c4" />
+        </linearGradient>
+      </defs>
+      <path d="M6.5 8a4 4 0 0 1 3.11 1.48l4.78 5.04A4 4 0 1 0 17.5 8a4 4 0 0 0-3.11 1.48l-4.78 5.04A4 4 0 1 1 6.5 8z" stroke="url(#c35-infinity-row)" />
+    </svg>
+  );
+}
 
 function ConversationList({
   items,

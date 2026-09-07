@@ -152,7 +152,7 @@ export default async function ClaimPage({
             >
               988
             </a>{" "}
-            to talk to a real person about grief or crisis. Outside the
+            to talk to a real person about grief or crisis (Veterans: press 1). Outside the
             US, your local emergency line.
           </p>
         ) : null}

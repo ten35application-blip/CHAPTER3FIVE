@@ -101,7 +101,7 @@ export default async function HelpPage() {
             >
               988
             </a>{" "}
-            (Suicide &amp; Crisis Lifeline). Outside the US, contact your
+            (Suicide &amp; Crisis Lifeline). Veterans: 988, then press 1, or text 838255. Outside the US, contact your
             local emergency line.
           </p>
         </div>

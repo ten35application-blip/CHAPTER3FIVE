@@ -153,6 +153,11 @@ export type PartnerBreakdown = {
   /** A loss the reserve couldn't cover that THEY paid out of pocket
    *  this month (Wilson 2026-09-02: Danisel). Capital, owed back. */
   shortfallCoveredCents: number;
+  /** A one-off deposit they made this month outside the $175s (Wilson
+   *  2026-09-05: Pedro put in $255 when the debit cards arrived). It
+   *  lands in the reserve. Capital, owed back. */
+  extraCapitalCents: number;
+  extraCapitalNote: string;
   /** Total capital they've put in since launch — the business owes it
    *  back; returning it is not income and not taxed. */
   capitalCents: number;
@@ -242,6 +247,9 @@ export type MonthBreakdown = {
   lockedSavingsCents: number;
   /** The deposit itself, in the month it went in; 0 after. */
   lockedSavingsDepositCents: number;
+  /** One-off member deposits this month (`extra_capital` in settings);
+   *  they land in the reserve. Capital, owed back. */
+  extraCapitalCents: number;
   // ── RUNNING TOTALS ──
   /** Both partners' held envelopes after this month's payments. */
   taxHeldTotalCents: number;
@@ -292,10 +300,20 @@ export type BusinessSettings = {
    *  and the $175s arrive (Wilson 2026-09-02: "Danisel."). Booked as
    *  that partner's capital. NULL = unassigned (flagged, not booked). */
   shortfall_paid_by: string | null;
+  /** One-off deposits outside the monthly $175s — each is that
+   *  partner's capital in that month and lands in the reserve. */
+  extra_capital: ExtraCapital[];
+};
+
+export type ExtraCapital = {
+  month: string; // "YYYY-MM"
+  by: string; // must match partner_a or partner_b
+  cents: number;
+  note?: string;
 };
 
 const SETTINGS_COLUMNS =
-  "tax_reserve_rate, store_commission_rate, web_processing_rate, web_processing_fixed_cents, partner_a, partner_b, fixed_monthly_costs, member_contribution_cents, member_contributions_start_month, member_contributions_end_month, locked_savings_cents, locked_savings_month, locked_savings_by, shortfall_paid_by";
+  "tax_reserve_rate, store_commission_rate, web_processing_rate, web_processing_fixed_cents, partner_a, partner_b, fixed_monthly_costs, member_contribution_cents, member_contributions_start_month, member_contributions_end_month, locked_savings_cents, locked_savings_month, locked_savings_by, shortfall_paid_by, extra_capital";
 
 const DEFAULT_SETTINGS: BusinessSettings = {
   tax_reserve_rate: 0.32,
@@ -313,6 +331,7 @@ const DEFAULT_SETTINGS: BusinessSettings = {
   locked_savings_cents: 25500,
   locked_savings_month: "2026-09",
   locked_savings_by: "Danisel",
+  extra_capital: [],
   shortfall_paid_by: "Danisel",
 };
 
@@ -353,6 +372,28 @@ function lockedSavingsForMonth(
   const since = settings.locked_savings_month;
   if (!amount || !since || month < since) return { balanceCents: 0, depositCents: 0 };
   return { balanceCents: amount, depositCents: month === since ? amount : 0 };
+}
+
+/** One-off deposits for this month, by partner (settings.extra_capital).
+ *  Entries naming nobody we know are ignored, never silently booked
+ *  to the wrong partner. */
+function extraCapitalForMonth(
+  settings: BusinessSettings,
+  month: string,
+  partnerNames: string[],
+): { perPartner: number[]; notes: string[]; totalCents: number } {
+  const perPartner = partnerNames.map(() => 0);
+  const notes = partnerNames.map(() => "");
+  for (const e of Array.isArray(settings.extra_capital) ? settings.extra_capital : []) {
+    if (!e || e.month !== month) continue;
+    const i = partnerNames.findIndex((n) => n.toLowerCase() === String(e.by ?? "").toLowerCase());
+    if (i < 0) continue;
+    const cents = Math.max(0, Math.round(Number(e.cents ?? 0)));
+    if (!cents) continue;
+    perPartner[i] += cents;
+    if (e.note) notes[i] = notes[i] ? `${notes[i]}; ${e.note}` : String(e.note);
+  }
+  return { perPartner, notes, totalCents: perPartner.reduce((a, c) => a + c, 0) };
 }
 
 /**
@@ -895,7 +936,12 @@ export function computeBreakdown(inputs: {
   // `?? 0` everywhere a carried balance is read: Math.max(0, undefined)
   // is NaN, and one NaN would print "$NaN" on the transfer sheet.
   const reserveCarriedCents = Math.max(0, prior.reserveCents ?? 0);
-  const reserveBeforeCents = reserveCarriedCents + contributionsCents;
+  // One-off deposits (Wilson 2026-09-05: Pedro's $255 when the debit
+  // cards arrived) land in the reserve too — operating money, booked as
+  // that partner's capital below.
+  const extra = extraCapitalForMonth(settings, inputs.month, partnerNames);
+  const extraCapitalCents = extra.totalCents;
+  const reserveBeforeCents = reserveCarriedCents + contributionsCents + extraCapitalCents;
 
   // STEP 3 — THE MARKETING ACCOUNT at Navy Federal (Wilson's
   // compounding rule 2026-08-26; "from the 27th to the 1st that's a
@@ -1031,11 +1077,14 @@ export function computeBreakdown(inputs: {
       contributionCents: contributionsPerMemberCents,
       savingsDepositCents,
       shortfallCoveredCents,
+      extraCapitalCents: extra.perPartner[i],
+      extraCapitalNote: extra.notes[i],
       capitalCents:
         Math.max(0, priorP.capitalCents ?? 0) +
         contributionsPerMemberCents +
         savingsDepositCents +
-        shortfallCoveredCents,
+        shortfallCoveredCents +
+        extra.perPartner[i],
       taxNote: residenceTaxNote(p.name, p.residence, p.filing, p.schedule),
     };
   });
@@ -1144,6 +1193,7 @@ export function computeBreakdown(inputs: {
     contributionsVerdict,
     lockedSavingsCents,
     lockedSavingsDepositCents,
+    extraCapitalCents,
     taxHeldTotalCents,
     taxPaidTotalCents,
     // The operating account only — the savings floor is its own
@@ -1206,6 +1256,10 @@ export function plainSummary(b: MonthBreakdown): string {
     lines.push(`Broke even this month — ${usd(b.grossCents)} came in and it all went to fees and bills. Nothing to split.`);
   }
   if (b.contributionsCents > 0) lines.push(`The partners put in ${usd(b.contributionsCents)} on the 1st; it sits in the reserve.`);
+  for (const p of b.partners) {
+    if ((p.extraCapitalCents ?? 0) > 0)
+      lines.push(`${p.name} put in ${usd(p.extraCapitalCents)}${p.extraCapitalNote ? ` (${p.extraCapitalNote})` : ""} — capital the business owes back; it sits in the reserve.`);
+  }
   if (b.taxPaidTotalCents > 0) lines.push(`${usd(b.taxPaidTotalCents)} in taxes was sent this month in their own names.`);
   lines.push(`After the 27th the account should hold ${usd(b.accountShouldHoldCents)}.`);
   return lines.join(" ");
@@ -1312,6 +1366,7 @@ function fromFrozen(row: SettlementRow): MonthBreakdown {
     // no such fields — read them as zero, never undefined.
     lockedSavingsCents: row.breakdown.lockedSavingsCents ?? 0,
     lockedSavingsDepositCents: row.breakdown.lockedSavingsDepositCents ?? 0,
+    extraCapitalCents: row.breakdown.extraCapitalCents ?? 0,
     shortfallCoveredCents: row.breakdown.shortfallCoveredCents ?? 0,
     shortfallPaidBy: row.breakdown.shortfallPaidBy ?? null,
     taxPaidTotalCents: row.breakdown.taxPaidTotalCents ?? 0,
@@ -1319,6 +1374,8 @@ function fromFrozen(row: SettlementRow): MonthBreakdown {
       ...p,
       savingsDepositCents: p.savingsDepositCents ?? 0,
       shortfallCoveredCents: p.shortfallCoveredCents ?? 0,
+      extraCapitalCents: p.extraCapitalCents ?? 0,
+      extraCapitalNote: p.extraCapitalNote ?? "",
       // Rows frozen before tax payments existed: nothing was paid, so
       // "before" is held minus this month's envelope.
       taxHeldBeforeCents: p.taxHeldBeforeCents ?? (p.taxHeldCents ?? 0) - (p.taxEnvelopeCents ?? 0),

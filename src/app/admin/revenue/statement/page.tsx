@@ -215,6 +215,7 @@ function StatementSheet({
       {/* 3 · Member contributions — capital, outside profit */}
       {(b.contributionsCents ?? 0) > 0 ||
       (b.lockedSavingsDepositCents ?? 0) > 0 ||
+      (b.extraCapitalCents ?? 0) > 0 ||
       (b.shortfallCoveredCents ?? 0) > 0 ||
       b.partners.some((p) => (p.capitalCents ?? 0) > 0) ? (
         <StatementSection title="3 · Member capital contributions (not income)">
@@ -235,6 +236,15 @@ function StatementSheet({
               />
             ))}
           {b.partners
+            .filter((p) => (p.extraCapitalCents ?? 0) > 0)
+            .map((p) => (
+              <Row
+                key={`${p.name}-extra`}
+                label={`One-off deposit put in by ${p.name}${p.extraCapitalNote ? ` (${p.extraCapitalNote})` : ""} — capital; lands in the reserve`}
+                cents={p.extraCapitalCents ?? 0}
+              />
+            ))}
+          {b.partners
             .filter((p) => (p.shortfallCoveredCents ?? 0) > 0)
             .map((p) => (
               <Row
@@ -248,6 +258,7 @@ function StatementSheet({
             cents={
               (b.contributionsCents ?? 0) +
               (b.lockedSavingsDepositCents ?? 0) +
+              (b.extraCapitalCents ?? 0) +
               (b.shortfallCoveredCents ?? 0)
             }
             strong

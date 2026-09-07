@@ -449,7 +449,7 @@ export default async function SettingsPage({
               within 24 hours.
             </p>
             <p className="mt-2.5 text-xs leading-relaxed text-warm-400">
-              In crisis? US 988 (call/text) &middot; UK Samaritans 116
+              In crisis? US 988 (call/text) &middot; Veterans 988 press 1 / text 838255 &middot; UK Samaritans 116
               123 &middot; Mexico SAPTEL +52 55 5259-8121.
             </p>
           </div>

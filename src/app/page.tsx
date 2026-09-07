@@ -478,7 +478,7 @@ export default function Home() {
             chapter3five is a companion &mdash; not a therapist, not medical
             advice, and never a substitute for care from a real person. If
             you&apos;re in crisis, please reach a human: in the US, call or
-            text <span className="font-bold text-warm-50">988</span>.
+            text <span className="font-bold text-warm-50">988</span> (Veterans: press 1).
           </p>
           <p className="mt-6 text-lg leading-relaxed text-warm-200 md:text-xl">
             And a few lines we don&apos;t cross: no violence, and no pretending
@@ -752,7 +752,7 @@ export default function Home() {
               legal advice, financial advice, or an emergency service. If
               you are in danger, call <strong>911</strong>. If you are
               in crisis, call or text <strong>988</strong> (US Suicide &amp;
-              Crisis Lifeline). If you need a therapist, please see one.
+              Crisis Lifeline; Veterans press 1). If you need a therapist, please see one.
               A companion is a companion &mdash; nothing more, nothing
               less.
             </p>
@@ -853,6 +853,7 @@ export default function Home() {
               <FooterLink href="/terms">Terms</FooterLink>
               <FooterLink href="/privacy">Privacy</FooterLink>
               <FooterLink href="/guidelines">Guidelines</FooterLink>
+              <FooterLink href="/veterans">Veterans</FooterLink>
               <FooterLink href="/data-deletion">Data Deletion</FooterLink>
               <li className="list-none">
                 <a

@@ -69,7 +69,7 @@ const DISCLOSURES: readonly Disclosure[] = [
   {
     key: "not_therapy",
     title: "This is not therapy or crisis support",
-    body: "Not medical or therapeutic care. If you're in crisis: US 988 (call/text), UK Samaritans 116 123, Mexico SAPTEL +52 55 5259-8121.",
+    body: "Not medical or therapeutic care. If you're in crisis: US 988 (call/text), Veterans 988 press 1 or text 838255, UK Samaritans 116 123, Mexico SAPTEL +52 55 5259-8121.",
   },
 ] as const;
 
