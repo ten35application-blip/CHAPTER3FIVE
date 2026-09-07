@@ -321,6 +321,18 @@ function SubjectScreen({
         </Link>
         .
       </p>
+      {/* Wilson 2026-09-07: "THE MORE YOU ANSWER THE CODE REFLECTS… bold
+          so people know NO information is not useful." Mirrors mobile
+          new.tsx. Every answer feeds the voice, the facts sheet, the stories. */}
+      <div className="mt-5 rounded-2xl border-[1.5px] border-coral bg-ink-soft p-4">
+        <p className="text-gradient-cta text-[13px] font-extrabold uppercase tracking-wider">
+          The more you answer, the more real the code becomes
+        </p>
+        <p className="mt-1.5 text-[15px] font-semibold leading-relaxed text-warm-100">
+          Every detail becomes part of who your family will talk to. Long
+          answers, side stories, the small stuff. Nothing you write is wasted.
+        </p>
+      </div>
 
       <PhotoPicker
         photoUrl={subject.photoUrl ?? null}
