@@ -1,4 +1,5 @@
 import { after } from "next/server";
+import { extractArchiveFacts, type ArchiveFacts } from "@/lib/legacy/facts";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { recordAudit, sendArchiveUpdatedEmail } from "@/lib/notifications";
 import { verifiedAvatarUrl, avatarsObjectPath } from "@/lib/storage/avatarObject";
@@ -39,6 +40,8 @@ export type ArchiveUpdate = {
   photoUrl?: string | null;
   /** question_id → new text. Blank/whitespace entries are refused. */
   answers?: Record<string, string>;
+  /** Question ids (among `answers`) that were dictated this time. */
+  spoken?: string[];
 };
 
 export type UpdateResult =
@@ -54,6 +57,8 @@ type LegacyAnswers = {
     to: string;
     at: string;
   }>;
+  spoken?: string[];
+  facts?: ArchiveFacts | null;
 };
 
 export async function updateOwnArchive(
@@ -161,6 +166,19 @@ export async function updateOwnArchive(
     return { ok: true, photoChanged: false, added: 0, corrected: 0, copies: 0 };
   }
 
+  // Dictation flags (0168): a corrected answer that was TYPED this time
+  // stops being "spoken"; one dictated this time becomes spoken.
+  const changedIds = Object.keys(update.answers ?? {}).filter(
+    (qid) => (stored.answers?.[qid] ?? "").trim() !== (answers[qid] ?? "").trim(),
+  );
+  const spokenNow = new Set(update.spoken ?? []);
+  const spoken = Array.from(
+    new Set([
+      ...(stored.spoken ?? []).filter((q) => !changedIds.includes(q) || spokenNow.has(q)),
+      ...changedIds.filter((q) => spokenNow.has(q)),
+    ]),
+  );
+
   const nextLegacy: LegacyAnswers = {
     ...stored,
     subject: {
@@ -169,6 +187,7 @@ export async function updateOwnArchive(
     },
     answers,
     history,
+    spoken,
   };
 
   const { error: updateError } = await admin
@@ -193,20 +212,42 @@ export async function updateOwnArchive(
   // have many holders and the person who pressed Save shouldn't wait
   // on their inboxes.
   const copies = await copyTargets(oracleId);
-  if (copies.length > 0) {
-    after(async () => {
+  // Facts first, then fan-out, in ONE deferred task so the copies get
+  // the fresh sheet and the original's patch can't race the fan-out's
+  // stale read (copyTargets snapshotted legacy_answers above).
+  after(async () => {
+    let facts: ArchiveFacts | null = stored.facts ?? null;
+    if (added + corrected > 0) {
+      try {
+        facts = await extractArchiveFacts({
+          name: (row.name as string) ?? "them",
+          mode: "self",
+          answers,
+        });
+        await admin
+          .from("oracles")
+          .update({ legacy_answers: { ...nextLegacy, facts } })
+          .eq("id", oracleId)
+          .eq("user_id", userId);
+      } catch (err) {
+        console.error(`[legacy/update] facts re-extract failed for ${oracleId}:`, err);
+      }
+    }
+    if (copies.length > 0) {
       await fanOut({
         sourceName: (row.name as string) ?? "Someone",
         answers,
         history,
+        spoken,
+        facts,
         photoUrl: photoChanged ? newPhotoUrl : null,
         copies,
         photoChanged,
         added,
         corrected,
       });
-    });
-  }
+    }
+  });
 
   return { ok: true, photoChanged, added, corrected, copies: copies.length };
 }
@@ -265,6 +306,8 @@ async function fanOut(args: {
   sourceName: string;
   answers: Record<string, string>;
   history: LegacyAnswers["history"];
+  spoken: string[];
+  facts: ArchiveFacts | null;
   photoUrl: string | null;
   photoChanged: boolean;
   copies: CopyTarget[];
@@ -281,6 +324,8 @@ async function fanOut(args: {
         ...theirs,
         answers: args.answers,
         history: args.history,
+        spoken: args.spoken,
+        facts: args.facts,
       };
       const patch: Record<string, unknown> = { legacy_answers: nextBlob };
 

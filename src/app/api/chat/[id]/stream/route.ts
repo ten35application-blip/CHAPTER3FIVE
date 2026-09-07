@@ -53,6 +53,7 @@ import {
 } from "@/lib/subscription";
 import { LEGACY_QUESTIONS } from "@/lib/legacy/questions";
 import { buildArchiveVoiceBlock } from "@/lib/legacy/voice";
+import type { ArchiveFacts } from "@/lib/legacy/facts";
 import {
   buildMemorialBlock,
   CORE_BEHAVIOR_RULES,
@@ -1045,6 +1046,8 @@ export async function POST(
                   (oracle.traits as { voice?: unknown } | null | undefined)?.voice != null
                     ? String((oracle.traits as { voice?: unknown }).voice)
                     : null,
+                facts: (promptRow?.legacy_answers as { facts?: ArchiveFacts | null } | null)?.facts ?? null,
+                spoken: (promptRow?.legacy_answers as { spoken?: string[] } | null)?.spoken ?? null,
               });
               return voice ? [{ type: "text" as const, text: voice }] : [];
             })()

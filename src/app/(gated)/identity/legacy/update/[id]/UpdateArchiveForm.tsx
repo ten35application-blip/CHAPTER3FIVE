@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState, useEffect } from "react";
+import MicButton from "@/app/(gated)/chat/[id]/MicButton";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 
@@ -38,6 +39,10 @@ export function UpdateArchiveForm({
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [answers, setAnswers] = useState<Record<string, string>>(initialAnswers);
+  // Answers dictated in THIS session (their words; flag keeps the speech
+  // engine's punctuation out of the measured typing rules).
+  const [spoken, setSpoken] = useState<Set<string>>(() => new Set());
+  const micBaseRef = useRef<Record<string, string>>({});
   const [photo, setPhoto] = useState<string | null>(photoUrl);
   const [newPhoto, setNewPhoto] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -56,6 +61,18 @@ export function UpdateArchiveForm({
   }, [answers, initialAnswers]);
 
   const dirty = Boolean(newPhoto) || Object.keys(changed).length > 0;
+
+  // Never lose an answer: leaving the tab with unsaved changes asks first.
+  // (Same reason as the phone's guard — this form has no autosave.)
+  useEffect(() => {
+    if (!dirty || saving || done) return;
+    function onBeforeUnload(e: BeforeUnloadEvent) {
+      e.preventDefault();
+      e.returnValue = "";
+    }
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [dirty, saving, done]);
   const answeredCount = Object.values(answers).filter((a) => a?.trim()).length;
 
   const onPick = useCallback(async (file: File) => {
@@ -96,6 +113,7 @@ export function UpdateArchiveForm({
           oracle_id: oracleId,
           ...(newPhoto ? { photo_url: newPhoto } : {}),
           answers: changed,
+          spoken: Object.keys(changed).filter((id) => spoken.has(id)),
         }),
       });
       const body = (await res.json().catch(() => ({}))) as {
@@ -219,16 +237,31 @@ export function UpdateArchiveForm({
               >
                 {q.promptSelf ?? q.prompt}
               </label>
-              <textarea
-                id={`q-${q.id}`}
-                value={value}
-                rows={value.trim() ? 4 : 2}
-                placeholder="Take your time."
-                onChange={(e) =>
-                  setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))
-                }
-                className="mt-2 w-full resize-y rounded-xl bg-ink px-3 py-2.5 text-[15px] leading-relaxed text-warm-50 ring-1 ring-warm-700 placeholder:text-warm-500 focus:outline-none focus:ring-teal"
-              />
+              <div className="relative mt-2">
+                <textarea
+                  id={`q-${q.id}`}
+                  value={value}
+                  rows={value.trim() ? 4 : 2}
+                  placeholder="Take your time."
+                  onChange={(e) =>
+                    setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))
+                  }
+                  className="w-full resize-y rounded-xl bg-ink px-3 py-2.5 pr-12 text-[15px] leading-relaxed text-warm-50 ring-1 ring-warm-700 placeholder:text-warm-500 focus:outline-none focus:ring-teal"
+                />
+                <div className="absolute bottom-2 right-2">
+                  <MicButton
+                    onSessionStart={() => {
+                      const cur = answers[q.id] ?? "";
+                      micBaseRef.current[q.id] = cur.trim() ? `${cur.replace(/\s+$/, "")} ` : "";
+                    }}
+                    onTranscript={(sessionText) => {
+                      if (!sessionText.trim()) return;
+                      setAnswers((prev) => ({ ...prev, [q.id]: (micBaseRef.current[q.id] ?? "") + sessionText }));
+                      setSpoken((prev) => (prev.has(q.id) ? prev : new Set(prev).add(q.id)));
+                    }}
+                  />
+                </div>
+              </div>
             </section>
           );
         })}

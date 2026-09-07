@@ -1,3 +1,5 @@
+import { factsToPromptBlock, type ArchiveFacts } from "@/lib/legacy/facts";
+
 /**
  * THE VOICE OF AN ARCHIVE (2026-09-07).
  *
@@ -42,6 +44,12 @@ export type ArchiveVoiceInput = {
   answers: Record<string, unknown>;
   /** oracles.traits.voice from legacy/synthesize.ts, if present. */
   traitsVoice?: string | null;
+  /** legacy_answers.facts — the verified sheet (lib/legacy/facts.ts). */
+  facts?: ArchiveFacts | null;
+  /** legacy_answers.spoken — question ids answered by dictation. Their
+   *  words, but the punctuation and casing came from a speech engine,
+   *  so those answers don't vote on the typing rules. */
+  spoken?: string[] | null;
 };
 
 const CASUAL_MARKERS = [
@@ -217,8 +225,21 @@ export function buildArchiveVoiceBlock(input: ArchiveVoiceInput): string {
   if (texts.length === 0 && !input.traitsVoice) return "";
   const parts: string[] = [];
 
-  if (mode === "self" && texts.length >= 3) {
-    const m = measureStyle(texts);
+  const factsPart = factsToPromptBlock(input.facts, name);
+  if (factsPart) parts.push(factsPart);
+
+  // Typing rules come from TYPED answers only. Dictated answers still
+  // feed the texture samples and phrases (their words), just not the
+  // punctuation/casing measurements (the engine's). If almost everything
+  // was spoken, measure everything — a rough rule beats no rule.
+  const spokenSet = new Set(input.spoken ?? []);
+  const typedAnswers: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(answers)) if (!spokenSet.has(k)) typedAnswers[k] = v;
+  const typedTexts = answerTexts(typedAnswers);
+  const measureTexts = typedTexts.length >= 3 ? typedTexts : texts;
+
+  if (mode === "self" && measureTexts.length >= 3) {
+    const m = measureStyle(measureTexts);
     parts.push(
       `HOW ${name.toUpperCase()} ACTUALLY TYPES — measured from their own ${m.texts} answers, not guessed. These beat any instinct to write well:\n` +
         rulesFromMeasure(name, m).map((x) => `- ${x}`).join("\n"),

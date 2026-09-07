@@ -15,8 +15,9 @@ import {
 } from "@/lib/subscription";
 import { SynthesisError } from "@/lib/identity/synthesize";
 import { fingerprintLegacyAnswers } from "@/lib/legacy/fingerprint";
+import { extractArchiveFacts, type ArchiveFacts } from "@/lib/legacy/facts";
 import { mintInheritCode } from "@/lib/legacy/mint";
-import { LEGACY_QUESTION_COUNT } from "@/lib/legacy/questions";
+import { LEGACY_QUESTIONS, LEGACY_QUESTION_COUNT } from "@/lib/legacy/questions";
 import {
   minAnswersForMode,
   sanitizeLegacyAnswers,
@@ -48,7 +49,15 @@ type DraftPayload = {
   subject: LegacySubject;
   answers: Record<string, string>;
   currentStep: number;
+  /** Question ids answered by dictation (see 0168). */
+  spoken?: string[];
 };
+
+function sanitizeSpoken(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const known = new Set(LEGACY_QUESTIONS.map((q) => q.id));
+  return Array.from(new Set(raw.filter((x): x is string => typeof x === "string" && known.has(x)))).slice(0, 80);
+}
 
 const ACCEPTED_LEGACY_PHOTO_MIMES: readonly string[] = [
   "image/jpeg",
@@ -208,6 +217,7 @@ export async function saveLegacyDraft(payload: DraftPayload): Promise<void> {
       subject,
       answers: sanitizeAnswers(payload.answers),
       current_step: step,
+      ...(Array.isArray(payload.spoken) ? { spoken: sanitizeSpoken(payload.spoken) } : {}),
     },
     { onConflict: "user_id,mode" },
   );
@@ -412,6 +422,16 @@ export async function completeLegacyIdentity(payload: {
 
   const fingerprint = fingerprintLegacyAnswers(subject, answers);
 
+  // Dictation flags live on the draft row (0168); the client never
+  // sends them at Finish. Read before the draft is deleted below.
+  const { data: draftRow } = await supabase
+    .from("legacy_drafts")
+    .select("spoken")
+    .eq("user_id", user.id)
+    .eq("mode", subject.mode === "self" ? "self" : "other")
+    .maybeSingle();
+  const spoken = sanitizeSpoken((draftRow?.spoken as unknown) ?? []);
+
   let persona;
   try {
     persona = await synthesizeLegacyPersona(subject, answers);
@@ -457,6 +477,20 @@ export async function completeLegacyIdentity(payload: {
     );
   }
 
+  // The verified facts sheet (lib/legacy/facts.ts). Never blocks a
+  // mint: a failed extraction stores null and the chat runs on the
+  // answers alone until the next update re-extracts.
+  let facts: ArchiveFacts | null = null;
+  try {
+    facts = await extractArchiveFacts({
+      name: persona.name,
+      mode: subject.mode === "self" ? "self" : "other",
+      answers,
+    });
+  } catch (err) {
+    console.error("[legacy/complete] facts extraction failed:", err);
+  }
+
   const { data: inserted, error: insertError } = await createAdminClient()
     .from("oracles")
     .insert({
@@ -464,7 +498,7 @@ export async function completeLegacyIdentity(payload: {
       created_by: user.id,
       is_legacy: true,
       is_self_archive: subject.mode === "self",
-      legacy_answers: { subject, answers },
+      legacy_answers: { subject, answers, spoken, facts },
       traits: persona.traits,
       fingerprint,
       name: persona.name,

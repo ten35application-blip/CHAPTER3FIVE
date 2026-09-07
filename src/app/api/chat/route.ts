@@ -4,6 +4,7 @@ import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { normalizeLanguage, type SupportedLanguage } from "@/lib/i18n/language";
 import { LEGACY_QUESTIONS } from "@/lib/legacy/questions";
 import { buildArchiveVoiceBlock } from "@/lib/legacy/voice";
+import type { ArchiveFacts } from "@/lib/legacy/facts";
 import { createClient } from "@/lib/supabase/server";
 import { requireTermsAccepted } from "@/lib/legal/gate";
 import {
@@ -1101,6 +1102,8 @@ const archive: { prompt: string; answer: string }[] = [];
           (ownOracle?.traits as { voice?: unknown } | null)?.voice != null
             ? String((ownOracle?.traits as { voice?: unknown }).voice)
             : null,
+        facts: (ownOracle?.legacy_answers as { facts?: ArchiveFacts | null } | null)?.facts ?? null,
+        spoken: (ownOracle?.legacy_answers as { spoken?: string[] } | null)?.spoken ?? null,
       })
     : "";
   const voicePart = voiceBlock ? `\n\n${voiceBlock}` : "";

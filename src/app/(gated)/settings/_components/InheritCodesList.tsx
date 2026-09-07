@@ -281,14 +281,14 @@ function FilledSlot({ item }: { item: CodeItem }) {
         // weight, so Update joins it rather than adding a third style —
         // constructive first because it's the one people actually use
         // (Wilson 2026-08-22, and he asked for it to look clean).
-        <div className="mt-1.5 flex items-center gap-4">
+        <div className="mt-3 flex flex-wrap items-center gap-2.5">
           {/* Self-mode ONLY — an archive written about someone else is
               not yours to revise. The server refuses regardless; this
               simply doesn't offer it. */}
           {item.mode === "self" ? (
             <Link
               href={`/identity/legacy/update/${item.oracleId}`}
-              className="text-[11px] font-medium text-warm-400 underline underline-offset-2 transition-colors hover:text-warm-200"
+              className="bg-gradient-cta flex h-10 items-center justify-center rounded-full px-5 text-sm font-bold text-white transition-all hover:-translate-y-px active:translate-y-0"
             >
               Update your archive
             </Link>
@@ -299,7 +299,7 @@ function FilledSlot({ item }: { item: CodeItem }) {
               setError(null);
               setConfirming(true);
             }}
-            className="text-[11px] font-medium text-warm-400 underline underline-offset-2 transition-colors hover:text-warm-200"
+            className="flex h-10 items-center justify-center rounded-full border-[1.5px] border-coral px-5 text-sm font-bold text-coral transition-opacity hover:opacity-80"
           >
             Revoke this code
           </button>

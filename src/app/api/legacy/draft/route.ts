@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
 
   let query = supabase
     .from("legacy_drafts")
-    .select("subject, answers, current_step, mode")
+    .select("subject, answers, current_step, mode, spoken")
     .eq("user_id", user.id)
     .order("updated_at", { ascending: false });
   if (mode) query = query.eq("mode", mode);
@@ -80,6 +80,13 @@ export async function GET(request: NextRequest) {
   });
 }
 
+/** Known question ids only, deduped, bounded. */
+function sanitizeSpoken(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const known = new Set(LEGACY_QUESTIONS.map((q) => q.id));
+  return Array.from(new Set(raw.filter((x): x is string => typeof x === "string" && known.has(x)))).slice(0, 80);
+}
+
 export async function PUT(request: NextRequest) {
   const { supabase, user } = await getRequestAuth(request);
   if (!user) {
@@ -92,6 +99,9 @@ export async function PUT(request: NextRequest) {
     subject?: LegacySubject;
     answers?: Record<string, string>;
     currentStep?: number;
+    /** Question ids answered by dictation. Omitted by clients that
+     *  don't dictate (mobile today) — then the stored value is kept. */
+    spoken?: string[];
   };
   try {
     payload = await request.json();
@@ -118,6 +128,9 @@ export async function PUT(request: NextRequest) {
       subject,
       answers: sanitizeLegacyAnswers(payload.answers ?? {}),
       current_step: step,
+      ...(Array.isArray(payload.spoken)
+        ? { spoken: sanitizeSpoken(payload.spoken) }
+        : {}),
     },
     { onConflict: "user_id,mode" },
   );

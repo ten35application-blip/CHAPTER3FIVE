@@ -28,6 +28,7 @@ type DraftRow = {
   subject: Partial<LegacySubject> | null;
   answers: Record<string, string> | null;
   current_step: number | null;
+  spoken?: unknown;
 };
 
 /**
@@ -79,7 +80,7 @@ export default async function LegacyNewPage({
     resolvedMode = urlModeValid;
     const { data } = await supabase
       .from("legacy_drafts")
-      .select("subject, answers, current_step")
+      .select("subject, answers, current_step, spoken")
       .eq("user_id", user.id)
       .eq("mode", urlModeValid)
       .maybeSingle<DraftRow>();
@@ -87,7 +88,7 @@ export default async function LegacyNewPage({
   } else {
     const { data } = await supabase
       .from("legacy_drafts")
-      .select("subject, answers, current_step, mode")
+      .select("subject, answers, current_step, mode, spoken")
       .eq("user_id", user.id)
       .order("updated_at", { ascending: false })
       .limit(1)
@@ -131,6 +132,7 @@ export default async function LegacyNewPage({
       initialSubject={subject}
       initialAnswers={draft?.answers ?? {}}
       initialStep={draft?.current_step ?? 0}
+      initialSpoken={Array.isArray(draft?.spoken) ? (draft.spoken as string[]) : []}
       serverError={error ?? null}
       // PAID STATE COMES FROM THE DATABASE, NOT THE URL (2026-08-04).
       //

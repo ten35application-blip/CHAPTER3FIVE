@@ -9,6 +9,7 @@ import {
 import { SynthesisError } from "@/lib/identity/synthesize";
 import { requireTermsAccepted } from "@/lib/legal/gate";
 import { fingerprintLegacyAnswers } from "@/lib/legacy/fingerprint";
+import { extractArchiveFacts, type ArchiveFacts } from "@/lib/legacy/facts";
 import { mintInheritCode } from "@/lib/legacy/mint";
 import {
   minAnswersForMode,
@@ -212,6 +213,18 @@ export async function POST(request: NextRequest) {
 
   const fingerprint = fingerprintLegacyAnswers(subject, answers);
 
+  // Dictation flags live on the draft row (0168) — read before the
+  // draft is deleted. Mobile doesn't dictate yet, so this is usually [].
+  const { data: draftRow } = await supabase
+    .from("legacy_drafts")
+    .select("spoken")
+    .eq("user_id", user.id)
+    .eq("mode", currentMode === "self" ? "self" : "other")
+    .maybeSingle();
+  const spoken = Array.isArray(draftRow?.spoken)
+    ? (draftRow.spoken as unknown[]).filter((x): x is string => typeof x === "string").slice(0, 80)
+    : [];
+
   let persona;
   try {
     persona = await synthesizeLegacyPersona(subject, answers);
@@ -260,6 +273,18 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // The verified facts sheet (lib/legacy/facts.ts). Never blocks a mint.
+  let facts: ArchiveFacts | null = null;
+  try {
+    facts = await extractArchiveFacts({
+      name: persona.name,
+      mode: currentMode === "self" ? "self" : "other",
+      answers,
+    });
+  } catch (err) {
+    console.error("[api/legacy/complete] facts extraction failed:", err);
+  }
+
   const { data: inserted, error: insertError } = await createAdminClient()
     .from("oracles")
     .insert({
@@ -267,7 +292,7 @@ export async function POST(request: NextRequest) {
       created_by: user.id,
       is_legacy: true,
       is_self_archive: currentMode === "self",
-      legacy_answers: { subject, answers },
+      legacy_answers: { subject, answers, spoken, facts },
       traits: persona.traits,
       fingerprint,
       name: persona.name,

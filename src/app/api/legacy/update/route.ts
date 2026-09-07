@@ -41,6 +41,7 @@ export async function POST(request: NextRequest) {
     oracle_id?: unknown;
     photo_url?: unknown;
     answers?: unknown;
+    spoken?: unknown;
   };
 
   const oracleId =
@@ -58,9 +59,14 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  const spoken = Array.isArray(body.spoken)
+    ? (body.spoken as unknown[]).filter((x): x is string => typeof x === "string").slice(0, 80)
+    : [];
+
   const result = await updateOwnArchive(user.id, oracleId, {
     photoUrl: typeof body.photo_url === "string" ? body.photo_url : undefined,
     answers,
+    spoken,
   });
 
   if (!result.ok) {

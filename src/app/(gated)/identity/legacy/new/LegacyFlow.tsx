@@ -10,6 +10,7 @@ import type {
 import type { LegacySubject } from "@/lib/legacy/synthesize";
 import { OTHER_IDENTITY_CREATE_PRICE_LABEL } from "@/lib/pricing";
 import { minAnswersForMode } from "@/lib/legacy/answer-floor";
+import MicButton, { type MicButtonHandle } from "@/app/(gated)/chat/[id]/MicButton";
 import {
   completeLegacyIdentity,
   saveLegacyDraft,
@@ -38,6 +39,8 @@ type Props = {
   initialSubject: LegacySubject;
   initialAnswers: Record<string, string>;
   initialStep: number;
+  /** Question ids answered by dictation so far (draft row, 0168). */
+  initialSpoken: string[];
   serverError: string | null;
   // Stripe round-trip signals for the other-mode mint gate ($5 at
   // Finish). Both are COSMETIC — the server action re-checks the paid
@@ -54,6 +57,7 @@ export function LegacyFlow({
   initialSubject,
   initialAnswers,
   initialStep,
+  initialSpoken,
   serverError,
   paid,
   cancelled,
@@ -65,6 +69,10 @@ export function LegacyFlow({
   const [step, setStep] = useState(() =>
     Math.max(0, Math.min(questionCount, initialStep)),
   );
+  // Which answers were dictated. Their words either way — the flag only
+  // keeps a speech engine's punctuation out of the measured typing
+  // rules (lib/legacy/voice.ts). Persists on the draft row.
+  const [spoken, setSpoken] = useState<Set<string>>(() => new Set(initialSpoken));
   const [submitting, setSubmitting] = useState(false);
   const [saved, setSaved] = useState(true);
   // Fable audit: void save().then() with no .catch left the chip
@@ -74,10 +82,10 @@ export function LegacyFlow({
   const [saveError, setSaveError] = useState(false);
 
   // Latest state in a ref so the debounced save always writes fresh data.
-  const latest = useRef({ subject, answers, step });
+  const latest = useRef({ subject, answers, step, spoken });
   useEffect(() => {
-    latest.current = { subject, answers, step };
-  }, [subject, answers, step]);
+    latest.current = { subject, answers, step, spoken };
+  }, [subject, answers, step, spoken]);
 
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -86,11 +94,12 @@ export function LegacyFlow({
       clearTimeout(timer.current);
       timer.current = null;
     }
-    const { subject, answers, step } = latest.current;
+    const { subject, answers, step, spoken } = latest.current;
     saveLegacyDraft({
       subject,
       answers,
       currentStep: stepOverride ?? step,
+      spoken: Array.from(spoken),
     })
       .then(() => {
         setSaved(true);
@@ -242,6 +251,10 @@ export function LegacyFlow({
               const id = questions[step - 1].id;
               setAnswers((prev) => ({ ...prev, [id]: value }));
               scheduleSave();
+            }}
+            onDictated={() => {
+              const id = questions[step - 1].id;
+              setSpoken((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
             }}
             onPrev={() => goTo(step - 1)}
             onNext={() => goTo(step + 1)}
@@ -606,6 +619,7 @@ function QuestionScreen({
   step,
   answer,
   onChange,
+  onDictated,
   onPrev,
   onNext,
   onFinish,
@@ -623,6 +637,8 @@ function QuestionScreen({
   step: number;
   answer: string;
   onChange: (v: string) => void;
+  /** Called when dictation contributes text to the current answer. */
+  onDictated: () => void;
   onPrev: () => void;
   onNext: () => void;
   onFinish: () => void;
@@ -638,6 +654,15 @@ function QuestionScreen({
   const question = questions[step - 1];
   const isLast = step === questions.length;
   const minToFinish = minAnswersForMode(isOtherMode ? "other" : "self");
+  // Dictation (Wilson 2026-09-07: "record to answer… record as much as
+  // possible"). Same on-device Web Speech button as the chat composer;
+  // the transcript is appended to whatever was typed, editable after.
+  const micRef = useRef<MicButtonHandle | null>(null);
+  const micBaseRef = useRef("");
+  const leave = (fn: () => void) => () => {
+    micRef.current?.stop();
+    fn();
+  };
   const canFinishEarly = !isLast && answeredCount >= minToFinish;
   const progress = (step / questions.length) * 100;
 
@@ -717,29 +742,47 @@ function QuestionScreen({
         </p>
       ) : null}
 
-      <textarea
-        key={question.id}
-        value={answer}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={shownPlaceholder}
-        maxLength={4000}
-        rows={question.category === "essay" ? 12 : 8}
-        autoFocus
-        className="mt-8 w-full flex-1 resize-none rounded-3xl bg-ink-soft p-5 text-lg leading-relaxed text-warm-50 shadow-[0_10px_28px_-12px_rgba(28,28,26,0.12)] ring-1 ring-warm-700 outline-none transition-shadow placeholder:text-warm-500 focus:ring-2 focus:ring-coral/50"
-      />
+      <div className="relative mt-8 flex w-full flex-1 flex-col">
+        <textarea
+          key={question.id}
+          value={answer}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={shownPlaceholder}
+          maxLength={4000}
+          rows={question.category === "essay" ? 12 : 8}
+          autoFocus
+          className="w-full flex-1 resize-none rounded-3xl bg-ink-soft p-5 pb-14 text-lg leading-relaxed text-warm-50 shadow-[0_10px_28px_-12px_rgba(28,28,26,0.12)] ring-1 ring-warm-700 outline-none transition-shadow placeholder:text-warm-500 focus:ring-2 focus:ring-coral/50"
+        />
+        <div className="absolute bottom-3 right-3 flex items-center gap-2">
+          <span className="text-xs text-warm-400">Talk instead</span>
+          <MicButton
+            ref={micRef}
+            onSessionStart={() => {
+              micBaseRef.current = answer.trim()
+                ? `${answer.replace(/\s+$/, "")} `
+                : "";
+            }}
+            onTranscript={(sessionText) => {
+              if (!sessionText.trim()) return;
+              onChange(micBaseRef.current + sessionText);
+              onDictated();
+            }}
+          />
+        </div>
+      </div>
 
       {/* Small persistent reminder — the intro-page note is easy to
-          forget by question 12. Keep the "type how they text" nudge
-          in reach. */}
+          forget by question 12. */}
       <p className="mt-3 text-xs leading-relaxed text-warm-400">
-        Type it the way they&rsquo;d text it — lowercase, no periods, run-on,
-        whatever it is. Voice dictation smooths that out; skip it.
+        Type it the way you&rsquo;d text it — lowercase, no periods, run-on,
+        whatever it is. Or tap the mic (here, or on your keyboard) and just talk.
+        Either way it stays your words.
       </p>
 
       <div className="mt-8 flex items-center gap-3">
         <button
           type="button"
-          onClick={onPrev}
+          onClick={leave(onPrev)}
           className="flex h-13 items-center justify-center rounded-full px-6 text-base font-medium text-warm-300 ring-1 ring-warm-700 transition-colors hover:text-warm-100 hover:ring-warm-500"
         >
           Back
@@ -747,7 +790,7 @@ function QuestionScreen({
         {isLast ? (
           <button
             type="button"
-            onClick={onFinish}
+            onClick={leave(onFinish)}
             className="bg-gradient-cta flex h-13 flex-1 items-center justify-center rounded-full text-base font-semibold text-white shadow-[0_14px_36px_-10px_rgba(217,115,89,0.5)] transition-all hover:-translate-y-px active:translate-y-0 active:opacity-90"
           >
             {finishLabel}
@@ -755,7 +798,7 @@ function QuestionScreen({
         ) : (
           <button
             type="button"
-            onClick={onNext}
+            onClick={leave(onNext)}
             className="bg-gradient-cta flex h-13 flex-1 items-center justify-center rounded-full text-base font-semibold text-white shadow-[0_14px_36px_-10px_rgba(217,115,89,0.5)] transition-all hover:-translate-y-px active:translate-y-0 active:opacity-90"
           >
             {answer.trim() ? "Next" : "Skip for now"}

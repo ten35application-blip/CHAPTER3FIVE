@@ -11,6 +11,10 @@ type OracleDetail = {
   fingerprint: string | null;
   traits: Record<string, unknown> | null;
   persona_prompt: string | null;
+  legacy_answers: {
+    facts?: { extracted_at?: string; dropped?: number; items?: { field: string; value: string; quote: string; question_id: string }[] } | null;
+    spoken?: string[];
+  } | null;
   bio: string | null;
   created_at: string;
 };
@@ -29,7 +33,7 @@ export default async function AdminIdentityDetailPage({
   const rows = await safeSelect<OracleDetail>(
     supabase,
     "oracles",
-    "id, name, user_id, is_legacy, one_line_hook, fingerprint, traits, persona_prompt, bio, created_at",
+    "id, name, user_id, is_legacy, one_line_hook, fingerprint, traits, persona_prompt, bio, created_at, legacy_answers",
     (q) => q.eq("id", id),
   );
   const oracle = rows[0];
@@ -93,6 +97,33 @@ export default async function AdminIdentityDetailPage({
           {oracle.fingerprint ?? "—"}
         </p>
       </Panel>
+
+      {oracle.is_legacy ? (
+        <Panel
+          title={`Facts sheet${
+            oracle.legacy_answers?.facts?.items?.length
+              ? ` (${oracle.legacy_answers.facts.items.length} verified, ${oracle.legacy_answers.facts.dropped ?? 0} dropped)`
+              : ""
+          }`}
+        >
+          {oracle.legacy_answers?.facts?.items?.length ? (
+            <ul className="flex flex-col gap-2">
+              {oracle.legacy_answers.facts.items.map((f) => (
+                <li key={f.field} className="text-sm">
+                  <span className="font-semibold text-warm-100">{f.field.replace(/_/g, " ")}:</span>{" "}
+                  <span className="text-warm-100">{f.value}</span>
+                  <p className="mt-0.5 text-xs italic text-warm-300">&ldquo;{f.quote}&rdquo; <span className="not-italic text-warm-400">({f.question_id})</span></p>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-warm-300">No verified facts yet. Every fact must quote the answer it came from; none passed, or extraction hasn&rsquo;t run.</p>
+          )}
+          {oracle.legacy_answers?.spoken?.length ? (
+            <p className="mt-3 text-xs text-warm-400">Dictated answers: {oracle.legacy_answers.spoken.length}</p>
+          ) : null}
+        </Panel>
+      ) : null}
 
       <Panel title="Traits">
         {oracle.traits ? (
