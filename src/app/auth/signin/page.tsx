@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { NEXT_COOKIE, safeNextPath } from "@/lib/auth/nextPath";
 
 /**
  * Mobile-parity signin (2026-08-03). Web must match mobile — no more,
@@ -17,6 +18,20 @@ import { createClient } from "@/lib/supabase/client";
  * the recorded acceptance lives at /onboarding, the (gated) layout
  * enforces it.
  */
+/** Read + clear the post-auth hand-off cookie set by /inherit. */
+function consumeNextCookie(): string | null {
+  try {
+    const row = document.cookie
+      .split("; ")
+      .find((r) => r.startsWith(`${NEXT_COOKIE}=`));
+    if (!row) return null;
+    document.cookie = `${NEXT_COOKIE}=; Max-Age=0; path=/`;
+    return safeNextPath(row.slice(NEXT_COOKIE.length + 1));
+  } catch {
+    return null;
+  }
+}
+
 function SigninInner() {
   const router = useRouter();
   // Arriving from the confirmation email (?confirmed=1 — both signup
@@ -25,6 +40,9 @@ function SigninInner() {
   // that says take me back to the app").
   const params = useSearchParams();
   const confirmed = params.get("confirmed") === "1";
+  // Where to land after sign-in. /inherit?code=… parks it here (and in
+  // a cookie, for the sign-up round-trip). Validated to one page shape.
+  const next = safeNextPath(params.get("next"));
   // Arriving straight from the verification link: the address is
   // already known, so only the password is left to type.
   const [email, setEmail] = useState(params.get("email") ?? "");
@@ -62,7 +80,7 @@ function SigninInner() {
     }
     // Full navigation to bounce through the (gated) layout for terms /
     // profile checks; router.replace + refresh keeps middleware happy.
-    router.replace("/dashboard");
+    router.replace(next ?? consumeNextCookie() ?? "/dashboard");
     router.refresh();
   }
 

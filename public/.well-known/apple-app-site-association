@@ -1,4 +1,13 @@
 {
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "H727U5NUS7.app.chapter3five",
+        "paths": ["/inherit", "/inherit?*", "/legacy/*"]
+      }
+    ]
+  },
   "webcredentials": {
     "apps": ["H727U5NUS7.app.chapter3five"]
   }

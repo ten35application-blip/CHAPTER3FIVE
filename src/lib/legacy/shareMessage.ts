@@ -48,7 +48,12 @@ export function inheritShareMessage(input: {
 }): string {
   const { code, name, isSelf } = input;
   const origin = (input.origin || FALLBACK_ORIGIN).replace(/\/+$/, "");
-  const redeem = `${origin}/identity/inherit`;
+  // The link carries the code (Wilson 2026-09-07: "the code should
+  // automatically populate in the box"). /inherit is a PUBLIC route that
+  // forwards a signed-in person to /identity/inherit?code=… and parks
+  // the destination in a cookie for everyone else, so it survives
+  // sign-in, sign-up, the confirmation email, and onboarding.
+  const redeem = `${origin}/inherit?code=${encodeURIComponent(code)}`;
 
   if (isSelf) {
     return [

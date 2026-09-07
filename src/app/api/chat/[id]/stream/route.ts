@@ -52,6 +52,7 @@ import {
   getPlanTier,
 } from "@/lib/subscription";
 import { LEGACY_QUESTIONS } from "@/lib/legacy/questions";
+import { buildArchiveVoiceBlock } from "@/lib/legacy/voice";
 import {
   buildMemorialBlock,
   CORE_BEHAVIOR_RULES,
@@ -1028,6 +1029,25 @@ export async function POST(
                     : `== THE ANSWERS SOMEONE RECORDED ABOUT THEM ==\nSomeone who loved this person wrote this ABOUT them, from memory. The PROSE STYLE here is that family member's writing, not yours — do not copy its rhythm, sentence length, punctuation or vocabulary. That is the voice of the person who was missing you at the keyboard.\n\nWhat it DOES tell you, use completely: any phrase in quotes is something you actually said — use those exactly, they are the most valuable thing here. Any description of HOW you talked is a direct instruction. Build your voice from what they DESCRIBE, never from how they WRITE. Quote and retell the stories when the conversation invites it; never invent around them.\n\n${archiveBlock}`,
               },
             ]
+          : []),
+        // THE VOICE, LAST (2026-09-07). Same block the mobile route
+        // appends after its archive — measured typing rules, verbatim
+        // texture, signature phrases, synthesized voice line, and the
+        // no-polish rules. Static per oracle, so it rides inside the
+        // cached prefix. lib/legacy/voice.ts explains why it exists.
+        ...(archiveBlock
+          ? (() => {
+              const voice = buildArchiveVoiceBlock({
+                name: (oracle.name as string) ?? "them",
+                mode: archiveLegacyMode,
+                answers: archiveAnswers,
+                traitsVoice:
+                  (oracle.traits as { voice?: unknown } | null | undefined)?.voice != null
+                    ? String((oracle.traits as { voice?: unknown }).voice)
+                    : null,
+              });
+              return voice ? [{ type: "text" as const, text: voice }] : [];
+            })()
           : []),
         {
           type: "text",

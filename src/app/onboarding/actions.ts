@@ -1,6 +1,7 @@
 "use server";
 
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
+import { NEXT_COOKIE, safeNextPath } from "@/lib/auth/nextPath";
 import { redirect } from "next/navigation";
 import { redirectWithError } from "@/lib/action-errors";
 import { createClient } from "@/lib/supabase/server";
@@ -161,7 +162,13 @@ export async function acceptTerms(formData: FormData) {
   // IP capture (via terms_acceptances) and whitelist validation.
   await writePerDocAgreements(admin, user.id, ALLOWED_DOCS);
 
-  redirect("/dashboard");
+  // Someone who arrived through /inherit?code=… and had to make an
+  // account first: the confirmation-email round-trip dropped every
+  // query string, but the cookie survived. Send them to the box, filled.
+  const jar = await cookies();
+  const handoff = safeNextPath(jar.get(NEXT_COOKIE)?.value);
+  if (handoff) jar.delete(NEXT_COOKIE);
+  redirect(handoff ?? "/dashboard");
 }
 
 /**

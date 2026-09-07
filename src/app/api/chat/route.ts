@@ -3,6 +3,7 @@ import { createClient as createPlainClient } from "@supabase/supabase-js";
 import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { normalizeLanguage, type SupportedLanguage } from "@/lib/i18n/language";
 import { LEGACY_QUESTIONS } from "@/lib/legacy/questions";
+import { buildArchiveVoiceBlock } from "@/lib/legacy/voice";
 import { createClient } from "@/lib/supabase/server";
 import { requireTermsAccepted } from "@/lib/legal/gate";
 import {
@@ -1087,6 +1088,22 @@ const archive: { prompt: string; answer: string }[] = [];
   }
 
   const characterName = profile.oracle_name ?? "your chapter";
+  // THE VOICE, LAST (2026-09-07) — measured rules + verbatim texture +
+  // signature phrases + the synthesized voice line, placed after the
+  // answers so it is the freshest thing in the model's attention. See
+  // lib/legacy/voice.ts for why. Shared with the web stream route.
+  const voiceBlock = ownOracle?.is_legacy
+    ? buildArchiveVoiceBlock({
+        name: characterName,
+        mode: legacyMode,
+        answers: answersMap,
+        traitsVoice:
+          (ownOracle?.traits as { voice?: unknown } | null)?.voice != null
+            ? String((ownOracle?.traits as { voice?: unknown }).voice)
+            : null,
+      })
+    : "";
+  const voicePart = voiceBlock ? `\n\n${voiceBlock}` : "";
   const archiveBlock = archive
     .map((a, i) => `Q${i + 1}: ${a.prompt}\nA: ${a.answer}`)
     .join("\n\n");
@@ -1135,14 +1152,20 @@ const archive: { prompt: string; answer: string }[] = [];
   const langInstruction =
     language === "es" ? "Respond in Spanish." : "Respond in English.";
 
-  const personalityPart = profile.personality_type
+  // ARCHIVES GET NO BORROWED PERSONALITY (2026-09-07). personality_type
+  // and emotional_flavor live on the CALLER's profile — they are the
+  // user's own onboarding picks for their companion. Injecting them into
+  // a recorded person's archive gave Danisel's archive Wilson's
+  // personality type. An archive's personality is its answers.
+  const isArchiveOracle = ownOracle?.is_legacy === true;
+  const personalityPart = profile.personality_type && !isArchiveOracle
     ? `\n\nYour underlying personality is ${profile.personality_type} — ${
         PERSONALITY_DESCRIPTIONS[profile.personality_type as PersonalityType] ??
         ""
       }. Let it color how you respond.`
     : "";
 
-  const flavorPart = profile.emotional_flavor
+  const flavorPart = profile.emotional_flavor && !isArchiveOracle
     ? `\n\nYour emotional flavor is "${profile.emotional_flavor}" — ${
         FLAVOR_DESCRIPTIONS[profile.emotional_flavor as EmotionalFlavor] ?? ""
       }. Stay in that register.`
@@ -1413,7 +1436,7 @@ ${langInstruction}${stylePart}${personalityPart}${flavorPart}${bioPart}${locatio
 
 ARCHIVE — the actual answers ${characterName} gave. This is who you are. Stay close.
 
-${archiveBlock}`
+${archiveBlock}${voicePart}`
     : `${personaPromptOverride}
 
 ${PERSONA_RULES}
