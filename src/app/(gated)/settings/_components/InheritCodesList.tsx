@@ -293,6 +293,12 @@ function FilledSlot({ item }: { item: CodeItem }) {
               Update your archive
             </Link>
           ) : null}
+          <Link
+            href={`/identity/legacy/${item.oracleId}/people`}
+            className="flex h-10 items-center justify-center rounded-full border-[1.5px] border-coral px-5 text-sm font-bold text-coral transition-opacity hover:opacity-80"
+          >
+            Who it&rsquo;s for
+          </Link>
           <button
             type="button"
             onClick={() => {

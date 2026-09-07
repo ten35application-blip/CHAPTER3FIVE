@@ -217,6 +217,7 @@ export default function ChatSurface({
   inheritCode,
   initialMuted,
   initialAiAcked,
+  holderRelation = null,
 }: {
   oracleId: string;
   name: string;
@@ -261,7 +262,11 @@ export default function ChatSurface({
    *  disclosure (profiles.first_launch_ai_ack_at). Drives the
    *  first-launch modal on the concierge chat only. */
   initialAiAcked: boolean;
+  /** Inherited copies only (lib/legacy/relation.ts): "ask" shows the
+   *  who-is-this card; "confirmed" shows the relation under the name. */
+  holderRelation?: { status?: string; name?: string; relation?: string } | null;
 }) {
+  const [relation, setRelation] = useState<{ status?: string; name?: string; relation?: string } | null>(holderRelation);
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   // ── Scrolling back through the whole conversation ──────────────
   // The page server-renders the newest 100 and used to stop there;
@@ -1571,6 +1576,13 @@ export default function ChatSurface({
 
       {/* Input row — or the blocked state. Once blocked there is no
           composer, no retry, no way back from this surface. */}
+      {relation?.status === "ask" ? (
+        <RelationAsk
+          oracleId={oracleId}
+          name={name}
+          onDone={(rel) => setRelation(rel)}
+        />
+      ) : null}
       <footer className="sticky bottom-0 border-t border-warm-700 bg-ink/85 px-3 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2 backdrop-blur">
         <div className="mx-auto w-full max-w-2xl">
           {blocked ? (
@@ -1963,5 +1975,62 @@ function ReactionBadge({
     >
       <ReactionIcon kind={kind} className="h-3.5 w-3.5" />
     </span>
+  );
+}
+
+
+/** "Is this you?" — the holder says who they are; the list is never shown. */
+function RelationAsk({ oracleId, name, onDone }: { oracleId: string; name: string; onDone: (rel: { status?: string; name?: string; relation?: string } | null) => void }) {
+  const [who, setWho] = useState("");
+  const [birthday, setBirthday] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  async function send(skip: boolean) {
+    setBusy(true);
+    setNote(null);
+    try {
+      const res = await fetch("/api/legacy/relation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(skip ? { oracle_id: oracleId, skip: true, name: who } : { oracle_id: oracleId, name: who, birthday }),
+      });
+      const body = (await res.json().catch(() => ({}))) as { relation?: { status?: string; name?: string; relation?: string }; matched?: boolean; attempts_left?: number | null; error?: string };
+      if (!res.ok) {
+        setNote(body.error ?? "Try again.");
+        return;
+      }
+      if (body.relation?.status === "confirmed") {
+        onDone(body.relation);
+      } else if (body.relation?.status === "unlisted") {
+        onDone(body.relation);
+      } else {
+        setNote(`${name} doesn't have that name and birthday on the list. ${body.attempts_left ?? 0} more tr${body.attempts_left === 1 ? "y" : "ies"}, or skip and they'll still know you as a friend.`);
+      }
+    } catch {
+      setNote("Try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="mx-auto w-full max-w-2xl px-4 pb-2">
+      <div className="rounded-2xl border-[1.5px] border-coral bg-ink-soft p-4">
+        <p className="text-sm font-semibold text-warm-50">{name} wants to know who this is.</p>
+        <p className="mt-1 text-xs leading-relaxed text-warm-300">Your name and your birthday. If you&rsquo;re on their list, they&rsquo;ll know you as exactly who you are to them. If not, you still get all of them, as a friend.</p>
+        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <input value={who} onChange={(e) => setWho(e.target.value)} placeholder="Your name" maxLength={80} className="h-10 rounded-xl bg-ink px-3 text-sm text-warm-50 ring-1 ring-warm-700 placeholder:text-warm-500 focus:outline-none focus:ring-teal" />
+          <input value={birthday} onChange={(e) => setBirthday(e.target.value)} type="date" aria-label="Your birthday" className="h-10 rounded-xl bg-ink px-3 text-sm text-warm-50 ring-1 ring-warm-700 focus:outline-none focus:ring-teal" />
+        </div>
+        {note ? <p className="mt-2 text-xs font-medium text-coral-strong">{note}</p> : null}
+        <div className="mt-3 flex items-center gap-2">
+          <button type="button" disabled={busy || !who.trim() || !birthday} onClick={() => void send(false)} className="bg-gradient-cta flex h-10 items-center justify-center rounded-full px-5 text-sm font-bold text-white disabled:opacity-50">
+            That&rsquo;s me
+          </button>
+          <button type="button" disabled={busy} onClick={() => void send(true)} className="flex h-10 items-center justify-center rounded-full px-4 text-sm font-semibold text-warm-300 hover:text-warm-100">
+            Skip
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

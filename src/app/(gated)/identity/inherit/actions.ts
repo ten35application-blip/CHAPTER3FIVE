@@ -1,6 +1,7 @@
 "use server";
 
 import { createHash, randomUUID } from "node:crypto";
+import { assignHolderRelation } from "@/lib/legacy/relation";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { redirectWithError } from "@/lib/action-errors";
@@ -426,6 +427,21 @@ export async function redeemInheritCode(rawCode: string): Promise<void> {
     })
     .select("id")
     .single<{ id: string }>();
+
+  // Who is holding this copy? Matches the recorder's private list by
+  // account email or name + birthday; otherwise the app will ask.
+  // Never blocks a redeem (lib/legacy/relation.ts).
+  if (inserted) {
+    try {
+      await assignHolderRelation(admin, {
+        copyId: inserted.id,
+        sourceOracleId: source.id,
+        holder: { id: user.id, email: user.email ?? null },
+      });
+    } catch (err) {
+      console.error("[inherit] holder relation failed:", err);
+    }
+  }
 
   if (insertError || !inserted) {
     if (insertError?.code === "23505") {

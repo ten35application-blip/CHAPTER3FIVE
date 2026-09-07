@@ -54,6 +54,7 @@ import {
 import { LEGACY_QUESTIONS } from "@/lib/legacy/questions";
 import { buildArchiveVoiceBlock } from "@/lib/legacy/voice";
 import type { ArchiveFacts } from "@/lib/legacy/facts";
+import { relationPromptBlock, type HolderRelation } from "@/lib/legacy/relation";
 import {
   buildMemorialBlock,
   CORE_BEHAVIOR_RULES,
@@ -170,7 +171,7 @@ export async function POST(
   // visibility — a row coming back IS the authorization.
   const { data: oracle } = await supabase
     .from("oracles")
-    .select("id, user_id, name, manually_unread, blocked_at, block_reason, traits, memory_style, text_burst_style, voice_examples, chronotype, created_at, pet_name")
+    .select("id, user_id, name, manually_unread, blocked_at, block_reason, traits, memory_style, text_burst_style, voice_examples, chronotype, created_at, pet_name, holder_relation")
     .eq("id", oracleId)
     .is("deleted_at", null)
     .maybeSingle();
@@ -1052,6 +1053,15 @@ export async function POST(
               return voice ? [{ type: "text" as const, text: voice }] : [];
             })()
           : []),
+        // Who is holding this copy — wife to husband, mother to son, or a
+        // friend (lib/legacy/relation.ts). Static per copy: cached prefix.
+        ...(() => {
+          const block = relationPromptBlock(
+            (oracle as { holder_relation?: HolderRelation | null }).holder_relation ?? null,
+            (oracle.name as string) ?? "them",
+          );
+          return block ? [{ type: "text" as const, text: block }] : [];
+        })(),
         {
           type: "text",
           text: CORE_BEHAVIOR_RULES,

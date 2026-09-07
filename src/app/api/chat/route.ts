@@ -5,6 +5,7 @@ import { normalizeLanguage, type SupportedLanguage } from "@/lib/i18n/language";
 import { LEGACY_QUESTIONS } from "@/lib/legacy/questions";
 import { buildArchiveVoiceBlock } from "@/lib/legacy/voice";
 import type { ArchiveFacts } from "@/lib/legacy/facts";
+import { relationPromptBlock, type HolderRelation } from "@/lib/legacy/relation";
 import { createClient } from "@/lib/supabase/server";
 import { requireTermsAccepted } from "@/lib/legal/gate";
 import {
@@ -732,7 +733,7 @@ export async function POST(request: NextRequest) {
     const { data } = await supabase
       .from("oracles")
       .select(
-        "id, traits, is_concierge, text_burst_style, bio, avatar_url, location_anchor, location_extracted_at, orientation, relationship_openness, identity_quirks, traits_extracted_at, mode, ambient_cast, cast_extracted_at, weekly_context, weekly_context_until, sports_fandom, sports_extracted_at, legacy_answers, is_legacy",
+        "id, traits, is_concierge, text_burst_style, bio, avatar_url, location_anchor, location_extracted_at, orientation, relationship_openness, identity_quirks, traits_extracted_at, mode, ambient_cast, cast_extracted_at, weekly_context, weekly_context_until, sports_fandom, sports_extracted_at, legacy_answers, is_legacy, holder_relation",
       )
       .eq("id", profile.active_oracle_id)
       .maybeSingle();
@@ -1107,6 +1108,13 @@ const archive: { prompt: string; answer: string }[] = [];
       })
     : "";
   const voicePart = voiceBlock ? `\n\n${voiceBlock}` : "";
+  // Who is holding this copy (lib/legacy/relation.ts): wife to husband,
+  // mother to son, or a friend. Confirmed only; "ask"/unknown adds nothing.
+  const relationBlock = relationPromptBlock(
+    (ownOracle as { holder_relation?: HolderRelation | null } | null)?.holder_relation ?? null,
+    characterName,
+  );
+  const relationPart = relationBlock ? `\n\n${relationBlock}` : "";
   const archiveBlock = archive
     .map((a, i) => `Q${i + 1}: ${a.prompt}\nA: ${a.answer}`)
     .join("\n\n");
@@ -1439,7 +1447,7 @@ ${langInstruction}${stylePart}${personalityPart}${flavorPart}${bioPart}${locatio
 
 ARCHIVE — the actual answers ${characterName} gave. This is who you are. Stay close.
 
-${archiveBlock}${voicePart}`
+${archiveBlock}${voicePart}${relationPart}`
     : `${personaPromptOverride}
 
 ${PERSONA_RULES}

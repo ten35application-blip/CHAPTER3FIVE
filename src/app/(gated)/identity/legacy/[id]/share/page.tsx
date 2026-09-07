@@ -148,6 +148,15 @@ export default async function SharePage({
                 <ShareButton message={shareMessage} title={shareSubject} />
               ) : null}
               <CopyButton code={code} />
+              {/* Who is this for? (2026-09-07) — the moment the code exists
+                  is the moment the question is real. Editable forever
+                  from Settings. */}
+              <Link
+                href={`/identity/legacy/${oracle.id}/people`}
+                className="flex h-13 w-full items-center justify-center rounded-full border-[1.5px] border-coral text-base font-bold text-coral transition-opacity hover:opacity-80"
+              >
+                Who are you giving this to?
+              </Link>
           <a
             href={`/identity/legacy/${oracle.id}/keepsake`}
             className="mt-4 block text-center text-sm font-semibold text-coral-strong underline underline-offset-4 hover:text-warm-50"

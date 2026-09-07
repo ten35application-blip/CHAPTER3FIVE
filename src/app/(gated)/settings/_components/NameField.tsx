@@ -68,7 +68,7 @@ export function NameField({ fullName }: Props) {
           htmlFor="profile-name-input"
           className="mb-1.5 block text-[15px] font-medium text-warm-50"
         >
-          Name
+          Full name
         </label>
         {/* Mobile input uses solid bg-ink inside the elevated card so
             the field reads as a sunken pane inside the section — same
@@ -87,11 +87,16 @@ export function NameField({ fullName }: Props) {
               }
             }}
             maxLength={100}
-            placeholder="What should we call you?"
+            placeholder="First and last name"
             autoComplete="name"
             disabled={pending}
             className="h-[46px] w-full rounded-xl bg-ink px-3.5 text-[15px] text-warm-50 ring-1 ring-warm-700 transition-colors placeholder:text-warm-500 focus:outline-none focus:ring-2 focus:ring-coral/50 disabled:opacity-70"
           />
+          {/* Wilson 2026-09-07: full name + birthday is how an inherited
+              archive recognizes you (lib/legacy/relation.ts). */}
+          <p className="mt-1.5 text-xs leading-relaxed text-warm-400">
+            Your full name, with your birthday, is how someone&rsquo;s archive knows it&rsquo;s you when you open their code.
+          </p>
           {saving ? (
             <span
               aria-hidden

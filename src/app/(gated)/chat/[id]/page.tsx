@@ -44,7 +44,7 @@ export default async function ChatPage({
   const { data: oracle } = await supabase
     .from("oracles")
     .select(
-      "id, name, avatar_url, one_line_hook, blocked_at, block_reason, is_concierge, is_photo_placeholder, is_self_archive, is_legacy, inherited_at",
+      "id, name, avatar_url, one_line_hook, blocked_at, block_reason, is_concierge, is_photo_placeholder, is_self_archive, is_legacy, inherited_at, holder_relation",
     )
     .eq("id", id)
     .is("deleted_at", null)
@@ -233,6 +233,9 @@ export default async function ChatPage({
       inheritCode={inheritCode}
       initialMuted={initialMuted}
       initialAiAcked={initialAiAcked}
+      holderRelation={
+        (oracle as { holder_relation?: { status?: string; name?: string; relation?: string } | null }).holder_relation ?? null
+      }
     />
   );
 }
