@@ -1,7 +1,10 @@
 import { after } from "next/server";
 import { extractArchiveFacts, type ArchiveFacts } from "@/lib/legacy/facts";
+
+/** Quiet period before an "added to their archive" email goes out. */
+export const DIGEST_DELAY_MS = 3 * 60 * 60 * 1000;
 import { createAdminClient } from "@/lib/supabase/admin";
-import { recordAudit, sendArchiveUpdatedEmail } from "@/lib/notifications";
+import { recordAudit } from "@/lib/notifications";
 import { verifiedAvatarUrl, avatarsObjectPath } from "@/lib/storage/avatarObject";
 import { randomUUID } from "node:crypto";
 
@@ -364,20 +367,31 @@ async function fanOut(args: {
       // find their copy up to date rather than frozen at the day they left.
       if (!copy.notify) continue;
 
-      const { data: authRes } = await admin.auth.admin.getUserById(
-        copy.user_id,
+      // BATCHED (2026-09-08). Wilson: "I shouldn't get an update every
+      // single time Ara adds a new answer… wait a few hours… all in one
+      // rather than 6 emails." One notice row per copy; every change
+      // adds to the counts and pushes due_at out 3 hours, so a person
+      // who keeps adding for an evening produces ONE email, sent by
+      // /api/cron/archive-digest once things go quiet.
+      const dueAt = new Date(Date.now() + DIGEST_DELAY_MS).toISOString();
+      const { data: existing } = await admin
+        .from("archive_update_notices")
+        .select("photo_changed, answers_added, answers_corrected")
+        .eq("copy_id", copy.id)
+        .maybeSingle();
+      await admin.from("archive_update_notices").upsert(
+        {
+          copy_id: copy.id,
+          user_id: copy.user_id,
+          source_name: args.sourceName,
+          photo_changed: Boolean(existing?.photo_changed) || args.photoChanged,
+          answers_added: Number(existing?.answers_added ?? 0) + args.added,
+          answers_corrected: Number(existing?.answers_corrected ?? 0) + args.corrected,
+          due_at: dueAt,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "copy_id" },
       );
-      const email = authRes?.user?.email;
-      if (email) {
-        await sendArchiveUpdatedEmail({
-          to: email,
-          userId: copy.user_id,
-          name: args.sourceName,
-          photoChanged: args.photoChanged,
-          answersAdded: args.added,
-          answersCorrected: args.corrected,
-        });
-      }
     } catch (err) {
       // One bad copy must never stop the rest — but a console line
       // dies with the lambda, and a holder whose copy silently missed
