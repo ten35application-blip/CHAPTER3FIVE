@@ -233,8 +233,12 @@ export default async function ChatPage({
       inheritCode={inheritCode}
       initialMuted={initialMuted}
       initialAiAcked={initialAiAcked}
+      // Inherited copies only (Wilson 2026-09-08): an original or a
+      // companion never shows the who-are-you option.
       holderRelation={
-        (oracle as { holder_relation?: { status?: string; name?: string; relation?: string } | null }).holder_relation ?? null
+        oracle.inherited_at
+          ? ((oracle as { holder_relation?: { status?: string; name?: string; relation?: string } | null }).holder_relation ?? null)
+          : null
       }
     />
   );
