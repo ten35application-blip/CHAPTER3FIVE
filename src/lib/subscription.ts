@@ -201,6 +201,22 @@ export async function canChatWithOracle(
       .maybeSingle();
     if (earned) return true;
 
+    // Your OWN original archive (2026-09-08, talk-to-your-own-archive).
+    // Until today this thread was a free mirror that cost nothing; now
+    // the server files what you say and answers questions as you. A
+    // Free account keeps that inside the same monthly allowance — the
+    // paywall must not appear inside a person's own archive.
+    const { data: ownArchive } = await client
+      .from("oracles")
+      .select("id")
+      .eq("id", oracleId)
+      .eq("user_id", user.id)
+      .eq("is_self_archive", true)
+      .is("inherited_at", null)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (ownArchive) return true;
+
     // Inherited copies (0111) are owned rows stamped with inherited_at
     // at redemption. Redemption was paid ($5 flat per code), so the
     // copy stays chattable on every tier -- including Free accounts

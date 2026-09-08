@@ -1116,114 +1116,15 @@ export default function ChatSurface({
     [identityReportBusy, oracleId],
   );
 
-  /** Me-identity echo: POST /api/chat/echo. No streaming, no persona
-   *  pipeline — the server inserts the user turn AND an identical
-   *  assistant echo, both scoped to the caller. Optimistic bubbles
-   *  land immediately; the response swaps them for real DB rows so
-   *  long-press (reactions/report) attaches to real message_ids.
-   *
-   *  Wilson's Phase-2 lock: "You cannot talk to yourself — anything
-   *  you said will repeat back to you, like iOS and Android do now." */
-  const runEcho = useCallback(
-    async (text: string, image: OutgoingImage | null) => {
-      const nowIso = new Date().toISOString();
-      const tempUserId = `optimistic-user-${Date.now()}`;
-      const tempEchoId = `optimistic-echo-${Date.now()}`;
-      // Land BOTH the user bubble AND the mirrored echo bubble in the
-      // same setState so React doesn't stagger them across two paints
-      // — the whole point of echo is that they feel simultaneous.
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: tempUserId,
-          role: "user",
-          content: text,
-          createdAt: nowIso,
-          readByOracleAt: null,
-          pending: true,
-          imageUrl: image?.previewUrl ?? null,
-          myReaction: null,
-          theirReaction: null,
-        },
-        {
-          id: tempEchoId,
-          role: "assistant",
-          content: text,
-          createdAt: nowIso,
-          readByOracleAt: null,
-          pending: false,
-          imageUrl: image?.previewUrl ?? null,
-          myReaction: null,
-          theirReaction: null,
-        },
-      ]);
-      try {
-        const res = await fetch("/api/chat/echo", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            oracle_id: oracleId,
-            message: text,
-            ...(image ? { image_storage_path: image.storagePath } : {}),
-          }),
-        });
-        if (!res.ok) {
-          // Roll back both optimistic bubbles so the user can retry.
-          setMessages((prev) =>
-            prev.filter((m) => m.id !== tempUserId && m.id !== tempEchoId),
-          );
-          setStreamFailed(true);
-          return;
-        }
-        const body = (await res.json().catch(() => null)) as {
-          user?: { id?: string; created_at?: string };
-          echo?: { id?: string; created_at?: string } | null;
-        } | null;
-        // Swap optimistic ids for the real DB ids so long-press
-        // (reactions, report) attaches to something the server knows
-        // about. Falls back to keeping the temp id if the response
-        // shape ever drifts — the bubble still renders, just isn't
-        // long-pressable until the next natural refresh.
-        setMessages((prev) =>
-          prev.map((m) => {
-            if (m.id === tempUserId && body?.user?.id) {
-              return {
-                ...m,
-                id: body.user.id,
-                pending: false,
-                createdAt: body.user.created_at ?? m.createdAt,
-              };
-            }
-            if (m.id === tempEchoId && body?.echo?.id) {
-              return {
-                ...m,
-                id: body.echo.id,
-                createdAt: body.echo.created_at ?? m.createdAt,
-              };
-            }
-            return m;
-          }),
-        );
-      } catch {
-        setMessages((prev) =>
-          prev.filter((m) => m.id !== tempUserId && m.id !== tempEchoId),
-        );
-        setStreamFailed(true);
-      }
-    },
-    [oracleId],
-  );
-
+  // Your own archive used to be a mirror (POST /api/chat/echo). Since
+  // 2026-09-08 it goes through the real path: statements are filed by
+  // the server, questions are answered as you (lib/legacy/selfTalk.ts).
   const handleSend = useCallback(
     (text: string, image: OutgoingImage | null) => {
       if (isStreaming || blocked) return;
-      if (isSelfArchive) {
-        void runEcho(text, image);
-        return;
-      }
       void runStream(text, image);
     },
-    [blocked, isSelfArchive, isStreaming, runEcho, runStream],
+    [blocked, isStreaming, runStream],
   );
 
   const handleRetry = useCallback(() => {
@@ -1443,7 +1344,7 @@ export default function ChatSurface({
               {blocked
                 ? ""
                 : isSelfArchive
-                  ? "Anything you write will echo back to you."
+                  ? "Text me anything about you and I\u2019ll keep it, in your words."
                   : `Say something to ${name}.`}
             </p>
           </div>

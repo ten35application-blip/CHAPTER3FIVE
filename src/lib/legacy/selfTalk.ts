@@ -35,7 +35,7 @@ import { updateOwnArchive } from "@/lib/legacy/updateArchive";
 
 export const SELF_TALK_INITIATED_BY = "self_talk";
 
-type OracleGate = {
+export type OracleGate = {
   id: string;
   user_id: string;
   name: string;
@@ -130,7 +130,7 @@ function quickYesNo(text: string): "yes" | "no" | null {
 
 const T = {
   en: {
-    saved: (label: string) => `Saved under “${label}”, word for word. You can see it in Settings → Update.`,
+    saved: (label: string) => `Thank you. I kept that, word for word, under “${label}”. You can see it in Settings → Update.`,
     keep: (label: string) => `Want me to keep that in your archive? It would go under “${label}”. Reply yes or no.`,
     notSaved: "Okay, not saved.",
     nothingPending: "Nothing waiting to save. Text me something about you and I'll keep it.",
@@ -138,7 +138,7 @@ const T = {
     failed: "I couldn't save that just now. Try again in a minute, or add it from Settings → Update.",
   },
   es: {
-    saved: (label: string) => `Guardado en “${label}”, palabra por palabra. Lo puedes ver en Ajustes → Actualizar.`,
+    saved: (label: string) => `Gracias. Lo guardé, palabra por palabra, en “${label}”. Lo puedes ver en Ajustes → Actualizar.`,
     keep: (label: string) => `¿Quieres que lo guarde en tu archivo? Iría en “${label}”. Responde sí o no.`,
     notSaved: "Está bien, no lo guardo.",
     nothingPending: "No hay nada pendiente por guardar. Escríbeme algo sobre ti y lo guardo.",
@@ -148,12 +148,19 @@ const T = {
 };
 
 /** Bookkeeping replies never become part of the archive's chat memory. */
-const SELF_TALK_PREFIXES = ["Saved under “", "Want me to keep that", "Okay, not saved.", "Nothing waiting to save.", "That part of your archive is full.", "I couldn't save that just now.", "Hey, it's you. This is your archive.", "Guardado en “", "¿Quieres que lo guarde", "Está bien, no lo guardo.", "No hay nada pendiente", "Esa parte de tu archivo", "No pude guardarlo ahora.", "Hola, soy tú. Este es tu archivo."];
+const SELF_TALK_PREFIXES = ["Thank you. I kept that", "Want me to keep that", "Okay, not saved.", "Nothing waiting to save.", "That part of your archive is full.", "I couldn't save that just now.", "Hey, it's you. This is your archive.", "Gracias. Lo guardé", "¿Quieres que lo guarde", "Está bien, no lo guardo.", "No hay nada pendiente", "Esa parte de tu archivo", "No pude guardarlo ahora.", "Hola, soy tú. Este es tu archivo."];
 export function isSelfTalkReply(row: { role?: string | null; content?: string | null; initiated_by?: string | null }): boolean {
   if (row.initiated_by === SELF_TALK_INITIATED_BY) return true;
   if (row.role !== "assistant" || typeof row.content !== "string") return false;
   return SELF_TALK_PREFIXES.some((p) => row.content!.startsWith(p));
 }
+
+/** Old app versions still send their own-archive thread to the mirror
+ *  endpoint; when a message there is a question or chatter, say so plainly. */
+export const SELF_TALK_OLD_CLIENT_LINE = {
+  en: "I keep what you tell me about yourself here. Once your app updates, ask me anything and I'll answer as you.",
+  es: "Aquí guardo lo que me cuentas de ti. Cuando tu app se actualice, pregúntame lo que quieras y te respondo como tú.",
+};
 
 export type SelfTalkResult = { reply: string; userMessageId: string | null; replyMessageId: string | null; saved: boolean };
 
@@ -211,7 +218,7 @@ export async function handleSelfTalk(input: {
   // Questions and chatter go to the archive itself.
   if (kind === "question" || kind === "chat") return null;
   if ((kind === "yes" || kind === "no") && !pending) {
-    return persist(input, text, t.nothingPending, false);
+    return persistSelfTalkTurn(input, text, t.nothingPending, false);
   }
 
   let reply: string;
@@ -239,7 +246,7 @@ export async function handleSelfTalk(input: {
       .upsert({ oracle_id: input.oracle.id, user_id: input.userId, text, question_id: questionId, created_at: new Date().toISOString() });
     reply = t.keep(questionLabel(questionId));
   }
-  return persist(input, text, reply, saved);
+  return persistSelfTalkTurn(input, text, reply, saved);
 }
 
 /** Append, never replace: the earlier words stay, the new ones follow. */
@@ -267,7 +274,7 @@ async function appendAnswer(
   return "ok";
 }
 
-async function persist(
+export async function persistSelfTalkTurn(
   input: { userId: string; oracle: OracleGate },
   userText: string,
   reply: string,

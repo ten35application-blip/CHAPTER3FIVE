@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getRequestAuth } from "@/lib/api/mobileAuth";
 import { requireTermsAccepted } from "@/lib/legal/gate";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { handleSelfTalk, isOwnSelfArchive, persistSelfTalkTurn, SELF_TALK_OLD_CLIENT_LINE } from "@/lib/legacy/selfTalk";
 
 export const runtime = "nodejs";
 
@@ -102,6 +103,36 @@ export async function POST(request: NextRequest) {
       { error: "This identity is not a Me archive." },
       { status: 400 },
     );
+  }
+
+  // TALK TO YOUR OWN ARCHIVE (2026-09-08) replaces the mirror for
+  // text: the words are filed under the question they belong to and
+  // the reply says so. Old app versions still land here, so the new
+  // behaviour lives on the server. Photos keep the old mirror.
+  if (message.trim() && !imageUrl && !imageStoragePath) {
+    const { data: gateRow } = await createAdminClient()
+      .from("oracles")
+      .select("id, user_id, name, is_legacy, is_self_archive, inherited_at, legacy_answers")
+      .eq("id", oracleId)
+      .maybeSingle();
+    if (gateRow && isOwnSelfArchive(gateRow, user.id)) {
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("preferred_language")
+        .eq("id", user.id)
+        .maybeSingle<{ preferred_language: string | null }>();
+      const language = prof?.preferred_language === "es" ? "es" : "en";
+      const handled =
+        (await handleSelfTalk({ userId: user.id, oracle: gateRow, text: message.trim(), language })) ??
+        (await persistSelfTalkTurn({ userId: user.id, oracle: gateRow }, message.trim(), SELF_TALK_OLD_CLIENT_LINE[language], false));
+      const nowIso = new Date().toISOString();
+      return NextResponse.json({
+        user: { id: handled.userMessageId, created_at: nowIso },
+        echo: { id: handled.replyMessageId, created_at: nowIso },
+        reply: handled.reply,
+        saved: handled.saved,
+      });
+    }
   }
 
   // Two inserts, same content, in sequence. The user row first so the
