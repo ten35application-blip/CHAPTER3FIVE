@@ -1,4 +1,5 @@
 import { LEGACY_QUESTIONS } from "./questions";
+import { LEGACY_ANYTHING_ID } from "@/lib/legacy/answer-floor";
 import type { LegacySubject } from "./synthesize";
 
 /**
@@ -76,7 +77,7 @@ export function sanitizeLegacyAnswers(
 ): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [id, value] of Object.entries(answers ?? {})) {
-    if (!KNOWN_QUESTION_IDS.has(id)) continue;
+    if (id !== LEGACY_ANYTHING_ID && !KNOWN_QUESTION_IDS.has(id)) continue;
     if (typeof value !== "string") continue;
     const trimmed = value.trim().slice(0, LEGACY_MAX_ANSWER_CHARS);
     if (trimmed.length > 0) out[id] = trimmed;

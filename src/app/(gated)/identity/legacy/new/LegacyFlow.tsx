@@ -9,7 +9,7 @@ import type {
 } from "@/lib/legacy/questions";
 import type { LegacySubject } from "@/lib/legacy/synthesize";
 import { OTHER_IDENTITY_CREATE_PRICE_LABEL } from "@/lib/pricing";
-import { minAnswersForMode } from "@/lib/legacy/answer-floor";
+import { ANYTHING_PROMPT, LEGACY_ANYTHING_ID, countAnswered, minAnswersForMode } from "@/lib/legacy/answer-floor";
 import MicButton, { type MicButtonHandle } from "@/app/(gated)/chat/[id]/MicButton";
 import {
   completeLegacyIdentity,
@@ -180,9 +180,7 @@ export function LegacyFlow({
     }
   }
 
-  const answeredCount = Object.values(answers).filter(
-    (a) => a.trim().length > 0,
-  ).length;
+  const answeredCount = countAnswered(answers);
 
   // The $5 mint gate applies to OTHER-mode only (self-mode stays
   // free). Drives the Finish CTA copy: price cue when unpaid, the
@@ -225,6 +223,11 @@ export function LegacyFlow({
             subject={subject}
             onChange={(next) => {
               setSubject(next);
+              scheduleSave();
+            }}
+            anything={answers[LEGACY_ANYTHING_ID] ?? ""}
+            onAnything={(value) => {
+              setAnswers((prev) => ({ ...prev, [LEGACY_ANYTHING_ID]: value }));
               scheduleSave();
             }}
             onNext={() => goTo(1)}
@@ -287,10 +290,15 @@ export function LegacyFlow({
 function SubjectScreen({
   subject,
   onChange,
+  anything,
+  onAnything,
   onNext,
 }: {
   subject: LegacySubject;
   onChange: (s: LegacySubject) => void;
+  /** Question 0 — the junk drawer (answer-floor.ts LEGACY_ANYTHING_ID). */
+  anything: string;
+  onAnything: (v: string) => void;
   onNext: () => void;
 }) {
   // Wilson's rule: photo BEFORE questions. The face travels with the
@@ -374,6 +382,27 @@ function SubjectScreen({
           value={subject.heritage}
           placeholder="Dominican · Catholic household · first-generation"
           onChange={(heritage) => onChange({ ...subject, heritage })}
+        />
+      </div>
+
+      {/* QUESTION 0 — anything at all. Uncounted, optional, mined by the
+          facts sheet and the voice like every other answer. */}
+      <div className="mt-6 rounded-2xl border-[1.5px] border-coral bg-ink-soft p-4">
+        <p className="text-gradient-cta text-[13px] font-extrabold uppercase tracking-wider">
+          Before the forty-five: anything at all
+        </p>
+        <p className="mt-1.5 text-sm leading-relaxed text-warm-100">
+          {isSelf
+            ? "Random stuff first. Your favorite color, the movie, the food you hate, the song, the team, the thing you always say. Anything and everything — get it out of the way here, then the questions start."
+            : "Random stuff first. Their favorite color, the movie, the food they hated, the song, the team, the thing they always said. Anything and everything you remember."}
+        </p>
+        <textarea
+          value={anything}
+          onChange={(e) => onAnything(e.target.value)}
+          placeholder={ANYTHING_PROMPT}
+          maxLength={4000}
+          rows={5}
+          className="mt-3 w-full resize-y rounded-2xl bg-ink p-4 text-base leading-relaxed text-warm-50 ring-1 ring-warm-700 outline-none placeholder:text-warm-500 focus:ring-2 focus:ring-coral/50"
         />
       </div>
 

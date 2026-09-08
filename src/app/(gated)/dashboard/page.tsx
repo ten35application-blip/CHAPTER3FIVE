@@ -1,4 +1,5 @@
 import { after } from "next/server";
+import { countAnswered } from "@/lib/legacy/answer-floor";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isAdmin } from "@/lib/admin/allowlist";
@@ -406,7 +407,7 @@ export default async function DashboardPage({
       .map((d) => ({
         mode: (d.mode === "self" ? "self" : "other") as "self" | "other",
         name: d.subject?.name ?? null,
-        answered: Object.values(d.answers ?? {}).filter((a) => a?.trim()).length,
+        answered: countAnswered((d.answers ?? {}) as Record<string, string>),
       }))
       .filter((d) => d.answered > 0 || !!d.name),
   };

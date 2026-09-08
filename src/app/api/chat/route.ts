@@ -4,6 +4,7 @@ import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { normalizeLanguage, type SupportedLanguage } from "@/lib/i18n/language";
 import { LEGACY_QUESTIONS } from "@/lib/legacy/questions";
 import { buildArchiveVoiceBlock } from "@/lib/legacy/voice";
+import { LEGACY_ANYTHING_ID } from "@/lib/legacy/answer-floor";
 import type { ArchiveFacts } from "@/lib/legacy/facts";
 import { relationPromptBlock, type HolderRelation } from "@/lib/legacy/relation";
 import { createClient } from "@/lib/supabase/server";
@@ -1053,6 +1054,14 @@ const archive: { prompt: string; answer: string }[] = [];
     ownOracle?.legacy_answers?.subject?.mode === "self" ? "self" : "other";
   const answersMap = ownOracle?.legacy_answers?.answers ?? {};
   if (ownOracle?.is_legacy && Object.keys(answersMap).length > 0) {
+    // Question 0 — the junk drawer — first, in their words.
+    const anything = answersMap[LEGACY_ANYTHING_ID];
+    if (typeof anything === "string" && anything.trim()) {
+      archive.push({
+        prompt: legacyMode === "self" ? "Anything at all you wanted people to know — the random stuff" : "Anything at all the family wanted known — the random stuff",
+        answer: anything.trim(),
+      });
+    }
     for (const q of LEGACY_QUESTIONS) {
       const answer = answersMap[q.id];
       if (typeof answer !== "string" || !answer.trim()) continue;

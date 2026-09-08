@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { countAnswered } from "@/lib/legacy/answer-floor";
 import { getRequestAuth } from "@/lib/api/mobileAuth";
 import { requireTermsAccepted } from "@/lib/legal/gate";
 import {
@@ -67,7 +68,7 @@ export async function GET(request: NextRequest) {
       !!(r.subject as { name?: string } | null)?.name &&
       !!(r.subject as { photoUrl?: string } | null)?.photoUrl,
     // Dashboard "Finish recording Mom · 12 of 45" card (2026-09-06).
-    answered: Object.values((r.answers as Record<string, string>) ?? {}).filter((a) => a?.trim()).length,
+    answered: countAnswered((r.answers as Record<string, string>) ?? {}),
     subject_name: (r.subject as { name?: string } | null)?.name ?? null,
   }));
 

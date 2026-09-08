@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { countAnswered } from "@/lib/legacy/answer-floor";
 import { sendInheritCodeEmail } from "@/lib/notifications";
 import { getRequestAuth } from "@/lib/api/mobileAuth";
 import { isAdmin } from "@/lib/admin/allowlist";
@@ -90,7 +91,7 @@ export async function POST(request: NextRequest) {
     return fail("Add their photo on the first page — it travels with the code.");
   }
   const minAnswers = minAnswersForMode(subject.mode === "self" ? "self" : "other");
-  if (Object.keys(answers).length < minAnswers) {
+  if (countAnswered(answers) < minAnswers) {
     return fail(
       `A person takes at least ${minAnswers} answers to hold together. Answer a few more.`,
     );

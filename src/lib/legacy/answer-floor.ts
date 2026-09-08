@@ -37,3 +37,23 @@ export const LEGACY_MIN_ANSWERS_OTHER = 30;
 export function minAnswersForMode(mode: "self" | "other"): number {
   return mode === "self" ? LEGACY_MIN_ANSWERS_SELF : LEGACY_MIN_ANSWERS_OTHER;
 }
+
+
+/**
+ * QUESTION 0 — the junk drawer (Wilson 2026-09-08): "Before we start
+ * asking your questions to create your essence, please feel free to
+ * write random information — color, movie, book, things you hate and
+ * love, anything and everything." Stored under this id in the same
+ * answers map, so it rides along with drafts, mint, updates, fan-out,
+ * facts and voice — but it is NOT one of the forty-five, so it never
+ * counts toward progress or the finish floor.
+ */
+export const LEGACY_ANYTHING_ID = "anything";
+export const ANYTHING_PROMPT = "Anything at all — favorite color, movie, food you hate, the song, the team, the small stuff.";
+
+/** Answered count for progress + floors: the forty-five only. */
+export function countAnswered(answers: Record<string, string> | null | undefined): number {
+  return Object.entries(answers ?? {}).filter(
+    ([id, a]) => id !== LEGACY_ANYTHING_ID && typeof a === "string" && a.trim().length > 0,
+  ).length;
+}

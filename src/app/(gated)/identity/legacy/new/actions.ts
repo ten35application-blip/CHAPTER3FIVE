@@ -1,6 +1,7 @@
 "use server";
 
 import { headers } from "next/headers";
+import { countAnswered } from "@/lib/legacy/answer-floor";
 import { redirect } from "next/navigation";
 import sharp from "sharp";
 import { redirectWithError } from "@/lib/action-errors";
@@ -271,7 +272,7 @@ export async function completeLegacyIdentity(payload: {
   const minAnswers = minAnswersForMode(
     subject.mode === "self" ? "self" : "other",
   );
-  if (Object.keys(answers).length < minAnswers) {
+  if (countAnswered(answers) < minAnswers) {
     redirectWithError(
       "/identity/legacy/new",
       `A person takes at least ${minAnswers} answers to hold together. Answer a few more.`,

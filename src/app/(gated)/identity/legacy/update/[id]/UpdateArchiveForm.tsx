@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState, useEffect } from "react";
+import { ANYTHING_PROMPT, LEGACY_ANYTHING_ID, countAnswered } from "@/lib/legacy/answer-floor";
 import MicButton from "@/app/(gated)/chat/[id]/MicButton";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -73,7 +74,7 @@ export function UpdateArchiveForm({
     window.addEventListener("beforeunload", onBeforeUnload);
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [dirty, saving, done]);
-  const answeredCount = Object.values(answers).filter((a) => a?.trim()).length;
+  const answeredCount = countAnswered(answers);
 
   const onPick = useCallback(async (file: File) => {
     setUploading(true);
@@ -220,6 +221,20 @@ export function UpdateArchiveForm({
       </section>
 
       {/* Questions */}
+      {/* QUESTION 0 — anything at all (answer-floor.ts). Same box as the
+          walk's intro; this is where "green" goes when it was never asked. */}
+      <section className="mt-4 rounded-[18px] border-[1.5px] border-coral bg-ink-soft p-4">
+        <p className="text-gradient-cta text-[11px] font-extrabold uppercase tracking-wide">Anything at all</p>
+        <p className="mt-1 text-[13px] leading-relaxed text-warm-300">Favorite color, movie, food you hate, the song, the team, the small stuff nobody asked. Everything here becomes part of you.</p>
+        <textarea
+          value={answers[LEGACY_ANYTHING_ID] ?? ""}
+          rows={(answers[LEGACY_ANYTHING_ID] ?? "").trim() ? 5 : 3}
+          placeholder={ANYTHING_PROMPT}
+          maxLength={4000}
+          onChange={(e) => setAnswers((prev) => ({ ...prev, [LEGACY_ANYTHING_ID]: e.target.value }))}
+          className="mt-2 w-full resize-y rounded-xl bg-ink px-3 py-2.5 text-[15px] leading-relaxed text-warm-50 ring-1 ring-warm-700 placeholder:text-warm-500 focus:outline-none focus:ring-teal"
+        />
+      </section>
       <div className="mt-4 flex flex-col gap-3">
         {questions.map((q, i) => {
           const value = answers[q.id] ?? "";

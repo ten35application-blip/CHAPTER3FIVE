@@ -53,6 +53,7 @@ import {
 } from "@/lib/subscription";
 import { LEGACY_QUESTIONS } from "@/lib/legacy/questions";
 import { buildArchiveVoiceBlock } from "@/lib/legacy/voice";
+import { LEGACY_ANYTHING_ID } from "@/lib/legacy/answer-floor";
 import type { ArchiveFacts } from "@/lib/legacy/facts";
 import { relationPromptBlock, type HolderRelation } from "@/lib/legacy/relation";
 import {
@@ -960,15 +961,20 @@ export async function POST(
       ?.subject?.mode === "self"
       ? "self"
       : "other";
+  const anythingAnswer = archiveAnswers[LEGACY_ANYTHING_ID];
+  const anythingBlock =
+    (isLegacyArchive || isInheritedOracle) && typeof anythingAnswer === "string" && anythingAnswer.trim()
+      ? [`Q: ${archiveLegacyMode === "self" ? "Anything at all you wanted people to know — the random stuff" : "Anything at all the family wanted known — the random stuff"}\nA: ${anythingAnswer.trim()}`]
+      : [];
   const archiveBlock =
     isLegacyArchive || isInheritedOracle
-      ? LEGACY_QUESTIONS.flatMap((q) => {
+      ? [...anythingBlock, ...LEGACY_QUESTIONS.flatMap((q) => {
           const answer = archiveAnswers[q.id];
           if (typeof answer !== "string" || !answer.trim()) return [];
           const prompt =
             archiveLegacyMode === "self" ? (q.promptSelf ?? q.prompt) : q.prompt;
           return [`Q: ${prompt}\nA: ${answer.trim()}`];
-        }).join("\n\n")
+        })].join("\n\n")
       : "";
 
   const system: Anthropic.TextBlockParam[] = isConciergeOracle

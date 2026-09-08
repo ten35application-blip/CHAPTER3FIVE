@@ -1,6 +1,7 @@
 import "server-only";
 import { anthropic, ANTHROPIC_MODEL } from "@/lib/anthropic";
 import { LEGACY_QUESTIONS } from "@/lib/legacy/questions";
+import { LEGACY_ANYTHING_ID } from "@/lib/legacy/answer-floor";
 
 /**
  * THE FACTS SHEET (2026-09-07).
@@ -64,6 +65,11 @@ export const FACT_FIELDS: Record<string, string> = {
   favorite_food: "Foods they say they love",
   favorite_music: "Music / artists they name",
   favorite_place: "A place they name as theirs",
+  favorite_color: "Favorite color, if stated",
+  favorite_movie_or_show: "Movie / show they name as a favorite",
+  favorite_book: "Book they name as a favorite",
+  hates: "Things they say they hate / can't stand",
+  loves: "Small things they say they love",
   hobbies: "What they do with free time",
   drives: "Car / how they get around, if stated",
   never_again: "A thing they say they refuse or quit",
@@ -203,6 +209,12 @@ function answersToPrompt(
     `Written by: ${mode === "self" ? "the person themselves, in first person" : "a family member, about the person"}`,
     "",
   ];
+  const anything = answers[LEGACY_ANYTHING_ID];
+  if (typeof anything === "string" && anything.trim()) {
+    lines.push(`[question_id: ${LEGACY_ANYTHING_ID}] Anything at all — the random stuff (favorite color, movie, food, song, team…)`);
+    lines.push(anything.trim());
+    lines.push("");
+  }
   for (const q of LEGACY_QUESTIONS) {
     const a = answers[q.id];
     if (typeof a !== "string" || !a.trim()) continue;
