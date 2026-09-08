@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { NEXT_COOKIE, safeNextPath } from "@/lib/auth/nextPath";
 
@@ -54,6 +54,36 @@ function SigninInner() {
   const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [passkeySupported, setPasskeySupported] = useState(false);
+  useEffect(() => {
+    setPasskeySupported(
+      typeof window !== "undefined" &&
+        typeof window.PublicKeyCredential === "function" &&
+        window.isSecureContext,
+    );
+  }, []);
+
+  async function signInWithPasskey() {
+    setError(null);
+    setInfo(null);
+    setBusy(true);
+    const supabase = createClient();
+    const { error } = await supabase.auth.signInWithPasskey();
+    if (error) {
+      setBusy(false);
+      const msg = error.message.toLowerCase();
+      if (msg.includes("passkey_disabled") || msg.includes("disabled")) {
+        setError("Passkeys aren't turned on yet. Use your password for now.");
+      } else if (msg.includes("not allowed") || msg.includes("abort") || msg.includes("cancel")) {
+        setError(null);
+      } else {
+        setError("That didn't work. Use your password, then add a passkey in Settings.");
+      }
+      return;
+    }
+    router.replace(next ?? consumeNextCookie() ?? "/dashboard");
+    router.refresh();
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -238,6 +268,21 @@ function SigninInner() {
             Forgot password?
           </Link>
         </form>
+
+        {/* PASSKEY (2026-09-08): no email, no password — the phone or the
+            browser shows your face and that is the sign-in. Only shown
+            where the browser supports it; a device with no passkey
+            enrolled just gets the system's "no passkeys" sheet. */}
+        {passkeySupported ? (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void signInWithPasskey()}
+            className="mt-4 flex h-12 w-full items-center justify-center rounded-full border-[1.5px] border-teal-strong text-base font-semibold text-teal-strong transition-opacity hover:opacity-80 disabled:opacity-50"
+          >
+            Sign in with Face ID or fingerprint
+          </button>
+        ) : null}
 
         <p className="mt-6 text-sm text-warm-300">
           New here?{" "}

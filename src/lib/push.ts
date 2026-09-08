@@ -26,6 +26,12 @@ type ExpoPushMessage = {
    *  companion stack together in Notification Center (like Messages
    *  groups by contact). Set to the oracle_id. */
   threadIdentifier?: string;
+  /** Expo → FCM notification.image (Android large icon) / iOS attachment
+   *  (needs the Notification Service Extension, build 1.5+). */
+  richContent?: { image: string };
+  /** iOS: let the Notification Service Extension rewrite the alert
+   *  (communication notification with the sender's face). */
+  mutableContent?: boolean;
 };
 
 const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
@@ -51,6 +57,28 @@ export async function sendPushToUser(opts: {
     .select("expo_token")
     .eq("user_id", opts.userId);
 
+  // HER FACE ON THE NOTIFICATION (2026-09-08). Every identity push already
+  // names its oracle (threadIdentifier / data.oracle_id). Resolve the
+  // avatar once here so no caller has to remember: Android shows it as
+  // the large icon today; iOS shows it once the 1.5 extension exists
+  // (mutable-content lets that extension turn the alert into a
+  // communication notification with her face instead of the app icon).
+  const oracleId =
+    (typeof opts.data?.oracle_id === "string" && opts.data.oracle_id) ||
+    (typeof opts.threadIdentifier === "string" && /^[0-9a-f-]{36}$/i.test(opts.threadIdentifier)
+      ? opts.threadIdentifier
+      : null);
+  let sender: { name: string | null; avatar_url: string | null } | null = null;
+  if (oracleId) {
+    const { data: o } = await admin
+      .from("oracles")
+      .select("name, avatar_url")
+      .eq("id", oracleId)
+      .maybeSingle();
+    sender = (o as { name: string | null; avatar_url: string | null } | null) ?? null;
+  }
+  const avatar = sender?.avatar_url && /^https:\/\//.test(sender.avatar_url) ? sender.avatar_url : null;
+
   const recipients = (tokens ?? [])
     .map((t) => t.expo_token)
     .filter((t) => t && t.startsWith("ExponentPushToken"));
@@ -61,9 +89,15 @@ export async function sendPushToUser(opts: {
     to,
     title: opts.title,
     body: opts.body,
-    data: opts.data,
+    data: {
+      ...(opts.data ?? {}),
+      ...(oracleId ? { oracle_id: oracleId } : {}),
+      ...(sender?.name ? { sender_name: sender.name } : {}),
+      ...(avatar ? { avatar_url: avatar } : {}),
+    },
     sound: "default",
     priority: "high",
+    ...(avatar ? { richContent: { image: avatar }, mutableContent: true } : {}),
     ...(typeof opts.badge === "number" ? { badge: opts.badge } : {}),
     ...(opts.categoryId ? { categoryId: opts.categoryId } : {}),
     ...(opts.threadIdentifier

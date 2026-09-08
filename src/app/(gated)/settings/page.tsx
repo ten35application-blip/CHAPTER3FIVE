@@ -1,4 +1,5 @@
 import Link from "next/link";
+import PasskeysCard from "./_components/PasskeysCard";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isAdmin } from "@/lib/admin/allowlist";
@@ -290,6 +291,9 @@ export default async function SettingsPage({
             debug={debug}
           />
           <NameField fullName={fullName} />
+          <div className="px-4 pb-5">
+            <PasskeysCard />
+          </div>
           <Row icon={<MailIcon />} label="Email" value={email} />
           <PasswordResetRow email={email} />
         </Section>

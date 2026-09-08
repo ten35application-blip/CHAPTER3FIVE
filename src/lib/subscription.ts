@@ -958,11 +958,13 @@ export async function canSendMessageForTierCap(
       .eq("role", "user")
       .gte("created_at", periodStart.toISOString());
     if (exempt.length > 0) {
+      // supabase-js 2.116 types recurse too deeply on this reassignment;
+      // the runtime object is identical.
       messageCountQuery = messageCountQuery.not(
         "oracle_id",
         "in",
         notInList(exempt),
-      );
+      ) as unknown as typeof messageCountQuery;
     }
     const { count: fallbackCount, error } = await messageCountQuery;
     if (error || fallbackCount === null) {
@@ -1047,11 +1049,15 @@ export async function canSendImageForMonthCap(
       .not("image_storage_path", "is", null)
       .gte("created_at", periodStart.toISOString());
     if (exemptForImages.length > 0) {
+      // supabase-js 2.116 types recurse too deeply on this reassignment;
+      // the runtime object is identical.
+      // supabase-js 2.116 types recurse too deeply on this reassignment;
+      // the runtime object is identical.
       imageCountQuery = imageCountQuery.not(
         "oracle_id",
         "in",
         notInList(exemptForImages),
-      );
+      ) as unknown as typeof imageCountQuery;
     }
     const fallback = await imageCountQuery;
     count = fallback.count;
@@ -1107,8 +1113,10 @@ export async function monthlyUsageCounts(
       .not("image_storage_path", "is", null)
       .gte("created_at", monthStart.toISOString());
     if (exempt.length > 0) {
-      msgQ = msgQ.not("oracle_id", "in", notInList(exempt));
-      imgQ = imgQ.not("oracle_id", "in", notInList(exempt));
+      // supabase-js 2.116 types recurse too deeply on these reassignments;
+      // the runtime objects are identical.
+      msgQ = msgQ.not("oracle_id", "in", notInList(exempt)) as unknown as typeof msgQ;
+      imgQ = imgQ.not("oracle_id", "in", notInList(exempt)) as unknown as typeof imgQ;
     }
     const [{ count: messages }, { count: images }] = await Promise.all([
       msgQ,
