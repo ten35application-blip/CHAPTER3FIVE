@@ -2015,8 +2015,8 @@ function RelationAsk({ oracleId, name, onDone }: { oracleId: string; name: strin
   return (
     <div className="mx-auto w-full max-w-2xl px-4 pb-2">
       <div className="rounded-2xl border-[1.5px] border-coral bg-ink-soft p-4">
-        <p className="text-sm font-semibold text-warm-50">{name} wants to know who this is.</p>
-        <p className="mt-1 text-xs leading-relaxed text-warm-300">Your name and your birthday. If you&rsquo;re on their list, they&rsquo;ll know you as exactly who you are to them. If not, you still get all of them, as a friend.</p>
+        <p className="text-sm font-semibold text-warm-50">So {name} knows it&rsquo;s you.</p>
+        <p className="mt-1 text-xs leading-relaxed text-warm-300">Add your name and birthday. If you&rsquo;re on their list, they&rsquo;ll know exactly who you are to them.</p>
         <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
           <input value={who} onChange={(e) => setWho(e.target.value)} placeholder="Your name" maxLength={80} className="h-10 rounded-xl bg-ink px-3 text-sm text-warm-50 ring-1 ring-warm-700 placeholder:text-warm-500 focus:outline-none focus:ring-teal" />
           <input value={birthday} onChange={(e) => setBirthday(e.target.value)} type="date" aria-label="Your birthday" className="h-10 rounded-xl bg-ink px-3 text-sm text-warm-50 ring-1 ring-warm-700 focus:outline-none focus:ring-teal" />
@@ -2027,7 +2027,7 @@ function RelationAsk({ oracleId, name, onDone }: { oracleId: string; name: strin
             That&rsquo;s me
           </button>
           <button type="button" disabled={busy} onClick={() => void send(true)} className="flex h-10 items-center justify-center rounded-full px-4 text-sm font-semibold text-warm-300 hover:text-warm-100">
-            Skip
+            Skip for now
           </button>
         </div>
       </div>
