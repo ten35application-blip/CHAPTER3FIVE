@@ -17,6 +17,7 @@ import {
 import { SynthesisError } from "@/lib/identity/synthesize";
 import { fingerprintLegacyAnswers } from "@/lib/legacy/fingerprint";
 import { extractArchiveFacts, type ArchiveFacts } from "@/lib/legacy/facts";
+import { writeSelfTalkWelcome } from "@/lib/legacy/selfTalk";
 import { mintInheritCode } from "@/lib/legacy/mint";
 import { LEGACY_QUESTIONS, LEGACY_QUESTION_COUNT } from "@/lib/legacy/questions";
 import {
@@ -512,6 +513,8 @@ export async function completeLegacyIdentity(payload: {
     })
     .select("id")
     .single();
+  // The one welcome, in their own thread (lib/legacy/selfTalk.ts).
+  if (inserted?.id && subject.mode === "self") await writeSelfTalkWelcome(user.id, inserted.id);
 
   if (insertError || !inserted) {
     // The reserve above already spent the credit; every no-product

@@ -54,6 +54,7 @@ import {
 import { LEGACY_QUESTIONS } from "@/lib/legacy/questions";
 import { buildArchiveVoiceBlock } from "@/lib/legacy/voice";
 import { LEGACY_ANYTHING_ID } from "@/lib/legacy/answer-floor";
+import { handleSelfTalk, isOwnSelfArchive, isSelfTalkReply } from "@/lib/legacy/selfTalk";
 import type { ArchiveFacts } from "@/lib/legacy/facts";
 import { relationPromptBlock, type HolderRelation } from "@/lib/legacy/relation";
 import {
@@ -191,7 +192,7 @@ export async function POST(
   const { data: promptRow } = await promptClient
     .from("oracles")
     .select(
-      "persona_prompt, is_concierge, creation_source, inherited_from_code_id, is_legacy, legacy_answers",
+      "persona_prompt, is_concierge, creation_source, inherited_from_code_id, is_legacy, legacy_answers, is_self_archive, inherited_at",
     )
     .eq("id", oracleId)
     .maybeSingle();
@@ -345,6 +346,61 @@ export async function POST(
       { error: "This identity isn't ready to talk yet." },
       { status: 409 },
     );
+  }
+
+  // TALK TO YOUR OWN ARCHIVE (lib/legacy/selfTalk.ts). Same intercept
+  // as the phone route: a statement about yourself sent to your own
+  // original archive is filed word for word; the reply says where.
+  // Before caps and before any model call. Questions fall through.
+  if (!isRetry && !imageStoragePath && userMessage && promptRow && isOwnSelfArchive({
+    id: oracleId,
+    user_id: oracle.user_id as string,
+    name: oracle.name as string,
+    is_legacy: promptRow.is_legacy,
+    is_self_archive: promptRow.is_self_archive,
+    inherited_at: promptRow.inherited_at,
+    legacy_answers: promptRow.legacy_answers as { subject?: { mode?: unknown }; answers?: Record<string, string> } | null,
+  }, user.id)) {
+    const { data: langRow } = await supabase
+      .from("profiles")
+      .select("preferred_language")
+      .eq("id", user.id)
+      .maybeSingle<{ preferred_language: string | null }>();
+    const handled = await handleSelfTalk({
+      userId: user.id,
+      oracle: {
+        id: oracleId,
+        user_id: oracle.user_id as string,
+        name: oracle.name as string,
+        is_legacy: promptRow.is_legacy,
+        is_self_archive: promptRow.is_self_archive,
+        inherited_at: promptRow.inherited_at,
+        legacy_answers: promptRow.legacy_answers as { subject?: { mode?: unknown }; answers?: Record<string, string> } | null,
+      },
+      text: userMessage,
+      language: langRow?.preferred_language === "es" ? "es" : "en",
+    });
+    if (handled) {
+      const enc = new TextEncoder();
+      const line = (obj: Record<string, unknown>) => enc.encode(`data: ${JSON.stringify(obj)}\n\n`);
+      const nowIso = new Date().toISOString();
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(line({ type: "begin", userMessageId: handled.userMessageId, readByOracleAt: nowIso, visibleAt: null }));
+          controller.enqueue(line({ type: "text", text: handled.reply }));
+          controller.enqueue(line({ type: "done", messageId: handled.replyMessageId, visibleAt: null }));
+          controller.close();
+        },
+      });
+      return new Response(body, {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache, no-transform",
+          Connection: "keep-alive",
+          "X-Accel-Buffering": "no",
+        },
+      });
+    }
   }
 
   // Plan check runs ONCE per request; every downstream gate reuses it
@@ -570,13 +626,14 @@ export async function POST(
     .from("messages")
     // visible_at rides along for the delay computation only — the
     // model mapping below uses role/content and ignores it.
-    .select("role, content, created_at, visible_at")
+    .select("role, content, created_at, visible_at, initiated_by")
     .eq("oracle_id", oracleId)
     .eq("user_id", user.id)
     .is("deleted_at", null)
     .order("created_at", { ascending: false })
     .limit(HISTORY_LIMIT);
-  const history = (historyRows ?? []).reverse();
+  // Sorter bookkeeping ("Saved under…") is not something the archive said.
+  const history = (historyRows ?? []).filter((r) => !isSelfTalkReply(r)).reverse();
   // The Anthropic API requires messages[0].role === "user" (assistant-first
   // is a 400). Once a thread grows past HISTORY_LIMIT, the window can open
   // on an assistant turn — drop leading assistant rows so sends keep working.

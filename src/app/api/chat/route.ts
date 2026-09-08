@@ -5,6 +5,7 @@ import { normalizeLanguage, type SupportedLanguage } from "@/lib/i18n/language";
 import { LEGACY_QUESTIONS } from "@/lib/legacy/questions";
 import { buildArchiveVoiceBlock } from "@/lib/legacy/voice";
 import { LEGACY_ANYTHING_ID } from "@/lib/legacy/answer-floor";
+import { handleSelfTalk, isOwnSelfArchive, isSelfTalkReply } from "@/lib/legacy/selfTalk";
 import type { ArchiveFacts } from "@/lib/legacy/facts";
 import { relationPromptBlock, type HolderRelation } from "@/lib/legacy/relation";
 import { createClient } from "@/lib/supabase/server";
@@ -343,6 +344,41 @@ export async function POST(request: NextRequest) {
     (typeof payload.oracle_id === "string" ? payload.oracle_id : null) ??
     profile.active_oracle_id;
 
+  // TALK TO YOUR OWN ARCHIVE (lib/legacy/selfTalk.ts). A statement
+  // about yourself, sent to your own original archive, is filed word
+  // for word under the question it belongs to. Runs before any cap or
+  // model call; questions fall through to the normal archive chat.
+  if (conversationOracleId && !payload.image_url) {
+    const { data: gateRow } = await createAdminClient()
+      .from("oracles")
+      .select("id, user_id, name, is_legacy, is_self_archive, inherited_at, legacy_answers, deleted_at")
+      .eq("id", conversationOracleId)
+      .maybeSingle();
+    if (gateRow && !gateRow.deleted_at && isOwnSelfArchive(gateRow, user.id)) {
+      // A walked-away block (chat_blocks) still applies: while it is
+      // active, fall through so the normal gate below answers.
+      const { data: activeBlock } = await createAdminClient()
+        .from("chat_blocks")
+        .select("blocked_until")
+        .eq("oracle_id", conversationOracleId)
+        .eq("user_id", user.id)
+        .is("unblocked_at", null)
+        .order("blocked_at", { ascending: false })
+        .limit(1)
+        .maybeSingle<{ blocked_until: string }>();
+      const blocked = !!activeBlock && new Date(activeBlock.blocked_until).getTime() > Date.now();
+      const handled = blocked ? null : await handleSelfTalk({
+        userId: user.id,
+        oracle: gateRow,
+        text: userMessage,
+        language: profile.preferred_language === "es" ? "es" : "en",
+      });
+      if (handled) {
+        return NextResponse.json({ reply: handled.reply, replies: [handled.reply], selfTalk: true, saved: handled.saved });
+      }
+    }
+  }
+
   // FLUSH PENDING DELAYED REPLIES. If the user double-texts while a
   // delayed reply is still hidden, the person on the other end "picks
   // up their phone" — everything pending becomes visible now, and the
@@ -392,7 +428,7 @@ export async function POST(request: NextRequest) {
     // stream route (src/app/api/chat/[id]/stream/route.ts).
     const { data: recent } = await supabase
       .from("messages")
-      .select("role, content, created_at")
+      .select("role, content, created_at, initiated_by")
       .eq("user_id", user.id)
       .eq("oracle_id", conversationOracleId)
       .in("role", ["user", "assistant"])
@@ -401,7 +437,7 @@ export async function POST(request: NextRequest) {
       .limit(HISTORY_LIMIT);
     if (Array.isArray(recent) && recent.length > 0) {
       history = recent
-        .slice()
+        .filter((r) => !isSelfTalkReply(r))
         .reverse()
         .map((r) => ({
           role: r.role as "user" | "assistant",
@@ -1718,6 +1754,9 @@ ${langInstruction}${personalityPart}${flavorPart}${locationPart}${traitsPart}${s
   }
   userTurnContent.push({ type: "text", text: userMessage });
 
+  // The phone sends its own view of the thread; drop the sorter's
+  // bookkeeping replies the same way the DB fallback does.
+  history = history.filter((m) => !isSelfTalkReply(m));
   const messages = [
     ...history.slice(-HISTORY_LIMIT).map((m) => ({
       role: m.role,

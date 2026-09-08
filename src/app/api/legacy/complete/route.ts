@@ -11,6 +11,7 @@ import { SynthesisError } from "@/lib/identity/synthesize";
 import { requireTermsAccepted } from "@/lib/legal/gate";
 import { fingerprintLegacyAnswers } from "@/lib/legacy/fingerprint";
 import { extractArchiveFacts, type ArchiveFacts } from "@/lib/legacy/facts";
+import { writeSelfTalkWelcome } from "@/lib/legacy/selfTalk";
 import { mintInheritCode } from "@/lib/legacy/mint";
 import {
   minAnswersForMode,
@@ -303,6 +304,8 @@ export async function POST(request: NextRequest) {
     })
     .select("id")
     .single();
+  // The one welcome, in their own thread (lib/legacy/selfTalk.ts).
+  if (inserted?.id && currentMode === "self") await writeSelfTalkWelcome(user.id, inserted.id);
 
   if (insertError || !inserted) {
     if (insertError?.code === "23505") {
