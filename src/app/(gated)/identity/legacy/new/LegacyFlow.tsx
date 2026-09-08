@@ -152,7 +152,24 @@ export function LegacyFlow({
 
   const [stuckError, setStuckError] = useState<string | null>(null);
 
-  async function finish() {
+  // THE LAST STOP (Wilson 2026-09-08): "before you get your code — any
+  // other information you want to add?" Moved from the intro to the end
+  // so nobody repeats themselves: you only know what wasn't asked once
+  // you've seen all forty-five. Every finish path lands here first,
+  // including "Finish now with N answers".
+  const [askingAnything, setAskingAnything] = useState(false);
+  const finishLabel = !isOtherMode
+    ? "Bring them together"
+    : paid
+      ? "You're paid — finish it"
+      : `Bring them together · ${OTHER_IDENTITY_CREATE_PRICE_LABEL}`;
+  function finish() {
+    setReviewing(false);
+    setAskingAnything(true);
+    window.scrollTo({ top: 0 });
+  }
+
+  async function finishForReal() {
     setSubmitting(true);
     setStuckError(null);
     flushSave();
@@ -225,12 +242,19 @@ export function LegacyFlow({
               setSubject(next);
               scheduleSave();
             }}
-            anything={answers[LEGACY_ANYTHING_ID] ?? ""}
-            onAnything={(value) => {
+            onNext={() => goTo(1)}
+          />
+        ) : askingAnything ? (
+          <AnythingScreen
+            isSelf={!isOtherMode}
+            value={answers[LEGACY_ANYTHING_ID] ?? ""}
+            onChange={(value) => {
               setAnswers((prev) => ({ ...prev, [LEGACY_ANYTHING_ID]: value }));
               scheduleSave();
             }}
-            onNext={() => goTo(1)}
+            onBack={() => setAskingAnything(false)}
+            onFinish={finishForReal}
+            finishLabel={finishLabel}
           />
         ) : reviewing ? (
           <ReviewScreen
@@ -290,15 +314,10 @@ export function LegacyFlow({
 function SubjectScreen({
   subject,
   onChange,
-  anything,
-  onAnything,
   onNext,
 }: {
   subject: LegacySubject;
   onChange: (s: LegacySubject) => void;
-  /** Question 0 — the junk drawer (answer-floor.ts LEGACY_ANYTHING_ID). */
-  anything: string;
-  onAnything: (v: string) => void;
   onNext: () => void;
 }) {
   // Wilson's rule: photo BEFORE questions. The face travels with the
@@ -382,27 +401,6 @@ function SubjectScreen({
           value={subject.heritage}
           placeholder="Dominican · Catholic household · first-generation"
           onChange={(heritage) => onChange({ ...subject, heritage })}
-        />
-      </div>
-
-      {/* QUESTION 0 — anything at all. Uncounted, optional, mined by the
-          facts sheet and the voice like every other answer. */}
-      <div className="mt-6 rounded-2xl border-[1.5px] border-coral bg-ink-soft p-4">
-        <p className="text-gradient-cta text-[13px] font-extrabold uppercase tracking-wider">
-          Before the forty-five: anything at all
-        </p>
-        <p className="mt-1.5 text-sm leading-relaxed text-warm-100">
-          {isSelf
-            ? "Random stuff first. Your favorite color, the movie, the food you hate, the song, the team, the thing you always say. Anything and everything — get it out of the way here, then the questions start."
-            : "Random stuff first. Their favorite color, the movie, the food they hated, the song, the team, the thing they always said. Anything and everything you remember."}
-        </p>
-        <textarea
-          value={anything}
-          onChange={(e) => onAnything(e.target.value)}
-          placeholder={ANYTHING_PROMPT}
-          maxLength={4000}
-          rows={5}
-          className="mt-3 w-full resize-y rounded-2xl bg-ink p-4 text-base leading-relaxed text-warm-50 ring-1 ring-warm-700 outline-none placeholder:text-warm-500 focus:ring-2 focus:ring-coral/50"
         />
       </div>
 
@@ -1051,5 +1049,64 @@ function WeavingScreen({ name }: { name: string }) {
         </p>
       </div>
     </main>
+  );
+}
+
+
+/** The last stop before the code: anything we didn't ask. */
+function AnythingScreen({
+  isSelf,
+  value,
+  onChange,
+  onBack,
+  onFinish,
+  finishLabel,
+}: {
+  isSelf: boolean;
+  value: string;
+  onChange: (v: string) => void;
+  onBack: () => void;
+  onFinish: () => void;
+  finishLabel: string;
+}) {
+  return (
+    <div className="flex w-full flex-col">
+      <p className="text-sm font-semibold uppercase tracking-wider">
+        <span className="text-gradient-cta">Before you get {isSelf ? "your" : "their"} code</span>
+      </p>
+      <h1 className="mt-3 text-2xl font-semibold leading-snug tracking-tight text-warm-50 sm:text-3xl">
+        Anything else you want to add?
+      </h1>
+      <p className="mt-3 text-base leading-relaxed text-warm-300">
+        {isSelf
+          ? "Anything we didn't ask. Your favorite color, song, movie, the food you hate, the team, the thing you always say. Anything that helps capture who you are. Skip it if there's nothing."
+          : "Anything we didn't ask. Their favorite color, song, movie, the food they hated, the team, the thing they always said. Anything that helps capture who they were. Skip it if there's nothing."}
+      </p>
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={ANYTHING_PROMPT}
+        maxLength={4000}
+        rows={8}
+        autoFocus
+        className="mt-6 w-full resize-none rounded-3xl bg-ink-soft p-5 text-lg leading-relaxed text-warm-50 shadow-[0_10px_28px_-12px_rgba(28,28,26,0.12)] ring-1 ring-warm-700 outline-none transition-shadow placeholder:text-warm-500 focus:ring-2 focus:ring-coral/50"
+      />
+      <div className="mt-8 flex items-center gap-3">
+        <button
+          type="button"
+          onClick={onBack}
+          className="flex h-13 items-center justify-center rounded-full px-6 text-base font-medium text-warm-300 ring-1 ring-warm-700 transition-colors hover:text-warm-100 hover:ring-warm-500"
+        >
+          Back
+        </button>
+        <button
+          type="button"
+          onClick={onFinish}
+          className="bg-gradient-cta flex h-13 flex-1 items-center justify-center rounded-full text-base font-semibold text-white shadow-[0_14px_36px_-10px_rgba(217,115,89,0.5)] transition-all hover:-translate-y-px active:translate-y-0 active:opacity-90"
+        >
+          {finishLabel}
+        </button>
+      </div>
+    </div>
   );
 }
