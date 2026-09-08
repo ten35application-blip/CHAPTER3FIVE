@@ -1289,6 +1289,12 @@ export default function ChatSurface({
             <span className="max-w-[60vw] truncate text-xs font-medium text-warm-200">
               {name}
             </span>
+            {/* Inherited copies: who you are to them, under the name. */}
+            {relation?.status === "confirmed" && relation.relation ? (
+              <span className="max-w-[70vw] truncate text-[10px] font-bold uppercase tracking-wider text-teal-strong">
+                {`${name} knows you as ${relation.relation}`}
+              </span>
+            ) : null}
             {/* One-line bio surfaced in the header so a persona's
                 identity is visible at a glance -- previously only shown
                 inside the avatar zoom modal, which meant personas
@@ -1353,9 +1359,7 @@ export default function ChatSurface({
                       {muted ? "Unblock" : "Block"}
                     </button>
                     {relation ? (
-                      relation.status === "confirmed" ? (
-                        <span className="px-4 py-2.5 text-sm text-teal-strong">{`${name} knows you as ${relation.relation ?? "family"}`}</span>
-                      ) : (
+                      relation.status === "confirmed" ? null : (
                         <button
                           type="button"
                           onClick={() => {
@@ -1826,6 +1830,11 @@ export default function ChatSurface({
               <p className="pointer-events-none text-lg font-semibold text-white">
                 {name}
               </p>
+              {relation?.status === "confirmed" && relation.relation ? (
+                <p className="pointer-events-none mt-1 text-xs font-bold uppercase tracking-wider text-teal">
+                  {`${name} knows you as ${relation.relation}`}
+                </p>
+              ) : null}
               {oneLineHook ? (
                 <p className="pointer-events-none mt-2 text-sm leading-relaxed text-white/80">
                   {oneLineHook}
