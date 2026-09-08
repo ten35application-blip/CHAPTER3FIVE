@@ -267,6 +267,10 @@ export default function ChatSurface({
   holderRelation?: { status?: string; name?: string; relation?: string } | null;
 }) {
   const [relation, setRelation] = useState<{ status?: string; name?: string; relation?: string } | null>(holderRelation);
+  // "Skip for now" hides the card until the next visit; the header menu's
+  // "Tell her who you are" brings it back any time.
+  const [askDismissed, setAskDismissed] = useState(false);
+  const [askForced, setAskForced] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   // ── Scrolling back through the whole conversation ──────────────
   // The page server-renders the newest 100 and used to stop there;
@@ -1348,6 +1352,22 @@ export default function ChatSurface({
                     >
                       {muted ? "Unblock" : "Block"}
                     </button>
+                    {relation ? (
+                      relation.status === "confirmed" ? (
+                        <span className="px-4 py-2.5 text-sm text-teal-strong">{`${name} knows you as ${relation.relation ?? "family"}`}</span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMenuOpen(false);
+                            setAskForced(true);
+                          }}
+                          className="flex items-center gap-2 px-4 py-2.5 text-left text-sm text-teal-strong hover:bg-warm-700/40"
+                        >
+                          {`Tell ${name} who you are`}
+                        </button>
+                      )
+                    ) : null}
                     <button
                       type="button"
                       onClick={() => {
@@ -1576,11 +1596,15 @@ export default function ChatSurface({
 
       {/* Input row — or the blocked state. Once blocked there is no
           composer, no retry, no way back from this surface. */}
-      {relation?.status === "ask" ? (
+      {relation && relation.status !== "confirmed" && (askForced || (relation.status === "ask" && !askDismissed)) ? (
         <RelationAsk
           oracleId={oracleId}
           name={name}
-          onDone={(rel) => setRelation(rel)}
+          onDone={(rel) => {
+            setAskForced(false);
+            if (rel) setRelation(rel);
+            else setAskDismissed(true);
+          }}
         />
       ) : null}
       <footer className="sticky bottom-0 border-t border-warm-700 bg-ink/85 px-3 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2 backdrop-blur">
@@ -1986,13 +2010,17 @@ function RelationAsk({ oracleId, name, onDone }: { oracleId: string; name: strin
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   async function send(skip: boolean) {
+    if (skip) {
+      onDone(null);
+      return;
+    }
     setBusy(true);
     setNote(null);
     try {
       const res = await fetch("/api/legacy/relation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(skip ? { oracle_id: oracleId, skip: true, name: who } : { oracle_id: oracleId, name: who, birthday }),
+        body: JSON.stringify({ oracle_id: oracleId, name: who, birthday }),
       });
       const body = (await res.json().catch(() => ({}))) as { relation?: { status?: string; name?: string; relation?: string }; matched?: boolean; attempts_left?: number | null; error?: string };
       if (!res.ok) {
@@ -2004,7 +2032,7 @@ function RelationAsk({ oracleId, name, onDone }: { oracleId: string; name: strin
       } else if (body.relation?.status === "unlisted") {
         onDone(body.relation);
       } else {
-        setNote(`${name} doesn't have that name and birthday on the list. ${body.attempts_left ?? 0} more tr${body.attempts_left === 1 ? "y" : "ies"}, or skip and they'll still know you as a friend.`);
+        setNote(`${name} doesn't have that name and birthday on the list. ${body.attempts_left ?? 0} more tr${body.attempts_left === 1 ? "y" : "ies"}. You can always come back to this from the menu.`);
       }
     } catch {
       setNote("Try again.");

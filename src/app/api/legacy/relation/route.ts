@@ -41,7 +41,8 @@ export async function POST(request: NextRequest) {
   const sourceId = (code?.oracle_id as string | undefined) ?? null;
   const people = sourceId ? await loadPeople(admin, sourceId) : [];
   const hit = matchPerson(people, { email: null, name, birthday });
-  const attempts = (prev?.attempts ?? 0) + 1;
+  // Coming back from the menu after being marked unlisted starts fresh.
+  const attempts = (prev?.status === "unlisted" ? 0 : (prev?.attempts ?? 0)) + 1;
   let rel: HolderRelation;
   if (hit) rel = { status: "confirmed", name: hit.person.name, relation: hit.person.relation, source: "name_birthday", set_at: now };
   else if (attempts >= MAX_ATTEMPTS) rel = { status: "unlisted", declared_name: name, attempts, set_at: now };

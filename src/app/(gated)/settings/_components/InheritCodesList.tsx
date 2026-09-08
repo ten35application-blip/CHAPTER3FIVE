@@ -402,7 +402,7 @@ function ShareIcon() {
     <svg viewBox="0 0 32 32" width="15" height="15" aria-hidden>
       {/* The earn card's plane (mobile components/ReferralCard.tsx):
           coral wing; the teal body goes white on the teal button. */}
-      <path d="M27 5 4 14.5l8.5 3.2L27 5Z" fill="#d9735a" />
+      <path d="M27 5 4 14.5l8.5 3.2L27 5Z" fill="var(--color-coral)" />
       <path d="M27 5 12.5 17.7l1.6 8.6L27 5Z" fill="#ffffff" />
     </svg>
   );
