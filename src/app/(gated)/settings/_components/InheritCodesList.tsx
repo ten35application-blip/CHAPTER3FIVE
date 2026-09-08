@@ -382,7 +382,7 @@ function ShareButton({
       type="button"
       onClick={() => void onShare()}
       aria-label={`Share the inherit code for ${name}`}
-      className="flex shrink-0 items-center gap-1.5 rounded-full bg-coral px-3.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-coral-strong"
+      className="flex shrink-0 items-center gap-1.5 rounded-full bg-teal-strong px-3.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-teal"
     >
       <span aria-hidden>
         <ShareIcon />
