@@ -399,14 +399,11 @@ function ShareIcon() {
   // parent's gradient text-fill (bg-gradient-cta on the button)
   // paints it in the coral+teal palette.
   return (
-    <svg
-      viewBox="0 0 20 20"
-      width="13"
-      height="13"
-      fill="currentColor"
-      aria-hidden
-    >
-      <path d="M17.6 2.4a1 1 0 0 1 .3 1.02l-4.2 13.3a1 1 0 0 1-1.83.16l-2.62-4.9-4.9-2.62a1 1 0 0 1 .16-1.83L17.02 2.1a1 1 0 0 1 .58.3zM8.7 11.3l1.7 3.18 2.85-9.03L8.7 11.3z" />
+    <svg viewBox="0 0 32 32" width="15" height="15" aria-hidden>
+      {/* The earn card's plane (mobile components/ReferralCard.tsx):
+          coral wing; the teal body goes white on the teal button. */}
+      <path d="M27 5 4 14.5l8.5 3.2L27 5Z" fill="#d9735a" />
+      <path d="M27 5 12.5 17.7l1.6 8.6L27 5Z" fill="#ffffff" />
     </svg>
   );
 }
