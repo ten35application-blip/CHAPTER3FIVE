@@ -158,11 +158,6 @@ export function LegacyFlow({
   // you've seen all forty-five. Every finish path lands here first,
   // including "Finish now with N answers".
   const [askingAnything, setAskingAnything] = useState(false);
-  const finishLabel = !isOtherMode
-    ? "Bring them together"
-    : paid
-      ? "You're paid — finish it"
-      : `Bring them together · ${OTHER_IDENTITY_CREATE_PRICE_LABEL}`;
   function finish() {
     setReviewing(false);
     setAskingAnything(true);
@@ -254,7 +249,13 @@ export function LegacyFlow({
             }}
             onBack={() => setAskingAnything(false)}
             onFinish={finishForReal}
-            finishLabel={finishLabel}
+            finishLabel={
+              !isOtherMode
+                ? "Bring them together"
+                : paid
+                  ? "You're paid — finish it"
+                  : `Bring them together · ${OTHER_IDENTITY_CREATE_PRICE_LABEL}`
+            }
           />
         ) : reviewing ? (
           <ReviewScreen
