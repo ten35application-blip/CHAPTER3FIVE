@@ -142,7 +142,7 @@ export default async function UpgradePage({
   /* ── Inherit-slot purchase pitch (redeem gate, living minter) ─── */
   if (wantsInheritedSlot) {
     const inheritedSlotCheckoutEnabled = Boolean(
-      process.env.STRIPE_PRICE_ID_INHERITED_SLOT,
+      process.env.STRIPE_PRICE_ID_INHERITED_SLOT ?? process.env.STRIPE_PRODUCT_ID_INHERITED_SLOT,
     );
     return (
       <main className="flex min-h-dvh flex-1 items-center justify-center px-6 py-16">

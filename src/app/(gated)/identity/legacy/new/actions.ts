@@ -1,6 +1,7 @@
 "use server";
 
 import { headers } from "next/headers";
+import { resolveOneTimePriceId } from "@/lib/billing/resolvePrice";
 import { countAnswered } from "@/lib/legacy/answer-floor";
 import { redirect } from "next/navigation";
 import sharp from "sharp";
@@ -327,7 +328,7 @@ export async function completeLegacyIdentity(payload: {
   // failed weave leaves the credit intact for the retry.
   const usingCreateCredit = currentMode === "other" && !isAdmin(user.email);
   if (usingCreateCredit && !(await hasOtherIdentityCreateCredit(user.id))) {
-    const priceId = process.env.STRIPE_PRICE_ID_OTHER_IDENTITY_CREATE;
+    const priceId = await resolveOneTimePriceId("other_identity_create");
     if (!priceId) {
       // Same feature-flag posture as the checkout route's 503: the
       // surface ships before the Stripe Price exists. Graceful banner

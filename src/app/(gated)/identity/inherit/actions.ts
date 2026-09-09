@@ -1,6 +1,7 @@
 "use server";
 
 import { createHash, randomUUID } from "node:crypto";
+import { resolveOneTimePriceId } from "@/lib/billing/resolvePrice";
 import { assignHolderRelation } from "@/lib/legacy/relation";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -276,7 +277,7 @@ export async function redeemInheritCode(rawCode: string): Promise<void> {
   // that path refunds below.
   const usingCredit = !isAdmin(user.email);
   if (usingCredit && !(await reserveInheritedSlotCredit(user.id))) {
-    const priceId = process.env.STRIPE_PRICE_ID_INHERITED_SLOT;
+    const priceId = await resolveOneTimePriceId("inherited_slot");
     if (!priceId) {
       redirectWithError(
         "/identity/inherit",

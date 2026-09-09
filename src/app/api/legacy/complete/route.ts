@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { resolveOneTimePriceId } from "@/lib/billing/resolvePrice";
 import { countAnswered } from "@/lib/legacy/answer-floor";
 import { sendInheritCodeEmail } from "@/lib/notifications";
 import { getRequestAuth } from "@/lib/api/mobileAuth";
@@ -131,7 +132,7 @@ export async function POST(request: NextRequest) {
   // Fail-closed: an unreadable balance reads as no-credit.
   const usingCreateCredit = currentMode === "other" && !isAdmin(user.email);
   if (usingCreateCredit && !(await hasOtherIdentityCreateCredit(user.id))) {
-    const priceId = process.env.STRIPE_PRICE_ID_OTHER_IDENTITY_CREATE;
+    const priceId = await resolveOneTimePriceId("other_identity_create");
     if (!priceId) {
       return fail(
         "The payment step isn't set up yet — your answers are saved. Check back soon.",

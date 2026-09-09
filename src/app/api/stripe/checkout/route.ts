@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { resolveOneTimePriceId } from "@/lib/billing/resolvePrice";
 import { headers } from "next/headers";
 import { getStripe } from "@/lib/stripe";
 import { PRICING } from "@/lib/pricing";
@@ -439,7 +440,7 @@ export async function POST(request: NextRequest) {
   // the env so the surface can ship first (absent env → the upgrade
   // page keeps its mailto fallback for this SKU).
   if (purpose === "inherited_slot_purchase") {
-    const priceId = process.env.STRIPE_PRICE_ID_INHERITED_SLOT;
+    const priceId = await resolveOneTimePriceId("inherited_slot");
     if (!priceId) {
       return NextResponse.json(
         { error: "inherited_slot_checkout_not_configured" },
@@ -499,7 +500,7 @@ export async function POST(request: NextRequest) {
   // (absent env → 503; the completion action turns that into a
   // graceful "not configured yet" banner).
   if (purpose === "other_identity_create") {
-    const priceId = process.env.STRIPE_PRICE_ID_OTHER_IDENTITY_CREATE;
+    const priceId = await resolveOneTimePriceId("other_identity_create");
     if (!priceId) {
       return NextResponse.json(
         { error: "other_identity_create_checkout_not_configured" },

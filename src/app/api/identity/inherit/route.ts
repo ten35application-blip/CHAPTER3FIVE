@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
+import { resolveOneTimePriceId } from "@/lib/billing/resolvePrice";
 import { assignHolderRelation } from "@/lib/legacy/relation";
 import { headers } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
@@ -182,7 +183,7 @@ export async function POST(request: NextRequest) {
   // so exactly one caller wins, and fails CLOSED to the payment screen.
   const usingCredit = !isAdmin(user.email);
   if (usingCredit && !(await reserveInheritedSlotCredit(user.id))) {
-    const priceId = process.env.STRIPE_PRICE_ID_INHERITED_SLOT;
+    const priceId = await resolveOneTimePriceId("inherited_slot");
     if (!priceId) {
       return NextResponse.json(
         { error: "The payment step isn't set up yet. Try again in a bit." },
