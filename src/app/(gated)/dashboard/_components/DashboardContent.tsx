@@ -1,16 +1,11 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+
 import { cdnImage } from "@/lib/imageCdn";
 
 import Link from "next/link";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useTransition,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition, useSyncExternalStore } from "react";
 import { SwipeRow } from "./SwipeRow";
 import {
   archiveIdentity,
@@ -55,6 +50,8 @@ export type Identity = {
   /** Redemption stamp — a $5-redeemed copy stays talkable on every
    *  tier, Free included (Wilson's ruling 2026-08-19). */
   inherited_at?: string | null;
+  /** Earned (5 friends) or gifted (signup promo) — free to talk to, same as the app. */
+  is_referral_reward?: boolean | null;
 };
 
 type Props = {
@@ -136,15 +133,16 @@ export function DashboardContent({
     }
   }, [welcomed]);
 
-  // Free talks to Adrian and to $5-redeemed copies — nothing else
-  // (Wilson 2026-08-19: "TALK TO ADRIAN … THAT'S IT", plus his ruled
-  // exception for paid redemptions). The free_identity_id unlock is
-  // retired along with the free-identity giveaway itself; the prop
-  // stays wired so a rollback is one line.
+  // SAME RULES AS THE APP (Wilson 2026-09-09): on Free, only the
+  // companions that come with Basic or Pro lock. Adrian, a $5-redeemed
+  // inherited copy, the companion earned by sharing, and the free one
+  // from a signup promo (both stamped is_referral_reward) all stay open —
+  // the server's canChatWithOracle already lets them through; the chip
+  // here was the only thing still saying "Upgrade".
   const lockedById = new Map(
     identities.map((p) => [
       p.id,
-      !isPro && !p.is_concierge && !p.inherited_at && p.id !== freeIdentityId,
+      !isPro && !p.is_concierge && !p.inherited_at && !p.is_referral_reward && p.id !== freeIdentityId,
     ]),
   );
   const isLocked = (id: string) => lockedById.get(id) ?? !isPro;
@@ -664,6 +662,38 @@ function ConversationList({
   items: Identity[];
   isLocked: (id: string) => boolean;
 }) {
+  // KEEP THE LIST FRESH (Wilson 2026-09-09: "the page should auto refresh,
+  // I have to manually refresh"). The list is server-rendered, so re-ask
+  // the server: every 25s while the tab is visible, every 6s for a few
+  // minutes after a companion was claimed (they're being made in the
+  // background), and the moment the tab comes back into view. Same
+  // feel as the phone's resync-on-focus. router.refresh() keeps every
+  // client state (search box, open menus) — it only re-fetches data.
+  const router = useRouter();
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const incomingUntil = () => {
+      try { return Number(window.sessionStorage.getItem("c35_incoming_until") ?? 0); } catch { return 0; }
+    };
+    const tick = () => {
+      if (document.visibilityState === "visible") router.refresh();
+      const fast = incomingUntil() > Date.now();
+      timer = setTimeout(tick, fast ? 6000 : 25000);
+    };
+    timer = setTimeout(tick, incomingUntil() > Date.now() ? 6000 : 25000);
+    const onVisible = () => { if (document.visibilityState === "visible") router.refresh(); };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      if (timer) clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+  }, [router]);
+  // Row times are the viewer's local clock; the server renders UTC, so
+  // painting them before hydration threw React #418 on every dashboard
+  // load (found by the 2026-09-09 browser audit). Client-only.
+  const mounted = useSyncExternalStore(() => () => {}, () => true, () => false);
   return (
     <ul className="overflow-hidden rounded-3xl bg-ink-soft shadow-[0_8px_24px_-12px_rgba(28,28,26,0.10)] ring-1 ring-warm-700">
       {items.map((p, index) => (
@@ -790,7 +820,7 @@ function ConversationList({
                         messaged contacts skip this (nothing to date). */}
                     {p.last_message_at && !p.is_photo_placeholder ? (
                       <span className="ml-auto flex-shrink-0 text-xs text-warm-400">
-                        {formatRowTime(p.last_message_at)}
+                        {mounted ? formatRowTime(p.last_message_at) : ""}
                       </span>
                     ) : null}
                   </span>

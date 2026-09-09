@@ -85,24 +85,45 @@ export async function GET(request: NextRequest) {
         await admin.from("oracles").delete().eq("id", o.id);
       }
     }
-    // A claimed PROMO gift with NO reward companion at all = the mint
-    // died before the insert. Un-claim it so the moment re-offers.
-    const { count: liveRewards } = await admin
-      .from("oracles")
-      .select("id", { count: "exact", head: true })
+    // A claimed companion gift with NO companion born from it = the
+    // mint died before the insert (a deploy can cut background work
+    // mid-flight — seen 2026-09-09). Promo or not, first gift or fifth:
+    // if no reward companion was created after the claim, un-claim it
+    // after ten minutes so the moment re-offers it.
+    const { data: claimedGifts } = await admin
+      .from("admin_gifts")
+      .select("id, claimed_at")
       .eq("user_id", user.id)
-      .eq("is_referral_reward", true)
-      .is("deleted_at", null);
-    if ((liveRewards ?? 0) === 0) {
-      const { error: healErr } = await admin
-        .from("admin_gifts")
-        .update({ claimed_at: null })
+      .eq("kind", "companion")
+      .not("claimed_at", "is", null)
+      .lt("claimed_at", cutoff)
+      .order("claimed_at", { ascending: true });
+    if ((claimedGifts ?? []).length > 0) {
+      // Pair claims with births in order: the oldest unmatched claim
+      // takes the oldest companion born after it. A claim left with no
+      // companion is re-offered.
+      const { data: bornRows } = await admin
+        .from("oracles")
+        .select("id, created_at")
         .eq("user_id", user.id)
-        .eq("kind", "companion")
-        .not("promo_id", "is", null)
-        .not("claimed_at", "is", null)
-        .lt("claimed_at", cutoff);
-      if (healErr) console.error("[gifts] heal unclaim failed:", healErr);
+        .eq("is_referral_reward", true)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: true });
+      const born = (bornRows ?? []).map((o) => new Date(o.created_at as string).getTime());
+      let cursor = 0;
+      for (const g of claimedGifts ?? []) {
+        const claimedAt = new Date(g.claimed_at as string).getTime() - 60_000;
+        while (cursor < born.length && born[cursor] < claimedAt) cursor++;
+        if (cursor < born.length) {
+          cursor++; // this companion belongs to this claim
+          continue;
+        }
+        const { error: healErr } = await admin
+          .from("admin_gifts")
+          .update({ claimed_at: null, note: `re-offered ${new Date().toISOString()}: claimed but no companion was born` })
+          .eq("id", g.id);
+        if (healErr) console.error("[gifts] heal unclaim failed:", healErr);
+      }
     }
   } catch (err) {
     console.error("[gifts] stranded-gift heal threw:", err);

@@ -1,5 +1,7 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+
 import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 
@@ -57,6 +59,7 @@ const PROMO_LABELS: Record<string, { title: string; body: string; done: string }
 type Gift = { id: string; kind: string; promo_id?: string | null };
 
 export function GiftMoment() {
+  const router = useRouter();
   const [gift, setGift] = useState<Gift | null>(null);
   const [referral, setReferral] = useState<{
     code: string | null;
@@ -129,6 +132,12 @@ export function GiftMoment() {
       });
       if (res.ok) {
         setDoneText(label?.done ?? "It's yours.");
+        // The companion is made in the background; tell the list to
+        // re-check quickly for the next few minutes.
+        if (gift.kind === "companion") {
+          try { window.sessionStorage.setItem("c35_incoming_until", String(Date.now() + 4 * 60 * 1000)); } catch { /* ignore */ }
+        }
+        router.refresh();
       } else {
         const body = (await res.json().catch(() => ({}))) as {
           error?: string;
@@ -215,6 +224,21 @@ export function GiftMoment() {
           </div>
         ) : null}
 
+        {claiming ? (
+          // Wilson 2026-09-09: "staying stuck on this screen sucks." The
+          // claim keeps running on the server; the companion shows up
+          // in the list when they're born. Nobody has to wait here.
+          <button
+            type="button"
+            onClick={() => {
+              setGift(null);
+              setDoneText(null);
+            }}
+            className="mt-3 flex h-11 w-full items-center justify-center rounded-full text-sm font-semibold text-teal-strong hover:opacity-80"
+          >
+            Take me to the dashboard — they&rsquo;ll appear when they&rsquo;re ready
+          </button>
+        ) : null}
         <button
           type="button"
           disabled={claiming}
@@ -222,6 +246,7 @@ export function GiftMoment() {
             if (doneText) {
               setDoneText(null);
               setGift(null);
+              router.refresh();
               void check();
             } else {
               void claim();

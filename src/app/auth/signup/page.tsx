@@ -5,6 +5,7 @@ import { redirectWithError, sanitizeErrorParam } from "@/lib/action-errors";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { SubmitButton } from "./SubmitButton";
+import { EmailField } from "./EmailField";
 import { GuidedDobInput } from "./GuidedDobInput";
 
 export const metadata = {
@@ -310,17 +311,7 @@ export default async function SignupPage({
               the referral is recorded server-side the moment the
               account exists. */}
           {ref ? <input type="hidden" name="ref" value={ref} /> : null}
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-warm-200">Email</span>
-            <input
-              type="email"
-              name="email"
-              autoComplete="email"
-              required
-              className="h-12 rounded-2xl bg-ink-soft px-4 text-base text-warm-50 outline-none ring-1 ring-warm-700 placeholder:text-warm-400 focus:ring-2 focus:ring-coral"
-              placeholder="you@example.com"
-            />
-          </label>
+          <EmailField />
 
           <label className="flex flex-col gap-1.5">
             <span className="text-sm font-medium text-warm-200">Password</span>

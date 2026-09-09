@@ -2,7 +2,7 @@
 
 import { cdnImage } from "@/lib/imageCdn";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import ChatInput, { type OutgoingImage } from "./ChatInput";
 import { MessageActions, ReactionIcon } from "./MessageActions";
@@ -266,6 +266,10 @@ export default function ChatSurface({
    *  who-is-this card; "confirmed" shows the relation under the name. */
   holderRelation?: { status?: string; name?: string; relation?: string } | null;
 }) {
+  // Time separators are the viewer's local clock; the server renders
+  // UTC, so painting them before hydration threw React #418 on threads
+  // with messages (2026-09-09 browser audit, same fix as the dashboard).
+  const mounted = useSyncExternalStore(() => () => {}, () => true, () => false);
   const [relation, setRelation] = useState<{ status?: string; name?: string; relation?: string } | null>(holderRelation);
   // "Skip for now" hides the card until the next visit; the header menu's
   // "Tell her who you are" brings it back any time.
@@ -1359,7 +1363,7 @@ export default function ChatSurface({
                 <div key={m.id} className="flex flex-col gap-1.5">
                   {needsSeparator(prev, m) && (
                     <div className="py-2 text-center text-[11px] text-warm-400">
-                      {separatorLabel(m.createdAt)}
+                      {mounted ? separatorLabel(m.createdAt) : ""}
                     </div>
                   )}
                   {isUser ? (

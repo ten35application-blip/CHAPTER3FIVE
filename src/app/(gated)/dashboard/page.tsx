@@ -94,7 +94,7 @@ export default async function DashboardPage({
   const { data: contactsRaw } = await supabase
     .from("oracles")
     .select(
-      "id, name, avatar_url, is_starred, manually_unread, created_at, conversation_archived_at, is_legacy, user_id, inherited_at, is_concierge, is_photo_placeholder, is_self_archive",
+      "id, name, avatar_url, is_starred, manually_unread, created_at, conversation_archived_at, is_legacy, user_id, inherited_at, is_concierge, is_photo_placeholder, is_self_archive, is_referral_reward",
     )
     .eq("provisioning", false)
     .is("deleted_at", null)
@@ -140,6 +140,12 @@ export default async function DashboardPage({
     inherit_code: codesByOracle.get(r.id as string) ?? null,
     is_concierge: Boolean(r.is_concierge),
     is_photo_placeholder: Boolean(r.is_photo_placeholder),
+    // Both feed the Free lock rule in DashboardContent (same rules as
+    // the app, Wilson 2026-09-09): a $5-redeemed copy and an earned or
+    // gifted companion stay open. They were selected but dropped here,
+    // so every one of them wore the "Upgrade" chip on the website.
+    inherited_at: (r.inherited_at as string | null) ?? null,
+    is_referral_reward: Boolean(r.is_referral_reward),
   }));
 
   // Which contacts have "all messages soft-deleted"? Those disappear

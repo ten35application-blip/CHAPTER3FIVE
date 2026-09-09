@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useSyncExternalStore } from "react";
+import { Suspense } from "react";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { NEXT_COOKIE, safeNextPath } from "@/lib/auth/nextPath";
@@ -18,25 +18,6 @@ import { NEXT_COOKIE, safeNextPath } from "@/lib/auth/nextPath";
  * the recorded acceptance lives at /onboarding, the (gated) layout
  * enforces it.
  */
-const PASSKEY_DECLINED = "c35_passkey_declined";
-/** Ask once after a password sign-in: no passkey yet and not declined here. */
-async function shouldOfferPasskey(supabase: ReturnType<typeof createClient>): Promise<boolean> {
-  try {
-    if (window.localStorage.getItem(PASSKEY_DECLINED) === "1") return false;
-    const { data, error } = await supabase.auth.passkey.list();
-    if (error) return false;
-    return (data ?? []).length === 0;
-  } catch {
-    return false;
-  }
-}
-function declinePasskeyOffer() {
-  try {
-    window.localStorage.setItem(PASSKEY_DECLINED, "1");
-  } catch {
-    /* ignore */
-  }
-}
 
 /** Read + clear the post-auth hand-off cookie set by /inherit. */
 function consumeNextCookie(): string | null {
@@ -74,39 +55,11 @@ function SigninInner() {
   const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [resetting, setResetting] = useState(false);
-  // Read once from the browser, false on the server render.
-  const passkeySupported = useSyncExternalStore(
-    () => () => {},
-    () => typeof window.PublicKeyCredential === "function" && window.isSecureContext,
-    () => false,
-  );
-  const [offer, setOffer] = useState(false);
-
-  async function signInWithPasskey() {
-    setError(null);
-    setInfo(null);
-    setBusy(true);
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPasskey();
-    if (error) {
-      setBusy(false);
-      const msg = error.message.toLowerCase();
-      if (msg.includes("passkey_disabled") || msg.includes("disabled")) {
-        setError("Passkeys aren't turned on yet. Use your password for now.");
-      } else if (msg.includes("not allowed") || msg.includes("abort") || msg.includes("cancel")) {
-        setError(null);
-      } else {
-        setError("That didn't work. Use your password, then add a passkey in Settings.");
-      }
-      return;
-    }
-    router.replace(next ?? consumeNextCookie() ?? "/dashboard");
-    router.refresh();
-  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!email || !password || busy) return;
+    if (busy) return;
+    if (!email || !password) return;
     setError(null);
     setInfo(null);
     setBusy(true);
@@ -129,31 +82,13 @@ function SigninInner() {
     }
     // Full navigation to bounce through the (gated) layout for terms /
     // profile checks; router.replace + refresh keeps middleware happy.
-    // Offer the passkey right here, the way the platforms do it (Wilson
-    // 2026-09-08): one question after a password sign-in, only if this
-    // browser can do it and there's no passkey yet; "Not now" is remembered.
-    if (passkeySupported && (await shouldOfferPasskey(supabase))) {
-      setOffer(true);
-      return;
-    }
+    // WEBSITE = EMAIL + PASSWORD ONLY (Wilson 2026-09-09). A passkey card
+    // used to sit here and, with its buttons disabled by a bug, held two
+    // real signups on this page. Not every computer can do Face ID, and
+    // nobody should be asked an odd question before they've seen the app.
+    // Passkeys stay on the phone and in Settings.
     router.replace(next ?? consumeNextCookie() ?? "/dashboard");
     router.refresh();
-  }
-
-  function finishSignIn() {
-    router.replace(next ?? consumeNextCookie() ?? "/dashboard");
-    router.refresh();
-  }
-
-  async function acceptOffer() {
-    setBusy(true);
-    const supabase = createClient();
-    const { error } = await supabase.auth.registerPasskey();
-    setBusy(false);
-    if (error && !/abort|cancel|not allowed/i.test(error.message)) {
-      setInfo("Couldn't add it now. You can add a passkey later in Settings.");
-    }
-    finishSignIn();
   }
 
   async function forgotPassword() {
@@ -261,16 +196,6 @@ function SigninInner() {
           </p>
         ) : null}
 
-        {offer ? (
-          <div className="mb-5 rounded-2xl border-[1.5px] border-coral bg-ink-soft p-4">
-            <p className="text-base font-semibold text-warm-50">Sign in with your face next time?</p>
-            <p className="mt-1 text-sm leading-relaxed text-warm-300">No password to type. Your device shows your face or fingerprint and you&rsquo;re in. It follows you to a new device through your keychain.</p>
-            <div className="mt-3 flex items-center gap-2">
-              <button type="button" disabled={busy} onClick={() => void acceptOffer()} className="bg-gradient-cta flex h-10 items-center justify-center rounded-full px-5 text-sm font-bold text-white disabled:opacity-50">Yes</button>
-              <button type="button" disabled={busy} onClick={() => { declinePasskeyOffer(); finishSignIn(); }} className="flex h-10 items-center justify-center rounded-full px-4 text-sm font-semibold text-teal-strong hover:opacity-80">Not now</button>
-            </div>
-          </div>
-        ) : null}
         <form onSubmit={submit} className="mt-8 flex w-full flex-col gap-3">
           <label className="flex flex-col gap-1.5">
             <span className="text-sm font-medium text-warm-200">Email</span>
@@ -321,20 +246,6 @@ function SigninInner() {
           </Link>
         </form>
 
-        {/* PASSKEY (2026-09-08): no email, no password — the phone or the
-            browser shows your face and that is the sign-in. Only shown
-            where the browser supports it; a device with no passkey
-            enrolled just gets the system's "no passkeys" sheet. */}
-        {passkeySupported ? (
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => void signInWithPasskey()}
-            className="mt-4 flex h-12 w-full items-center justify-center rounded-full border-[1.5px] border-teal-strong text-base font-semibold text-teal-strong transition-opacity hover:opacity-80 disabled:opacity-50"
-          >
-            Sign in with Face ID or fingerprint
-          </button>
-        ) : null}
 
         <p className="mt-6 text-sm text-warm-300">
           New here?{" "}

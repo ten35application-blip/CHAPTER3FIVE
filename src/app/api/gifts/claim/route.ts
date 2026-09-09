@@ -1,4 +1,4 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, after, type NextRequest } from "next/server";
 import { createClient as createPlainClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -137,74 +137,96 @@ export async function POST(request: NextRequest) {
         break;
       }
       case "companion": {
-        // The referral reward's exact creation path (mirrored from
-        // /api/referral/redeem): fingerprint-deduped roll, synthesis,
-        // is_referral_reward stamp (talkable on Free, outside quota),
-        // face painted before reveal.
-        const { data: sibRows } = await admin
-          .from("oracles")
-          .select("traits")
-          .eq("user_id", user.id)
-          .is("deleted_at", null)
-          .limit(40);
-        const avoidDistinctive = distinctiveValuesFromTraits(
-          (sibRows ?? []).map((r) => r.traits),
-        );
-        let traits: Traits | null = null;
-        let fingerprint: string | null = null;
-        for (let attempt = 0; attempt < 6; attempt++) {
-          const candidate = rollTraits({ avoidDistinctive });
-          const candidateFingerprint = fingerprintTraits(candidate);
-          const { data: existing } = await admin
-            .from("oracles")
-            .select("id")
-            .eq("fingerprint", candidateFingerprint)
-            .maybeSingle();
-          if (!existing) {
-            traits = candidate;
-            fingerprint = candidateFingerprint;
-            break;
+        // Wilson 2026-09-09: the claim used to hold the reply until the
+        // face was painted (about two minutes), and the screen said
+        // "Creating…" the whole time. Now the claim is stamped, the
+        // reply goes out at once ("They're being born — check your
+        // contacts in about a minute"), and the companion is made
+        // here in the background. A failure un-claims the gift so it
+        // is offered again next visit.
+        after(async () => {
+          try {
+
+            // The referral reward's exact creation path (mirrored from
+            // /api/referral/redeem): fingerprint-deduped roll, synthesis,
+            // is_referral_reward stamp (talkable on Free, outside quota),
+            // face painted before reveal.
+            const { data: sibRows } = await admin
+              .from("oracles")
+              .select("traits")
+              .eq("user_id", user.id)
+              .is("deleted_at", null)
+              .limit(40);
+            const avoidDistinctive = distinctiveValuesFromTraits(
+              (sibRows ?? []).map((r) => r.traits),
+            );
+            let traits: Traits | null = null;
+            let fingerprint: string | null = null;
+            for (let attempt = 0; attempt < 6; attempt++) {
+              const candidate = rollTraits({ avoidDistinctive });
+              const candidateFingerprint = fingerprintTraits(candidate);
+              const { data: existing } = await admin
+                .from("oracles")
+                .select("id")
+                .eq("fingerprint", candidateFingerprint)
+                .maybeSingle();
+              if (!existing) {
+                traits = candidate;
+                fingerprint = candidateFingerprint;
+                break;
+              }
+            }
+            if (!traits || !fingerprint) throw new Error("fingerprint exhaustion");
+            const persona = await synthesizePersona(traits);
+            const { data: inserted, error: insertError } = await admin
+              .from("oracles")
+              .insert({
+                user_id: user.id,
+                created_by: user.id,
+                traits,
+                fingerprint,
+                name: persona.name,
+                one_line_hook: persona.one_line_hook,
+                persona_prompt: persona.persona_prompt,
+                significant_events: persona.significant_events,
+                disclosure_pace: traits.disclosurePace ?? null,
+                silence_style: traits.silenceStyle ?? null,
+                punctuation_habit: traits.punctuationHabit ?? null,
+                memory_style: traits.memoryStyle ?? null,
+                text_burst_style: traits.textBurstStyle ?? null,
+                chronotype: traits.chronotype ?? null,
+                voice_examples: persona.voice_examples,
+                texting_fluency: traits.textingFluency ?? null,
+                pet_name: persona.pet_name ?? null,
+                creation_source: "random",
+                is_referral_reward: true,
+                provisioning: true,
+              })
+              .select("id")
+              .single<{ id: string }>();
+            if (insertError || !inserted)
+              throw insertError ?? new Error("insert failed");
+            for (let attempt = 0; attempt < 2; attempt++) {
+              const face = await generateAndSaveFace(inserted.id, traits);
+              if (face.ok) break;
+              console.error("[gifts/claim] face gen attempt failed:", face.error);
+            }
+            await admin
+              .from("oracles")
+              .update({ provisioning: false })
+              .eq("id", inserted.id);
+        
+          } catch (err) {
+            await unclaim();
+            console.error("[gifts/claim] companion creation failed in background:", err);
+            // Leave the reason on the row so it can be read without the
+            // function log (the gift is offered again next visit).
+            await admin
+              .from("admin_gifts")
+              .update({ note: `background creation failed ${new Date().toISOString()}: ${String((err as { message?: string })?.message ?? err).slice(0, 300)}` })
+              .eq("id", giftId);
           }
-        }
-        if (!traits || !fingerprint) throw new Error("fingerprint exhaustion");
-        const persona = await synthesizePersona(traits);
-        const { data: inserted, error: insertError } = await admin
-          .from("oracles")
-          .insert({
-            user_id: user.id,
-            created_by: user.id,
-            traits,
-            fingerprint,
-            name: persona.name,
-            one_line_hook: persona.one_line_hook,
-            persona_prompt: persona.persona_prompt,
-            significant_events: persona.significant_events,
-            disclosure_pace: traits.disclosurePace ?? null,
-            silence_style: traits.silenceStyle ?? null,
-            punctuation_habit: traits.punctuationHabit ?? null,
-            memory_style: traits.memoryStyle ?? null,
-            text_burst_style: traits.textBurstStyle ?? null,
-            chronotype: traits.chronotype ?? null,
-            voice_examples: persona.voice_examples,
-            texting_fluency: traits.textingFluency ?? null,
-            pet_name: persona.pet_name ?? null,
-            creation_source: "random",
-            is_referral_reward: true,
-            provisioning: true,
-          })
-          .select("id")
-          .single<{ id: string }>();
-        if (insertError || !inserted)
-          throw insertError ?? new Error("insert failed");
-        for (let attempt = 0; attempt < 2; attempt++) {
-          const face = await generateAndSaveFace(inserted.id, traits);
-          if (face.ok) break;
-          console.error("[gifts/claim] face gen attempt failed:", face.error);
-        }
-        await admin
-          .from("oracles")
-          .update({ provisioning: false })
-          .eq("id", inserted.id);
+        });
         break;
       }
       default:
