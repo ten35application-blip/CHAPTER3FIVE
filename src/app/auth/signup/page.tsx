@@ -244,6 +244,14 @@ export default async function SignupPage({
           >
             Back to sign in
           </Link>
+          {/* A mistyped address means the link never arrives. Give them
+              the way out here instead of leaving them waiting. */}
+          <Link
+            href="/auth/signup"
+            className="mt-2 flex h-11 items-center justify-center px-6 text-sm font-semibold text-warm-300 transition-colors hover:text-warm-100"
+          >
+            Typed it wrong? Sign up again.
+          </Link>
         </div>
       </main>
     );
