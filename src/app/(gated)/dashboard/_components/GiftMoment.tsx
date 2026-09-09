@@ -169,7 +169,13 @@ export function GiftMoment() {
           className="mx-auto h-16 w-16"
         />
         <h2 className="mt-3 text-xl font-bold tracking-tight text-warm-50">
-          {label.title}
+          {/* Second state (after Okay) gets its own title — Wilson
+              2026-09-09: "don't need it twice". */}
+          {doneText
+            ? gift.kind === "companion"
+              ? "They\u2019re on the way"
+              : "It\u2019s yours"
+            : label.title}
         </h2>
         <p className="mt-2 text-sm leading-relaxed text-warm-300">
           {claiming && gift.kind === "companion"
