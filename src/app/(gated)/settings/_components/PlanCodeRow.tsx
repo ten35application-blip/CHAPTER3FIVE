@@ -44,7 +44,7 @@ export function PlanCodeRow() {
   return (
     <div className="px-4 py-4">
       <p className="text-sm text-warm-300">
-        If someone gave you a code, enter it here.
+        Enter it here.
       </p>
       <form
         className="mt-3 flex items-center gap-2"
