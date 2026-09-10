@@ -8,6 +8,7 @@ import {
   PRICING,
 } from "@/lib/pricing";
 import { DataExportButton } from "./_components/DataExportButton";
+import { PlanCodeRow } from "./_components/PlanCodeRow";
 import { InheritCodesList } from "./_components/InheritCodesList";
 import { MintedBanner } from "./_components/MintedBanner";
 import { NameField } from "./_components/NameField";
@@ -234,6 +235,8 @@ export default async function SettingsPage({
         ? "Basic plan"
         : planSource === "admin_grant"
           ? "Pro (comped)"
+          : planSource === "code"
+            ? "Pro (code)"
           : trialActive && !stripeCustomerId
             ? "Trial (free)"
             : "Pro plan";
@@ -365,6 +368,13 @@ export default async function SettingsPage({
               and grab add-on packs &mdash; all in one place.
             </p>
           </div>
+        </Section>
+
+        {/* HAVE A CODE? (Wilson 2026-09-10) — a plan code from us puts the
+            account on Pro for a month, a year, or for good, for a set
+            number of accounts. Sits right under Plan on both surfaces. */}
+        <Section label="Have a code?">
+          <PlanCodeRow />
         </Section>
 
         {/* Extra usage section removed 2026-08-03: add-on packs now
