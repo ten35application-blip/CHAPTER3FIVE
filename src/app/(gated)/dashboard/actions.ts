@@ -329,7 +329,13 @@ export async function permanentDeleteIdentity(oracleId: string) {
 /** Sign out from the user menu. */
 export async function signOut() {
   const supabase = await createClient();
-  await supabase.auth.signOut();
+  // scope: "local" ends THIS browser's session only. Supabase's
+  // default is "global", which revokes every session on every device
+  // — signing out on the website silently killed Wilson's phone app
+  // (2026-09-10: the app kept sending a dead token and every API call
+  // came back 401). Account DELETION still signs out globally, on
+  // purpose. See src/app/(gated)/settings/delete/actions.ts.
+  await supabase.auth.signOut({ scope: "local" });
   redirect("/");
 }
 
