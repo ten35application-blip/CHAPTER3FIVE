@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 
 /**
  * "Have a code?" — Settings, right under Plan (Wilson 2026-09-10).
- * A plan code puts this account on Pro for a month, a year, or for good.
+ * The code decides what it gives (Basic or Pro, a month, a year, or for
+ * good); this box just takes a code.
  * Mirrors the phone's PlanCodeRow in app/settings.tsx exactly.
  */
 export function PlanCodeRow() {
@@ -27,7 +28,7 @@ export function PlanCodeRow() {
       });
       const body = (await res.json().catch(() => ({}))) as { ok?: boolean; message?: string; error?: string };
       if (res.ok && body.ok) {
-        setNote({ ok: true, text: body.message ?? "Pro is on this account now." });
+        setNote({ ok: true, text: body.message ?? "Your plan is on this account now." });
         setCode("");
         router.refresh();
       } else {
@@ -43,7 +44,7 @@ export function PlanCodeRow() {
   return (
     <div className="px-4 py-4">
       <p className="text-sm text-warm-300">
-        A code from us puts this account on Pro. Enter it here.
+        If someone gave you a code, enter it here.
       </p>
       <form
         className="mt-3 flex items-center gap-2"
@@ -68,7 +69,7 @@ export function PlanCodeRow() {
         <button
           type="submit"
           disabled={busy || !code.trim()}
-          className="bg-gradient-cta flex h-11 items-center justify-center rounded-full px-5 text-sm font-bold text-white disabled:opacity-50"
+          className="flex h-11 items-center justify-center rounded-full bg-teal-strong px-5 text-sm font-bold text-white transition-colors hover:bg-teal disabled:opacity-50"
         >
           {busy ? "Checking…" : "Redeem"}
         </button>

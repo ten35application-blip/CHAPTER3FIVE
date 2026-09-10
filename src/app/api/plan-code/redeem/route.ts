@@ -9,8 +9,9 @@ export const runtime = "nodejs";
 /**
  * POST /api/plan-code/redeem — "Have a code?" in Settings (web + phone).
  *
- * A plan code (public.plan_codes, 0174) puts the account on Pro for a
- * month, a year, or forever, for a set number of accounts. All the
+ * A plan code (public.plan_codes, 0174/0175) puts the account on Basic
+ * or Pro for a month, a year, or forever, for a set number of accounts.
+ * The code decides what it gives; the box in Settings just takes a code. All the
  * rules live in the redeem_plan_code RPC, atomically: unknown or
  * disabled → invalid, past expires_at → expired, one redemption per
  * account per code, uses < max_uses. Cookie or Bearer auth so the app
@@ -25,6 +26,9 @@ const MESSAGES: Record<string, string> = {
 };
 
 const GRANT_LABEL: Record<string, string> = {
+  basic_month: "Basic for a month",
+  basic_year: "Basic for a year",
+  basic_forever: "Basic, for good",
   pro_month: "Pro for a month",
   pro_year: "Pro for a year",
   pro_forever: "Pro, for good",
@@ -66,7 +70,7 @@ export async function POST(request: NextRequest) {
     console.error("[plan-code] redeem rpc failed:", error);
     return NextResponse.json({ ok: false, error: "Something hiccuped. Try again in a moment." }, { status: 500 });
   }
-  const result = (data ?? {}) as { ok?: boolean; error?: string; grant?: string; pro_until?: string };
+  const result = (data ?? {}) as { ok?: boolean; error?: string; grant?: string; tier?: string; pro_until?: string };
   if (!result.ok) {
     return NextResponse.json({ ok: false, error: MESSAGES[result.error ?? "invalid"] ?? MESSAGES.invalid }, { status: 400 });
   }
@@ -82,6 +86,7 @@ export async function POST(request: NextRequest) {
     ok: true,
     grant: result.grant,
     pro_until: result.pro_until,
-    message: `${GRANT_LABEL[result.grant ?? ""] ?? "Pro"} is on this account now.`,
+    tier: result.tier ?? null,
+    message: `${GRANT_LABEL[result.grant ?? ""] ?? "Your plan"} is on this account now.`,
   });
 }

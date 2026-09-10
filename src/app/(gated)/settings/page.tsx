@@ -231,12 +231,14 @@ export default async function SettingsPage({
     ? "Pro (admin)"
     : !pro
       ? "Free plan"
+      : planSource === "code"
+        ? isBasicTier
+          ? "Basic (code)"
+          : "Pro (code)"
       : isBasicTier
         ? "Basic plan"
         : planSource === "admin_grant"
           ? "Pro (comped)"
-          : planSource === "code"
-            ? "Pro (code)"
           : trialActive && !stripeCustomerId
             ? "Trial (free)"
             : "Pro plan";
@@ -370,9 +372,9 @@ export default async function SettingsPage({
           </div>
         </Section>
 
-        {/* HAVE A CODE? (Wilson 2026-09-10) — a plan code from us puts the
-            account on Pro for a month, a year, or for good, for a set
-            number of accounts. Sits right under Plan on both surfaces. */}
+        {/* HAVE A CODE? (Wilson 2026-09-10) — the code decides what it
+            gives (Basic or Pro; a month, a year, or for good; for a set
+            number of accounts). This box just takes a code. */}
         <Section label="Have a code?">
           <PlanCodeRow />
         </Section>
