@@ -809,7 +809,8 @@ export default function Home() {
           <div className="mt-12 flex w-full max-w-md flex-col items-center gap-4 sm:flex-row sm:justify-center">
             <Link
               href="/auth/signup"
-              className="flex h-14 w-full items-center justify-center rounded-full bg-white px-8 text-lg font-bold tracking-tight text-coral-strong shadow-[0_12px_32px_-8px_rgba(28,28,26,0.35)] transition-all hover:-translate-y-px active:translate-y-0 sm:w-auto"
+              /* 19px, not text-lg (18px): bold text at 18.66px+ counts as LARGE, which needs 3.0 rather than 4.5 — so the coral keeps its exact colour and still passes on white (Danisel 2026-09-11). */
+              className="flex h-14 w-full items-center justify-center rounded-full bg-white px-8 text-[19px] font-bold tracking-tight text-coral-strong shadow-[0_12px_32px_-8px_rgba(28,28,26,0.35)] transition-all hover:-translate-y-px active:translate-y-0 sm:w-auto"
             >
               Make one for me
             </Link>

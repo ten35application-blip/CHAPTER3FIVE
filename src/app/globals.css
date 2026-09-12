@@ -29,7 +29,7 @@
   --color-warm-100: #2a2a28;     /* near-primary */
   --color-warm-200: #4a4a48;     /* strong secondary */
   --color-warm-300: #6e6e6c;     /* iOS-style secondary label */
-  --color-warm-400: #8e8e8c;     /* tertiary label */
+  --color-warm-400: #71716f;      /* tertiary label — 4.52:1 on ink; was #8e8e8c at 3.03 (Danisel 2026-09-11) */
   --color-warm-500: #adadab;     /* mid */
   --color-warm-600: #cfcdc9;     /* subtle bg variant */
   --color-warm-700: #e8e6e1;     /* hairline divider / chip bg */
@@ -41,9 +41,18 @@
      off-white — used for gradient text and gradient endpoints where the
      lighter tone would wash out or fail AA). */
   --color-coral: #e88a76;        /* warm coral — heart outline top of the logo */
-  --color-coral-strong: #d97359; /* darker coral, ~5.1:1 on ink — safe for text and mid-gradient stops */
+  /* 2.96:1 on ink. The old "~5.1:1" note predates the flip to the light
+     palette. Deliberately NOT darkened (Danisel 2026-09-11: darkening
+     takes the coral toward brick and the warmth is the point). The one
+     place it carried 18px bold text now sets 19px, which counts as large
+     text and needs only 3.0. Keep it off small body text. */
+  --color-coral-strong: #d97359;
   --color-teal: #7ec4c4;         /* soft teal — orb bottom-right of the logo */
-  --color-teal-strong: #4fa5a5;  /* darker teal, ~4.9:1 on ink */
+  /* 3.03:1 on ink — clears the 3.0 large-text bar. Was #4fa5a5 at 2.67,
+     and the old "~4.9:1" note was written for the dark palette this file
+     used to be; it was never true of the peach one. Measured with
+     axe-core on the live site, 2026-09-11. */
+  --color-teal-strong: #459b9b;
 
   /* Unread contact row. Brand teal, not the old amber "third color"
      (Wilson 2026-08-03: "that box should be one of the colors of the
@@ -66,16 +75,16 @@
   --color-warm-100: #1c1c1e;
   --color-warm-200: #3a3a3c;
   --color-warm-300: #6e6e73;
-  --color-warm-400: #8e8e93;
+  --color-warm-400: #6b6b70;  /* 4.75:1 on this theme's card (#f2f2f7); was #8e8e93 at 2.92 (2026-09-11) */
   --color-warm-500: #aeaeb2;
   --color-warm-600: #c7c7cc;
   --color-warm-700: #d1d1d6;
   --color-amber: #007aff;
   --color-amber-soft: #5ac8fa;
   --color-coral: #e88a76;
-  --color-coral-strong: #d97359;
+  --color-coral-strong: #d56f55;  /* 3.02:1 on this theme's card (#f2f2f7) at 30px bold; was #d97359 at 2.87. Four steps — NOT the darkening Danisel declined (that was #b85238, thirty-three steps, and aimed at 4.5 rather than the 3.0 large text actually needs). */
   --color-teal: #7ec4c4;
-  --color-teal-strong: #4fa5a5;
+  --color-teal-strong: #439999;  /* 3.01:1 on #f2f2f7; was #4fa5a5 at 2.59. Slightly darker than the default theme's #459b9b because daylight's card is cooler. */
   /* Daylight's ink-soft (#f2f2f7) is cooler than default light's
      cream, so the same 0.30 teal reads slightly stronger here — which
      is fine, this theme's rows are flatter and need the help. */
@@ -97,7 +106,7 @@
   --color-warm-100: #eaeae7;
   --color-warm-200: #c8c7c3;
   --color-warm-300: #9c9b97;
-  --color-warm-400: #78776f;
+  --color-warm-400: #8a897f;  /* 4.94:1 on this theme's ink-soft (#191a1e); was #78776f at 3.86. Lighter, not darker — the greyscale ramp reverses in dark (2026-09-11). */
   --color-warm-500: #56554f;
   --color-warm-600: #3a3937;
   --color-warm-700: #26262a;
