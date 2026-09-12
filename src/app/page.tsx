@@ -845,24 +845,28 @@ export default function Home() {
                 links mobile carries. Support is a plain mailto so an
                 anonymous visitor / App Store reviewer can reach a human
                 without an account. */}
-            <nav
-              aria-label="Footer"
-              className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3 sm:justify-start"
-            >
-              <FooterLink href="/about">About</FooterLink>
-              <FooterLink href="/terms">Terms</FooterLink>
-              <FooterLink href="/privacy">Privacy</FooterLink>
-              <FooterLink href="/guidelines">Guidelines</FooterLink>
-              <FooterLink href="/veterans">Veterans</FooterLink>
-              <FooterLink href="/data-deletion">Data Deletion</FooterLink>
-              <li className="list-none">
-                <a
-                  href="mailto:support@chapter3five.app"
-                  className="text-sm font-semibold text-warm-300 transition-colors hover:text-coral-strong"
-                >
-                  Support
-                </a>
-              </li>
+            {/* The <ul> is required, not decorative: FooterLink renders an
+                <li>, and seven <li> sitting straight inside <nav> is what a
+                screen reader cannot announce as a list (axe "listitem",
+                7 violations, 2026-09-11). The layout classes moved from the
+                <nav> to the <ul> so the rendering is byte-identical. */}
+            <nav aria-label="Footer">
+              <ul className="flex list-none flex-wrap items-center justify-center gap-x-6 gap-y-3 p-0 sm:justify-start">
+                <FooterLink href="/about">About</FooterLink>
+                <FooterLink href="/terms">Terms</FooterLink>
+                <FooterLink href="/privacy">Privacy</FooterLink>
+                <FooterLink href="/guidelines">Guidelines</FooterLink>
+                <FooterLink href="/veterans">Veterans</FooterLink>
+                <FooterLink href="/data-deletion">Data Deletion</FooterLink>
+                <li>
+                  <a
+                    href="mailto:support@chapter3five.app"
+                    className="text-sm font-semibold text-warm-300 transition-colors hover:text-coral-strong"
+                  >
+                    Support
+                  </a>
+                </li>
+              </ul>
             </nav>
           </div>
 

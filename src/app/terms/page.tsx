@@ -47,6 +47,7 @@ const toc: TocItem[] = [
   { id: "governing-law", label: "Governing law" },
   { id: "changes", label: "Changes to these terms" },
   { id: "misc", label: "Severability and everything else" },
+  { id: "government", label: "U.S. Government customers" },
   { id: "contact", label: "How to reach us" },
 ];
 
@@ -850,7 +851,108 @@ export default function TermsPage() {
         </p>
       </LegalSection>
 
-      <LegalSection id="contact" number={18} title="How to reach us">
+      {/* GOVERNMENT ADDENDUM (2026-09-11). A federal buyer legally cannot
+          accept an ordinary consumer agreement: FAR 52.232-39 voids any
+          clause that makes the Government indemnify a vendor, the Contract
+          Disputes Act displaces arbitration, and federal law displaces
+          state law. Without this section a VA purchase-card buy is
+          impossible on paper, no matter who wants it. */}
+      <LegalSection
+        id="government"
+        number={18}
+        title="U.S. Government customers"
+      >
+        <p>
+          This section applies only when the customer is the United States
+          Government or one of its agencies, buying chapter3five with
+          appropriated funds. It exists because a federal buyer cannot
+          lawfully agree to some of the ordinary terms above. Where this
+          section and anything earlier disagree,{" "}
+          <strong>this section wins</strong> for that customer. Nothing here
+          changes anything for anyone else.
+        </p>
+        <p>
+          <strong>Indemnification (Section 13) does not apply.</strong> The
+          Government cannot agree in advance to pay an open-ended future
+          obligation, and we are not asking it to. Its liability is whatever
+          federal law says it is.
+        </p>
+        <p>
+          <strong>
+            Arbitration and the class action waiver (Section 14) do not
+            apply.
+          </strong>{" "}
+          Disputes are handled under the Contract Disputes Act, through the
+          contracting officer, the boards of contract appeals, and the Court
+          of Federal Claims.
+        </p>
+        <p>
+          <strong>Governing law (Section 15) does not apply.</strong> Federal
+          law governs. There is no Pennsylvania venue and no state court
+          jurisdiction.
+        </p>
+        <p>
+          <strong>Nothing renews automatically.</strong> A subscription bought
+          by the Government ends when its term or its funding ends, whichever
+          comes first. Continuing requires a new order. We will never charge
+          beyond the period the Government has funded.
+        </p>
+        <p>
+          <strong>We will not cut off access without warning.</strong> We
+          will not suspend or terminate a Government account except by
+          written notice to the contracting officer, with a reasonable chance
+          to fix the problem first.
+        </p>
+        <p>
+          <strong>We cannot change the deal by updating this page.</strong>{" "}
+          Section 16 does not bind the Government. A change only takes effect
+          for a Government customer through a contract modification signed by
+          a warranted contracting officer.
+        </p>
+        <p>
+          <strong>We will not use the Government&rsquo;s name to sell.</strong>{" "}
+          We will not name an agency, use its seal, or describe it as a
+          customer in any advertising, press, or investor material without
+          written permission, and we do not claim endorsement by any agency
+          or any of its employees.
+        </p>
+        <p>
+          <strong>Price is exclusive of taxes</strong> from which the
+          Government is exempt. Assignment of claims follows federal law
+          rather than Section 17. Any term anywhere in this agreement that
+          would obligate the Government beyond what an authorized official
+          has agreed to in writing is unenforceable against it.
+        </p>
+        <p>
+          <strong>Accessibility.</strong> We will provide a current
+          Accessibility Conformance Report describing how chapter3five
+          measures against Section 508 standards, on request, at no charge.
+          Ask at{" "}
+          <a
+            href="mailto:hello@chapter3five.app"
+            className="font-semibold underline underline-offset-4"
+          >
+            hello@chapter3five.app
+          </a>
+          .
+        </p>
+        <LegalCallout>
+          <p>
+            <strong>If you are a contracting officer:</strong> you can ask us
+            for this section as a one-page signable addendum,
+            and for our Accessibility Conformance Report, at{" "}
+            <a
+              href="mailto:hello@chapter3five.app"
+              className="font-semibold underline underline-offset-4"
+            >
+              hello@chapter3five.app
+            </a>
+            . We would rather fix a term than lose a veteran over paperwork.
+          </p>
+        </LegalCallout>
+      </LegalSection>
+
+      <LegalSection id="contact" number={19} title="How to reach us">
         <p>
           For anything about these Terms:{" "}
           <a
