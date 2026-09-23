@@ -106,6 +106,28 @@ export default function TermsPage() {
             claims to. It is free, has nothing for sale, and keeps what you
             write on your own device.
           </p>
+          <p className="mt-4">
+            <strong>They also cover TOGETHERWEFEAR</strong>, our horror
+            library, made and operated by the same company. It is free, has
+            nothing for sale, and ships every book on your device. Two things
+            about it are specific enough to say here.
+          </p>
+          <p className="mt-4">
+            <strong>The stories other readers post are theirs, not ours.</strong>{" "}
+            Every submission is read and approved before it appears, and we
+            refuse anything explicit, any slur, and anything aimed at a real
+            person. What is published is fiction written to unsettle you.
+            Posting a story gives us permission to publish it in the app; you
+            keep it, and you can ask us to take yours down at any time by
+            writing to us. Do not post anything that is not yours to post, and
+            do not put real names, addresses or phone numbers in a story.
+          </p>
+          <p className="mt-4">
+            <strong>The books belong to their author.</strong> They are free
+            to read in the app. They are not free to copy, republish, record,
+            translate or sell, and reading them here does not transfer any
+            right to do so.
+          </p>
         </LegalCallout>
       </LegalSection>
 

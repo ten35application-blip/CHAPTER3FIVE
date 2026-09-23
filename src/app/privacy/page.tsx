@@ -20,6 +20,7 @@ const toc: TocItem[] = [
   { id: "third-parties", label: "Who we share it with" },
   { id: "anthropic", label: "How AI inference works" },
   { id: "seven-seven", label: "7:7, our Bible study app" },
+  { id: "togetherwefear", label: "TOGETHERWEFEAR, our horror library" },
   { id: "retention", label: "How long we keep it" },
   { id: "your-rights", label: "Your rights" },
   { id: "cookies", label: "Cookies" },
@@ -49,7 +50,7 @@ export default function PrivacyPage() {
         <p>
           This policy applies to chapter3five.app and covers everyone who
           uses the service — creators, inheritors, and visitors. It also
-          covers <strong>7:7</strong>, our Bible study app, which is built and
+          covers <strong>7:7</strong> and <strong>TOGETHERWEFEAR</strong>, our other apps, which are built and
           operated by the same company. Section 6a explains what 7:7 does
           differently, and the short version is that it collects considerably
           less: it has no accounts and keeps what you write on your own phone.
@@ -392,7 +393,68 @@ export default function PrivacyPage() {
         </p>
       </LegalSection>
 
-      <LegalSection id="retention" number={8} title="How long we keep it">
+      <LegalSection id="togetherwefear" number={8} title="TOGETHERWEFEAR, our horror library">
+        <p>
+          <strong>TOGETHERWEFEAR</strong> is a separate app from the same
+          company. It holds the complete horror library of Poe Nocturne, free
+          to read, and a place where readers can tell scary stories
+          anonymously. Like 7:7, it collects far less than chapter3five does
+          &mdash; but unlike any of our other apps, part of it is written by
+          the people using it, and that part is worth explaining properly.
+        </p>
+        <ul>
+          <li>
+            <strong>There is no account.</strong> No sign-in, no email, no
+            password. The app is issued an anonymous identifier on first use
+            so that a submitted story has an author the database can check,
+            and so a device that abuses the feed can be stopped. It is not
+            linked to your name, your email, or any other app of ours.
+          </li>
+          <li>
+            <strong>The books and your place in them stay on your phone.</strong>{" "}
+            All seventy-two books ship inside the app. Reading, turning pages
+            and every bookmark work with no network connection and send us
+            nothing at all.
+          </li>
+          <li>
+            <strong>Stories you submit are read by a person before anyone
+            sees them.</strong> When you send a story it is held, not
+            published. It is reviewed, and only then does it appear in the
+            app. Nothing you write is visible to other readers until that
+            happens, and a story that is not approved is never shown to
+            anybody.
+          </li>
+          <li>
+            <strong>What a story carries.</strong> The name you typed, the
+            story itself, and the anonymous identifier of the device that
+            sent it. The name is whatever you chose &mdash; we do not check
+            it, and you should not use your real one if you would rather not
+            be identifiable. Please do not put real phone numbers, email
+            addresses or home addresses in a story; the app refuses the
+            obvious cases, but it cannot catch everything.
+          </li>
+          <li>
+            <strong>Reporting.</strong> Any published story can be reported
+            from inside the app. A report records which story and which
+            device reported it, so that we can act on it and so the same
+            device cannot flood us with reports.
+          </li>
+          <li>
+            <strong>No advertising, no analytics, no tracking.</strong> The
+            app contains no advertising network, no analytics SDK and no
+            third-party tracker of any kind.
+          </li>
+        </ul>
+        <LegalCallout>
+          <p>
+            Stories in TOGETHERWEFEAR are fiction written by readers. They are
+            meant to unsettle you. Nothing in them is a claim about a real
+            person, and any story that appears to target one is refused.
+          </p>
+        </LegalCallout>
+      </LegalSection>
+
+      <LegalSection id="retention" number={9} title="How long we keep it">
         <ul>
           <li>
             <strong>While your account is active</strong> — we keep your data
@@ -419,7 +481,7 @@ export default function PrivacyPage() {
         </ul>
       </LegalSection>
 
-      <LegalSection id="your-rights" number={9} title="Your rights">
+      <LegalSection id="your-rights" number={10} title="Your rights">
         <p>
           Wherever you live, we extend you the rights in GDPR and the
           California Consumer Privacy Act:
@@ -461,7 +523,7 @@ export default function PrivacyPage() {
         </p>
       </LegalSection>
 
-      <LegalSection id="cookies" number={10} title="Cookies">
+      <LegalSection id="cookies" number={11} title="Cookies">
         <p>
           We use only the <strong>strictly necessary cookies</strong> that
           keep you signed in. No third-party advertising cookies, no
@@ -475,7 +537,7 @@ export default function PrivacyPage() {
         </p>
       </LegalSection>
 
-      <LegalSection id="children" number={11} title="Children">
+      <LegalSection id="children" number={12} title="Children">
         <p>
           chapter3five is for adults. You must be 18 or older to have an
           account, and we do not knowingly collect personal information from
@@ -487,7 +549,7 @@ export default function PrivacyPage() {
 
       <LegalSection
         id="international"
-        number={12}
+        number={13}
         title="Where your data lives"
       >
         <p>
@@ -501,7 +563,7 @@ export default function PrivacyPage() {
         </p>
       </LegalSection>
 
-      <LegalSection id="breach" number={13} title="If something goes wrong">
+      <LegalSection id="breach" number={14} title="If something goes wrong">
         <p>
           If a data breach affects your personal information, we will notify
           you by email <strong>within 72 hours</strong> of confirming it,
@@ -511,7 +573,7 @@ export default function PrivacyPage() {
         </p>
       </LegalSection>
 
-      <LegalSection id="changes" number={14} title="Changes to this policy">
+      <LegalSection id="changes" number={15} title="Changes to this policy">
         <p>
           If we change this policy in any material way, we&rsquo;ll email you
           at least 30 days before the change takes effect and update the date
@@ -520,7 +582,7 @@ export default function PrivacyPage() {
         </p>
       </LegalSection>
 
-      <LegalSection id="contact" number={15} title="How to reach us">
+      <LegalSection id="contact" number={16} title="How to reach us">
         <p>
           For any privacy question or data request:{" "}
           <a
