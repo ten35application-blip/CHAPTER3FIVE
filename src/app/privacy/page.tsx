@@ -19,6 +19,7 @@ const toc: TocItem[] = [
   { id: "how-we-use", label: "How we use it" },
   { id: "third-parties", label: "Who we share it with" },
   { id: "anthropic", label: "How AI inference works" },
+  { id: "seven-seven", label: "7:7, our Bible study app" },
   { id: "retention", label: "How long we keep it" },
   { id: "your-rights", label: "Your rights" },
   { id: "cookies", label: "Cookies" },
@@ -47,7 +48,11 @@ export default function PrivacyPage() {
         </p>
         <p>
           This policy applies to chapter3five.app and covers everyone who
-          uses the service — creators, inheritors, and visitors.
+          uses the service — creators, inheritors, and visitors. It also
+          covers <strong>7:7</strong>, our Bible study app, which is built and
+          operated by the same company. Section 6a explains what 7:7 does
+          differently, and the short version is that it collects considerably
+          less: it has no accounts and keeps what you write on your own phone.
         </p>
       </LegalSection>
 
@@ -335,7 +340,59 @@ export default function PrivacyPage() {
         </p>
       </LegalSection>
 
-      <LegalSection id="retention" number={7} title="How long we keep it">
+      <LegalSection id="seven-seven" number={7} title="7:7, our Bible study app">
+        <p>
+          <strong>7:7</strong> is a separate app from the same company. A
+          person writes down what they are going through, the app finds
+          passages from the Berean Standard Bible that speak to it, and can
+          then help them think about how those passages might relate to their
+          life. It handles data differently from chapter3five, and mostly by
+          collecting far less of it.
+        </p>
+        <ul>
+          <li>
+            <strong>There is no account.</strong> 7:7 has no sign-in, no
+            email, and no password. On first launch the app is issued an
+            anonymous identifier so that daily usage limits can be applied.
+            That identifier is not linked to your name, your email, or your
+            chapter3five account.
+          </li>
+          <li>
+            <strong>Your journal stays on your phone.</strong> What you write
+            is stored in the app&rsquo;s own storage on your device. We do not
+            upload it, we cannot read it, and deleting the app deletes it.
+          </li>
+          <li>
+            <strong>The Bible is on your phone too.</strong> The full text
+            ships inside the app, so reading, searching and being given a
+            verse all work with no network connection and no request to us.
+          </li>
+        </ul>
+        <LegalCallout>
+          <p>
+            <strong>The one time your writing leaves the device</strong> is if
+            you choose to talk a passage through. Your entry and that passage
+            are then sent to <strong>Anthropic</strong>, under the same
+            zero-data-retention terms described in section 6: used to generate
+            the reply, not retained afterwards, and never used to train AI
+            models. We do not store a copy on our own servers.
+          </p>
+        </LegalCallout>
+        <p>
+          What we do store for 7:7 is a <strong>count</strong> — how many
+          conversations that anonymous identifier has had today — so the
+          daily limit can be enforced. No journal text, no verse, no reply.
+        </p>
+        <p>
+          7:7 is a Bible study companion. It is not counselling, therapy,
+          spiritual direction or medical care, it does not speak for God, and
+          it never claims to. If what somebody writes suggests they may be in
+          danger, the app shows crisis helplines on the device, before
+          anything else, without sending anything to us or to anyone.
+        </p>
+      </LegalSection>
+
+      <LegalSection id="retention" number={8} title="How long we keep it">
         <ul>
           <li>
             <strong>While your account is active</strong> — we keep your data
@@ -362,7 +419,7 @@ export default function PrivacyPage() {
         </ul>
       </LegalSection>
 
-      <LegalSection id="your-rights" number={8} title="Your rights">
+      <LegalSection id="your-rights" number={9} title="Your rights">
         <p>
           Wherever you live, we extend you the rights in GDPR and the
           California Consumer Privacy Act:
@@ -404,7 +461,7 @@ export default function PrivacyPage() {
         </p>
       </LegalSection>
 
-      <LegalSection id="cookies" number={9} title="Cookies">
+      <LegalSection id="cookies" number={10} title="Cookies">
         <p>
           We use only the <strong>strictly necessary cookies</strong> that
           keep you signed in. No third-party advertising cookies, no
@@ -418,7 +475,7 @@ export default function PrivacyPage() {
         </p>
       </LegalSection>
 
-      <LegalSection id="children" number={10} title="Children">
+      <LegalSection id="children" number={11} title="Children">
         <p>
           chapter3five is for adults. You must be 18 or older to have an
           account, and we do not knowingly collect personal information from
@@ -430,7 +487,7 @@ export default function PrivacyPage() {
 
       <LegalSection
         id="international"
-        number={11}
+        number={12}
         title="Where your data lives"
       >
         <p>
@@ -444,7 +501,7 @@ export default function PrivacyPage() {
         </p>
       </LegalSection>
 
-      <LegalSection id="breach" number={12} title="If something goes wrong">
+      <LegalSection id="breach" number={13} title="If something goes wrong">
         <p>
           If a data breach affects your personal information, we will notify
           you by email <strong>within 72 hours</strong> of confirming it,
@@ -454,7 +511,7 @@ export default function PrivacyPage() {
         </p>
       </LegalSection>
 
-      <LegalSection id="changes" number={13} title="Changes to this policy">
+      <LegalSection id="changes" number={14} title="Changes to this policy">
         <p>
           If we change this policy in any material way, we&rsquo;ll email you
           at least 30 days before the change takes effect and update the date
@@ -463,7 +520,7 @@ export default function PrivacyPage() {
         </p>
       </LegalSection>
 
-      <LegalSection id="contact" number={14} title="How to reach us">
+      <LegalSection id="contact" number={15} title="How to reach us">
         <p>
           For any privacy question or data request:{" "}
           <a

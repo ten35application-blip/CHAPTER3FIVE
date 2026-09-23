@@ -89,6 +89,24 @@ export default function TermsPage() {
           . If you don&rsquo;t agree with any of it, please don&rsquo;t use
           chapter3five.
         </p>
+        <LegalCallout>
+          <p>
+            <strong>These Terms also cover 7:7</strong>, our Bible study app,
+            which is made and operated by the same company. Where these Terms
+            speak about accounts, subscriptions or companions, those parts
+            simply do not apply to 7:7 — it has none of them. What does apply
+            is everything about acceptable use, your content, disclaimers,
+            liability and governing law.
+          </p>
+          <p className="mt-4">
+            7:7 is a Bible study companion. It helps you find where Scripture
+            speaks to what you are going through and think about what it might
+            mean. It is <strong>not</strong> counselling, therapy, spiritual
+            direction or medical care, it does not speak for God, and it never
+            claims to. It is free, has nothing for sale, and keeps what you
+            write on your own device.
+          </p>
+        </LegalCallout>
       </LegalSection>
 
       <LegalSection
